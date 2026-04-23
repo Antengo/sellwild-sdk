@@ -1,0 +1,13 @@
+{
+  "name": "sellwild-core-sample",
+  "version": "1.0.0",
+  "description": "Runnable sample for @sellwild/sdk-core",
+  "scripts": {
+    "start": "ts-node sample.ts",
+    "build": "tsc --esModuleInterop sample.ts"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

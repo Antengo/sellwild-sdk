@@ -1,0 +1,52 @@
+# Introduction
+
+The Sellwild SDK delivers programmatic display and video ads into native mobile applications through a managed Prebid Server instance. All auctions run server-to-server — no client-side JavaScript, no WebView ad rendering, no SDK bloat.
+
+## How It Works
+
+<ArchitectureDiagram />
+
+## Why Server-Side
+
+| | Client-Side SDKs | Sellwild (Server-Side) |
+|---|---|---|
+| **Integration** | 10-40 individual SDKs | 1 SDK |
+| **Auction** | On-device, sequential | Server-side, parallel |
+| **Latency** | 2-5s per waterfall | <200ms total |
+| **App Size** | +30-80 MB | +2 MB |
+| **Device IDs** | Each SDK reads separately | Passed once, securely |
+| **Updates** | App Store release required | Server config change |
+| **Reporting** | Fragmented across SSPs | Unified dashboard |
+
+## Supported Platforms
+
+| Platform | Language | Min Version | Package Manager |
+|----------|----------|-------------|-----------------|
+| iOS | Swift 5.5 | iOS 13+ | SPM / CocoaPods |
+| Android | Kotlin | API 21+ | Gradle (Maven) |
+| React Native | TypeScript | RN 0.70+ | npm / yarn |
+| Flutter | Dart 3 | Flutter 3.10+ | pub.dev |
+
+## Ad Formats
+
+| Format | Size | Placement |
+|--------|------|-----------|
+| Banner | 320x50 | Top/bottom of screen |
+| MREC | 300x250 | In-feed, between content |
+| Leaderboard | 728x90 | Tablet top/bottom |
+| Interstitial | Fullscreen | Between screens |
+| Video | 300x250, 320x480 | In-feed, interstitial |
+| Native Listings | Flexible | In-feed marketplace cards |
+
+## Next Steps
+
+Choose your platform to get started:
+
+- [iOS (Swift)](/guide/ios) — Swift Package Manager or CocoaPods
+- [Android (Kotlin)](/guide/android) — Gradle dependency
+- [React Native](/guide/react-native) — npm package
+- [Flutter](/guide/flutter) — pub.dev package
+
+Or learn about the ad server:
+
+- [Prebid Server](/guide/prebid-server) — SSP configuration, GDPR, auction telemetry

@@ -1,0 +1,19 @@
+{
+  "name": "@sellwild/sdk-core",
+  "version": "1.0.1",
+  "description": "Sellwild mobile advertising SDK - core types, API client, and ad configuration",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

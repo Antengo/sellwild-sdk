@@ -1,0 +1,21 @@
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# SPA routing — send all non-file paths to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[dev]
+  port = 8888
+  targetPort = 3100
+  autoLaunch = false
+
+[context.dev.environment]
+  SW_AWS_REGION = "us-west-1"

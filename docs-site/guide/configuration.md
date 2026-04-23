@@ -1,0 +1,380 @@
+# Configuration Reference
+
+Complete reference for all Sellwild SDK configuration options. These fields apply across all platforms (iOS, Android, React Native, Flutter) unless noted otherwise.
+
+---
+
+## Table of Contents
+
+1. [SellwildConfig](#sellwildconfig)
+2. [PrebidServerConfig](#prebidserverconfig)
+3. [Ad Size Reference](#ad-size-reference)
+4. [Ad Refresh Configuration](#ad-refresh-configuration)
+5. [Debug Mode](#debug-mode)
+
+---
+
+## SellwildConfig
+
+The primary configuration object passed to all SDK components. Every ad view, widget, and API client reads from this object.
+
+### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `partnerCode` | `String` | Your Sellwild partner identifier. Used as `ortb2.app.publisher.id` in bid requests. |
+| `listingsUrl` | `String` | Full URL to the Sellwild listings API endpoint for your partner account. |
+
+### App Identity
+
+These fields ensure bid requests are classified as in-app traffic. Without them, DSPs treat impressions as anonymous web traffic and most will not bid.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `appBundleId` | `String?` | `null` | App bundle identifier (e.g., `"com.example.myapp"`). Sent as `ortb2.app.bundle`. |
+| `appStoreUrl` | `String?` | `null` | App store listing URL. Sent as `ortb2.app.storeurl`. Required for app-ads.txt verification. |
+| `apiBaseUrl` | `String` | `"https://api.sellwild.com"` | Base URL for Sellwild API calls. Override for staging environments. |
+
+### Prebid Server
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `prebidServer` | `PrebidServerConfig?` | `null` | Server-side header bidding configuration. See [PrebidServerConfig](#prebidserverconfig). When `null`, Prebid.js runs client-side adapters in the WebView. |
+| `prebidSrc` | `String?` | `null` | Custom Prebid.js bundle URL. When `null`, the SDK uses the default CDN-hosted build. |
+
+### Display Customization
+
+These fields control the appearance of the listing widget and listing cards.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `title` | `String?` | `null` | Widget header title text. |
+| `titleColor` | `String` | `"#000000"` | Widget title color (CSS hex). |
+| `titleSize` | `Int` | `16` | Widget title font size in pixels. |
+| `linkText` | `String?` | `"View all"` | Text for the "view all" link in the widget header. |
+| `linkColor` | `String` | `"#0066cc"` | Link text color (CSS hex). |
+| `buyNowText` | `String?` | `"Buy now"` | Call-to-action button text. |
+| `fontSize` | `Int` | `13` | Listing title font size in pixels. |
+| `fontFamily` | `String` | `""` | CSS font family for listing text. Empty string uses the system default. |
+| `fontColor` | `String` | `"#ffffff"` | Listing title font color (CSS hex). |
+| `priceColor` | `String` | `"#333333"` | Price badge background color (CSS hex). |
+| `priceFontColor` | `String` | `"#ffffff"` | Price badge text color (CSS hex). |
+| `marginBottom` | `Int` | `10` | Bottom margin in pixels. |
+| `colors` | `List<String>` | `["#333333"]` | Theme accent colors (CSS hex values). |
+| `overlayTitle` | `Bool` | `false` | Overlay listing title on top of the listing image. |
+| `cardWidth` | `String` | `""` | Listing card width (CSS value). Empty string uses the default. |
+| `cardHeight` | `String` | `""` | Listing card height (CSS value). Empty string uses the default. |
+
+### Watermark
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `watermark` | `Bool` | `false` | Show a watermark on the widget. |
+| `watermarkTitle` | `String` | `"Powered by Sellwild"` | Watermark text content. |
+
+### Ad Zone IDs
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `bannerZid` | `String?` | `null` | Zone ID for the top banner placement. |
+| `bottomBannerZid` | `String?` | `null` | Zone ID for the bottom banner placement. |
+| `mobileBannerZid` | `String?` | `null` | Mobile-specific banner zone ID (overrides `bannerZid` on mobile). |
+| `mobileZids` | `List<String>` | `[]` | Additional mobile zone IDs for multi-slot layouts. |
+
+### Ad Display Control
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `gamTag` | `String?` | `null` | Google Ad Manager ad unit path (e.g., `"/12345678/weatherbug_mrec"`). Enables GAM as the primary ad server with Prebid as header bidding. |
+| `gptProxyUrl` | `String?` | `null` | Proxy URL for the GPT (Google Publisher Tag) script. Use when direct GPT loading is blocked. |
+| `disableGpt` | `Bool` | `false` | Disable Google Publisher Tag entirely. |
+| `adDisableDisplay` | `Bool` | `false` | Disable all display ad rendering. Listings still load. |
+| `hideBannerTop` | `Bool` | `false` | Hide the top banner ad placement in the widget. |
+| `hideBannerBottom` | `Bool` | `false` | Hide the bottom banner ad placement in the widget. |
+| `adType` | `String?` | `null` | Ad system selection. Defaults to `"PrebidOnly"` when `null`. |
+| `floorMultiplier` | `Double` | `1.0` | Multiplier applied to bid floor prices. Values above `1.0` raise floors. |
+
+### Ad Refresh
+
+See [Ad Refresh Configuration](#ad-refresh-configuration) for detailed behavior.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `adRefreshMax` | `Int` | `0` | Maximum ad refresh cycles (all platforms). `0` = disabled. |
+| `adRefreshMaxMobile` | `Int` | `0` | Maximum ad refresh cycles on mobile. Overrides `adRefreshMax` when nonzero. |
+| `adRefreshInterval` | `Duration/Number` | `30 seconds` | Time between refresh cycles. iOS uses `TimeInterval` (seconds), Android uses `Long` (milliseconds), RN/Flutter use seconds. |
+| `maxFailedAuctions` | `Int` | `3` | Stop refreshing after N consecutive no-fill auctions. |
+
+### Privacy and Consent
+
+See [Privacy & Consent](/guide/privacy) for detailed usage.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `gppEnabled` | `Bool` | `false` | Enable IAB Global Privacy Platform support. |
+| `tcfVersion` | `Int` | `0` | TCF version. `0` = disabled, `2` = TCF v2.x. |
+| `gdprApplies` | `Bool?` | `null` | Whether GDPR applies. `null` = determined by Prebid Server. RN/Flutter only. |
+| `tcString` | `String?` | `null` | TCF v2 consent string. RN/Flutter only. |
+| `iabCats` | `List<String>` | `[]` | IAB content category codes for brand safety (e.g., `["IAB15", "IAB15-10"]`). |
+
+### Third-Party Integrations
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `boltive` | `Bool` | `false` | Enable Boltive ad quality monitoring. |
+| `boltiveClientId` | `String` | `""` | Your Boltive client identifier. |
+| `lotame` | `Bool` | `false` | Enable Lotame data enrichment. |
+
+### Debug
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `debug` | `Bool` | `false` | Enable verbose debug logging. See [Debug Mode](#debug-mode). |
+
+---
+
+## PrebidServerConfig
+
+Controls server-side header bidding through Prebid Server. Set this on `SellwildConfig.prebidServer` to route all bid requests through the managed Prebid Server instance.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `accountId` | `String` | Yes | -- | Your Prebid Server account ID. Typically matches your partner code. |
+| `endpoint` | `String` | Yes | -- | Full URL to the OpenRTB 2.6 auction endpoint. Use `"https://prebid.sellwild.com/openrtb2/auction"`. |
+| `bidders` | `List<String>` | Yes | -- | SSP bidder adapter codes to include in the server-side auction. Must match adapters configured on the Prebid Server instance. |
+| `timeout` | `Int` | No | `1500` | Maximum time in milliseconds the server waits for SSP responses before closing the auction. |
+| `syncEndpoint` | `String?` | No | `null` | Cookie sync endpoint URL. Derived from `endpoint` if omitted (replaces `/openrtb2/auction` with `/cookie_sync`). |
+
+### Example
+
+```swift
+// iOS
+config.prebidServer = PrebidServerConfig(
+    accountId: "weatherbug-prod",
+    endpoint: "https://prebid.sellwild.com/openrtb2/auction",
+    bidders: ["appnexus", "rubicon", "ix", "openx"],
+    timeout: 1500
+)
+```
+
+```kotlin
+// Android
+prebidServer = PrebidServerConfig(
+    accountId = "sellwild",
+    endpoint = "https://prebid.sellwild.com/openrtb2/auction",
+    bidders = listOf("appnexus", "pubmatic", "ix", "rubicon", "openx"),
+    timeout = 1500
+)
+```
+
+```ts
+// React Native / Flutter
+prebidServer: {
+  accountId: 'weatherbug',
+  endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
+  bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
+  timeout: 1500,
+}
+```
+
+### What Gets Injected
+
+When `prebidServer` is set, the SDK injects the following into the WebView before Prebid.js loads:
+
+```js
+pbjs.setConfig({
+    ortb2: {
+        app: {
+            bundle: "com.example.myapp",
+            storeurl: "https://play.google.com/store/apps/details?id=com.example.myapp",
+            publisher: { id: "weatherbug" }
+        }
+    },
+    userSync: {
+        filterSettings: {
+            iframe: { bidders: "*", filter: "exclude" }
+        },
+        syncDelay: 5000
+    },
+    s2sConfig: {
+        accountId: "weatherbug-prod",
+        bidders: ["appnexus", "rubicon", "ix", "openx"],
+        timeout: 1500,
+        adapter: "prebidServer",
+        endpoint: {
+            p1Consent: "https://prebid.sellwild.com/openrtb2/auction",
+            noP1Consent: "https://prebid.sellwild.com/openrtb2/auction"
+        }
+    }
+});
+```
+
+### Available Bidders
+
+The following SSPs are configured on `prebid.sellwild.com`. Use the bidder code in your `bidders` list.
+
+| SSP | Bidder Code |
+|-----|------------|
+| AppNexus / Xandr | `appnexus` |
+| PubMatic | `pubmatic` |
+| Index Exchange | `ix` |
+| Rubicon / Magnite | `rubicon` |
+| OpenX | `openx` |
+| TripleLift | `triplelift` |
+| Sharethrough | `sharethrough` |
+| InMobi | `inmobi` |
+| Smaato | `smaato` |
+| Yieldmo | `yieldmo` |
+| 33Across | `33across` |
+| Sovrn | `sovrn` |
+| GumGum | `gumgum` |
+| Unruly | `unruly` |
+| Criteo | `criteo` |
+| Media.net | `medianet` |
+| Amazon TAM | `amazontam` |
+
+Contact sdk@sellwild.com to enable additional bidders for your account.
+
+---
+
+## Ad Size Reference
+
+Predefined ad dimensions for banner ad units. Use these values when constructing `SellwildAdView` or `SellwildBanner`.
+
+| Enum / String | Width | Height | IAB Name | Recommended Placement |
+|--------------|-------|--------|----------|----------------------|
+| `.banner320x50` / `"320x50"` | 320 | 50 | Mobile Banner | Top or bottom of screen |
+| `.mrec300x250` / `"300x250"` | 300 | 250 | Medium Rectangle (MREC) | In-feed, between content sections |
+| `.leaderboard728x90` / `"728x90"` | 728 | 90 | Leaderboard | Tablet top or bottom |
+| `.halfPage300x600` / `"300x600"` | 300 | 600 | Half Page | Sidebar (tablet landscape) |
+| `.wideSkyscraper160x600` / `"160x600"` | 160 | 600 | Wide Skyscraper | Sidebar (tablet landscape) |
+
+### Platform-Specific Names
+
+| Platform | Type Name | Values |
+|----------|-----------|--------|
+| iOS (Swift) | `AdSize` enum | `.banner320x50`, `.mrec300x250`, `.leaderboard728x90`, `.halfPage300x600`, `.wideSkyscraper160x600` |
+| Android (Kotlin) | `AdSize` enum | `BANNER_320x50`, `MREC_300x250`, `LEADERBOARD_728x90`, `HALF_PAGE_300x600`, `WIDE_SKYSCRAPER_160x600` |
+| React Native (TS) | `AdSize` string literal | `"320x50"`, `"300x250"`, `"728x90"`, `"160x600"`, `"300x600"`, `"1x1"` |
+| Flutter (Dart) | `SellwildAdSize` enum | `banner320x50`, `mrec300x250`, `leaderboard728x90`, `halfPage300x600`, `wideSkyscraper160x600` |
+
+### Choosing Ad Sizes
+
+| Device | Recommended Sizes |
+|--------|-------------------|
+| Phone (portrait) | `320x50` (banner), `300x250` (MREC) |
+| Phone (landscape) | `320x50` (banner), `300x250` (MREC) |
+| Tablet (portrait) | `728x90` (leaderboard), `300x250` (MREC) |
+| Tablet (landscape) | `728x90` (leaderboard), `300x600` (half page) |
+
+---
+
+## Ad Refresh Configuration
+
+The SDK supports automatic ad refresh -- after a successful impression, the ad slot re-auctions after a configurable interval.
+
+### Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `adRefreshMaxMobile` | `Int` | `0` (disabled) | Maximum number of refresh cycles per ad view instance on mobile. Set to `0` to disable ad refresh. |
+| `adRefreshMax` | `Int` | `0` | Maximum refresh cycles for desktop/tablet widget layouts. `adRefreshMaxMobile` takes precedence on mobile when nonzero. |
+| `adRefreshInterval` | `Duration` | `30 seconds` | Time between refresh cycles. IAB guidelines recommend a minimum of 30 seconds. |
+| `maxFailedAuctions` | `Int` | `3` | Number of consecutive no-fill auctions before the SDK stops refreshing that ad slot. |
+
+### Platform-Specific Types
+
+| Platform | `adRefreshInterval` Type | Example |
+|----------|-------------------------|---------|
+| iOS | `TimeInterval` (seconds, `Double`) | `config.adRefreshInterval = 30.0` |
+| Android | `Long` (milliseconds) | `adRefreshIntervalMs = 30_000L` |
+| React Native | `number` (seconds) | `adRefreshInterval: 30` |
+| Flutter | `Duration` | `adRefreshInterval: Duration(seconds: 30)` |
+
+### Behavior
+
+1. The refresh timer starts after the first `onAdImpression` callback fires.
+2. Each cycle triggers a new Prebid Server auction for the same ad slot.
+3. Calling `pause()` cancels the pending refresh timer. Calling `resume()` does not restart it -- the next impression triggers a new cycle.
+4. Calling `load()` resets the internal refresh counter to zero.
+5. When `maxFailedAuctions` consecutive auctions return no fill, refresh stops for that ad slot.
+6. Each `SellwildAdView` / `SellwildBanner` instance has its own independent refresh counter.
+
+### Example
+
+```swift
+// iOS -- refresh every 45 seconds, up to 8 times
+config.adRefreshMaxMobile = 8
+config.adRefreshInterval = 45.0
+config.maxFailedAuctions = 5
+```
+
+```kotlin
+// Android -- refresh every 30 seconds, up to 10 times
+config = SellwildConfig(
+    partnerCode = "weatherbug",
+    listingsUrl = "...",
+    adRefreshMaxMobile = 10,
+    adRefreshIntervalMs = 30_000L,
+    maxFailedAuctions = 3,
+    // ...
+)
+```
+
+---
+
+## Debug Mode
+
+Enable verbose logging to diagnose integration issues.
+
+```swift
+config.debug = true   // iOS
+```
+
+```kotlin
+SellwildConfig(debug = true, ...)   // Android
+```
+
+```ts
+buildConfig({ debug: true, ... })   // React Native
+```
+
+```dart
+SellwildConfig(debug: true, ...)    // Flutter
+```
+
+### What Debug Mode Enables
+
+| Feature | Description |
+|---------|-------------|
+| Prebid.js debug output | Enables `pbjs.setConfig({ debug: true })` in the WebView. All auction events, bid values, and errors are logged to the WebView console. |
+| SDK lifecycle logging | Prints ad load, impression, click, error, and refresh events to the platform logger (`print` on iOS, `Log.d` on Android, `console.log` on RN, `debugPrint` on Flutter). |
+| Response telemetry | Logs per-bidder response times from `ext.responsetimemillis` after each auction. |
+
+### Inspecting WebView Console Output
+
+**iOS (Simulator or Device):**
+
+1. On your iOS device or simulator, enable **Settings > Safari > Advanced > Web Inspector**.
+2. In Safari on your Mac, select **Develop > [Device Name] > [Your App]**.
+3. The Prebid.js auction output appears in the Safari Web Inspector console.
+
+**Android:**
+
+1. Open Chrome on your development machine.
+2. Navigate to `chrome://inspect/#devices`.
+3. Your app's WebView appears under the device. Click **Inspect** to open DevTools.
+
+**React Native:**
+
+1. Enable remote debugging in the RN developer menu.
+2. Use Chrome DevTools or Flipper to view console output from `react-native-webview`.
+
+**Flutter:**
+
+1. On Android, use `chrome://inspect/#devices`.
+2. On iOS, use Safari Web Inspector as described above.
+
+### Production Warning
+
+Do not ship with `debug: true`. Debug mode increases CPU usage, network logging, and exposes auction CPM values in the console. Always set `debug: false` (or omit the field) for production builds.
