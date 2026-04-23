@@ -1,0 +1,320 @@
+import type { SellwildConfig, AdSize } from '@sellwild/sdk-core'
+
+const WIDGET_CDN = 'https://widget.sellwild.com'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Prebid.js WebView pre-configuration
+//
+// This script runs BEFORE prebid.js loads by enqueuing via pbjs.que.
+// It addresses two critical WebView issues:
+//
+// 1. ortb2.app — Prebid.js running in a native WebView must declare itself as
+//    in-app inventory (OpenRTB app object) rather than web (site object).
+//    Without this, bid requests look like browser traffic; DSPs that buy app
+//    inventory separately will not bid, and app-ads.txt enforcement is bypassed.
+//
+// 2. userSync iframe filtering — Third-party cookies are blocked in all native
+//    WebViews (WKWebView, Android WebView). Iframe-based cookie syncs will
+//    always fail silently, wasting network requests and adding latency. Image
+//    pixel syncs may still work for some bidders. A longer syncDelay gives the
+//    auction time to complete before sync requests compete for bandwidth.
+// ─────────────────────────────────────────────────────────────────────────────
+function buildPrebidPreConfigScript(config: SellwildConfig): string {
+  const ortb2App: Record<string, unknown> = {
+    publisher: { id: config.partnerCode },
+  }
+  if (config.appBundleId) ortb2App['bundle'] = config.appBundleId
+  if (config.appStoreUrl) ortb2App['storeurl'] = config.appStoreUrl
+
+  let s2sConfigBlock = ''
+  if (config.prebidServer) {
+    const ps = config.prebidServer
+    const s2s = {
+      accountId: ps.accountId,
+      bidders: ps.bidders,
+      timeout: ps.timeout ?? 1500,
+      adapter: 'prebidServer',
+      endpoint: { p1Consent: ps.endpoint, noP1Consent: ps.endpoint },
+      ...(ps.syncEndpoint
+        ? { syncEndpoint: { p1Consent: ps.syncEndpoint, noP1Consent: ps.syncEndpoint } }
+        : {}),
+    }
+    s2sConfigBlock = `,
+        // Route all Prebid bidder calls through Prebid Server (S2S mode).
+        // Solves cookie/IDFA limitations — the auction runs server-to-server.
+        s2sConfig: ${JSON.stringify(s2s)}`
+  }
+
+  return `
+  <script>
+    // Prebid.js WebView pre-configuration — runs before prebid.js initialises.
+    window.pbjs = window.pbjs || {};
+    window.pbjs.que = window.pbjs.que || [];
+    window.pbjs.que.push(function() {
+      window.pbjs.setConfig({
+        // Declare in-app inventory so DSPs bid on app traffic, not web traffic.
+        ortb2: {
+          app: ${JSON.stringify(ortb2App)}
+        },
+        // Iframe cookie syncs always fail in WebViews — disable them.
+        // Image pixel syncs may still work for some bidders.
+        userSync: {
+          filterSettings: {
+            iframe: { bidders: '*', filter: 'exclude' }
+          },
+          syncDelay: 5000
+        }${s2sConfigBlock}${config.debug ? `,
+        // debug mode
+        debug: true` : ''}
+      });
+    });
+  </script>`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Config → element attributes
+//
+// The sellwild-widget reads configuration from HTML element attributes via
+// withCustomizationsFromElement() in src/providers/Customizations/index.ts.
+// Attribute names can be in any case (kebab-case, camelCase, CONSTANT_CASE).
+// Complex objects are JSON-stringified; arrays are comma-separated.
+// ─────────────────────────────────────────────────────────────────────────────
+function configToAttributes(config: SellwildConfig): string {
+  const parts: string[] = []
+
+  const add = (name: string, value: unknown) => {
+    if (value === undefined || value === null || value === '' || value === false || value === 0) return
+    if (typeof value === 'object') {
+      parts.push(`${name}='${JSON.stringify(value).replace(/'/g, '&#39;')}'`)
+    } else {
+      parts.push(`${name}="${String(value)}"`)
+    }
+  }
+
+  // Identity / listings
+  add('partner-code', config.partnerCode)
+  add('listings', config.listingsUrl)
+
+  // Display
+  add('title', config.title)
+  add('link-text', config.linkText)
+  add('buy-now-text', config.buyNowText)
+  add('title-color', config.titleColor)
+  add('title-size', config.titleSize)
+  add('link-color', config.linkColor)
+  add('link-size', config.linkSize)
+  add('font-size', config.fontSize)
+  add('font-family', config.fontFamily)
+  add('font-color', config.fontColor)
+  add('price-color', config.priceColor)
+  add('price-font-color', config.priceFontColor)
+  add('margin-bottom', config.marginBottom)
+  add('card-width', config.cardWidth)
+  add('card-height', config.cardHeight)
+  add('colors', config.colors?.join(','))
+  add('watermark', config.watermark || undefined)
+  add('watermark-title', config.watermarkTitle)
+  add('overlay-title', config.overlayTitle || undefined)
+  add('css', config.css)
+
+  // Ads – display
+  add('gam-tag', config.gamTag)
+  add('gam-tag-desc', config.gamTagDesc)
+  add('banner-zid', config.bannerZid)
+  add('bottom-banner-zid', config.bottomBannerZid)
+  add('mobile-banner-zid', config.mobileBannerZid)
+  add('mobile-zid', config.mobileZids?.join(','))
+  add('display-zid', config.displayZids?.join(','))
+  add('skyscraper-zid', config.skyscraperZid)
+  add('hide-banner-top', config.hideBannerTop || undefined)
+  add('hide-banner-bottom', config.hideBannerBottom || undefined)
+  add('gpt-proxy-url', config.gptProxyUrl)
+  add('disable-gpt', config.disableGpt || undefined)
+  add('ad-disable-display', config.adDisableDisplay || undefined)
+  add('safe-frame', config.safeFrame || undefined)
+
+  // Ads – refresh
+  add('ad-refresh-max', config.adRefreshMax)
+  add('ad-refresh-max-mobile', config.adRefreshMaxMobile)
+  add('ad-refresh-interval', config.adRefreshInterval)
+  add('max-failed-auctions', config.maxFailedAuctions)
+  add('prebid-src', config.prebidSrc)
+  add('prebid-defer', config.prebidDefer)
+  add('floor-multiplier', config.floorMultiplier !== 1 ? config.floorMultiplier : undefined)
+
+  // Ads – geo
+  add('ad-geo-block', config.adGeoBlock)
+  add('ad-geo-block-refresh', config.adGeoBlockRefresh)
+
+  // Ads – compliance
+  add('gpp-enabled', config.gppEnabled || undefined)
+  add('tcf-version', config.tcfVersion)
+  add('consent-management', config.consentManagement)
+  add('schain-sid', config.schainSid)
+  add('s2s-config', config.s2sConfig)
+  add('iab-cats', config.iabCats?.join(','))
+
+  // Bidders (serialized as JSON — parseValue() in the widget will JSON.parse these)
+  add('ix', config.ix)
+  add('openx', config.openx)
+  add('pubmatic', config.pubmatic)
+  add('appnexus', config.appnexus)
+  add('rubicon', config.rubicon)
+  add('apstag', config.apstag)
+
+  // Waterfall
+  add('pub-ventures', config.pubVentures)
+  add('saambaa', config.saambaa)
+  add('opsco', config.opsco)
+  add('bidstream', config.bidstream)
+
+  // Third-party
+  add('boltive', config.boltive || undefined)
+  add('boltive-client-id', config.boltiveClientId)
+  add('lotame', config.lotame || undefined)
+  add('growthcode', config.growthcode)
+  add('bh-tag', config.bhTag)
+
+  // Debug
+  add('debug', config.debug || undefined)
+  add('membership-type', config.membershipType)
+
+  return parts.join('\n    ')
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Widget HTML builder
+//
+// The widget JS URL can be:
+//   - A publisher-specific bundle: https://widget.sellwild.com/{CODE}/{SLUG}.js
+//     (config already baked in at build time; element attributes are optional)
+//   - The generic bundle: https://widget.sellwild.com/partner.js
+//     (reads all config from element attributes — SDK default)
+//
+// Pass widgetJsUrl in config to override the default generic bundle.
+// ─────────────────────────────────────────────────────────────────────────────
+export function buildWidgetHtml(config: SellwildConfig & { widgetJsUrl?: string }): string {
+  const widgetSrc = config.widgetJsUrl ?? `${WIDGET_CDN}/partner.js`
+  const prebidSrc = config.prebidSrc ?? `${WIDGET_CDN}/prebid.js`
+  const attrs = configToAttributes(config)
+
+  const prebidPreConfig = buildPrebidPreConfigScript(config)
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; background: transparent; overflow-x: hidden; }
+  </style>
+  ${prebidPreConfig}
+</head>
+<body>
+  <sellwild-widget
+    ${attrs}
+  ></sellwild-widget>
+
+  <script>
+    (function() {
+      function send(type, payload) {
+        try {
+          window.ReactNativeWebView.postMessage(JSON.stringify(Object.assign({ type: type }, payload || {})));
+        } catch(e) {}
+      }
+
+      // partner/index.tsx calls window.open() on listing tap — intercept it
+      var _open = window.open;
+      window.open = function(url) {
+        if (url && (url.indexOf('itemDetail') !== -1 || url.indexOf('sellwild.com') !== -1)) {
+          send('LISTING_CLICK', { url: url });
+          return null;
+        }
+        return _open.apply(window, arguments);
+      };
+
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() { send('WIDGET_LOADED'); }, 600);
+      });
+
+      window.addEventListener('error', function(e) {
+        send('ERROR', { message: e.message || 'Widget load error' });
+      });
+    })();
+  </script>
+
+  <script async src="${prebidSrc}"></script>
+  <script async src="${widgetSrc}"></script>
+</body>
+</html>`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Banner HTML builder
+// ─────────────────────────────────────────────────────────────────────────────
+export function buildBannerHtml(
+  config: SellwildConfig,
+  zoneId: number | string,
+  size: AdSize
+): string {
+  const [width, height] = size.split('x').map(Number)
+  const gptSrc = config.gptProxyUrl
+    ? `${config.gptProxyUrl}/tag/js/gpt.js`
+    : 'https://securepubads.g.doubleclick.net/tag/js/gpt.js'
+
+  const adScript = config.gamTag && !config.disableGpt
+    ? buildGptScript(config.gamTag, gptSrc, width, height)
+    : buildZoneScript(String(zoneId), width, height)
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: ${width}px; height: ${height}px; overflow: hidden; background: transparent; }
+    #ad { width: ${width}px; height: ${height}px; }
+  </style>
+</head>
+<body>
+  <div id="ad"></div>
+  <script>
+    function notify(type) {
+      try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: type })); } catch(e) {}
+    }
+    ${adScript}
+  </script>
+</body>
+</html>`
+}
+
+function buildGptScript(gamTag: string, gptSrc: string, w: number, h: number): string {
+  return `
+    window.googletag = window.googletag || { cmd: [] };
+    var s = document.createElement('script');
+    s.src = '${gptSrc}'; s.async = true;
+    document.head.appendChild(s);
+    googletag.cmd.push(function() {
+      var slot = googletag.defineSlot('${gamTag}', [${w}, ${h}], 'ad');
+      if (slot) {
+        slot.addService(googletag.pubads());
+        googletag.pubads().enableSingleRequest();
+        googletag.pubads().addEventListener('slotRenderEnded', function(e) {
+          if (!e.isEmpty) notify('AD_IMPRESSION');
+        });
+        googletag.enableServices();
+        googletag.display('ad');
+      }
+    });`
+}
+
+function buildZoneScript(zoneId: string, w: number, h: number): string {
+  return `
+    var s = document.createElement('script');
+    s.src = 'https://bidstream.sellwild.com/ads?zone=${zoneId}&w=${w}&h=${h}';
+    s.async = true;
+    s.onload = function() { notify('AD_IMPRESSION'); };
+    document.getElementById('ad').appendChild(s);`
+}
