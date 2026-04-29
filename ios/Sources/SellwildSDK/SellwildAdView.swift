@@ -223,16 +223,10 @@ extension SellwildAdView: WKNavigationDelegate {
 
 // MARK: - Delegate Protocol
 
+@objc
 public protocol SellwildAdViewDelegate: AnyObject {
-    func sellwildAdViewDidLoad(_ adView: SellwildAdView)
-    func sellwildAdView(_ adView: SellwildAdView, didReceiveImpressionForZoneId zoneId: String)
-    func sellwildAdViewDidRecordClick(_ adView: SellwildAdView)
-    func sellwildAdView(_ adView: SellwildAdView, didFailWithError error: Error)
-}
-
-public extension SellwildAdViewDelegate {
-    func sellwildAdViewDidLoad(_ adView: SellwildAdView) {}
-    func sellwildAdView(_ adView: SellwildAdView, didReceiveImpressionForZoneId zoneId: String) {}
-    func sellwildAdViewDidRecordClick(_ adView: SellwildAdView) {}
-    func sellwildAdView(_ adView: SellwildAdView, didFailWithError error: Error) {}
+    @objc optional func sellwildAdViewDidLoad(_ adView: SellwildAdView)
+    @objc optional func sellwildAdView(_ adView: SellwildAdView, didReceiveImpressionForZoneId zoneId: String)
+    @objc optional func sellwildAdViewDidRecordClick(_ adView: SellwildAdView)
+    @objc optional func sellwildAdView(_ adView: SellwildAdView, didFailWithError error: Error)
 }

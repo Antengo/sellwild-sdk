@@ -26,6 +26,9 @@ class SellwildConfig {
   final String watermarkTitle;
 
   // Ads - Display
+  /// Ad system to initialize. Defaults to "PrebidOnly". AdStack silently
+  /// no-ops if this is unset, so the SDK always sets it.
+  final String? adType;
   final String? bannerZid;
   final String? bottomBannerZid;
   final String? mobileBannerZid;
@@ -92,6 +95,7 @@ class SellwildConfig {
     this.overlayTitle = false,
     this.watermark = false,
     this.watermarkTitle = 'Powered by Sellwild',
+    this.adType,
     this.bannerZid,
     this.bottomBannerZid,
     this.mobileBannerZid,

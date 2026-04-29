@@ -106,6 +106,11 @@ public final class SellwildWidgetView: UIView {
 
         add("partner-code", config.partnerCode)
         add("listings", config.listingsUrl)
+        // Disable remote customization fetch — see RN htmlBuilder.ts for details.
+        attrs.append("customize=\"false\"")
+        // Ad system selection — REQUIRED. AdStack silently does nothing if
+        // adType is unset, meaning Prebid never loads. See RN htmlBuilder.ts.
+        add("ad-type", config.adType ?? "PrebidOnly")
         add("gam-tag", config.gamTag)
         add("gpt-proxy-url", config.gptProxyUrl)
         addBool("disable-gpt", config.disableGpt)
@@ -199,8 +204,9 @@ public final class SellwildWidgetView: UIView {
     private func buildWidgetHTML() -> String {
         // Allow override with a publisher-specific compiled bundle.
         // Default: https://widget.sellwild.com/partner.js (generic, reads attrs from element)
+        // partner.js loads its own Prebid build internally — do not inject a
+        // separate prebid <script> tag (causes double-load and breaks header bidding).
         let widgetSrc = config.widgetJsUrl ?? "https://widget.sellwild.com/partner.js"
-        let prebidSrc = config.prebidSrc ?? "https://widget.sellwild.com/prebid.js"
         let attrs = configAttributes()
 
         let prebidPreConfig = prebidPreConfigScript()
@@ -248,7 +254,6 @@ public final class SellwildWidgetView: UIView {
             })();
           </script>
 
-          <script async src="\(prebidSrc)"></script>
           <script async src="\(widgetSrc)"></script>
         </body>
         </html>
@@ -316,16 +321,10 @@ extension SellwildWidgetView: WKNavigationDelegate {
 
 // MARK: - Delegate Protocol
 
+@objc
 public protocol SellwildWidgetViewDelegate: AnyObject {
-    func sellwildWidgetViewDidLoad(_ widgetView: SellwildWidgetView)
-    func sellwildWidgetView(_ widgetView: SellwildWidgetView, didTapListing listing: SellwildListing)
-    func sellwildWidgetView(_ widgetView: SellwildWidgetView, didReceiveAdImpressionForZoneId zoneId: String)
-    func sellwildWidgetView(_ widgetView: SellwildWidgetView, didFailWithError error: Error)
-}
-
-public extension SellwildWidgetViewDelegate {
-    func sellwildWidgetViewDidLoad(_ widgetView: SellwildWidgetView) {}
-    func sellwildWidgetView(_ widgetView: SellwildWidgetView, didTapListing listing: SellwildListing) {}
-    func sellwildWidgetView(_ widgetView: SellwildWidgetView, didReceiveAdImpressionForZoneId zoneId: String) {}
-    func sellwildWidgetView(_ widgetView: SellwildWidgetView, didFailWithError error: Error) {}
+    @objc optional func sellwildWidgetViewDidLoad(_ widgetView: SellwildWidgetView)
+    @objc optional func sellwildWidgetView(_ widgetView: SellwildWidgetView, didTapListing listing: SellwildListing)
+    @objc optional func sellwildWidgetView(_ widgetView: SellwildWidgetView, didReceiveAdImpressionForZoneId zoneId: String)
+    @objc optional func sellwildWidgetView(_ widgetView: SellwildWidgetView, didFailWithError error: Error)
 }
