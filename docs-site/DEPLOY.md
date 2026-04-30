@@ -62,4 +62,4 @@ npm install
 npm run dev
 ```
 
-Runs at http://localhost:5173 with hot reload.
+Runs at `http://localhost:5173` with hot reload.
