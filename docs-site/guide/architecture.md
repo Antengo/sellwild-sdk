@@ -20,54 +20,7 @@ This page describes how the Sellwild SDK works internally -- from the moment you
 
 The Sellwild SDK uses a server-to-server (S2S) architecture for programmatic ad auctions. No client-side bidder adapters run on the device. A single HTTP request to the managed Prebid Server instance replaces the traditional waterfall of sequential SDK calls.
 
-```
-+-----------------------------------------------------------------+
-|  Your Mobile App                                                |
-|                                                                 |
-|  +-----------------------------------------------------------+ |
-|  |  Sellwild SDK (native layer)                               | |
-|  |                                                            | |
-|  |  +------------------+  +------------------+  +-----------+ | |
-|  |  | SellwildAdView   |  | SellwildWidget   |  | API Client| | |
-|  |  | (banner, MREC,   |  | (listing carousel|  | (listings | | |
-|  |  |  video, interst.)|  |  + embedded ads) |  |  fetch)   | | |
-|  |  +--------+---------+  +--------+---------+  +-----+-----+ | |
-|  |           |                      |                  |       | |
-|  |  +--------v----------------------v------------------v-----+ | |
-|  |  |  Managed WebView (WKWebView / Android WebView)         | | |
-|  |  |                                                        | | |
-|  |  |  Prebid.js (S2S mode)                                  | | |
-|  |  |    - ortb2.app signals injected                        | | |
-|  |  |    - iframe syncs disabled                             | | |
-|  |  |    - s2sConfig pointing to prebid.sellwild.com         | | |
-|  |  +------------------------+-------------------------------+ | |
-|  +---------------------------|-------------------------------+  |
-+-----------------------------|-----------------------------------+
-                              |
-                    HTTPS POST /openrtb2/auction
-                              |
-                              v
-+-----------------------------+-----------------------------------+
-|  prebid.sellwild.com  (Prebid Server)                           |
-|                                                                 |
-|  +-----------------------------------------------------------+ |
-|  |  OpenRTB 2.6 Auction Engine                                | |
-|  |                                                            | |
-|  |  - Parse imp[], app{}, device{}, regs{}, user{}            | |
-|  |  - Enforce GDPR / TCF v2 vendor consent                   | |
-|  |  - Apply bid floors                                        | |
-|  |  - Fan out parallel bid requests to configured SSPs        | |
-|  |  - Collect responses within timeout window                 | |
-|  |  - Run auction: select winning bid per impression          | |
-|  |  - Return seatbid[] with creative markup (adm)             | |
-|  +---+----------+----------+----------+----------+-----------+ |
-|      |          |          |          |          |              |
-+------|----------|----------|----------|----------|-------------+
-       v          v          v          v          v
-  +---------+ +---------+ +------+ +-------+ +--------+
-  | AppNexus| | PubMatic| | IX   | |Rubicon| | OpenX  |  ... 400+
-  +---------+ +---------+ +------+ +-------+ +--------+
-```
+<SystemOverviewDiagram />
 
 ### Key Design Decisions
 
@@ -84,57 +37,7 @@ The Sellwild SDK uses a server-to-server (S2S) architecture for programmatic ad 
 
 The following diagram traces a single ad request from the app through to creative rendering.
 
-```
-  App                       SDK WebView               Prebid Server             SSPs
-   |                            |                          |                      |
-   |  1. load()                 |                          |                      |
-   +--------------------------->|                          |                      |
-   |                            |                          |                      |
-   |  2. Build HTML with        |                          |                      |
-   |     s2sConfig, ortb2.app,  |                          |                      |
-   |     userSync filters       |                          |                      |
-   |                            |                          |                      |
-   |  3. Load Prebid.js         |                          |                      |
-   |     (from CDN or custom    |                          |                      |
-   |      prebidSrc URL)        |                          |                      |
-   |                            |                          |                      |
-   |                            |  4. POST /openrtb2/auction                     |
-   |                            |     {imp[], app{}, device{}, regs{}, tmax}      |
-   |                            +------------------------->|                      |
-   |                            |                          |                      |
-   |                            |                          |  5. Parallel bid     |
-   |                            |                          |     requests to each |
-   |                            |                          |     configured SSP   |
-   |                            |                          +--------------------->|
-   |                            |                          |                      |
-   |                            |                          |  6. Bids returned    |
-   |                            |                          |     (or no-bid)      |
-   |                            |                          |<---------------------+
-   |                            |                          |                      |
-   |                            |                          |  7. Run auction:     |
-   |                            |                          |     apply floors,    |
-   |                            |                          |     enforce consent, |
-   |                            |                          |     pick winner(s)   |
-   |                            |                          |                      |
-   |                            |  8. BidResponse          |                      |
-   |                            |     {seatbid[], ext{}}   |                      |
-   |                            |<-------------------------+                      |
-   |                            |                          |                      |
-   |  9. Render winning         |                          |                      |
-   |     creative (adm) in      |                          |                      |
-   |     WebView ad slot        |                          |                      |
-   |                            |                          |                      |
-   |  10. JS bridge fires       |                          |                      |
-   |      AD_LOADED callback    |                          |                      |
-   |<---------------------------+                          |                      |
-   |                            |                          |                      |
-   |  11. Impression pixel      |                          |                      |
-   |      fires (viewability)   |                          |                      |
-   |                            |                          |                      |
-   |  12. JS bridge fires       |                          |                      |
-   |      AD_IMPRESSION callback|                          |                      |
-   |<---------------------------+                          |                      |
-```
+<RequestFlowDiagram />
 
 ### Timing
 

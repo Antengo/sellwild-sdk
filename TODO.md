@@ -99,7 +99,32 @@ Automated demo video showing the SDK in action.
 
 ---
 
-## 6. Documentation — Primetime Ready
+## 6. Package Publishing — HIGH PRIORITY
+
+None of the SDK packages are published to their respective registries. Developers following the docs cannot install the SDK on any platform except iOS via SPM (which works because Package.swift is in the GitHub repo).
+
+### Current Status
+
+| Platform | Registry | Package Name | Status |
+|----------|----------|--------------|--------|
+| React Native | npm | `@sellwild/react-native-sdk` | **Not published** |
+| Core | npm | `@sellwild/sdk-core` | **Not published** |
+| Android | Maven (`maven.sellwild.com`) | `com.sellwild:sdk:1.0.0` | **Domain doesn't resolve** |
+| Flutter | pub.dev | `sellwild_sdk` | **Not published** |
+| iOS (CocoaPods) | CocoaPods trunk | `SellwildSDK` | **Not published** |
+| iOS (SPM) | GitHub | `Antengo/sellwild-sdk` | **Works** |
+
+### What Needs to Happen
+
+- [ ] **npm**: Create `@sellwild` org on npmjs.com, publish `@sellwild/sdk-core` then `@sellwild/react-native-sdk`
+- [ ] **Maven**: Either set up `maven.sellwild.com` (S3 bucket + Route53 + CloudFront) or publish to Maven Central, or use JitPack (`com.github.Antengo:sellwild-sdk`)
+- [ ] **pub.dev**: Run `dart pub publish` from `flutter/` (requires Google account with publish rights)
+- [ ] **CocoaPods**: Run `pod trunk push ios/SellwildSDK.podspec` (requires CocoaPods trunk account)
+- [ ] **Stopgap option**: Update all docs to install directly from the GitHub repo until registry publishing is complete
+
+---
+
+## 7. Documentation — Primetime Ready (PR #4 merged)
 
 The docs at `sdk.sellwild.com` must be flawless.
 
@@ -114,7 +139,7 @@ The docs at `sdk.sellwild.com` must be flawless.
 
 ---
 
-## 7. SDK Fixes PR — Merge Ready
+## 8. SDK Fixes PR — Merge Ready
 
 PR #2 on `Antengo/sellwild-sdk` must be clean.
 
@@ -128,13 +153,14 @@ PR #2 on `Antengo/sellwild-sdk` must be clean.
 
 ## Priority Order
 
-1. **Telemetry pipeline** — without data, we can't show value
-2. **Admin dashboard** — Weatherbug needs to see we have operational control
-3. **Documentation** — must be primetime before sharing with their engineers
-4. **SDK fixes PR** — merge so the repo is clean
-5. **Remotion slideshow** — for the pitch meeting
-6. **Demo video** — leave-behind after the meeting
-7. **Reporting** — deliver in the first week of the pilot
+1. **Package publishing** — developers literally cannot install the SDK right now
+2. **Telemetry pipeline** — without data, we can't show value
+3. **Admin dashboard** — Weatherbug needs to see we have operational control
+4. **Documentation** — must be primetime before sharing with their engineers *(PR #4 merged, docs deployed)*
+5. **SDK fixes PR** — merge so the repo is clean *(PR #2 merged)*
+6. **Remotion slideshow** — for the pitch meeting
+7. **Demo video** — leave-behind after the meeting
+8. **Reporting** — deliver in the first week of the pilot
 
 ---
 

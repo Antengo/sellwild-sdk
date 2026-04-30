@@ -32,8 +32,8 @@ All auctions run server-to-server via `prebid.sellwild.com`. The SDK renders ads
 | Android Studio | Hedgehog (2023.1.1) or later |
 | Kotlin | 1.9.0+ |
 | `minSdk` | 21 (Android 5.0 Lollipop) |
-| `compileSdk` | 34 |
-| `targetSdk` | 34 |
+| `compileSdk` | 35 |
+| `targetSdk` | 35 |
 | Gradle | 8.2+ |
 | AGP (Android Gradle Plugin) | 8.1+ |
 
@@ -71,7 +71,7 @@ In your app-level `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sellwild-sdk:1.0.0")
+    implementation("com.sellwild:sdk:1.0.0")
 
     // Required -- coroutines for async listings API
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")

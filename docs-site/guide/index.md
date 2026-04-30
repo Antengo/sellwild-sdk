@@ -4,26 +4,7 @@ The Sellwild SDK delivers programmatic display and video ads into native mobile 
 
 ## How It Works
 
-```
-Your App
-  └── Sellwild SDK (native)
-        ├── Native Ad Views (banner, MREC, video, interstitial)
-        ├── Native Listing Cards (marketplace content)
-        └── Prebid Server Client
-              └── prebid.sellwild.com
-                    └── Server-side auction across all SSPs
-                          ├── AppNexus/Xandr
-                          ├── PubMatic
-                          ├── Magnite/Rubicon
-                          ├── Index Exchange
-                          ├── OpenX
-                          ├── TripleLift
-                          ├── Sharethrough
-                          ├── InMobi
-                          ├── Smaato
-                          ├── Yieldmo
-                          └── 380+ more
-```
+<ArchitectureDiagram />
 
 ## Why Server-Side
 

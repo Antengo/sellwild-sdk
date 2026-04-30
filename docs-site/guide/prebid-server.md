@@ -43,49 +43,7 @@ https://prebid.sellwild.com/openrtb2/auction
 
 The following diagram illustrates the OpenRTB request flow when the SDK is configured with `PrebidServerConfig`:
 
-```
-+------------------+       +-------------------+       +------------------+
-|                  |       |                   |       |                  |
-|  Mobile App      |       |  prebid.sellwild  |       |  SSP Endpoints   |
-|  (Flutter SDK)   |       |  .com             |       |  (AppNexus,      |
-|                  |       |  Prebid Server    |       |   Pubmatic, etc) |
-+--------+---------+       +---------+---------+       +--------+---------+
-         |                           |                          |
-         |  1. WebView loads         |                          |
-         |     Prebid.js with        |                          |
-         |     s2sConfig set         |                          |
-         |                           |                          |
-         |  2. POST /openrtb2/auction|                          |
-         |     (single request with  |                          |
-         |      imp[], app{}, regs{})|                          |
-         +-------------------------->|                          |
-         |                           |                          |
-         |                           |  3. Fan out: parallel    |
-         |                           |     OpenRTB bid requests |
-         |                           |     to each configured   |
-         |                           |     SSP                  |
-         |                           +------------------------->|
-         |                           |                          |
-         |                           |  4. SSPs return bids     |
-         |                           |     (or no-bid) within   |
-         |                           |     timeout window       |
-         |                           |<-------------------------+
-         |                           |                          |
-         |                           |  5. Server runs auction: |
-         |                           |     - Applies floors     |
-         |                           |     - Enforces GDPR      |
-         |                           |     - Selects winner(s)  |
-         |                           |                          |
-         |  6. Response with         |                          |
-         |     seatbid[] array,      |                          |
-         |     ext.responsetimemillis|                          |
-         |<--------------------------+                          |
-         |                           |                          |
-         |  7. Prebid.js renders     |                          |
-         |     winning creative      |                          |
-         |     in ad slot            |                          |
-         |                           |                          |
-```
+<AuctionFlowDiagram />
 
 **Step-by-step:**
 

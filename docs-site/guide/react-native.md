@@ -30,7 +30,7 @@ Server-side header bidding for React Native applications, powered by Prebid Serv
 | Xcode | 15.0+ | Required for iOS builds; macOS Sonoma or later |
 | Android Studio | Hedgehog (2023.1.1)+ | JDK 17 bundled |
 | CocoaPods | 1.14+ | `sudo gem install cocoapods` if not installed |
-| React Native WebView | 13.0+ | Peer dependency |
+| React Native WebView | 11.0+ | Peer dependency |
 
 Verify your environment before proceeding:
 

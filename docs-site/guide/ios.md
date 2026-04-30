@@ -680,7 +680,7 @@ override func viewDidAppear(_ animated: Bool) {
 - Invalidates the refresh timer.
 - Removes the `WKUserContentController` script message handler to break the retain cycle.
 
-`SellwildWidgetView` follows the same pattern. No manual cleanup is required beyond calling `pause()` when the view leaves the screen.
+`SellwildWidgetView` does not require manual lifecycle management. The widget handles its own cleanup when deallocated.
 
 ### Memory Considerations
 
