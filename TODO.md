@@ -8,14 +8,19 @@ Everything needed to close the $10M Weatherbug deal.
 
 The demo must show live auction data flowing from PBS to a dashboard.
 
-- [ ] Verify InfluxDB integration is active on `prebid.sellwild.com`
+- [x] Verify InfluxDB integration is active on `prebid.sellwild.com`
   - Config has `metrics.influxdb` — confirm data is landing in InfluxDB Cloud
   - Endpoint: `us-east-1-1.aws.cloud2.influxdata.com`
   - Org: `d56fc5d9affa530e`, bucket: `prebid_metrics`
-- [ ] Instrument auction requests with tracking fields (partner code, app bundle, ad size, bidder, CPM, fill/no-fill)
-- [ ] Confirm per-bidder response times, bid prices, and error rates are captured
+  - ✅ Verified — Athena tables (counter, gauge, histogram, meter, timer) have data back to Sep 2025
+- [x] Instrument auction requests with tracking fields (partner code, app bundle, ad size, bidder, CPM, fill/no-fill)
+  - ✅ Enabled `analytics.log` in PBS config — every auction logged as structured JSON to CloudWatch
+- [x] Confirm per-bidder response times, bid prices, and error rates are captured
+  - ✅ Full OpenRTB response logged: responsetimemillis, seatbid with CPMs, ext.errors per bidder
 - [ ] Add impression and click event tracking from the SDK to the events API
-- [ ] Validate data pipeline end-to-end: SDK → PBS auction → InfluxDB → queryable
+- [x] Validate data pipeline end-to-end: SDK → PBS auction → InfluxDB → queryable
+  - ✅ Demo app → PBS → CloudWatch Logs → Dashboard (per-auction deep-link works)
+  - ✅ PBS → Athena (aggregate metrics: counter/histogram/timer tables queryable)
 
 ---
 
@@ -23,14 +28,18 @@ The demo must show live auction data flowing from PBS to a dashboard.
 
 A partner-facing portal to view auction data in near real-time.
 
-- [ ] Build admin dashboard (React + Tailwind, match CMS design system)
-  - Use DM Sans, stone palette, same components as `sellwild-cms-design`
-- [ ] Dashboard views:
-  - [ ] Real-time auction feed (last 100 auctions, auto-refresh)
-  - [ ] CPM by SSP (bar chart — which bidders are winning and at what price)
+- [x] Build admin dashboard (React + Tailwind, match CMS design system)
+  - ✅ Next.js app in `dashboard/` — DM Sans, dark theme, Recharts visualizations
+- [x] Dashboard views:
+  - [x] Real-time auction feed (last 100 auctions, auto-refresh)
+    - ✅ `/auctions` — live feed from CloudWatch with source, bidders, winner, CPM
+  - [x] CPM by SSP (bar chart — which bidders are winning and at what price)
+    - ✅ Overview page — Athena histogram table
   - [ ] Fill rate by ad size (320x50, 300x250, etc.)
-  - [ ] Response time by SSP (latency monitoring)
-  - [ ] Error rate by SSP (which bidders are failing and why)
+  - [x] Response time by SSP (latency monitoring)
+    - ✅ Overview page — latency trend chart + per-bidder breakdown
+  - [x] Error rate by SSP (which bidders are failing and why)
+    - ✅ Bidder summary table with fill/error rates
   - [ ] Revenue summary (estimated daily/weekly/monthly)
 - [ ] Filtering: by partner code, date range, ad size, SSP
 - [ ] Export: CSV/PDF report generation
@@ -44,7 +53,8 @@ Weatherbug needs to know we can diagnose and fix issues with data.
 
 - [ ] Automated alerting: if fill rate drops below threshold, notify
 - [ ] Per-SSP health check: detect when a bidder stops responding
-- [ ] Auction log viewer: drill into a specific auction by ID, see full OpenRTB request/response
+- [x] Auction log viewer: drill into a specific auction by ID, see full OpenRTB request/response
+  - ✅ `/auctions/[auctionId]` — per-slot bidder breakdown, latency chart, raw JSON, deep-linked from demo app
 - [ ] GDPR compliance report: show which auctions were blocked by consent enforcement
 - [ ] Generate sample weekly partner report (PDF) showing:
   - Total impressions, fill rate, avg CPM, revenue by SSP
