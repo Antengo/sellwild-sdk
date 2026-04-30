@@ -43,7 +43,7 @@ The SDK is written in pure Swift and depends only on `UIKit` and `WebKit`, both 
 2. Enter the repository URL:
 
 ```
-https://github.com/nicholasq/sellwild-sdk.git
+https://github.com/Antengo/sellwild-sdk.git
 ```
 
 3. Set the dependency rule to **Up to Next Major Version** starting at `1.0.0`.
@@ -54,7 +54,7 @@ Alternatively, add the dependency directly in your `Package.swift`:
 ```swift
 dependencies: [
     .package(
-        url: "https://github.com/nicholasq/sellwild-sdk.git",
+        url: "https://github.com/Antengo/sellwild-sdk.git",
         from: "1.0.0"
     )
 ],
@@ -169,8 +169,8 @@ final class AdViewController: UIViewController {
         )
 
         // App identity for OpenRTB ortb2.app signals
-        c.appBundleId = "com.aws.android"
-        c.appStoreUrl = "https://apps.apple.com/app/id123456789"
+        c.appBundleId = Bundle.main.bundleIdentifier ?? "com.example.myapp"
+        c.appStoreUrl = "https://apps.apple.com/app/id1234567890"
 
         // Prebid Server S2S configuration
         c.prebidServer = PrebidServerConfig(
@@ -298,8 +298,8 @@ struct AdContentView: View {
             partnerCode: "weatherbug",
             listingsUrl: "https://api.sellwild.com/widget/listings?partner=weatherbug"
         )
-        c.appBundleId = "com.aws.android"
-        c.appStoreUrl = "https://apps.apple.com/app/id123456789"
+        c.appBundleId = Bundle.main.bundleIdentifier ?? "com.example.myapp"
+        c.appStoreUrl = "https://apps.apple.com/app/id1234567890"
         c.prebidServer = PrebidServerConfig(
             accountId: "weatherbug-prod",
             endpoint: "https://prebid.sellwild.com/openrtb2/auction",
@@ -553,8 +553,8 @@ When `prebidServer` is set on `SellwildConfig`, the SDK automatically injects `s
 pbjs.setConfig({
     ortb2: {
         app: {
-            bundle: "com.aws.android",
-            storeurl: "https://apps.apple.com/app/id123456789",
+            bundle: "com.example.myapp",
+            storeurl: "https://apps.apple.com/app/id1234567890",
             publisher: { id: "weatherbug" }
         }
     },

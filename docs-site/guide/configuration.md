@@ -31,7 +31,7 @@ These fields ensure bid requests are classified as in-app traffic. Without them,
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `appBundleId` | `String?` | `null` | App bundle identifier (e.g., `"com.aws.android"`). Sent as `ortb2.app.bundle`. |
+| `appBundleId` | `String?` | `null` | App bundle identifier (e.g., `"com.example.myapp"`). Sent as `ortb2.app.bundle`. |
 | `appStoreUrl` | `String?` | `null` | App store listing URL. Sent as `ortb2.app.storeurl`. Required for app-ads.txt verification. |
 | `apiBaseUrl` | `String` | `"https://api.sellwild.com"` | Base URL for Sellwild API calls. Override for staging environments. |
 
@@ -185,8 +185,8 @@ When `prebidServer` is set, the SDK injects the following into the WebView befor
 pbjs.setConfig({
     ortb2: {
         app: {
-            bundle: "com.aws.android",
-            storeurl: "https://apps.apple.com/app/id123456789",
+            bundle: "com.example.myapp",
+            storeurl: "https://play.google.com/store/apps/details?id=com.example.myapp",
             publisher: { id: "weatherbug" }
         }
     },
