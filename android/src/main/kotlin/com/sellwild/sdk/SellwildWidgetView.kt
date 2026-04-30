@@ -201,13 +201,19 @@ class SellwildWidgetView @JvmOverloads constructor(
 
         add("partner-code", config.partnerCode)
         add("listings", config.listingsUrl)
+        // Disable remote customization fetch — see RN htmlBuilder.ts for details.
+        parts.add("customize=\"false\"")
+        // Ad system selection — REQUIRED. See RN htmlBuilder.ts for details.
+        add("ad-type", config.adType ?: "PrebidOnly")
         add("gam-tag", config.gamTag)
         add("gpt-proxy-url", config.gptProxyUrl)
         addBool("disable-gpt", config.disableGpt)
         add("banner-zid", config.bannerZid)
         add("bottom-banner-zid", config.bottomBannerZid)
         add("mobile-banner-zid", config.mobileBannerZid)
-        if (config.mobileZids.isNotEmpty()) add("mobile-zid", config.mobileZids.joinToString(","))
+        // Filter empties — widget parser does not strip empty strings post-split.
+        config.mobileZids.filter { it.isNotEmpty() }.takeIf { it.isNotEmpty() }
+            ?.let { add("mobile-zid", it.joinToString(",")) }
         addBool("hide-banner-top", config.hideBannerTop)
         addBool("hide-banner-bottom", config.hideBannerBottom)
         addInt("ad-refresh-max", config.adRefreshMax)
@@ -308,8 +314,9 @@ class SellwildWidgetView @JvmOverloads constructor(
     private fun buildWidgetHTML(): String {
         // Default: generic bundle that reads all config from element attributes.
         // Override by setting widgetJsUrl for a publisher-specific pre-compiled bundle.
+        // partner.js loads its own Prebid build internally — do not inject a
+        // separate prebid <script> tag (causes double-load and breaks header bidding).
         val widgetSrc = "https://widget.sellwild.com/partner.js"
-        val prebidSrc = config.prebidSrc ?: "https://widget.sellwild.com/prebid.js"
         val attrs = configAttributes()
 
         val prebidPreConfig = prebidPreConfigScript()
@@ -355,7 +362,6 @@ class SellwildWidgetView @JvmOverloads constructor(
     })();
   </script>
 
-  <script async src="$prebidSrc"></script>
   <script async src="$widgetSrc"></script>
 </body>
 </html>"""

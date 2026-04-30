@@ -26,6 +26,19 @@ function buildPrebidPreConfigScript(config: SellwildConfig): string {
   if (config.appBundleId) ortb2App['bundle'] = config.appBundleId
   if (config.appStoreUrl) ortb2App['storeurl'] = config.appStoreUrl
 
+  // GDPR / privacy signals — PBS defaults to gdpr=1 (GDPR applies) and
+  // blocks all bidder calls if no consent string is present. The SDK must
+  // explicitly declare the user's jurisdiction so the server knows whether
+  // to enforce consent. The host app provides gdprApplies and tcString
+  // via SellwildConfig; default is gdpr=0 (US traffic, not subject).
+  const ortb2Regs: Record<string, unknown> = {
+    ext: { gdpr: (config as any).gdprApplies ? 1 : 0 },
+  }
+  const ortb2User: Record<string, unknown> = {}
+  if ((config as any).gdprApplies && (config as any).tcString) {
+    ortb2User['ext'] = { consent: (config as any).tcString }
+  }
+
   let s2sConfigBlock = ''
   if (config.prebidServer) {
     const ps = config.prebidServer
@@ -53,8 +66,11 @@ function buildPrebidPreConfigScript(config: SellwildConfig): string {
     window.pbjs.que.push(function() {
       window.pbjs.setConfig({
         // Declare in-app inventory so DSPs bid on app traffic, not web traffic.
+        // Include regs.ext.gdpr so PBS knows whether to enforce consent.
         ortb2: {
-          app: ${JSON.stringify(ortb2App)}
+          app: ${JSON.stringify(ortb2App)},
+          regs: ${JSON.stringify(ortb2Regs)}${Object.keys(ortb2User).length ? `,
+          user: ${JSON.stringify(ortb2User)}` : ''}
         },
         // Iframe cookie syncs always fail in WebViews — disable them.
         // Image pixel syncs may still work for some bidders.
@@ -95,6 +111,18 @@ function configToAttributes(config: SellwildConfig): string {
   add('partner-code', config.partnerCode)
   add('listings', config.listingsUrl)
 
+  // Disable remote customization fetch — the widget defaults to fetching
+  // https://widget.sellwild.com/{partnerCode}/{slug}.json which (a) doesn't
+  // exist for SDK consumers and (b) is unnecessary because the SDK supplies
+  // every customization via element attributes already.
+  parts.push('customize="false"')
+
+  // Ad system selection — REQUIRED. AdStack.initializeAdStack() switches on
+  // theme.adType and silently does nothing if it's unset, meaning Prebid never
+  // loads and no auctions ever run. PrebidOnly is the dominant value across
+  // production publisher widgets. Override via config.adType if needed.
+  add('ad-type', (config as any).adType || 'PrebidOnly')
+
   // Display
   add('title', config.title)
   add('link-text', config.linkText)
@@ -123,8 +151,10 @@ function configToAttributes(config: SellwildConfig): string {
   add('banner-zid', config.bannerZid)
   add('bottom-banner-zid', config.bottomBannerZid)
   add('mobile-banner-zid', config.mobileBannerZid)
-  add('mobile-zid', config.mobileZids?.join(','))
-  add('display-zid', config.displayZids?.join(','))
+  // Filter empties before joining — the widget's parser splits on ',' and
+  // does not strip empty strings, so a stray comma yields [""] not [].
+  add('mobile-zid', config.mobileZids?.filter(Boolean).join(','))
+  add('display-zid', config.displayZids?.filter(Boolean).join(','))
   add('skyscraper-zid', config.skyscraperZid)
   add('hide-banner-top', config.hideBannerTop || undefined)
   add('hide-banner-bottom', config.hideBannerBottom || undefined)
@@ -194,8 +224,11 @@ function configToAttributes(config: SellwildConfig): string {
 // Pass widgetJsUrl in config to override the default generic bundle.
 // ─────────────────────────────────────────────────────────────────────────────
 export function buildWidgetHtml(config: SellwildConfig & { widgetJsUrl?: string }): string {
+  // partner.js is the canonical generic widget bundle. It loads its own Prebid
+  // build internally (from cache.sellwild.com), so the SDK MUST NOT inject a
+  // separate prebid <script> tag — doing so causes a double-load and breaks
+  // header bidding initialization order.
   const widgetSrc = config.widgetJsUrl ?? `${WIDGET_CDN}/partner.js`
-  const prebidSrc = config.prebidSrc ?? `${WIDGET_CDN}/prebid.js`
   const attrs = configToAttributes(config)
 
   const prebidPreConfig = buildPrebidPreConfigScript(config)
@@ -244,7 +277,6 @@ export function buildWidgetHtml(config: SellwildConfig & { widgetJsUrl?: string 
     })();
   </script>
 
-  <script async src="${prebidSrc}"></script>
   <script async src="${widgetSrc}"></script>
 </body>
 </html>`

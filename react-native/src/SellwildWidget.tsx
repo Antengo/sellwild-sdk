@@ -107,7 +107,7 @@ export function SellwildWidget({
       )}
       <WebView
         ref={webViewRef}
-        source={{ html, baseUrl: WIDGET_BASE_URL }}
+        source={{ html, baseUrl: 'https://widget.sellwild.com/' }}
         style={styles.webView}
         onMessage={handleMessage}
         javaScriptEnabled

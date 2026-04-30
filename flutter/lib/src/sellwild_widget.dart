@@ -173,13 +173,19 @@ class _SellwildWidgetState extends State<SellwildWidget> {
 
     add('partner-code', c.partnerCode);
     add('listings', c.listingsUrl);
+    // Disable remote customization fetch — see RN htmlBuilder.ts for details.
+    parts.add('customize="false"');
+    // Ad system selection — REQUIRED. See RN htmlBuilder.ts for details.
+    add('ad-type', c.adType ?? 'PrebidOnly');
     add('gam-tag', c.gamTag);
     add('gpt-proxy-url', c.gptProxyUrl);
     addBool('disable-gpt', c.disableGpt);
     add('banner-zid', c.bannerZid);
     add('bottom-banner-zid', c.bottomBannerZid);
     add('mobile-banner-zid', c.mobileBannerZid);
-    if (c.mobileZids.isNotEmpty) add('mobile-zid', c.mobileZids.join(','));
+    // Filter empties — widget parser does not strip empty strings post-split.
+    final mobileZids = c.mobileZids.where((z) => z.isNotEmpty).toList();
+    if (mobileZids.isNotEmpty) add('mobile-zid', mobileZids.join(','));
     addBool('hide-banner-top', c.hideBannerTop);
     addBool('hide-banner-bottom', c.hideBannerBottom);
     addNum('ad-refresh-max', c.adRefreshMax);
@@ -205,8 +211,9 @@ class _SellwildWidgetState extends State<SellwildWidget> {
   String _buildHtml() {
     // Default: generic bundle that reads all config from element attributes.
     // Set widgetJsUrl in config to use a publisher-specific pre-compiled bundle.
+    // partner.js loads its own Prebid build internally — do not inject a
+    // separate prebid <script> tag (causes double-load and breaks header bidding).
     const widgetSrc = 'https://widget.sellwild.com/partner.js';
-    final prebidSrc = widget.config.prebidSrc ?? 'https://widget.sellwild.com/prebid.js';
     final attrs = _configAttributes();
 
     final prebidPreConfig = _buildPrebidPreConfigScript(widget.config);
@@ -252,7 +259,6 @@ class _SellwildWidgetState extends State<SellwildWidget> {
     })();
   </script>
 
-  <script async src="$prebidSrc"></script>
   <script async src="$widgetSrc"></script>
 </body>
 </html>''';
