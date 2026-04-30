@@ -1,7 +1,0 @@
-{
-  "/api/logs/route": "app/api/logs/route.js",
-  "/api/auctions/route": "app/api/auctions/route.js",
-  "/auctions/page": "app/auctions/page.js",
-  "/auctions/[auctionId]/page": "app/auctions/[auctionId]/page.js",
-  "/page": "app/page.js"
-}
