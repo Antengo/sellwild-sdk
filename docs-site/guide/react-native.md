@@ -1264,5 +1264,5 @@ override fun onCreate() {
 - [Prebid.js S2S Module Documentation](https://docs.prebid.org/dev-docs/modules/prebidServer.html)
 - [OpenRTB 2.6 Specification](https://www.iab.com/wp-content/uploads/2022/04/OpenRTB-2-6_FINAL.pdf)
 - [IAB TCF v2.2](https://iabeurope.eu/tcf-2-0/)
-- [Sellwild SDK Prebid Integration Guide](./PREBID.md)
-- [Sellwild SDK Validation Report](./VALIDATION.md)
+- [Prebid Server Configuration](/guide/prebid-server)
+- [Validation Report](/guide/validation)

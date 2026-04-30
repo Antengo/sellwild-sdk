@@ -145,7 +145,8 @@ The following diagram traces a single ad request from the app through to creativ
 | Steps 5-6: Server-side SSP fan-out | 50-200 ms (bounded by `timeout`) |
 | Step 7: Auction logic | < 5 ms |
 | Steps 8-9: Response + creative render | 50-150 ms |
-| **Total** | **< 500 ms typical** |
+| **Total (after WebView init)** | **< 500 ms typical** |
+| **First request (incl. WebView init)** | **600-1000 ms** |
 
 ---
 

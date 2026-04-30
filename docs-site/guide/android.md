@@ -801,7 +801,7 @@ val config = SellwildConfig(
 
 If your app uses code shrinking (R8 or ProGuard), add the following keep rules to your `proguard-rules.pro` file:
 
-```proguard
+```txt
 # Sellwild SDK -- preserve JS bridge interface methods
 -keepclassmembers class com.sellwild.sdk.SellwildAdView$SellwildJSBridge {
     @android.webkit.JavascriptInterface *;

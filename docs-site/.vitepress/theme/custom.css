@@ -67,9 +67,16 @@
   --vp-button-brand-text: #1C1917;
   --vp-button-brand-hover-bg: #D6D3D1;
 
+  --vp-button-brand-active-bg: #A8A29E;
+
   --vp-sidebar-bg-color: #0C0A09;
 
   --vp-code-block-bg: #0C0A09;
+}
+
+.dark .VPButton.brand:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
 }
 
 /* Hero section refinements */

@@ -14,7 +14,7 @@ For full integration guides with all ad formats, listing cards, GDPR, lifecycle 
 **Swift Package Manager** -- In Xcode, select **File > Add Package Dependencies** and enter:
 
 ```
-https://github.com/nicholasq/sellwild-sdk.git
+https://github.com/Antengo/sellwild-sdk.git
 ```
 
 Set the version rule to **Up to Next Major Version** starting at `1.0.0`.
@@ -29,8 +29,8 @@ let config: SellwildConfig = {
         partnerCode: "weatherbug",
         listingsUrl: "https://api.sellwild.com/widget/listings?partner=weatherbug"
     )
-    c.appBundleId = "com.aws.android"
-    c.appStoreUrl = "https://apps.apple.com/app/id123456789"
+    c.appBundleId = Bundle.main.bundleIdentifier ?? "com.example.myapp"
+    c.appStoreUrl = "https://apps.apple.com/app/id1234567890"
     c.prebidServer = PrebidServerConfig(
         accountId: "weatherbug-prod",
         endpoint: "https://prebid.sellwild.com/openrtb2/auction",
@@ -201,6 +201,7 @@ export default function App() {
       <SellwildBanner
         config={config}
         size="300x250"
+        zoneId="your-zone-id"
         onImpression={() => console.log('Ad impression')}
         onError={(err) => console.warn('Ad error:', err.message)}
       />
@@ -317,3 +318,4 @@ Every integration must set these fields for proper in-app traffic classification
 - [Configuration Reference](/guide/configuration) -- every config field documented
 - [Privacy & Consent](/guide/privacy) -- GDPR, CCPA, ATT, app-ads.txt
 - [API Reference](/guide/api-reference) -- per-platform class and method reference
+- [Validation Report](/guide/validation) -- known issues, platform-specific fixes, testing checklist
