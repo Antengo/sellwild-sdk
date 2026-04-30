@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type {
   Overview,
@@ -13,7 +11,7 @@ import type {
 async function fetchType<T>(type: string, filters: AuctionQueryFilters): Promise<T> {
   const params = new URLSearchParams({ type });
   if (filters.hours) params.set('hours', String(filters.hours));
-  const res = await fetch(`/api/auctions?${params}`);
+  const res = await fetch(`/.netlify/functions/auctions?${params}`);
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`${type}: ${body}`);
