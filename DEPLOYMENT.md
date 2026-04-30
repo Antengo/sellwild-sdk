@@ -333,6 +333,108 @@ The zone script URL `https://bidstream.sellwild.com/ads?zone=<ID>&w=<W>&h=<H>` m
 
 ---
 
+## Admin Dashboard (Netlify)
+
+The admin dashboard is a Vite + React app deployed to Netlify with serverless functions for the backend (Athena/CloudWatch queries) and Netlify Identity for authentication.
+
+**Live URL:** https://sellwild-admin.netlify.app
+**Netlify Admin:** https://app.netlify.com/projects/sellwild-admin
+**Site ID:** `7fbfd204-d02b-4323-8713-d61f0769873d`
+
+### Architecture
+
+```
+dashboard/
+├── index.html              # Loads Netlify Identity widget
+├── netlify.toml             # Build, functions, and redirect config
+├── vite.config.ts           # Vite config with @/ alias
+├── src/
+│   ├── main.tsx             # Entry point (React + Router)
+│   ├── App.tsx              # Auth gate + routes
+│   ├── hooks/useAuth.ts     # Netlify Identity hook (same as CMS)
+│   ├── pages/               # Overview, AuctionFeed, AuctionDetail
+│   ├── components/          # Layout, charts, filters, stats-card
+│   └── lib/                 # Client-side types + data hooks
+└── netlify/functions/
+    ├── auctions.ts          # Athena queries (overview, bidder_summary, etc.)
+    ├── logs.ts              # CloudWatch auction log queries
+    └── lib/
+        ├── athena-client.ts # AWS Athena SDK wrapper
+        └── cloudwatch.ts    # AWS CloudWatch Logs SDK wrapper
+```
+
+### Deploy
+
+The dashboard deploys from the CLI. There is no CI/CD pipeline — deploy manually:
+
+```bash
+cd dashboard
+npx netlify deploy --prod
+```
+
+This builds the Vite app, bundles the Netlify Functions, and pushes everything live. The build command (`npm run build`) runs automatically as part of the deploy.
+
+### Environment Variables
+
+AWS credentials are set on Netlify with `SW_` prefix (Netlify reserves `AWS_*` names):
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `SW_AWS_ACCESS_KEY_ID` | IAM access key | Athena + CloudWatch access |
+| `SW_AWS_SECRET_ACCESS_KEY` | IAM secret key | Athena + CloudWatch access |
+| `SW_AWS_REGION` | `us-west-1` | AWS region for Prebid Server infra |
+
+To update env vars:
+
+```bash
+cd dashboard
+npx netlify env:set SW_AWS_ACCESS_KEY_ID "new-key-value"
+npx netlify env:set SW_AWS_SECRET_ACCESS_KEY "new-secret-value"
+```
+
+Or update them in the Netlify UI: **Site Settings > Environment Variables**.
+
+The functions also fall back to `AWS_REGION` / default SDK credential chain, so local development works with your `~/.aws/credentials` without any extra setup.
+
+### Authentication (Netlify Identity)
+
+The dashboard uses **Netlify Identity** — the same auth system as the CMS (`sellwild-widget/cms`).
+
+- The Netlify Identity widget script is loaded in `index.html`
+- `useAuth.ts` hooks into `window.netlifyIdentity` for login/logout/session
+- Unauthenticated users see a login page; authenticated users see the dashboard
+
+**Managing users:**
+
+1. Go to https://app.netlify.com/projects/sellwild-admin/identity
+2. Click **Invite users** to add new team members
+3. Set **Registration** to **Invite only** to prevent public signups
+
+### Local Development
+
+```bash
+cd dashboard
+npm install
+npm run dev          # Vite dev server on http://localhost:3100
+```
+
+For functions to work locally, use the Netlify CLI:
+
+```bash
+npx netlify dev      # Runs Vite + Functions on http://localhost:8888
+```
+
+The Vite dev server proxies `/.netlify/functions/*` to `localhost:8888` so both modes work. Local functions use your `~/.aws/credentials` for AWS access.
+
+### Updating the Dashboard
+
+1. Make changes in `dashboard/`
+2. Test locally: `npm run dev` or `npx netlify dev`
+3. Type check: `npm run typecheck`
+4. Deploy: `npx netlify deploy --prod`
+
+---
+
 ## Checklist before first release
 
 - [ ] Partner code and listings URL confirmed with publisher
