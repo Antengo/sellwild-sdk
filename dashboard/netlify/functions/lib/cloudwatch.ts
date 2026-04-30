@@ -21,9 +21,8 @@ const cwl = new CloudWatchLogsClient({
   }),
 })
 
-const LOG_GROUP =
-  process.env.PBS_LOG_GROUP ||
-  'prebid-server-CloudFrontEntryDeploymentECSTaskPrebidContainerLogGroup2F818201-9tgYx0Ev9WsE'
+const LOG_GROUP = process.env.PBS_LOG_GROUP
+if (!LOG_GROUP) throw new Error('PBS_LOG_GROUP environment variable is required')
 
 const MAX_POLL = 30
 const POLL_MS = 1000

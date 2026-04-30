@@ -37,7 +37,28 @@ The SDK is written in pure Swift and depends only on `UIKit` and `WebKit`, both 
 
 ## Installation
 
-### Swift Package Manager (recommended)
+### CocoaPods (recommended)
+
+Add the following to your `Podfile`:
+
+```ruby
+platform :ios, '13.0'
+
+target 'YourApp' do
+  use_frameworks!
+  pod 'SellwildSDK', '~> 1.0'
+end
+```
+
+Then run:
+
+```bash
+pod install
+```
+
+Open the generated `.xcworkspace` file to continue development.
+
+### Swift Package Manager
 
 1. In Xcode, select **File > Add Package Dependencies**.
 2. Enter the repository URL:
@@ -67,27 +88,6 @@ targets: [
     )
 ]
 ```
-
-### CocoaPods
-
-Add the following to your `Podfile`:
-
-```ruby
-platform :ios, '13.0'
-
-target 'YourApp' do
-  use_frameworks!
-  pod 'SellwildSDK', '~> 1.0'
-end
-```
-
-Then run:
-
-```bash
-pod install
-```
-
-Open the generated `.xcworkspace` file to continue development.
 
 ---
 
