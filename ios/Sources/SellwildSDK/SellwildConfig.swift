@@ -33,6 +33,9 @@ public struct SellwildConfig: Codable {
     public var watermarkTitle: String
 
     // MARK: Ads - Display
+    /// Ad system to initialize. Defaults to "PrebidOnly". AdStack silently
+    /// no-ops if this is unset, so the SDK always sets it. See htmlBuilder.
+    public var adType: String?
     public var bannerZid: String?
     public var bottomBannerZid: String?
     public var mobileBannerZid: String?

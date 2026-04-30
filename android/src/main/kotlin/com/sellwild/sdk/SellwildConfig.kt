@@ -33,6 +33,9 @@ data class SellwildConfig(
     val watermarkTitle: String = "Powered by Sellwild",
 
     // Ads - Display
+    /** Ad system to initialize. Defaults to "PrebidOnly". AdStack silently
+     *  no-ops if this is unset, so the SDK always sets it. */
+    val adType: String? = null,
     val bannerZid: String? = null,
     val bottomBannerZid: String? = null,
     val mobileBannerZid: String? = null,
