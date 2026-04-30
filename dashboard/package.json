@@ -2,29 +2,31 @@
   "name": "@sellwild/admin-dashboard",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Sellwild auction admin dashboard — queries Athena, visualizes auction data, deep-links from demo app",
   "scripts": {
-    "dev": "next dev --port 3100",
-    "build": "next build",
-    "start": "next start --port 3100",
-    "lint": "next lint"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-athena": "^3.936.0",
+    "@aws-sdk/client-athena": "^3.1039.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.1039.0",
-    "@sellwild/sdk-core": "file:../core",
-    "next": "^15.3.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "@netlify/functions": "^5.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
     "recharts": "^2.15.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.3",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.40",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vite": "^5.4.0"
   }
 }

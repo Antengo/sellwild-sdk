@@ -1,36 +1,34 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 
 interface Auction {
-  id: string;
-  timestamp: string;
-  cur: string;
-  source: string;
-  seatbid: Array<{ seat?: string; bid: Array<{ price?: number }> }>;
+  id: string
+  timestamp: string
+  cur: string
+  source: string
+  seatbid: Array<{ seat?: string; bid: Array<{ price?: number }> }>
   ext: {
-    responsetimemillis?: Record<string, number>;
-    errors?: Record<string, unknown[]>;
-    tmaxrequest?: number;
-  };
+    responsetimemillis?: Record<string, number>
+    errors?: Record<string, unknown[]>
+    tmaxrequest?: number
+  }
 }
 
 export default function AuctionFeedPage() {
-  const [auctions, setAuctions] = useState<Auction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [auctions, setAuctions] = useState<Auction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/logs?type=recent&hours=24')
+    fetch('/.netlify/functions/logs?type=recent&hours=24')
       .then((r) => r.json())
       .then((data) => {
-        if (data.error) throw new Error(data.error);
-        setAuctions(data);
+        if (data.error) throw new Error(data.error)
+        setAuctions(data)
       })
       .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => setLoading(false))
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -68,19 +66,18 @@ export default function AuctionFeedPage() {
             </thead>
             <tbody>
               {auctions.map((a) => {
-                const bidders = Object.keys(a.ext?.responsetimemillis || {});
-                const maxLatency = Math.max(...Object.values(a.ext?.responsetimemillis || {}), 0);
-                const totalBids = a.seatbid.reduce((sum, sb) => sum + sb.bid.length, 0);
-                const errorCount = Object.keys(a.ext?.errors || {}).length;
+                const bidders = Object.keys(a.ext?.responsetimemillis || {})
+                const maxLatency = Math.max(...Object.values(a.ext?.responsetimemillis || {}), 0)
+                const totalBids = a.seatbid.reduce((sum, sb) => sum + sb.bid.length, 0)
 
-                const winnerSeat = a.seatbid.find(sb => sb.bid.length > 0);
-                const winnerCpm = winnerSeat?.bid[0]?.price;
+                const winnerSeat = a.seatbid.find(sb => sb.bid.length > 0)
+                const winnerCpm = winnerSeat?.bid[0]?.price
 
                 return (
                   <tr key={a.id} className={`border-b border-gray-800/50 hover:bg-gray-800/50 transition-colors ${totalBids > 0 ? 'bg-emerald-900/5' : ''}`}>
                     <td className="px-5 py-3">
                       <Link
-                        href={`/auctions/${a.id}`}
+                        to={`/auctions/${a.id}`}
                         className="font-mono text-xs text-emerald-400 hover:text-emerald-300"
                       >
                         {a.id}
@@ -114,14 +111,14 @@ export default function AuctionFeedPage() {
                       {winnerSeat ? (
                         <span className="text-emerald-400">{winnerSeat.seat}</span>
                       ) : (
-                        <span className="text-gray-600">—</span>
+                        <span className="text-gray-600">&mdash;</span>
                       )}
                     </td>
                     <td className="px-5 py-3 text-right font-mono">
                       {winnerCpm ? (
                         <span className="text-emerald-400 font-bold">${winnerCpm.toFixed(2)}</span>
                       ) : (
-                        <span className="text-gray-600">—</span>
+                        <span className="text-gray-600">&mdash;</span>
                       )}
                     </td>
                     <td className="px-5 py-3 text-right font-mono">
@@ -138,7 +135,7 @@ export default function AuctionFeedPage() {
                       </span>
                     </td>
                   </tr>
-                );
+                )
               })}
               {auctions.length === 0 && (
                 <tr>
@@ -152,5 +149,5 @@ export default function AuctionFeedPage() {
         </div>
       )}
     </div>
-  );
+  )
 }

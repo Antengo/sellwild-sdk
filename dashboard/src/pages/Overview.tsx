@@ -1,24 +1,22 @@
-'use client';
-
-import { useAuctionDashboard } from '@/lib/use-auction-data';
-import { StatsCard } from '@/components/stats-card';
-import { Filters } from '@/components/filters';
+import { useAuctionDashboard } from '@/lib/use-auction-data'
+import { StatsCard } from '@/components/stats-card'
+import { Filters } from '@/components/filters'
 import {
   LatencyTrendChart,
   VolumeTrendChart,
   CpmSnapshotChart,
   BidderBreakdownChart,
   BidderSummaryTable,
-} from '@/components/charts';
+} from '@/components/charts'
 
-export default function DashboardPage() {
+export default function OverviewPage() {
   const {
     filters, setFilters,
     loading, error,
     autoRefresh, setAutoRefresh,
     overview, bidderSummary, latencyTrend, volumeTrend, cpmSnapshot,
     refresh,
-  } = useAuctionDashboard({ hours: 24 });
+  } = useAuctionDashboard({ hours: 24 })
 
   return (
     <div className="space-y-6">
@@ -53,7 +51,6 @@ export default function DashboardPage() {
 
       {overview && (
         <>
-          {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <StatsCard
               label="Auctions (period)"
@@ -92,22 +89,19 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Latency + Volume trends */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <LatencyTrendChart data={latencyTrend} />
             <VolumeTrendChart data={volumeTrend} />
           </div>
 
-          {/* CPM + Bidder breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <CpmSnapshotChart data={cpmSnapshot} />
             <BidderBreakdownChart data={bidderSummary} />
           </div>
 
-          {/* Bidder table */}
           <BidderSummaryTable data={bidderSummary} />
         </>
       )}
     </div>
-  );
+  )
 }
