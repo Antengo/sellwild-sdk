@@ -38,7 +38,7 @@ const OUTPUT_LOCATION =
   's3://prebid-server-metricsetlbucket69cb3729-igodkemqy1sc/athena-results/'
 const WORKGROUP = process.env.ATHENA_WORKGROUP || 'primary'
 
-const MAX_POLL_ATTEMPTS = 60
+const MAX_POLL_ATTEMPTS = 30
 const POLL_INTERVAL_MS = 1000
 
 export async function queryAthena<T = Record<string, string>>(
