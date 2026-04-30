@@ -397,67 +397,7 @@ Without a valid app-ads.txt, some SSPs will not bid on your inventory. Verify yo
 
 The following diagram shows what data leaves the device, where it goes, and what privacy controls apply at each stage.
 
-```
-+----------------------------+
-|  User's Device             |
-|                            |
-|  +----------------------+  |
-|  | Host App             |  |
-|  |                      |  |
-|  | CMP collects consent |  |
-|  |   - TC string        |  |
-|  |   - GPP string       |  |
-|  |   - US Privacy       |  |
-|  |                      |  |
-|  | ATT prompt (iOS)     |  |
-|  |   - IDFA (if auth'd) |  |
-|  |                      |  |
-|  +----------+-----------+  |
-|             |               |
-|  +----------v-----------+  |
-|  | Sellwild SDK         |  |
-|  |                      |  |        What leaves the device:
-|  | Constructs OpenRTB   |  |        +---------------------------------+
-|  | bid request:         |  |        | app.bundle (app ID)             |
-|  |   - app identity     +---------->| app.storeurl                    |
-|  |   - device UA, OS    |  |        | device.ua (user agent)          |
-|  |   - ad sizes         |  |        | device.os, device.osv           |
-|  |   - consent signals  |  |        | imp[].banner.format (ad sizes)  |
-|  |   - NO personal data |  |        | regs.ext.gdpr (0 or 1)          |
-|  |     stored by SDK    |  |        | user.ext.consent (TC string)    |
-|  +----------------------+  |        | regs.ext.us_privacy (if set)    |
-|                            |        | regs.gpp (if GPP enabled)       |
-+----------------------------+        | device.ifa (only if app passes) |
-                                      +-----------+---------------------+
-                                                  |
-                                                  v
-                              +-------------------+-------------------+
-                              |  prebid.sellwild.com                  |
-                              |  (Prebid Server)                      |
-                              |                                       |
-                              |  Privacy enforcement:                 |
-                              |  - Checks regs.ext.gdpr               |
-                              |  - Validates TC string vendor consent  |
-                              |  - Suppresses non-consented bidders    |
-                              |  - Forwards us_privacy / GPP to SSPs  |
-                              |                                       |
-                              |  Does NOT:                            |
-                              |  - Store user data                    |
-                              |  - Create user profiles               |
-                              |  - Perform cross-session tracking     |
-                              +---+----------+----------+-------------+
-                                  |          |          |
-                                  v          v          v
-                            +---------+ +--------+ +-------+
-                            | AppNexus| |PubMatic| | IX    |  ... SSPs
-                            |         | |        | |       |
-                            | Receives| |Receives| |Receive|
-                            | bid req | |bid req | |bid req|
-                            | with    | |with    | |with   |
-                            | consent | |consent | |consent|
-                            | signals | |signals | |signal |
-                            +---------+ +--------+ +-------+
-```
+<PrivacyFlowDiagram />
 
 ### Data Not Collected by the SDK
 
