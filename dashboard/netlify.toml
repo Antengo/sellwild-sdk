@@ -16,3 +16,6 @@
   port = 8888
   targetPort = 3100
   autoLaunch = false
+
+[context.dev.environment]
+  SW_AWS_REGION = "us-west-1"
