@@ -1,53 +1,72 @@
 <template>
-  <div class="arch-container">
-    <div class="flow-row">
-      <div class="node">
-        <div class="node-title">Your App</div>
-        <div class="node-subtitle">iOS / Android / RN / Flutter</div>
+  <div class="arch-diagram">
+    <div class="arch-row">
+      <!-- Your App -->
+      <div class="arch-node">
+        <div class="node-header">
+          <span class="node-title">Your App</span>
+        </div>
+        <div class="node-detail">iOS / Android / RN / Flutter</div>
       </div>
 
-      <div class="arrow">
+      <div class="arch-arrow">
         <div class="arrow-line"></div>
         <div class="arrow-label">1 SDK</div>
       </div>
 
-      <div class="node node-sdk">
+      <!-- Sellwild SDK -->
+      <div class="arch-node node-sdk">
         <div class="node-header">
-          <div class="node-title">Sellwild SDK</div>
+          <span class="node-title">Sellwild SDK</span>
           <span class="node-badge active">Native</span>
         </div>
-        <ul class="node-list">
-          <li><strong>Ad Views</strong> <span class="dim">banner, MREC, video</span></li>
-          <li><strong>Listing Cards</strong> <span class="dim">marketplace</span></li>
-          <li><strong>Event Tracking</strong> <span class="dim">impressions, clicks</span></li>
-        </ul>
+        <div class="node-items">
+          <div class="node-item">
+            <span class="item-dot green"></span>
+            <span>Ad Views</span>
+            <span class="item-meta">banner, MREC, video</span>
+          </div>
+          <div class="node-item">
+            <span class="item-dot green"></span>
+            <span>Listing Cards</span>
+            <span class="item-meta">marketplace</span>
+          </div>
+          <div class="node-item">
+            <span class="item-dot blue"></span>
+            <span>Event Tracking</span>
+            <span class="item-meta">impressions, clicks</span>
+          </div>
+        </div>
       </div>
 
-      <div class="arrow">
+      <div class="arch-arrow">
         <div class="arrow-line"></div>
         <div class="arrow-label">&lt; 200ms</div>
       </div>
 
-      <div class="node">
+      <!-- Prebid Server -->
+      <div class="arch-node">
         <div class="node-header">
-          <div class="node-title">Prebid Server</div>
+          <span class="node-title">Prebid Server</span>
           <span class="node-badge active">Live</span>
         </div>
-        <div class="node-subtitle">prebid.sellwild.com</div>
-        <div class="node-detail">S2S OpenRTB auction</div>
+        <div class="node-detail">prebid.sellwild.com</div>
+        <div class="node-detail sub">S2S OpenRTB auction</div>
       </div>
     </div>
 
-    <div class="ssp-section">
-      <div class="ssp-header">
-        <span class="ssp-label">SSP Demand</span>
-        <span class="node-badge active">400+</span>
+    <!-- SSP Section -->
+    <div class="arch-ssp-section">
+      <div class="ssp-connector"></div>
+      <div class="ssp-label">
+        <span>SSP Demand</span>
+        <span class="node-badge count">400+</span>
       </div>
       <div class="ssp-grid">
-        <span class="ssp-chip" v-for="ssp in ssps" :key="ssp">
+        <div class="ssp-chip" v-for="ssp in ssps" :key="ssp">
           <span class="ssp-dot"></span>
-          {{ ssp }}
-        </span>
+          <span>{{ ssp }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -55,49 +74,38 @@
 
 <script setup lang="ts">
 const ssps = [
-  'AppNexus/Xandr',
-  'PubMatic',
-  'Magnite/Rubicon',
-  'Index Exchange',
-  'OpenX',
-  'TripleLift',
-  'Sharethrough',
-  'InMobi',
-  'Smaato',
-  'Yieldmo',
-  'Taboola',
-  'Media.net',
-  'Sovrn',
-  'Unruly',
-  'LoopMe',
-  'Nativo',
+  'AppNexus/Xandr', 'PubMatic', 'Magnite/Rubicon', 'Index Exchange',
+  'OpenX', 'TripleLift', 'Sharethrough', 'InMobi',
+  'Smaato', 'Yieldmo', 'Taboola', 'Media.net',
+  'Sovrn', 'Unruly', 'LoopMe', 'Nativo',
 ]
 </script>
 
 <style scoped>
-.arch-container {
+.arch-diagram {
+  margin: 24px 0;
+  padding: 32px;
   background: var(--vp-c-bg-alt);
   border: 1px solid var(--vp-c-border);
   border-radius: 16px;
-  padding: 32px 24px;
-  margin: 24px 0;
-  overflow: hidden;
+  overflow-x: auto;
 }
 
-.flow-row {
+.arch-row {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0;
+  justify-content: center;
 }
 
-.node {
-  flex: 1;
-  max-width: 220px;
+.arch-node {
   background: var(--vp-c-bg-elv);
   border: 1px solid var(--vp-c-border);
   border-radius: 12px;
-  padding: 16px;
+  padding: 14px 16px;
+  min-width: 0;
+  flex: 1;
+  max-width: 220px;
 }
 
 .node-sdk {
@@ -107,9 +115,8 @@ const ssps = [
 .node-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .node-title {
@@ -118,26 +125,12 @@ const ssps = [
   color: var(--vp-c-text-1);
 }
 
-.node-subtitle {
-  font-size: 12px;
-  color: var(--vp-c-text-3);
-  margin-top: 4px;
-}
-
-.node-detail {
-  font-size: 12px;
-  color: var(--vp-c-text-2);
-  margin-top: 2px;
-}
-
 .node-badge {
-  display: inline-flex;
-  align-items: center;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   padding: 2px 8px;
-  border-radius: 9999px;
-  white-space: nowrap;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
 }
 
 .node-badge.active {
@@ -145,114 +138,144 @@ const ssps = [
   color: #166534;
 }
 
-.node-list {
-  list-style: none;
-  margin: 10px 0 0;
-  padding: 0;
-}
-
-.node-list li {
-  font-size: 12px;
-  color: var(--vp-c-text-2);
-  padding: 3px 0;
-  border-top: 1px solid var(--vp-c-border);
-}
-
-.node-list li:first-child {
-  border-top: none;
-}
-
-.node-list strong {
+.node-badge.count {
+  background: var(--vp-c-brand-soft);
   color: var(--vp-c-text-1);
-  font-weight: 600;
 }
 
-.dim {
+.node-detail {
+  font-size: 12px;
   color: var(--vp-c-text-3);
 }
 
+.node-detail.sub {
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.node-items {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--vp-c-text-2);
+}
+
+.item-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.item-dot.green { background: #22C55E; }
+.item-dot.blue { background: #3B82F6; }
+
+.item-meta {
+  color: var(--vp-c-text-3);
+  font-size: 11px;
+  margin-left: auto;
+}
+
 /* Arrows */
-.arrow {
+.arch-arrow {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 60px;
+  gap: 4px;
+  padding: 0 4px;
   flex-shrink: 0;
 }
 
 .arrow-line {
-  position: relative;
   width: 40px;
   height: 2px;
   background: var(--vp-c-border);
+  position: relative;
 }
 
 .arrow-line::after {
   content: '';
   position: absolute;
   right: -1px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: -4px;
   width: 0;
   height: 0;
+  border-left: 6px solid var(--vp-c-border);
   border-top: 5px solid transparent;
   border-bottom: 5px solid transparent;
-  border-left: 7px solid var(--vp-c-border);
 }
 
 .arrow-label {
   font-size: 10px;
   font-weight: 600;
   color: var(--vp-c-text-3);
-  margin-top: 4px;
   white-space: nowrap;
 }
 
 /* SSP Section */
-.ssp-section {
-  margin-top: 24px;
+.arch-ssp-section {
+  margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid var(--vp-c-border);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.ssp-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+.ssp-connector {
+  width: 2px;
+  height: 20px;
+  background: var(--vp-c-border);
+  position: absolute;
+  top: 0;
+  left: 50%;
 }
 
 .ssp-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
   font-weight: 700;
-  font-size: 14px;
-  color: var(--vp-c-text-1);
+  color: var(--vp-c-text-2);
+  margin-bottom: 12px;
+  margin-top: 8px;
 }
 
 .ssp-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  justify-content: center;
+  max-width: 600px;
 }
 
 .ssp-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--vp-c-text-2);
+  gap: 5px;
+  padding: 4px 10px;
   background: var(--vp-c-bg-elv);
   border: 1px solid var(--vp-c-border);
-  border-radius: 8px;
-  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vp-c-text-2);
 }
 
 .ssp-dot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: 3px;
   background: #22C55E;
-  flex-shrink: 0;
 }
 
 /* Dark mode */
@@ -261,18 +284,22 @@ const ssps = [
   color: #86EFAC;
 }
 
-/* Mobile responsive */
+.dark .ssp-dot {
+  background: #4ADE80;
+}
+
+/* Mobile */
 @media (max-width: 768px) {
-  .arch-container {
+  .arch-diagram {
     padding: 20px 16px;
   }
 
-  .flow-row {
+  .arch-row {
     flex-direction: column;
     gap: 0;
   }
 
-  .node {
+  .arch-node {
     max-width: 100%;
     width: 100%;
   }
@@ -281,7 +308,7 @@ const ssps = [
     max-width: 100%;
   }
 
-  .arrow {
+  .arch-arrow {
     width: auto;
     height: 40px;
     flex-direction: row;
