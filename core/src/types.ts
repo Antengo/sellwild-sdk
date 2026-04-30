@@ -202,6 +202,8 @@ export interface SellwildConfig {
   // Ads - compliance
   gppEnabled: boolean
   tcfVersion: number
+  gdprApplies?: boolean
+  tcString?: string
   consentManagement: string
   schainSid: string
   s2sConfig: string
