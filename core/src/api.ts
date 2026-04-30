@@ -58,7 +58,8 @@ export async function fetchTagCacheListings(
   const { keywords, count } = options
   if (!keywords || !count) return []
 
-  const url = `https://tbd4rmdvjk.execute-api.us-east-1.amazonaws.com/dev/listings?keywords=${encodeURIComponent(keywords)}&count=${count}&v=1`
+  const baseUrl = process.env.SELLWILD_LISTINGS_API_URL || 'https://api.sellwild.com/listings'
+  const url = `${baseUrl}?keywords=${encodeURIComponent(keywords)}&count=${count}&v=1`
 
   return fetch(url, { signal: options.signal })
     .then(res => res.json())

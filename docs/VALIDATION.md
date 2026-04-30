@@ -97,9 +97,9 @@ The `core` package references `dist/index.js`, `dist/index.esm.js`, `dist/index.
 
 **File:** `core/src/config.ts:6`, `core/src/api.ts:123`
 
-`EVENTS_URL = 'https://tbd4rmdvjk.execute-api.us-east-1.amazonaws.com/dev/events/queue'`
+`EVENTS_URL` was previously hardcoded to a staging API Gateway endpoint.
 
-The function name prefix `tbd4rmdvjk` and the `/dev/` stage path suggest this is a temporary staging endpoint baked into production code. If this endpoint goes away or is rotated, event analytics will silently fail (errors are swallowed). This should be moved to a stable path or made configurable.
+This has been fixed — the events URL now defaults to `https://events.sellwild.com/queue` and can be overridden via the `SELLWILD_EVENTS_URL` environment variable in the core package.
 
 ### Issue 4 — Duplicate `banner_top` placements when both `bannerZid` and `gamTag` are set (Minor)
 

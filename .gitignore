@@ -36,6 +36,15 @@ yarn-error.log*
 # Editors
 .vscode/
 
+# Internal docs & secrets (keep local, never publish)
+.internal/
+.env
+.env.local
+.env*.local
+.secrets/
+*.keystore
+*.jks
+
 # Docs site
 docs-site/node_modules
 docs-site/.vitepress/cache

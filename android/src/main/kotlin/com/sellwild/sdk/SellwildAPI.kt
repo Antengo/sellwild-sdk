@@ -168,7 +168,7 @@ data class SellwildEvent(
 class SellwildEventQueue(context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences("sellwild_sdk", Context.MODE_PRIVATE)
-    private val eventsUrl = "https://tbd4rmdvjk.execute-api.us-east-1.amazonaws.com/dev/events/queue"
+    private val eventsUrl = "https://events.sellwild.com/queue"
     private val queue = mutableListOf<SellwildEvent>()
 
     val uid: String by lazy {

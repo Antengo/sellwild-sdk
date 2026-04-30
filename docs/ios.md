@@ -37,38 +37,7 @@ The SDK is written in pure Swift and depends only on `UIKit` and `WebKit`, both 
 
 ## Installation
 
-### Swift Package Manager (recommended)
-
-1. In Xcode, select **File > Add Package Dependencies**.
-2. Enter the repository URL:
-
-```
-https://github.com/nicholasq/sellwild-sdk.git
-```
-
-3. Set the dependency rule to **Up to Next Major Version** starting at `1.0.0`.
-4. Select the **SellwildSDK** library product and add it to your app target.
-
-Alternatively, add the dependency directly in your `Package.swift`:
-
-```swift
-dependencies: [
-    .package(
-        url: "https://github.com/nicholasq/sellwild-sdk.git",
-        from: "1.0.0"
-    )
-],
-targets: [
-    .target(
-        name: "YourApp",
-        dependencies: [
-            .product(name: "SellwildSDK", package: "sellwild-sdk")
-        ]
-    )
-]
-```
-
-### CocoaPods
+### CocoaPods (recommended)
 
 Add the following to your `Podfile`:
 
@@ -88,6 +57,37 @@ pod install
 ```
 
 Open the generated `.xcworkspace` file to continue development.
+
+### Swift Package Manager
+
+1. In Xcode, select **File > Add Package Dependencies**.
+2. Enter the repository URL:
+
+```
+https://github.com/Antengo/sellwild-sdk.git
+```
+
+3. Set the dependency rule to **Up to Next Major Version** starting at `1.0.0`.
+4. Select the **SellwildSDK** library product and add it to your app target.
+
+Alternatively, add the dependency directly in your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(
+        url: "https://github.com/Antengo/sellwild-sdk.git",
+        from: "1.0.0"
+    )
+],
+targets: [
+    .target(
+        name: "YourApp",
+        dependencies: [
+            .product(name: "SellwildSDK", package: "sellwild-sdk")
+        ]
+    )
+]
+```
 
 ---
 

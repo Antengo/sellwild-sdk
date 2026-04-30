@@ -2,14 +2,13 @@
  * AWS Athena client for querying Prebid Server metrics stored in S3 (Parquet).
  *
  * Tables: counter, gauge, histogram, meter, timer
- * Database: prebid-server-us-west-1-metricsetl-database
- * S3 bucket: prebid-server-metricsetlbucket69cb3729-igodkemqy1sc
  *
- * Env overrides:
- *   ATHENA_DATABASE        (default: prebid-server-us-west-1-metricsetl-database)
- *   ATHENA_OUTPUT_LOCATION (default: s3://prebid-server-metricsetlbucket69cb3729-igodkemqy1sc/athena-results/)
+ * Required env vars:
+ *   ATHENA_DATABASE        — Athena database name
+ *   ATHENA_OUTPUT_LOCATION — S3 path for query results
+ * Optional:
  *   ATHENA_WORKGROUP       (default: primary)
- *   AWS_REGION             (default: us-west-1)
+ *   SW_AWS_REGION / AWS_REGION (default: us-west-1)
  */
 
 import {
@@ -30,12 +29,10 @@ const athena = new AthenaClient({
   }),
 })
 
-const DATABASE =
-  process.env.ATHENA_DATABASE ||
-  'prebid-server-us-west-1-metricsetl-database'
-const OUTPUT_LOCATION =
-  process.env.ATHENA_OUTPUT_LOCATION ||
-  's3://prebid-server-metricsetlbucket69cb3729-igodkemqy1sc/athena-results/'
+const DATABASE = process.env.ATHENA_DATABASE
+if (!DATABASE) throw new Error('ATHENA_DATABASE environment variable is required')
+const OUTPUT_LOCATION = process.env.ATHENA_OUTPUT_LOCATION
+if (!OUTPUT_LOCATION) throw new Error('ATHENA_OUTPUT_LOCATION environment variable is required')
 const WORKGROUP = process.env.ATHENA_WORKGROUP || 'primary'
 
 const MAX_POLL_ATTEMPTS = 30
