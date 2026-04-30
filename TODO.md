@@ -118,10 +118,11 @@ The docs at `sdk.sellwild.com` must be flawless.
 
 PR #2 on `Antengo/sellwild-sdk` must be clean.
 
-- [ ] All 8 bug fixes verified against Lawrence's test suite
-- [ ] Run Lawrence's unit tests: `SellwildConfigTest.kt`, `SellwildConfigTests.swift`, `sellwild_config_test.dart`
-- [ ] Verify no regressions in existing sample apps
-- [ ] Get Lawrence's review and merge
+- [x] All 8 bug fixes verified against Lawrence's test suite
+- [x] Run Lawrence's unit tests: `SellwildConfigTest.kt`, `SellwildConfigTests.swift`, `sellwild_config_test.dart`
+- [x] Verify no regressions in existing sample apps
+- [x] Get Lawrence's review and merge
+  - ✅ PR #2 merged
 
 ---
 
@@ -139,8 +140,8 @@ PR #2 on `Antengo/sellwild-sdk` must be clean.
 
 ## Open PRs
 
-- [#2 — SDK Bug Fixes](https://github.com/Antengo/sellwild-sdk/pull/2) — 8 critical fixes, 9 files
-- [#3 — Documentation + Docs Site](https://github.com/Antengo/sellwild-sdk/pull/3) — 26 files, 15K lines
+- ~~[#2 — SDK Bug Fixes](https://github.com/Antengo/sellwild-sdk/pull/2) — 8 critical fixes, 9 files~~ ✅ Merged
+- ~~[#3 — Documentation + Docs Site](https://github.com/Antengo/sellwild-sdk/pull/3) — 26 files, 15K lines~~ ✅ Merged
 
 ---
 
