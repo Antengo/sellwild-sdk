@@ -61,7 +61,7 @@ export default function OverviewPage() {
             <StatsCard
               label="Avg Latency"
               value={`${overview.latency.mean_ms}ms`}
-              detail={`median ${overview.latency.median_ms}ms`}
+              detail={`p75 ${overview.latency.median_ms}ms`}
               color={overview.latency.mean_ms <= 200 ? 'emerald' : 'amber'}
             />
             <StatsCard
