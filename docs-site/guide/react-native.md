@@ -1,0 +1,1268 @@
+# Sellwild SDK -- React Native Integration Guide
+
+Server-side header bidding for React Native applications, powered by Prebid Server.
+
+---
+
+## Table of Contents
+
+1. [Prerequisites](#prerequisites)
+2. [Installation](#installation)
+3. [iOS Configuration](#ios-configuration)
+4. [Android Configuration](#android-configuration)
+5. [Basic Integration](#basic-integration)
+6. [Native Listing Cards](#native-listing-cards)
+7. [Direct Prebid Server Auction](#direct-prebid-server-auction)
+8. [Prebid Server Configuration](#prebid-server-configuration)
+9. [Metro Configuration](#metro-configuration)
+10. [GDPR and Privacy](#gdpr-and-privacy)
+11. [TypeScript Reference](#typescript-reference)
+12. [Troubleshooting](#troubleshooting)
+
+---
+
+## Prerequisites
+
+| Requirement | Minimum Version | Notes |
+|-------------|-----------------|-------|
+| Node.js | 18.0+ | LTS recommended |
+| React Native | 0.72+ | New Architecture (Fabric) supported on 0.74+ |
+| Xcode | 15.0+ | Required for iOS builds; macOS Sonoma or later |
+| Android Studio | Hedgehog (2023.1.1)+ | JDK 17 bundled |
+| CocoaPods | 1.14+ | `sudo gem install cocoapods` if not installed |
+| React Native WebView | 13.0+ | Peer dependency |
+
+Verify your environment before proceeding:
+
+```bash
+npx react-native doctor
+```
+
+---
+
+## Installation
+
+### 1. Install packages
+
+```bash
+npm install @sellwild/react-native-sdk react-native-webview
+```
+
+Or with Yarn:
+
+```bash
+yarn add @sellwild/react-native-sdk react-native-webview
+```
+
+### 2. iOS -- Install native dependencies
+
+```bash
+cd ios && pod install && cd ..
+```
+
+If you are using the New Architecture, ensure your Podfile includes:
+
+```ruby
+ENV['RCT_NEW_ARCH_ENABLED'] = '1'
+```
+
+### 3. Android -- Auto-linking
+
+No additional steps are required. React Native auto-linking resolves `react-native-webview` automatically during the Gradle build.
+
+Confirm auto-linking registered the package:
+
+```bash
+npx react-native config
+```
+
+The output should list `react-native-webview` under `dependencies`.
+
+---
+
+## iOS Configuration
+
+### Info.plist
+
+Add the following entries to `ios/<YourApp>/Info.plist`.
+
+#### App Transport Security
+
+Allow the SDK to communicate with Sellwild auction and widget endpoints over HTTPS. If your app already permits arbitrary loads, this block is not required.
+
+```xml
+<key>NSAppTransportSecurity</key>
+<dict>
+  <key>NSAllowsArbitraryLoadsInWebContent</key>
+  <true/>
+  <key>NSExceptionDomains</key>
+  <dict>
+    <key>prebid.sellwild.com</key>
+    <dict>
+      <key>NSExceptionAllowsInsecureHTTPLoads</key>
+      <false/>
+      <key>NSExceptionRequiresForwardSecrecy</key>
+      <true/>
+      <key>NSIncludesSubdomains</key>
+      <true/>
+    </dict>
+    <key>widget.sellwild.com</key>
+    <dict>
+      <key>NSExceptionAllowsInsecureHTTPLoads</key>
+      <false/>
+      <key>NSExceptionRequiresForwardSecrecy</key>
+      <true/>
+      <key>NSIncludesSubdomains</key>
+      <true/>
+    </dict>
+  </dict>
+</dict>
+```
+
+#### User Tracking (ATT)
+
+Required if you intend to pass IDFA to demand partners for improved fill rates.
+
+```xml
+<key>NSUserTrackingUsageDescription</key>
+<string>This app uses your advertising identifier to deliver personalized ads and measure campaign performance.</string>
+```
+
+---
+
+## Android Configuration
+
+### AndroidManifest.xml
+
+Add the following to `android/app/src/main/AndroidManifest.xml`.
+
+#### Internet permission
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+```
+
+#### Cleartext traffic (development only)
+
+Required when testing against local Prebid Server instances or non-HTTPS staging environments. Remove or restrict for production builds.
+
+```xml
+<application
+  android:usesCleartextTraffic="true"
+  ...>
+```
+
+For production, use a network security configuration instead:
+
+```xml
+<!-- android/app/src/main/res/xml/network_security_config.xml -->
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+  <domain-config cleartextTrafficPermitted="false">
+    <domain includeSubdomains="true">prebid.sellwild.com</domain>
+    <domain includeSubdomains="true">widget.sellwild.com</domain>
+    <domain includeSubdomains="true">api.sellwild.com</domain>
+  </domain-config>
+</network-security-config>
+```
+
+Reference it in your manifest:
+
+```xml
+<application
+  android:networkSecurityConfig="@xml/network_security_config"
+  ...>
+```
+
+---
+
+## Basic Integration
+
+The following `App.tsx` demonstrates a complete integration with banner ads and the full listing widget.
+
+```tsx
+// App.tsx
+import React, { useCallback } from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Alert } from 'react-native';
+import {
+  SellwildWidget,
+  SellwildBanner,
+  buildConfig,
+  type SellwildConfig,
+  type SellwildListing,
+  type PartialSellwildConfig,
+} from '@sellwild/react-native-sdk';
+
+// ---------------------------------------------------------------------------
+// 1. Configure the SDK
+// ---------------------------------------------------------------------------
+const partialConfig: PartialSellwildConfig = {
+  partnerCode: 'weatherbug',
+  listingsUrl: 'https://api.sellwild.com/listings/weatherbug',
+
+  // Mobile app identity -- required for proper in-app bid classification.
+  appBundleId: 'com.aws.android',
+  appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
+
+  // Prebid Server S2S -- routes header bidding through Sellwild's managed
+  // Prebid Server instance instead of running client-side adapters.
+  prebidServer: {
+    accountId: 'weatherbug',
+    endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
+    bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
+    timeout: 1500,
+  },
+
+  // Display customization
+  titleColor: '#1a1a1a',
+  priceColor: '#2d8c3c',
+  priceFontColor: '#ffffff',
+  fontSize: 13,
+};
+
+// Build a full config object for components that require it.
+const sdkConfig: SellwildConfig = buildConfig(partialConfig);
+
+// ---------------------------------------------------------------------------
+// 2. Application root
+// ---------------------------------------------------------------------------
+export default function App() {
+  const handleImpression = useCallback(() => {
+    console.log('[Sellwild] Banner impression recorded');
+  }, []);
+
+  const handleBannerError = useCallback((error: Error) => {
+    console.warn('[Sellwild] Banner error:', error.message);
+  }, []);
+
+  const handleListingPress = useCallback((listing: SellwildListing) => {
+    // Navigate to the listing URL or a detail screen.
+    if (listing.url) {
+      console.log('[Sellwild] Listing tapped:', listing.url);
+    }
+  }, []);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView>
+        {/* ----------------------------------------------------------------- */}
+        {/* Mobile leaderboard banner -- 320x50                               */}
+        {/* ----------------------------------------------------------------- */}
+        <SellwildBanner
+          config={sdkConfig}
+          size="320x50"
+          zoneId={12345}
+          onImpression={handleImpression}
+          onError={handleBannerError}
+          style={styles.banner}
+        />
+
+        {/* ----------------------------------------------------------------- */}
+        {/* Full listing widget with embedded Prebid header bidding            */}
+        {/* ----------------------------------------------------------------- */}
+        <SellwildWidget
+          config={partialConfig}
+          onListingPress={handleListingPress}
+          onAdImpression={(zoneId) => {
+            console.log('[Sellwild] Widget ad impression, zone:', zoneId);
+          }}
+          onError={(error) => {
+            console.warn('[Sellwild] Widget error:', error.message);
+          }}
+          onLoad={() => {
+            console.log('[Sellwild] Widget loaded');
+          }}
+          style={styles.widget}
+        />
+
+        {/* ----------------------------------------------------------------- */}
+        {/* Medium rectangle banner -- 300x250                                */}
+        {/* ----------------------------------------------------------------- */}
+        <SellwildBanner
+          config={sdkConfig}
+          size="300x250"
+          zoneId={12346}
+          onImpression={handleImpression}
+          onError={handleBannerError}
+          style={styles.mediumRectangle}
+        />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  banner: {
+    alignSelf: 'center',
+    marginVertical: 12,
+  },
+  widget: {
+    height: 420,
+    marginHorizontal: 8,
+  },
+  mediumRectangle: {
+    alignSelf: 'center',
+    marginVertical: 16,
+  },
+});
+```
+
+### Component Reference
+
+| Component | Config Type | Description |
+|-----------|------------|-------------|
+| `SellwildWidget` | `PartialSellwildConfig` | Full listing carousel with embedded Prebid auctions |
+| `SellwildBanner` | `SellwildConfig` (full) | Standalone IAB banner ad unit |
+
+`SellwildWidget` calls `buildConfig()` internally. `SellwildBanner` requires a pre-built `SellwildConfig` -- call `buildConfig()` before passing it.
+
+---
+
+## Native Listing Cards
+
+For full control over layout and rendering, use the `useSellwildListings` hook with the `SellwildListingCard` component. This approach renders listings as native views rather than in a WebView.
+
+### Basic FlatList integration
+
+```tsx
+import React, { useCallback } from 'react';
+import {
+  FlatList,
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  Text,
+  RefreshControl,
+  Linking,
+} from 'react-native';
+import {
+  useSellwildListings,
+  SellwildListingCard,
+  SellwildBanner,
+  buildConfig,
+  type SellwildConfig,
+  type SellwildListing,
+} from '@sellwild/react-native-sdk';
+
+const sdkConfig: SellwildConfig = buildConfig({
+  partnerCode: 'weatherbug',
+  listingsUrl: 'https://api.sellwild.com/listings/weatherbug',
+  appBundleId: 'com.aws.android',
+  prebidServer: {
+    accountId: 'weatherbug',
+    endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
+    bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
+    timeout: 1500,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Interleave ad placements between organic listings
+// ---------------------------------------------------------------------------
+type FeedItem =
+  | { type: 'listing'; data: SellwildListing }
+  | { type: 'ad'; zoneId: number };
+
+function buildFeed(listings: SellwildListing[]): FeedItem[] {
+  const feed: FeedItem[] = [];
+  listings.forEach((listing, index) => {
+    feed.push({ type: 'listing', data: listing });
+    // Insert an ad after every 4th listing
+    if ((index + 1) % 4 === 0) {
+      feed.push({ type: 'ad', zoneId: 12345 + Math.floor(index / 4) });
+    }
+  });
+  return feed;
+}
+
+export default function ListingFeed() {
+  const { listings, loading, error, refresh } = useSellwildListings(sdkConfig);
+  const feed = buildFeed(listings);
+
+  const handlePress = useCallback((listing: SellwildListing) => {
+    if (listing.url) {
+      Linking.openURL(listing.url);
+    }
+  }, []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: FeedItem }) => {
+      if (item.type === 'ad') {
+        return (
+          <SellwildBanner
+            config={sdkConfig}
+            size="300x250"
+            zoneId={item.zoneId}
+            onImpression={() => console.log('[Ad] Impression:', item.zoneId)}
+            onError={(err) => console.warn('[Ad] Error:', err.message)}
+            style={styles.adCard}
+          />
+        );
+      }
+      return (
+        <SellwildListingCard
+          listing={item.data}
+          config={sdkConfig}
+          onPress={handlePress}
+          style={styles.listingCard}
+        />
+      );
+    },
+    [handlePress],
+  );
+
+  const keyExtractor = useCallback(
+    (item: FeedItem, index: number) =>
+      item.type === 'listing' ? `listing-${item.data.id}` : `ad-${index}`,
+    [],
+  );
+
+  if (loading && listings.length === 0) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>Failed to load listings.</Text>
+        <Text style={styles.errorDetail}>{error.message}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <FlatList
+      data={feed}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      numColumns={2}
+      columnWrapperStyle={styles.row}
+      contentContainerStyle={styles.list}
+      refreshControl={
+        <RefreshControl refreshing={loading} onRefresh={refresh} />
+      }
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  list: {
+    padding: 8,
+  },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  listingCard: {
+    flex: 1,
+    maxWidth: '48%',
+    marginHorizontal: 4,
+  },
+  adCard: {
+    alignSelf: 'center',
+    marginVertical: 12,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#c0392b',
+  },
+  errorDetail: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 4,
+  },
+});
+```
+
+### `useSellwildListings` Hook API
+
+```ts
+function useSellwildListings(config: SellwildConfig): UseSellwildListingsResult;
+
+interface UseSellwildListingsResult {
+  listings: SellwildListing[];    // Fetched listing data
+  config: Record<string, unknown>; // Remote widget configuration
+  loading: boolean;                // True during fetch or refresh
+  error: Error | null;             // Network or parse error, if any
+  refresh: () => void;             // Trigger a cache-busting re-fetch
+}
+```
+
+Calling `refresh()` clears the internal listing cache and re-fetches from the network. Use it with `RefreshControl` for pull-to-refresh.
+
+---
+
+## Direct Prebid Server Auction
+
+For advanced integrations where you need full control over the bidding process, you can call the Prebid Server auction endpoint directly using `fetch()`. This bypasses the WebView entirely and gives you raw bid responses to render however you choose.
+
+### OpenRTB Bid Request
+
+```ts
+interface PrebidAuctionRequest {
+  id: string;
+  imp: Array<{
+    id: string;
+    banner: {
+      format: Array<{ w: number; h: number }>;
+    };
+    ext: {
+      prebid: {
+        bidder: Record<string, Record<string, unknown>>;
+      };
+    };
+  }>;
+  app: {
+    bundle: string;
+    publisher: { id: string };
+    storeurl?: string;
+  };
+  device: {
+    ua: string;
+    ip?: string;
+    os: string;
+    osv?: string;
+  };
+  regs?: {
+    ext?: { gdpr?: number };
+  };
+  user?: {
+    ext?: { consent?: string };
+  };
+  tmax: number;
+}
+```
+
+### Sending an Auction Request
+
+```ts
+async function runPrebidAuction(): Promise<void> {
+  const request: PrebidAuctionRequest = {
+    id: `auction-${Date.now()}`,
+    imp: [
+      {
+        id: 'banner-1',
+        banner: {
+          format: [{ w: 320, h: 50 }],
+        },
+        ext: {
+          prebid: {
+            bidder: {
+              appnexus: { placement_id: 13144370 },
+              ix: { siteId: '345678' },
+            },
+          },
+        },
+      },
+      {
+        id: 'banner-2',
+        banner: {
+          format: [{ w: 300, h: 250 }],
+        },
+        ext: {
+          prebid: {
+            bidder: {
+              appnexus: { placement_id: 13144371 },
+              openx: { unit: '540012345', delDomain: 'weatherbug-d.openx.net' },
+            },
+          },
+        },
+      },
+    ],
+    app: {
+      bundle: 'com.aws.android',
+      publisher: { id: 'weatherbug' },
+      storeurl: 'https://play.google.com/store/apps/details?id=com.aws.android',
+    },
+    device: {
+      ua: 'Mozilla/5.0 (Linux; Android 14; Pixel 8)',
+      os: 'Android',
+      osv: '14',
+    },
+    tmax: 1500,
+  };
+
+  try {
+    const response = await fetch(
+      'https://prebid.sellwild.com/openrtb2/auction',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Auction failed: ${response.status} ${response.statusText}`);
+    }
+
+    const auctionResult = await response.json();
+    handleAuctionResponse(auctionResult);
+  } catch (error) {
+    console.error('[Prebid] Auction error:', error);
+  }
+}
+```
+
+### Parsing Bid Responses
+
+The Prebid Server response follows the OpenRTB 2.6 `BidResponse` schema:
+
+```ts
+interface PrebidBidResponse {
+  id: string;
+  seatbid: Array<{
+    bid: Array<{
+      id: string;
+      impid: string;       // Matches imp[].id from the request
+      price: number;        // CPM in USD
+      adm: string;          // Ad markup (HTML creative)
+      adid: string;
+      adomain: string[];    // Advertiser domains
+      w: number;
+      h: number;
+      ext?: {
+        prebid?: {
+          type: string;     // "banner", "video", "native"
+          targeting?: Record<string, string>;
+        };
+      };
+    }>;
+    seat: string;           // Bidder code (e.g., "appnexus")
+  }>;
+  cur: string;              // Currency code
+  ext?: {
+    responsetimemillis?: Record<string, number>; // Per-bidder latency
+    errors?: Record<string, Array<{ code: number; message: string }>>;
+  };
+}
+
+function handleAuctionResponse(response: PrebidBidResponse): void {
+  if (!response.seatbid?.length) {
+    console.log('[Prebid] No bids returned (no fill)');
+    return;
+  }
+
+  // Collect all bids, grouped by impression ID
+  const bidsByImp = new Map<string, Array<{ seat: string; price: number; adm: string }>>();
+
+  for (const seatbid of response.seatbid) {
+    for (const bid of seatbid.bid) {
+      const existing = bidsByImp.get(bid.impid) ?? [];
+      existing.push({
+        seat: seatbid.seat,
+        price: bid.price,
+        adm: bid.adm,
+      });
+      bidsByImp.set(bid.impid, existing);
+    }
+  }
+
+  // Select the winning bid for each impression (highest CPM)
+  for (const [impId, bids] of bidsByImp) {
+    const winner = bids.reduce((a, b) => (a.price > b.price ? a : b));
+    console.log(
+      `[Prebid] Winner for ${impId}: ${winner.seat} at $${winner.price.toFixed(2)} CPM`,
+    );
+    // Render winner.adm in a WebView (see below)
+  }
+
+  // Log per-bidder latency for diagnostics
+  if (response.ext?.responsetimemillis) {
+    for (const [bidder, ms] of Object.entries(response.ext.responsetimemillis)) {
+      console.log(`[Prebid] ${bidder} responded in ${ms}ms`);
+    }
+  }
+}
+```
+
+### Rendering Winning Creatives
+
+Render the winning `adm` (HTML creative) in a WebView:
+
+```tsx
+import React from 'react';
+import { View } from 'react-native';
+import { WebView } from 'react-native-webview';
+
+interface WinningBidProps {
+  adMarkup: string;
+  width: number;
+  height: number;
+}
+
+function WinningBidRenderer({ adMarkup, width, height }: WinningBidProps) {
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { margin: 0; padding: 0; }
+    html, body { width: ${width}px; height: ${height}px; overflow: hidden; }
+  </style>
+</head>
+<body>${adMarkup}</body>
+</html>`;
+
+  return (
+    <View style={{ width, height }}>
+      <WebView
+        source={{ html }}
+        style={{ width, height }}
+        javaScriptEnabled
+        domStorageEnabled
+        scrollEnabled={false}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        originWhitelist={['*']}
+      />
+    </View>
+  );
+}
+```
+
+---
+
+## Prebid Server Configuration
+
+The `prebidServer` object on `SellwildConfig` controls server-side header bidding. When present, the SDK configures Prebid.js to route all bid requests through the specified Prebid Server instance.
+
+### Configuration Object
+
+```ts
+interface PrebidServerConfig {
+  /** Your Prebid Server account ID. */
+  accountId: string;
+
+  /**
+   * Full URL to the Prebid Server auction endpoint.
+   * Sellwild's managed instance: https://prebid.sellwild.com/openrtb2/auction
+   */
+  endpoint: string;
+
+  /**
+   * Bidder codes to route through Prebid Server.
+   * Must match the adapter names configured on the server.
+   */
+  bidders: string[];
+
+  /** Server-side auction timeout in milliseconds. Default: 1500. */
+  timeout?: number;
+
+  /**
+   * Cookie sync endpoint. Derived from `endpoint` if omitted.
+   * Only needed if your Prebid Server uses a non-standard path.
+   */
+  syncEndpoint?: string;
+}
+```
+
+### Field Reference
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `accountId` | `string` | Yes | -- | Your Prebid Server account ID |
+| `endpoint` | `string` | Yes | -- | Full auction endpoint URL |
+| `bidders` | `string[]` | Yes | -- | Bidder adapter codes for server-side routing |
+| `timeout` | `number` | No | `1500` | Auction timeout in milliseconds |
+| `syncEndpoint` | `string` | No | Derived | `/cookie_sync` URL override |
+
+### Example
+
+```ts
+prebidServer: {
+  accountId: 'weatherbug',
+  endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
+  bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
+  timeout: 1500,
+}
+```
+
+When `prebidServer` is set, the SDK automatically injects the following Prebid.js configuration into the WebView before the auction runs:
+
+```js
+pbjs.setConfig({
+  s2sConfig: {
+    accountId: 'weatherbug',
+    bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
+    timeout: 1500,
+    adapter: 'prebidServer',
+    endpoint: {
+      p1Consent: 'https://prebid.sellwild.com/openrtb2/auction',
+      noP1Consent: 'https://prebid.sellwild.com/openrtb2/auction',
+    },
+  },
+});
+```
+
+---
+
+## Metro Configuration
+
+When developing against a local copy of the Sellwild SDK (e.g., the monorepo at `../sellwild-sdk`), configure Metro to resolve the local packages.
+
+### metro.config.js
+
+```js
+const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
+const path = require('path');
+
+// Path to your local sellwild-sdk checkout
+const sellwildSdkRoot = path.resolve(__dirname, '../sellwild-sdk');
+
+const config = {
+  watchFolders: [
+    sellwildSdkRoot,
+  ],
+  resolver: {
+    // Ensure Metro does not resolve duplicate React/React Native copies
+    // from the SDK's own node_modules.
+    nodeModulesPaths: [
+      path.resolve(__dirname, 'node_modules'),
+    ],
+    // Redirect @sellwild/* imports to the local source
+    extraNodeModules: {
+      '@sellwild/sdk-core': path.resolve(sellwildSdkRoot, 'core'),
+      '@sellwild/react-native-sdk': path.resolve(sellwildSdkRoot, 'react-native'),
+    },
+    // Block duplicate copies of these packages from the SDK workspace
+    blockList: [
+      new RegExp(
+        path.resolve(sellwildSdkRoot, 'node_modules', 'react-native') + '/.*',
+      ),
+      new RegExp(
+        path.resolve(sellwildSdkRoot, 'node_modules', 'react') + '/.*',
+      ),
+    ],
+  },
+};
+
+module.exports = mergeConfig(getDefaultConfig(__dirname), config);
+```
+
+### Common Metro issues
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `Unable to resolve module @sellwild/sdk-core` | Missing `extraNodeModules` entry | Add the path mapping shown above |
+| `Duplicate module name: react` | SDK workspace has its own `react` copy | Add `blockList` entries |
+| `EMFILE: too many open files` | Watchman watching too many directories | Add `.watchmanconfig` with `"ignore_dirs"` |
+
+---
+
+## GDPR and Privacy
+
+The Sellwild SDK supports GDPR consent signaling through the Prebid Server auction flow. When `prebidServer` is configured, the SDK injects `ortb2.regs.ext.gdpr` and `ortb2.user.ext.consent` into the Prebid.js configuration.
+
+### Configuration
+
+Pass GDPR parameters through the `SellwildConfig`:
+
+```ts
+const config: PartialSellwildConfig = {
+  partnerCode: 'weatherbug',
+  listingsUrl: 'https://api.sellwild.com/listings/weatherbug',
+
+  // GDPR consent signals
+  gdprApplies: true,
+  tcString: 'CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA',
+
+  // IAB TCF version (2 = TCF v2.x)
+  tcfVersion: 2,
+
+  // GPP (Global Privacy Platform) support
+  gppEnabled: true,
+
+  prebidServer: {
+    accountId: 'weatherbug',
+    endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
+    bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
+    timeout: 1500,
+  },
+};
+```
+
+### How Consent Flows Through the SDK
+
+1. The host app collects consent through its own CMP (OneTrust, Didomi, etc.).
+2. The app passes `gdprApplies` and `tcString` via `SellwildConfig`.
+3. The SDK injects these values into the Prebid.js pre-configuration script:
+
+```js
+// Injected automatically by the SDK
+pbjs.setConfig({
+  ortb2: {
+    regs: { ext: { gdpr: 1 } },
+    user: { ext: { consent: 'CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA' } },
+  },
+});
+```
+
+4. Prebid Server forwards the consent string to all bidders.
+
+### Direct Auction Requests
+
+When calling the Prebid Server auction endpoint directly via `fetch()`, include GDPR signals in the OpenRTB request body:
+
+```ts
+const request = {
+  // ...imp, app, device...
+  regs: {
+    ext: { gdpr: 1 },
+  },
+  user: {
+    ext: {
+      consent: 'CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA',
+    },
+  },
+  tmax: 1500,
+};
+```
+
+### Important Notes
+
+- **Prebid Server defaults to `gdpr=1`** (GDPR applies). If no consent string is present, all bidder calls are suppressed. Always explicitly set `gdprApplies: false` for non-GDPR traffic.
+- **Native CMP bridging is not automatic.** If the host app uses a native CMP, it must read the consent string from `NSUserDefaults` (key: `IABTCF_TCString`) or `SharedPreferences` and pass it through `SellwildConfig`.
+- **CCPA/US Privacy** is supported through the GPP framework when `gppEnabled: true`.
+
+---
+
+## TypeScript Reference
+
+The SDK exports all types from `@sellwild/react-native-sdk` for convenience. The canonical definitions live in `@sellwild/sdk-core`.
+
+### Exported Types
+
+```ts
+// Configuration
+import type {
+  SellwildConfig,
+  PartialSellwildConfig,
+  PrebidServerConfig,
+} from '@sellwild/react-native-sdk';
+
+// Listings
+import type {
+  SellwildListing,
+  SellwildPhoto,
+  SellwildUser,
+  SellwildListingsResponse,
+} from '@sellwild/react-native-sdk';
+
+// Ads
+import type {
+  AdSize,            // '300x250' | '320x50' | '728x90' | '160x600' | '300x600' | '1x1'
+  AdPlacement,
+  AdPlacementType,   // 'banner_top' | 'banner_bottom' | 'inline' | 'interstitial'
+} from '@sellwild/react-native-sdk';
+
+// Component props
+import type {
+  SellwildWidgetProps,
+  SellwildBannerProps,
+  SellwildListingCardProps,
+  UseSellwildListingsResult,
+} from '@sellwild/react-native-sdk';
+```
+
+### Key Interfaces
+
+#### SellwildConfig (abridged)
+
+```ts
+interface SellwildConfig {
+  // Required
+  partnerCode: string;
+  listingsUrl: string;
+
+  // App identity
+  appBundleId?: string;
+  appStoreUrl?: string;
+
+  // Prebid Server
+  prebidServer?: PrebidServerConfig;
+
+  // Display
+  titleColor: string;
+  priceColor: string;
+  priceFontColor: string;
+  fontSize: number;
+  fontFamily: string;
+  fontColor: string;
+  cardWidth: string;
+  cardHeight: string;
+  colors: string[];
+
+  // Ads
+  bannerZid: number | string;
+  gamTag: string;
+  adRefreshMax: number;
+  adRefreshMaxMobile: number;
+  adRefreshInterval: number;
+
+  // Privacy
+  gppEnabled: boolean;
+  tcfVersion: number;
+
+  // Debug
+  debug: boolean;
+}
+```
+
+#### SellwildListing
+
+```ts
+interface SellwildListing {
+  id: string;
+  status: string;
+  title: string;
+  text: string;
+  url: string;
+  categoryId: string;
+  categoryGroupId: string;
+  currency: string;
+  price: string;
+  strikePrice: string;
+  has_photo: boolean;
+  photo_count: number;
+  photos: SellwildPhoto[];
+  createdDate: string;
+  videoUrl: string;
+  shippable: string;
+  listingType: string;
+  dataSourceId: string;
+  user: SellwildUser;
+  distance?: number;
+}
+```
+
+#### SellwildPhoto
+
+```ts
+interface SellwildPhoto {
+  url: string;
+  thumbUrl: string;
+  background?: string;
+}
+```
+
+### Utility Functions
+
+```ts
+import { buildConfig, currencyToSymbol } from '@sellwild/react-native-sdk';
+
+// Build a full SellwildConfig from partial input with defaults applied
+const config: SellwildConfig = buildConfig({
+  partnerCode: 'weatherbug',
+  listingsUrl: 'https://api.sellwild.com/listings/weatherbug',
+});
+
+// Convert ISO currency code to symbol
+currencyToSymbol('USD'); // '$'
+currencyToSymbol('EUR'); // '\u20ac'
+currencyToSymbol('GBP'); // '\u00a3'
+```
+
+---
+
+## Troubleshooting
+
+### Metro bundler cannot resolve `@sellwild/sdk-core`
+
+**Symptom:** `error: Error: Unable to resolve module @sellwild/sdk-core`
+
+**Cause:** The core package is not installed or Metro cannot locate it.
+
+**Fix:**
+
+```bash
+# Verify the package is installed
+npm ls @sellwild/sdk-core
+
+# If missing, reinstall
+npm install @sellwild/react-native-sdk
+
+# Clear Metro cache and restart
+npx react-native start --reset-cache
+```
+
+If developing against a local SDK checkout, ensure `extraNodeModules` is configured in `metro.config.js` (see [Metro Configuration](#metro-configuration)).
+
+---
+
+### `pod install` fails on iOS
+
+**Symptom:** `[!] CocoaPods could not find compatible versions for pod "react-native-webview"`
+
+**Fix:**
+
+```bash
+cd ios
+pod deintegrate
+pod cache clean --all
+pod install --repo-update
+cd ..
+```
+
+If using Xcode 15+, ensure your deployment target is iOS 13.0 or later in `ios/Podfile`:
+
+```ruby
+platform :ios, '13.0'
+```
+
+---
+
+### App Transport Security (ATS) blocks network requests
+
+**Symptom:** iOS console shows `App Transport Security has blocked a cleartext HTTP resource load`.
+
+**Cause:** The SDK endpoints use HTTPS, but a misconfigured proxy or redirect may downgrade to HTTP.
+
+**Fix:** Add the ATS exception domains listed in [iOS Configuration](#ios-configuration). For development with a local Prebid Server over HTTP, temporarily allow arbitrary loads:
+
+```xml
+<key>NSAppTransportSecurity</key>
+<dict>
+  <key>NSAllowsArbitraryLoads</key>
+  <true/>
+</dict>
+```
+
+Remove this before submitting to the App Store.
+
+---
+
+### No fill -- banner renders blank
+
+**Symptom:** The banner WebView loads but no ad creative appears.
+
+**Cause:** No bidder returned a bid above floor price, or bidder configuration is incorrect.
+
+**Diagnostic steps:**
+
+1. Enable debug mode:
+
+```ts
+const config = buildConfig({
+  partnerCode: 'weatherbug',
+  listingsUrl: '...',
+  debug: true,
+});
+```
+
+2. Inspect the WebView console output (enable remote debugging in Chrome for Android or Safari for iOS).
+
+3. Verify the Prebid Server is responding:
+
+```bash
+curl -X POST https://prebid.sellwild.com/openrtb2/auction \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "test-1",
+    "imp": [{
+      "id": "imp-1",
+      "banner": { "format": [{ "w": 320, "h": 50 }] },
+      "ext": {
+        "prebid": {
+          "bidder": {
+            "appnexus": { "placement_id": 13144370 }
+          }
+        }
+      }
+    }],
+    "app": {
+      "bundle": "com.aws.android",
+      "publisher": { "id": "weatherbug" }
+    },
+    "tmax": 1500
+  }'
+```
+
+4. Check the response for `ext.errors` or `ext.responsetimemillis` to identify bidder-level issues.
+
+---
+
+### WebView reloads on every parent render
+
+**Symptom:** The ad widget flickers or resets when unrelated state changes in the parent component.
+
+**Cause:** A new `config` object reference is created on each render, causing `react-native-webview` to detect a changed `source.html` and reload.
+
+**Fix:** The `SellwildWidget` component handles memoization internally. For `SellwildBanner`, ensure the `config` object is stable:
+
+```tsx
+// Store config outside the component or in useMemo
+const sdkConfig = useMemo(
+  () => buildConfig({ partnerCode: 'weatherbug', listingsUrl: '...' }),
+  [],
+);
+```
+
+---
+
+### Android cleartext traffic error
+
+**Symptom:** `java.io.IOException: Cleartext HTTP traffic to prebid.sellwild.com not permitted`
+
+**Cause:** Android 9+ blocks cleartext HTTP by default. The Sellwild production endpoints use HTTPS, so this error indicates either a redirect issue or a local development server.
+
+**Fix:** See [Android Configuration](#android-configuration) for network security config setup.
+
+---
+
+### `useSellwildListings` refresh returns stale data
+
+**Symptom:** Calling `refresh()` does not fetch new listings.
+
+**Cause:** This was a known issue in earlier SDK versions where the listing cache was not cleared on refresh. Current versions call `clearListingCache()` when `refreshKey > 0`.
+
+**Fix:** Update to the latest version of `@sellwild/react-native-sdk`:
+
+```bash
+npm install @sellwild/react-native-sdk@latest
+```
+
+---
+
+### Android WebView crash on multi-process apps
+
+**Symptom:** `java.lang.RuntimeException: Using WebView from more than one process`
+
+**Cause:** Android 9+ requires explicit multi-process WebView configuration when the app uses multiple processes.
+
+**Fix:** Call `SellwildWebViewCompat.configureForMultiProcess()` in your `Application.onCreate()`:
+
+```kotlin
+// MainApplication.kt
+override fun onCreate() {
+    super.onCreate()
+    SellwildWebViewCompat.configureForMultiProcess(this)
+}
+```
+
+---
+
+## Further Reading
+
+- [Prebid Server OpenRTB Auction Endpoint](https://docs.prebid.org/prebid-server/endpoints/openrtb2/pbs-endpoint-auction.html)
+- [Prebid.js S2S Module Documentation](https://docs.prebid.org/dev-docs/modules/prebidServer.html)
+- [OpenRTB 2.6 Specification](https://www.iab.com/wp-content/uploads/2022/04/OpenRTB-2-6_FINAL.pdf)
+- [IAB TCF v2.2](https://iabeurope.eu/tcf-2-0/)
+- [Sellwild SDK Prebid Integration Guide](./PREBID.md)
+- [Sellwild SDK Validation Report](./VALIDATION.md)
