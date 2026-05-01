@@ -146,6 +146,17 @@
   border-color: var(--vp-c-border) !important;
 }
 
+.VPNavBar .logo {
+  height: 28px;
+  width: auto;
+}
+
+.VPNavBar .VPNavBarTitle .title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Smooth transitions */
 * {
   transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
