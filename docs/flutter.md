@@ -44,7 +44,7 @@ Add the Sellwild SDK to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  sellwild_sdk: ^1.0.0
+  sellwild_sdk: ^1.1.0
 ```
 
 The SDK pulls in two transitive dependencies automatically:

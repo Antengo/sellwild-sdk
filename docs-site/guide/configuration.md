@@ -10,7 +10,8 @@ Complete reference for all Sellwild SDK configuration options. These fields appl
 2. [PrebidServerConfig](#prebidserverconfig)
 3. [Ad Size Reference](#ad-size-reference)
 4. [Ad Refresh Configuration](#ad-refresh-configuration)
-5. [Debug Mode](#debug-mode)
+5. [Remote Config](#remote-config)
+6. [Debug Mode](#debug-mode)
 
 ---
 
@@ -320,6 +321,57 @@ config = SellwildConfig(
     // ...
 )
 ```
+
+---
+
+## Remote Config
+
+The SDK can fetch its config from the Sellwild CDN at app launch instead of (or in addition to) hardcoding settings in your binary. This lets your Sellwild contact change ad zones, refresh intervals, geo blocks, and waterfall partners without an app update.
+
+### URL pattern
+
+```
+https://widget.sellwild.com/app/{partnerCode}/{slug}.json
+```
+
+Your Sellwild contact provides the `slug`. The JSON uses CONSTANT_CASE keys (e.g. `AD_REFRESH_MAX`, `HIDE_BANNER_TOP`) which the SDK maps to the camelCase fields documented above.
+
+### Merge order
+
+1. SDK defaults
+2. Static partial config you pass in
+3. Remote CDN config (overrides everything above)
+
+### Failure handling
+
+If the fetch fails (network error, timeout, 404), the SDK falls back silently to your static config. Remote config is **additive, never blocking** — your app always renders, even with the CDN offline.
+
+### Usage (React Native / TypeScript)
+
+```ts
+import { buildConfigWithRemote } from '@sellwild/react-native-sdk';
+
+const config = await buildConfigWithRemote(
+  { partnerCode: 'weatherbug', listingsUrl: '...' },
+  'weatherbug-main',
+);
+```
+
+See the [API Reference](./api-reference#buildconfigwithremote) for full options.
+
+### Native platforms (iOS / Android / Flutter)
+
+iOS, Android, and Flutter do not yet ship a built-in remote config fetcher. To use remote config on those platforms, fetch and parse the JSON yourself at app launch and pass the values into `SellwildConfig`:
+
+```swift
+// iOS
+let url = URL(string: "https://widget.sellwild.com/app/weatherbug/weatherbug-main.json")!
+let (data, _) = try await URLSession.shared.data(from: url)
+let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+// Map CONSTANT_CASE keys to your SellwildConfig fields, then construct config.
+```
+
+The JSON schema is the same across platforms — see the [key mapping in core/src/remote-config.ts](https://github.com/Antengo/sellwild-sdk/blob/main/core/src/remote-config.ts) for the full list. Native helpers for iOS / Android / Flutter are planned for a future release.
 
 ---
 

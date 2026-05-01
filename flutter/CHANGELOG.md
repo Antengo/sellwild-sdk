@@ -1,3 +1,8 @@
+## 1.1.0
+
+- Remote config support — `buildConfigWithRemote()` fetches partner config from the Sellwild CDN
+- Falls back silently to static config if the remote fetch fails
+
 ## 1.0.0
 
 - Initial release

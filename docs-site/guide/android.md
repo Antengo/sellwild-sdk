@@ -71,7 +71,7 @@ In your app-level `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.0.0")
+    implementation("com.sellwild:sdk:1.1.0")
 
     // Required -- coroutines for async listings API
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -85,12 +85,12 @@ Sync your project and rebuild.
 If you received the SDK as an `.aar` file, publish it to your local Maven repository:
 
 ```bash
-# From the directory containing sellwild-sdk-1.0.0.aar
+# From the directory containing sellwild-sdk-1.1.0.aar
 mvn install:install-file \
-    -Dfile=sellwild-sdk-1.0.0.aar \
+    -Dfile=sellwild-sdk-1.1.0.aar \
     -DgroupId=com.sellwild \
     -DartifactId=sellwild-sdk \
-    -Dversion=1.0.0 \
+    -Dversion=1.1.0 \
     -Dpackaging=aar
 ```
 

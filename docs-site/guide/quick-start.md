@@ -100,7 +100,7 @@ Add the dependency to `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.0.0")
+    implementation("com.sellwild:sdk:1.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
 ```
@@ -222,7 +222,7 @@ Add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  sellwild_sdk: ^1.0.0
+  sellwild_sdk: ^1.1.0
 ```
 
 Then run:

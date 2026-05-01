@@ -498,6 +498,49 @@ const config: SellwildConfig = buildConfig({
 
 ---
 
+### buildConfigWithRemote
+
+Async variant of `buildConfig` that merges in remote configuration from the Sellwild CDN. Lets you change ad zones, refresh intervals, geo blocking, and other partner settings without shipping an app update.
+
+```ts
+import { buildConfigWithRemote } from '@sellwild/react-native-sdk';
+
+const config = await buildConfigWithRemote(
+  { partnerCode: 'weatherbug', listingsUrl: 'https://api.sellwild.com/listings/weatherbug' },
+  'weatherbug-main', // remote slug — provided by your Sellwild contact
+);
+```
+
+The remote config is fetched from `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Merge order:
+
+1. SDK defaults
+2. Static partial config you pass in
+3. Remote CDN config (overrides everything above)
+
+**Failure handling.** If the fetch fails (network error, timeout, 404), the function falls back silently to the static config. Your app is never blocked by remote config availability.
+
+**Options (`RemoteConfigOptions`):**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `timeout` | `number` | `5000` | Request timeout in milliseconds. Falls back to static config on timeout. |
+| `baseUrl` | `string` | `https://widget.sellwild.com` | Override the CDN base URL (useful for testing). |
+| `signal` | `AbortSignal` | — | Optional abort signal to cancel the fetch. |
+
+```ts
+const config = await buildConfigWithRemote(
+  { partnerCode: 'weatherbug', listingsUrl: '...' },
+  'weatherbug-main',
+  { timeout: 1500 },
+);
+```
+
+Results are cached in-memory per `(partnerCode, slug)` for the lifetime of the process. Call `clearRemoteConfigCache()` to force a re-fetch (e.g. on app foreground).
+
+**Platform availability:** `buildConfigWithRemote` is currently TypeScript / React Native only. iOS, Android, and Flutter consumers can fetch the same JSON manually at app launch — see [Configuration → Remote Config](./configuration#native-platforms-ios-android-flutter) for an example.
+
+---
+
 ### currencyToSymbol
 
 ```ts
