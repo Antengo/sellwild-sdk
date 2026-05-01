@@ -18,8 +18,10 @@ import {
   SellwildWidget,
   useSellwildListings,
   buildConfig,
+  buildConfigWithRemote,
+  clearRemoteConfigCache,
 } from '@sellwild/react-native-sdk'
-import type { SellwildListing, PartialSellwildConfig } from '@sellwild/react-native-sdk'
+import type { SellwildListing, SellwildConfig, PartialSellwildConfig } from '@sellwild/react-native-sdk'
 import { currencyToSymbol } from '@sellwild/sdk-core'
 import { WebView } from 'react-native-webview'
 
@@ -29,20 +31,15 @@ const CARD_WIDTH = (SCREEN_WIDTH - CARD_GAP * 3) / 2
 
 const PBS_ENDPOINT = 'https://prebid.sellwild.com/openrtb2/auction'
 
-const CONFIG: PartialSellwildConfig = {
+// Static config — the minimum required fields. Everything else (bidders, refresh
+// limits, geo-blocking, ad controls) comes from the remote app config on the CDN
+// at https://widget.sellwild.com/app/weatherbug/weatherbug-weatherbug.json
+// Managed via the CMS at sellwild-widget.netlify.app/admin-v2/app
+const STATIC_CONFIG: PartialSellwildConfig = {
   partnerCode: 'weatherbug',
   listingsUrl: 'https://cache.sellwild.com/listings-img-data-sm-ferrarichat',
   appBundleId: 'com.aws.android',
   appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
-  adType: 'PrebidOnly',
-  prebidServer: {
-    accountId: 'sellwild',
-    endpoint: PBS_ENDPOINT,
-    bidders: ['appnexus', 'ix', 'pubmatic', 'rubicon', 'openx',
-              'triplelift', 'sharethrough', 'inmobi', 'smaato'],
-    timeout: 1500,
-  },
-  appnexus: { placement_id: 13144370 },
   title: 'LOCAL DEALS NEAR YOU',
   titleSize: 20,
   linkText: 'VIEW ALL LISTINGS',
@@ -54,11 +51,12 @@ const CONFIG: PartialSellwildConfig = {
   cardWidth: '300px',
   bannerZid: '43',
   mobileZids: ['280'],
-  adRefreshMaxMobile: 5,
-  adRefreshInterval: 30000,
   widgetJsUrl: 'https://widget.sellwild.com/partner/index.js',
   debug: true,
 } as PartialSellwildConfig
+
+// Remote config slug — matches the CMS file app/weatherbug-weatherbug.md
+const REMOTE_SLUG = 'weatherbug-weatherbug'
 
 // ─── PBS Auction Types ───────────────────────────────────────────────────────
 
@@ -485,8 +483,22 @@ function ListingCard({ listing, onPress }: { listing: SellwildListing; onPress: 
 // ─── Native Screen ───────────────────────────────────────────────────────────
 
 function NativeScreen() {
-  const config = buildConfig(CONFIG)
-  const { listings, loading, error, refresh } = useSellwildListings(config)
+  const [config, setConfig] = useState<SellwildConfig | null>(null)
+
+  // Fetch remote config from CDN on mount — merges CMS overrides over static defaults.
+  // If the fetch fails (offline, timeout), falls back silently to static config.
+  useEffect(() => {
+    buildConfigWithRemote(STATIC_CONFIG, REMOTE_SLUG, { timeout: 5000 })
+      .then(setConfig)
+  }, [])
+
+  // On app foreground, clear cache so next init picks up CMS changes
+  useEffect(() => {
+    return () => { clearRemoteConfigCache() }
+  }, [])
+
+  const resolvedConfig = config ?? buildConfig(STATIC_CONFIG)
+  const { listings, loading, error, refresh } = useSellwildListings(resolvedConfig)
   const [auctionResult, setAuctionResult] = useState<MultiAuctionResult>({ loading: true, auctionId: '', slots: [], totalTimeMs: 0, responseTimes: {} })
 
   const bannerAuction = auctionResult.slots.find(s => s.slotId === 'banner-top') || null
@@ -607,9 +619,16 @@ function NativeScreen() {
 // ─── Widget Screen ───────────────────────────────────────────────────────────
 
 function WidgetScreen() {
+  const [config, setConfig] = useState<PartialSellwildConfig>(STATIC_CONFIG)
+
+  useEffect(() => {
+    buildConfigWithRemote(STATIC_CONFIG, REMOTE_SLUG, { timeout: 5000 })
+      .then(setConfig)
+  }, [])
+
   return (
     <SellwildWidget
-      config={CONFIG}
+      config={config}
       style={s.flex}
       onListingPress={(listing: SellwildListing) => {
         if (listing.url) Linking.openURL(listing.url)

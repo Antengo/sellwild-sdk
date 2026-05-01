@@ -264,6 +264,12 @@ class SellwildWidgetView @JvmOverloads constructor(
             }
         })
 
+        // Mobile ad controls
+        addBool("enable-interstitial", config.enableInterstitial)
+        addBool("enable-fullscreen-video", config.enableFullscreenVideo)
+        addInt("interstitials-per-session", config.interstitialsPerSession)
+        addInt("video-takeovers-per-session", config.videoTakeoversPerSession)
+
         return parts.joinToString("\n    ")
     }
 

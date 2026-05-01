@@ -31,38 +31,24 @@ import 'package:url_launcher/url_launcher.dart';
 //    Solves cookie/IDFA limitations. Uncomment prebidServer below.
 //    See sdk/PREBID.md for full setup instructions.
 
-// MODE A — default config (Prebid.js in WebView):
+// Static config — the minimum required fields.
+// Bidders, refresh limits, geo-blocking, and ad controls come from the remote
+// app config on the CDN, managed via the Sellwild CMS.
+// CDN URL: https://widget.sellwild.com/app/{partnerCode}/{slug}.json
 const _config = SellwildConfig(
   partnerCode: 'YOUR_PARTNER_CODE',
   listingsUrl:
       'https://api.sellwild.com/widget/listings?partner=YOUR_PARTNER_CODE&count=20',
-
-  // Required: tells Prebid.js this is in-app traffic (ortb2.app), not web (ortb2.site).
-  // Use the actual bundle ID / package name for your app.
   appBundleId: 'com.mycompany.myapp',
   appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
-
-  // Uncomment to enable Google Ad Manager banner:
-  // gamTag: '/12345678/your-ad-unit',
-
-  // Uncomment to enable zone-based banners:
-  // bannerZid: '98765',
-  // mobileZids: ['11111', '22222'],
-
-  // MODE B — Prebid Server S2S (uncomment to activate):
-  // prebidServer: PrebidServerConfig(
-  //   accountId: 'YOUR_ACCOUNT_ID',
-  //   endpoint: 'https://prebid-server.example.com/openrtb2/auction',
-  //   // AppNexus hosted: 'https://prebid.adnxs.com/pbs/v1/openrtb2/auction'
-  //   // Rubicon hosted:  'https://prebid-server.rubiconproject.com/openrtb2/auction'
-  //   bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
-  //   timeout: 1500,
-  // ),
-
   adRefreshMaxMobile: 5,
   adRefreshInterval: Duration(seconds: 30),
   debug: true,
 );
+
+// Remote config slug — matches the CMS file app/{code}-{slug}.md
+// Toggle bidders, adjust refresh, enable interstitials — no app update needed.
+const _remoteSlug = 'your-partner-slug';
 
 // ─── App Entry Point ──────────────────────────────────────────────────────────
 

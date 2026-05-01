@@ -21,4 +21,10 @@ export type {
   AdPlacementType,
 } from '@sellwild/sdk-core'
 
-export { buildConfig, currencyToSymbol } from '@sellwild/sdk-core'
+export {
+  buildConfig,
+  buildConfigWithRemote,
+  currencyToSymbol,
+  fetchRemoteConfig,
+  clearRemoteConfigCache,
+} from '@sellwild/sdk-core'

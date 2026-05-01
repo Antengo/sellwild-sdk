@@ -62,30 +62,47 @@ import kotlinx.coroutines.launch
 //    Call SellwildPrebidMobile.initialize() from Application.onCreate().
 //    See SellwildPrebidMobile.kt and sdk/PREBID.md for setup.
 
-private val DEMO_CONFIG = SellwildConfig(
+// Static config — the minimum required fields.
+// Bidders, refresh limits, geo-blocking, and ad controls come from the remote
+// app config on the CDN, managed via the Sellwild CMS.
+private val STATIC_CONFIG = SellwildConfig(
     partnerCode = "YOUR_PARTNER_CODE",
     listingsUrl = "https://api.sellwild.com/widget/listings?partner=YOUR_PARTNER_CODE&count=20",
-    // Required: tells Prebid.js this is in-app traffic (ortb2.app), not web (ortb2.site).
     appBundleId = "com.mycompany.myapp",   // use BuildConfig.APPLICATION_ID in production
     appStoreUrl = "https://play.google.com/store/apps/details?id=com.mycompany.myapp",
-    // gamTag = "/12345678/your-ad-unit",   // Uncomment for GPT banner
-    // bannerZid = "98765",                 // Uncomment for zone banner
-    // mobileZids = listOf("11111","22222"),// Uncomment for inline zones
-
-    // MODE B — Prebid Server S2S (uncomment to activate):
-    // prebidServer = PrebidServerConfig(
-    //     accountId = "YOUR_ACCOUNT_ID",
-    //     endpoint  = "https://prebid-server.example.com/openrtb2/auction",
-    //     // AppNexus hosted: "https://prebid.adnxs.com/pbs/v1/openrtb2/auction"
-    //     // Rubicon hosted:  "https://prebid-server.rubiconproject.com/openrtb2/auction"
-    //     bidders   = listOf("appnexus", "rubicon", "ix", "openx"),
-    //     timeout   = 1500,
-    // ),
-
     adRefreshMaxMobile = 5,
     adRefreshIntervalMs = 30_000L,
     debug = true,
 )
+
+// Remote config slug — matches the CMS file app/{code}-{slug}.md
+// The CDN publishes JSON at: https://widget.sellwild.com/app/{code}/{slug}.json
+// Toggle bidders, adjust refresh, enable interstitials — no app update needed.
+private const val REMOTE_SLUG = "your-partner-slug"
+
+// Convenience: fetch remote config and merge over static defaults
+// Call from a coroutine scope (e.g. viewModelScope.launch { ... })
+//
+// suspend fun loadConfig(): SellwildConfig {
+//     return try {
+//         val url = URL("https://widget.sellwild.com/app/${STATIC_CONFIG.partnerCode}/$REMOTE_SLUG.json")
+//         val json = withContext(Dispatchers.IO) { url.readText() }
+//         val remote = JSONObject(json)
+//         // Apply remote overrides to static config via .copy()
+//         STATIC_CONFIG.copy(
+//             adRefreshMax = remote.optInt("AD_REFRESH_MAX", STATIC_CONFIG.adRefreshMax),
+//             adRefreshMaxMobile = remote.optInt("AD_REFRESH_MAX_MOBILE", STATIC_CONFIG.adRefreshMaxMobile),
+//             enableInterstitial = remote.optBoolean("ENABLE_INTERSTITIAL", STATIC_CONFIG.enableInterstitial),
+//             enableFullscreenVideo = remote.optBoolean("ENABLE_FULLSCREEN_VIDEO", STATIC_CONFIG.enableFullscreenVideo),
+//             // ... map additional fields as needed
+//         )
+//     } catch (e: Exception) {
+//         Log.w(TAG, "Remote config fetch failed, using static config", e)
+//         STATIC_CONFIG
+//     }
+// }
+
+private val DEMO_CONFIG = STATIC_CONFIG
 
 // ─── Mode C: Prebid Mobile SDK initialization (optional) ─────────────────────
 // Uncomment after adding: implementation("org.prebid:prebid-mobile-sdk-core:2.3.2")

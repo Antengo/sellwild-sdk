@@ -41,34 +41,46 @@ import SellwildSDK
 //    See SellwildPrebidMobile.swift and sdk/PREBID.md for setup.
 
 extension SellwildConfig {
+  /// Static config — the minimum required fields.
+  /// Bidders, refresh limits, geo-blocking, and ad controls come from the remote
+  /// app config on the CDN, managed via the Sellwild CMS.
   static var demo: SellwildConfig {
     var c = SellwildConfig(
       partnerCode: "YOUR_PARTNER_CODE",
       listingsUrl: "https://api.sellwild.com/widget/listings?partner=YOUR_PARTNER_CODE&count=20"
     )
-    // Required: tells Prebid.js this is in-app traffic (ortb2.app), not web (ortb2.site).
-    // Use Bundle.main.bundleIdentifier in production.
     c.appBundleId = Bundle.main.bundleIdentifier ?? "com.mycompany.myapp"
     c.appStoreUrl = "https://apps.apple.com/app/idXXXXXXXXX"
-
-    // c.gamTag = "/12345678/your-ad-unit"    // Uncomment to enable GPT banner
-    // c.bannerZid = "98765"                  // Uncomment to enable zone banner
-    // c.mobileZids = ["11111", "22222"]      // Uncomment for inline zones
-
-    // MODE B — Prebid Server S2S (uncomment to activate):
-    // c.prebidServer = PrebidServerConfig(
-    //   accountId: "YOUR_ACCOUNT_ID",
-    //   endpoint:  "https://prebid-server.example.com/openrtb2/auction",
-    //   // AppNexus hosted: "https://prebid.adnxs.com/pbs/v1/openrtb2/auction"
-    //   // Rubicon hosted:  "https://prebid-server.rubiconproject.com/openrtb2/auction"
-    //   bidders: ["appnexus", "rubicon", "ix", "openx"],
-    //   timeout: 1500
-    // )
-
     c.adRefreshMaxMobile = 5
     c.adRefreshInterval = 30.0
     c.debug = true
     return c
+  }
+
+  /// Load config with remote overrides from the CDN.
+  /// The CMS publishes JSON at: https://widget.sellwild.com/app/{code}/{slug}.json
+  /// Toggle bidders, adjust refresh limits, enable interstitials — no app update needed.
+  ///
+  /// Usage:
+  ///   let config = await SellwildConfig.withRemoteOverrides(slug: "your-partner-slug")
+  static func withRemoteOverrides(slug: String) async -> SellwildConfig {
+    let base = Self.demo
+    let url = URL(string: "https://widget.sellwild.com/app/\(base.partnerCode)/\(slug).json")!
+    do {
+      let (data, _) = try await URLSession.shared.data(from: url)
+      let remote = try JSONDecoder().decode(SellwildConfig.self, from: data)
+      // Merge: remote overrides win, but keep identity fields from static config
+      var merged = remote
+      merged.partnerCode = base.partnerCode
+      merged.listingsUrl = base.listingsUrl
+      merged.appBundleId = base.appBundleId
+      merged.appStoreUrl = base.appStoreUrl
+      merged.debug = base.debug
+      return merged
+    } catch {
+      print("[Sellwild] Remote config fetch failed, using static config: \(error)")
+      return base
+    }
   }
 }
 

@@ -205,6 +205,12 @@ function configToAttributes(config: SellwildConfig): string {
   add('growthcode', config.growthcode)
   add('bh-tag', config.bhTag)
 
+  // Mobile ad controls
+  add('enable-interstitial', config.enableInterstitial || undefined)
+  add('enable-fullscreen-video', config.enableFullscreenVideo || undefined)
+  add('interstitials-per-session', config.interstitialsPerSession)
+  add('video-takeovers-per-session', config.videoTakeoversPerSession)
+
   // Debug
   add('debug', config.debug || undefined)
   add('membership-type', config.membershipType)

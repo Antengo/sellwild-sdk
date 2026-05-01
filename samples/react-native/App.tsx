@@ -33,14 +33,20 @@ import {
   SellwildListingCard,
   useSellwildListings,
   buildConfig,
+  buildConfigWithRemote,
+  clearRemoteConfigCache,
 } from '@sellwild/react-native-sdk'
-import type { SellwildListing, PartialSellwildConfig } from '@sellwild/react-native-sdk'
+import type { SellwildListing, SellwildConfig, PartialSellwildConfig } from '@sellwild/react-native-sdk'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 // ─── MODE A: Prebid.js client-side in WebView (default) ──────────────────────
 // Bidder adapters run inside the WebView. appBundleId is required so Prebid.js
 // declares in-app (ortb2.app) inventory instead of web (ortb2.site) traffic.
+//
+// Bidder credentials, refresh limits, and ad controls can be managed remotely
+// via the Sellwild CMS. Use buildConfigWithRemote() to fetch overrides from the
+// CDN at https://widget.sellwild.com/app/{partnerCode}/{slug}.json
 const BASE_CONFIG: PartialSellwildConfig = {
   partnerCode: 'YOUR_PARTNER_CODE',
   listingsUrl: 'https://api.sellwild.com/widget/listings?partner=YOUR_PARTNER_CODE&count=20',
@@ -107,7 +113,18 @@ function WebViewWidgetScreen() {
 // ─── Screen: Native Listing Cards + Banner ────────────────────────────────────
 
 function NativeListingsScreen() {
-  const config = buildConfig(BASE_CONFIG)
+  // ─── Remote Config ───────────────────────────────────────────────────────
+  // Fetches config overrides from the CDN. Bidders, refresh limits, geo-blocking,
+  // and ad controls can be toggled from the Sellwild CMS without an app update.
+  // Falls back silently to BASE_CONFIG if the fetch fails.
+  const [config, setConfig] = useState<SellwildConfig>(() => buildConfig(BASE_CONFIG))
+
+  useEffect(() => {
+    // Replace 'your-partner-slug' with your CMS app config slug
+    buildConfigWithRemote(BASE_CONFIG, 'your-partner-slug', { timeout: 5000 })
+      .then(setConfig)
+  }, [])
+
   const { listings, loading, error, refresh } = useSellwildListings(config)
 
   const handlePress = useCallback((listing: SellwildListing) => {

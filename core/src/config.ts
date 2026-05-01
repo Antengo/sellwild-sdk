@@ -1,4 +1,5 @@
 import { SellwildConfig, PartialSellwildConfig } from './types'
+import { fetchRemoteConfig, type RemoteConfigOptions } from './remote-config'
 
 export const API_BASE_URL = 'https://api.sellwild.com'
 export const WIDGET_BASE_URL = 'https://widget.sellwild.com'
@@ -90,6 +91,28 @@ export function buildConfig(partial: PartialSellwildConfig): SellwildConfig {
   return {
     ...defaultConfig,
     ...partial,
+  } as SellwildConfig
+}
+
+/**
+ * Builds config with remote overrides from the CDN.
+ *
+ * Merge order: defaults → partner static config → remote CDN config
+ *
+ * The remote config is fetched from widget.sellwild.com/app/{partnerCode}/{slug}.json.
+ * If the fetch fails (network, timeout, 404), falls back silently to the
+ * static config so the app is never blocked by remote config availability.
+ */
+export async function buildConfigWithRemote(
+  partial: PartialSellwildConfig,
+  remoteSlug: string,
+  options?: RemoteConfigOptions,
+): Promise<SellwildConfig> {
+  const remote = await fetchRemoteConfig(partial.partnerCode, remoteSlug, options)
+  return {
+    ...defaultConfig,
+    ...partial,
+    ...remote,
   } as SellwildConfig
 }
 
