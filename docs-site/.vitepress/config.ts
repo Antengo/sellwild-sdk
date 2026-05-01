@@ -11,7 +11,7 @@ export default defineConfig({
   ],
   themeConfig: {
     logo: { light: '/logo.svg', dark: '/logo-dark.svg' },
-    siteTitle: 'Sellwild SDK',
+    siteTitle: 'SDK',
     nav: [
       { text: 'Guide', link: '/guide/' },
       { text: 'Platforms', items: [
