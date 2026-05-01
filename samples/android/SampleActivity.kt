@@ -4,7 +4,7 @@
  * How to run:
  *   1. Create a new Android project in Android Studio (API 21+ / Kotlin).
  *   2. Add the SDK dependency to app/build.gradle.kts:
- *        implementation("com.sellwild:sdk:1.0.0")
+ *        implementation("com.sellwild:sdk:1.2.0")
  *        — OR for local Maven during development:
  *        implementation(files("../../android/build/outputs/aar/sdk-release.aar"))
  *   3. Add INTERNET permission to AndroidManifest.xml:

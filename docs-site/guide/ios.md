@@ -47,7 +47,7 @@ platform :ios, '13.0'
 
 target 'YourApp' do
   use_frameworks!
-  pod 'SellwildSDK', '~> 1.0'
+  pod 'SellwildSDK', '~> 1.2'
 end
 ```
 
@@ -68,7 +68,7 @@ Open the generated `.xcworkspace` file to continue development.
 https://github.com/Antengo/sellwild-sdk.git
 ```
 
-3. Set the dependency rule to **Up to Next Major Version** starting at `1.0.0`.
+3. Set the dependency rule to **Up to Next Major Version** starting at `1.2.0`.
 4. Select the **SellwildSDK** library product and add it to your app target.
 
 Alternatively, add the dependency directly in your `Package.swift`:
@@ -77,7 +77,7 @@ Alternatively, add the dependency directly in your `Package.swift`:
 dependencies: [
     .package(
         url: "https://github.com/Antengo/sellwild-sdk.git",
-        from: "1.0.0"
+        from: "1.2.0"
     )
 ],
 targets: [

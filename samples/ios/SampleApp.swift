@@ -5,9 +5,9 @@
  *   1. Create a new iOS app in Xcode (SwiftUI or UIKit, targeting iOS 14+).
  *   2. Add the SellwildSDK package:
  *        File → Add Package Dependencies →
- *        https://github.com/sellwild/sdk-ios.git  (version 1.0.0)
+ *        https://github.com/Antengo/sellwild-sdk.git  (version 1.2.0)
  *        — OR —
- *        Add to your Podfile: pod 'SellwildSDK', '~> 1.0'  then pod install
+ *        Add to your Podfile: pod 'SellwildSDK', '~> 1.2'  then pod install
  *   3. Copy the relevant section below into your app.
  *   4. Replace 'YOUR_PARTNER_CODE' with your real partner code.
  *

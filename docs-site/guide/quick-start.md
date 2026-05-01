@@ -14,7 +14,7 @@ For full integration guides with all ad formats, listing cards, GDPR, lifecycle 
 **CocoaPods** -- Add to your `Podfile`:
 
 ```ruby
-pod 'SellwildSDK', '~> 1.0'
+pod 'SellwildSDK', '~> 1.2'
 ```
 
 Then run `pod install` and open the `.xcworkspace` file.

@@ -5,7 +5,7 @@
 ///        flutter create sellwild_demo
 ///   2. Add the SDK to pubspec.yaml:
 ///        dependencies:
-///          sellwild_sdk: ^1.0.0
+///          sellwild_sdk: ^1.2.0
 ///          url_launcher: ^6.2.0
 ///   3. Run: flutter pub get
 ///   4. Replace lib/main.dart with this file.
