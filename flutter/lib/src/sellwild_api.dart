@@ -12,7 +12,7 @@ class SellwildAPIClient {
   final _http = http.Client();
 
   Future<SellwildListingsResponse> fetchListings(SellwildConfig config) async {
-    final url = config.listingsUrl;
+    final url = config.effectiveListingsUrl;
     if (_cache.containsKey(url)) return _cache[url]!;
 
     final response = await _http.get(Uri.parse(url));

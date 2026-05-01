@@ -9,11 +9,21 @@ export interface FetchOptions {
   headers?: Record<string, string>
 }
 
+/**
+ * Resolves the effective listings URL for a config. Uses `config.listingsUrl`
+ * when set, otherwise derives a deterministic default from the partner code
+ * so 1.2.0 callers using `configure(partnerCode, slug)` don't have to set it.
+ */
+export function resolveListingsUrl(config: SellwildConfig): string {
+  if (config.listingsUrl) return config.listingsUrl
+  return `${config.apiBaseUrl}/widget/listings?partner=${config.partnerCode}`
+}
+
 export async function fetchListings(
   config: SellwildConfig,
   options: FetchOptions = {}
 ): Promise<SellwildListingsResponse> {
-  const url = config.listingsUrl
+  const url = resolveListingsUrl(config)
 
   if (listingCache.has(url)) {
     return listingCache.get(url)!

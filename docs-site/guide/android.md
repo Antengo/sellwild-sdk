@@ -72,7 +72,7 @@ In your app-level `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.1.0")
+    implementation("com.sellwild:sdk:1.2.0")
 
     // Required -- coroutines for async listings API
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -589,32 +589,32 @@ sealed interface ListingsUiState {
 
 ---
 
-## Remote Config
+## Remote Config (the first-class path)
 
-Change ad zones, refresh intervals, hide flags, interstitial controls, and waterfall partners without shipping an app update. The SDK fetches a JSON document from the Sellwild CDN at app launch and merges it onto your static `SellwildConfig`.
-
-```
-https://widget.sellwild.com/app/{partnerCode}/{slug}.json
-```
-
-The merge order is **defaults → static config → remote CDN config** (remote wins). Network or parse failures fall back silently to your static config so the app always renders.
-
-A drop-in `SellwildRemoteConfig.build(base, slug)` Kotlin helper, the full CONSTANT_CASE → camelCase key map, and merge semantics live in [Configuration → Remote Config (Native platforms)](./configuration#native-platforms-ios-android-flutter). Copy that helper into your app, then call it once at launch:
+`SellwildSDK.configure(partnerCode, slug)` is the recommended way to integrate the SDK. It fetches a JSON document from the Sellwild CDN at app launch and returns a fully-built `SellwildConfig` — listings URL, ad zones, refresh intervals, app identity, waterfall partners, compliance flags, and more — so you can change everything without an app update.
 
 ```kotlin
+import com.sellwild.sdk.SellwildSDK
+
 lifecycleScope.launch {
-    val base = SellwildConfig(
+    val config = SellwildSDK.configure(
         partnerCode = "weatherbug",
-        listingsUrl = "https://api.sellwild.com/widget/listings?partner=weatherbug",
-    )
-    val config = SellwildRemoteConfig.build(base, slug = "weatherbug-main")
+        slug = "weatherbug-main",
+    ) { c ->
+        // Optional: override CDN values with app-controlled ones.
+        c.copy(appBundleId = packageName)
+    }
     // Hand `config` to your SellwildAdView / SellwildWidgetView.
 }
 ```
 
-Your Sellwild contact provides the `slug` and manages the CDN document.
+The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your Sellwild contact provisions the `slug` in the CMS.
 
-> The CDN's `AD_REFRESH_INTERVAL` is in **seconds**, while Android's `adRefreshIntervalMs` is in **milliseconds**. The reference helper handles the conversion.
+**Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode = ...)` with deterministic defaults. The `listingsUrl` derives from `partnerCode`, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
+
+> The CDN's `AD_REFRESH_INTERVAL` is in **seconds**, while Android's `adRefreshIntervalMs` is in **milliseconds**. `SellwildSDK.configure()` handles the conversion.
+
+See [Configuration → Remote Config](./configuration#remote-config) for the full CDN field reference.
 
 ---
 

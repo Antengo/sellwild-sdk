@@ -45,7 +45,7 @@ Add the Sellwild SDK to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  sellwild_sdk: ^1.1.0
+  sellwild_sdk: ^1.2.0
 ```
 
 The SDK pulls in two transitive dependencies automatically:
@@ -390,31 +390,25 @@ class _ListingGridState extends State<ListingGrid> {
 
 ---
 
-## Remote Config
+## Remote Config (the first-class path)
 
-Change ad zones, refresh intervals, hide flags, interstitial controls, and waterfall partners without shipping an app update. The SDK fetches a JSON document from the Sellwild CDN at app launch and merges it onto your static `SellwildConfig`.
-
-```
-https://widget.sellwild.com/app/{partnerCode}/{slug}.json
-```
-
-The merge order is **defaults → static config → remote CDN config** (remote wins). Network or parse failures fall back silently to your static config so the app always renders.
-
-A drop-in `SellwildRemoteConfig.build(base:, slug:)` Dart helper, the full CONSTANT_CASE → camelCase key map, and merge semantics live in [Configuration → Remote Config (Native platforms)](./configuration#native-platforms-ios-android-flutter). Copy that helper into your app, then call it once at launch:
+`SellwildSDK.configure(partnerCode:, slug:)` is the recommended way to integrate the SDK. It fetches a JSON document from the Sellwild CDN at app launch and returns a fully-built `SellwildConfig` — listings URL, ad zones, refresh intervals, app identity, waterfall partners, compliance flags, and more — so you can change everything without an app update.
 
 ```dart
-final base = SellwildConfig(
+import 'package:sellwild_sdk/sellwild_sdk.dart';
+
+final config = await SellwildSDK.configure(
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
-);
-final config = await SellwildRemoteConfig.build(
-  base: base,
   slug: 'weatherbug-main',
 );
-// Hand `config` to your SellwildAdView / SellwildWidgetView.
+// Hand `config` to your SellwildWidget / SellwildBanner.
 ```
 
-Your Sellwild contact provides the `slug` and manages the CDN document. The Dart helper depends only on `package:http` (already a transitive dep of the SDK).
+The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your Sellwild contact provisions the `slug` in the CMS.
+
+**Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode: ...)` with deterministic defaults. The `listingsUrl` derives from `partnerCode`, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
+
+See [Configuration → Remote Config](./configuration#remote-config) for the full CDN field reference.
 
 ---
 

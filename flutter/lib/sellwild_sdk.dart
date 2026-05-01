@@ -7,9 +7,10 @@
 /// ```dart
 /// import 'package:sellwild_sdk/sellwild_sdk.dart';
 ///
-/// final config = SellwildConfig(
-///   partnerCode: 'mysite',
-///   listingsUrl: 'https://api.sellwild.com/widget/listings?partner=mysite',
+/// // 1.2.0+ remote config: partner code + slug fully populates the SDK.
+/// final config = await SellwildSDK.configure(
+///   partnerCode: 'weatherbug',
+///   slug: 'weatherbug-main',
 /// );
 ///
 /// // Full widget
@@ -25,3 +26,4 @@ export 'src/sellwild_models.dart';
 export 'src/sellwild_widget.dart';
 export 'src/sellwild_api.dart';
 export 'src/sellwild_listing_card.dart';
+export 'src/sellwild_sdk_configure.dart';

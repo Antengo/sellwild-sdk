@@ -223,10 +223,10 @@ const partialConfig: PartialSellwildConfig = {
 // Build a full config object for components that require it.
 const sdkConfig: SellwildConfig = buildConfig(partialConfig);
 
-// Tip: replace `buildConfig` with `buildConfigWithRemote` to merge in
-// settings (ad zones, refresh intervals, waterfall partners) fetched from
-// the Sellwild CDN at app launch. The static config above acts as the
-// fallback when the network is offline. See `Configuration > Remote Config`.
+// Tip: in 1.2.0+ the first-class integration path is
+// `await configure('weatherbug', 'weatherbug-main')`, which fetches every
+// runtime field — listings URL, ad zones, refresh intervals, waterfall
+// partners — from the Sellwild CDN. See `Configuration > Remote Config`.
 
 // ---------------------------------------------------------------------------
 // 2. Application root

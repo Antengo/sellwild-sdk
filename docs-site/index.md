@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Sellwild SDK
   text: Server-Side Header Bidding for Mobile Apps
-  tagline: One SDK. All your demand partners. Sub-200ms auctions. No client-side bloat.
+  tagline: Two strings — partner code and slug — and the SDK is fully configured. All your demand partners. Sub-200ms auctions.
   actions:
     - theme: brand
       text: Get Started
@@ -26,4 +26,6 @@ features:
     details: IAB TCF v2, GPP, and CCPA enforcement built into Prebid Server. GDPR consent flows handled server-side. ATT and IDFA pass-through for iOS.
   - title: Marketplace Revenue
     details: Native listing cards from the Sellwild marketplace add incremental CPA/affiliate revenue alongside your programmatic ads.
+  - title: Remote Config
+    details: Change ad zones, partners, refresh intervals, and compliance flags without an app update. `SellwildSDK.configure(partnerCode, slug)` fetches everything from the Sellwild CDN at launch.
 ---

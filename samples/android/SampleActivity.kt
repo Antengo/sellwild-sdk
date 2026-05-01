@@ -62,12 +62,29 @@ import kotlinx.coroutines.launch
 //    Call SellwildPrebidMobile.initialize() from Application.onCreate().
 //    See SellwildPrebidMobile.kt and sdk/PREBID.md for setup.
 
-// Static config — the minimum required fields.
-// Bidders, refresh limits, geo-blocking, and ad controls come from the remote
-// app config on the CDN, managed via the Sellwild CMS.
+// Remote config (the first-class path, 1.2.0+).
+// `SellwildSDK.configure(partnerCode, slug)` fetches a JSON document from
+// https://widget.sellwild.com/app/{partnerCode}/{slug}.json and returns a
+// fully-built SellwildConfig — listings URL, ad zones, refresh intervals, app
+// identity, waterfall partners, compliance flags, all populated from the CMS.
+// Two strings = working SDK. On any network/timeout/404 failure the SDK falls
+// back to deterministic defaults so ads still render.
+//
+// Usage:
+//   lifecycleScope.launch {
+//     val config = SellwildSDK.configure(
+//       partnerCode = "YOUR_PARTNER_CODE",
+//       slug = "your-partner-slug",
+//     ) { c -> c.copy(appBundleId = packageName, debug = BuildConfig.DEBUG) }
+//     adView.setup(config, AdSize.MREC_300x250)
+//     adView.load()
+//   }
+
+// Static fallback config (use this when you can't make a network call before
+// rendering ads). 1.2.0+ makes `listingsUrl` optional — if you leave it null,
+// the SDK derives a default from `partnerCode`.
 private val STATIC_CONFIG = SellwildConfig(
     partnerCode = "YOUR_PARTNER_CODE",
-    listingsUrl = "https://api.sellwild.com/widget/listings?partner=YOUR_PARTNER_CODE&count=20",
     appBundleId = "com.mycompany.myapp",   // use BuildConfig.APPLICATION_ID in production
     appStoreUrl = "https://play.google.com/store/apps/details?id=com.mycompany.myapp",
     adRefreshMaxMobile = 5,
@@ -75,32 +92,7 @@ private val STATIC_CONFIG = SellwildConfig(
     debug = true,
 )
 
-// Remote config slug — matches the CMS file app/{code}-{slug}.md
-// The CDN publishes JSON at: https://widget.sellwild.com/app/{code}/{slug}.json
-// Toggle bidders, adjust refresh, enable interstitials — no app update needed.
 private const val REMOTE_SLUG = "your-partner-slug"
-
-// Convenience: fetch remote config and merge over static defaults
-// Call from a coroutine scope (e.g. viewModelScope.launch { ... })
-//
-// suspend fun loadConfig(): SellwildConfig {
-//     return try {
-//         val url = URL("https://widget.sellwild.com/app/${STATIC_CONFIG.partnerCode}/$REMOTE_SLUG.json")
-//         val json = withContext(Dispatchers.IO) { url.readText() }
-//         val remote = JSONObject(json)
-//         // Apply remote overrides to static config via .copy()
-//         STATIC_CONFIG.copy(
-//             adRefreshMax = remote.optInt("AD_REFRESH_MAX", STATIC_CONFIG.adRefreshMax),
-//             adRefreshMaxMobile = remote.optInt("AD_REFRESH_MAX_MOBILE", STATIC_CONFIG.adRefreshMaxMobile),
-//             enableInterstitial = remote.optBoolean("ENABLE_INTERSTITIAL", STATIC_CONFIG.enableInterstitial),
-//             enableFullscreenVideo = remote.optBoolean("ENABLE_FULLSCREEN_VIDEO", STATIC_CONFIG.enableFullscreenVideo),
-//             // ... map additional fields as needed
-//         )
-//     } catch (e: Exception) {
-//         Log.w(TAG, "Remote config fetch failed, using static config", e)
-//         STATIC_CONFIG
-//     }
-// }
 
 private val DEMO_CONFIG = STATIC_CONFIG
 

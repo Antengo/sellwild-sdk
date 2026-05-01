@@ -71,21 +71,22 @@ class SellwildAPIClient(private val context: Context) {
     suspend fun fetchListings(config: SellwildConfig): Result<SellwildListingsResponse> =
         withContext(Dispatchers.IO) {
             runCatching {
-                listingCache[config.listingsUrl]?.let { return@withContext Result.success(it) }
+                val listingsUrl = config.effectiveListingsUrl
+                listingCache[listingsUrl]?.let { return@withContext Result.success(it) }
 
-                val connection = URL(config.listingsUrl).openConnection() as HttpURLConnection
+                val connection = URL(listingsUrl).openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
                 connection.connectTimeout = 10_000
                 connection.readTimeout = 15_000
 
                 val responseCode = connection.responseCode
                 if (responseCode != HttpURLConnection.HTTP_OK) {
-                    throw SellwildException("HTTP $responseCode from ${config.listingsUrl}")
+                    throw SellwildException("HTTP $responseCode from $listingsUrl")
                 }
 
                 val body = connection.inputStream.bufferedReader().readText()
                 val response = parseListingsResponse(body)
-                listingCache[config.listingsUrl] = response
+                listingCache[listingsUrl] = response
                 response
             }
         }

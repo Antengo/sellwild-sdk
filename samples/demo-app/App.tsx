@@ -18,7 +18,7 @@ import {
   SellwildWidget,
   useSellwildListings,
   buildConfig,
-  buildConfigWithRemote,
+  configure,
   clearRemoteConfigCache,
 } from '@sellwild/react-native-sdk'
 import type { SellwildListing, SellwildConfig, PartialSellwildConfig } from '@sellwild/react-native-sdk'
@@ -488,7 +488,7 @@ function NativeScreen() {
   // Fetch remote config from CDN on mount — merges CMS overrides over static defaults.
   // If the fetch fails (offline, timeout), falls back silently to static config.
   useEffect(() => {
-    buildConfigWithRemote(STATIC_CONFIG, REMOTE_SLUG, { timeout: 5000 })
+    configure(STATIC_CONFIG.partnerCode!, REMOTE_SLUG, { timeout: 5000, overrides: STATIC_CONFIG })
       .then(setConfig)
   }, [])
 
@@ -622,7 +622,7 @@ function WidgetScreen() {
   const [config, setConfig] = useState<PartialSellwildConfig>(STATIC_CONFIG)
 
   useEffect(() => {
-    buildConfigWithRemote(STATIC_CONFIG, REMOTE_SLUG, { timeout: 5000 })
+    configure(STATIC_CONFIG.partnerCode!, REMOTE_SLUG, { timeout: 5000, overrides: STATIC_CONFIG })
       .then(setConfig)
   }, [])
 

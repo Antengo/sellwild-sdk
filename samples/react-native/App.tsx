@@ -14,7 +14,7 @@
  * from sdk@sellwild.com before running.
  */
 
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
   FlatList,
@@ -33,7 +33,7 @@ import {
   SellwildListingCard,
   useSellwildListings,
   buildConfig,
-  buildConfigWithRemote,
+  configure,
   clearRemoteConfigCache,
 } from '@sellwild/react-native-sdk'
 import type { SellwildListing, SellwildConfig, PartialSellwildConfig } from '@sellwild/react-native-sdk'
@@ -44,9 +44,9 @@ import type { SellwildListing, SellwildConfig, PartialSellwildConfig } from '@se
 // Bidder adapters run inside the WebView. appBundleId is required so Prebid.js
 // declares in-app (ortb2.app) inventory instead of web (ortb2.site) traffic.
 //
-// Bidder credentials, refresh limits, and ad controls can be managed remotely
-// via the Sellwild CMS. Use buildConfigWithRemote() to fetch overrides from the
-// CDN at https://widget.sellwild.com/app/{partnerCode}/{slug}.json
+// In 1.2.0+ the first-class path is `configure(partnerCode, slug)` — see
+// NativeListingsScreen below. The static config below is the fallback shape
+// used when you can't make a network call before rendering ads.
 const BASE_CONFIG: PartialSellwildConfig = {
   partnerCode: 'YOUR_PARTNER_CODE',
   listingsUrl: 'https://api.sellwild.com/widget/listings?partner=YOUR_PARTNER_CODE&count=20',
@@ -113,19 +113,22 @@ function WebViewWidgetScreen() {
 // ─── Screen: Native Listing Cards + Banner ────────────────────────────────────
 
 function NativeListingsScreen() {
-  // ─── Remote Config ───────────────────────────────────────────────────────
-  // Fetches config overrides from the CDN. Bidders, refresh limits, geo-blocking,
-  // and ad controls can be toggled from the Sellwild CMS without an app update.
-  // Falls back silently to BASE_CONFIG if the fetch fails.
-  const [config, setConfig] = useState<SellwildConfig>(() => buildConfig(BASE_CONFIG))
+  // ─── Remote Config (the first-class path) ──────────────────────────────
+  // `configure(partnerCode, slug)` fetches every runtime field from
+  // https://widget.sellwild.com/app/{partnerCode}/{slug}.json. Bidders,
+  // refresh limits, geo-blocking, app identity, ad zones, compliance flags
+  // — all toggled from the Sellwild CMS without an app update. Silent
+  // fallback to deterministic defaults on any network/timeout/404 failure.
+  const [config, setConfig] = useState<SellwildConfig | null>(null)
 
   useEffect(() => {
-    // Replace 'your-partner-slug' with your CMS app config slug
-    buildConfigWithRemote(BASE_CONFIG, 'your-partner-slug', { timeout: 5000 })
+    configure('YOUR_PARTNER_CODE', 'your-partner-slug', { timeout: 5000 })
       .then(setConfig)
   }, [])
 
-  const { listings, loading, error, refresh } = useSellwildListings(config)
+  const { listings, loading, error, refresh } = useSellwildListings(
+    config ?? buildConfig(BASE_CONFIG),
+  )
 
   const handlePress = useCallback((listing: SellwildListing) => {
     Alert.alert(listing.title, listing.url ?? 'No URL', [
@@ -133,6 +136,14 @@ function NativeListingsScreen() {
       { text: 'Cancel', style: 'cancel' },
     ])
   }, [])
+
+  if (!config) {
+    return (
+      <View style={styles.center}>
+        <Text>Loading config…</Text>
+      </View>
+    )
+  }
 
   if (error) {
     return (

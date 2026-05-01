@@ -105,7 +105,7 @@ public final class SellwildWidgetView: UIView {
         }
 
         add("partner-code", config.partnerCode)
-        add("listings", config.listingsUrl)
+        add("listings", config.effectiveListingsUrl)
         // Disable remote customization fetch — see RN htmlBuilder.ts for details.
         attrs.append("customize=\"false\"")
         // Ad system selection — REQUIRED. AdStack silently does nothing if

@@ -3,7 +3,11 @@
 class SellwildConfig {
   // Identity
   final String partnerCode;
-  final String listingsUrl;
+
+  /// URL of the listings API. Optional in 1.2.0+ — typically populated from
+  /// remote config. When null, [effectiveListingsUrl] derives a default of
+  /// `'$apiBaseUrl/widget/listings?partner=$partnerCode'`.
+  final String? listingsUrl;
   final String slug;
   final String name;
   final String apiBaseUrl;
@@ -82,7 +86,7 @@ class SellwildConfig {
 
   const SellwildConfig({
     required this.partnerCode,
-    required this.listingsUrl,
+    this.listingsUrl,
     this.slug = '',
     this.name = '',
     this.apiBaseUrl = 'https://api.sellwild.com',
@@ -134,9 +138,17 @@ class SellwildConfig {
     this.debug = false,
   });
 
+  /// Effective listings URL. Returns [listingsUrl] when set, otherwise derives
+  /// a deterministic default from [partnerCode].
+  String get effectiveListingsUrl {
+    final url = listingsUrl;
+    if (url != null && url.isNotEmpty) return url;
+    return '$apiBaseUrl/widget/listings?partner=$partnerCode';
+  }
+
   Map<String, dynamic> toJson() => {
         'partnerCode': partnerCode,
-        'listingsUrl': listingsUrl,
+        'listingsUrl': effectiveListingsUrl,
         'slug': slug,
         'name': name,
         'apiBaseUrl': apiBaseUrl,

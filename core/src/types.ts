@@ -139,7 +139,12 @@ export interface SellwildConfig {
   name: string
 
   // API
-  listingsUrl: string
+  /**
+   * URL of the listings API. When unset, the SDK derives a default of
+   * `${apiBaseUrl}/widget/listings?partner=${partnerCode}`.
+   * Optional in 1.2.0+ — typically populated from remote config.
+   */
+  listingsUrl?: string
   apiBaseUrl: string
 
   // Display
@@ -258,7 +263,6 @@ export interface SellwildConfig {
 
 export type PartialSellwildConfig = Partial<SellwildConfig> & {
   partnerCode: string
-  listingsUrl: string
 }
 
 // ─── Prebid Server (S2S) configuration ───────────────────────────────────────

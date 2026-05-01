@@ -166,7 +166,7 @@ class _SellwildWidgetState extends State<SellwildWidget> {
       if (value != 0) parts.add('$name="$value"');
     }
     add('partner-code', c.partnerCode);
-    add('listings', c.listingsUrl);
+    add('listings', c.effectiveListingsUrl);
     // Disable remote customization fetch — see RN htmlBuilder.ts for details.
     parts.add('customize="false"');
     // Ad system selection — REQUIRED. See RN htmlBuilder.ts for details.

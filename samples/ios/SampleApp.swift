@@ -41,46 +41,38 @@ import SellwildSDK
 //    See SellwildPrebidMobile.swift and sdk/PREBID.md for setup.
 
 extension SellwildConfig {
-  /// Static config — the minimum required fields.
-  /// Bidders, refresh limits, geo-blocking, and ad controls come from the remote
-  /// app config on the CDN, managed via the Sellwild CMS.
-  static var demo: SellwildConfig {
-    var c = SellwildConfig(
+  /// Remote config (the first-class path, 1.2.0+).
+  ///
+  /// `SellwildSDK.configure(partnerCode:slug:)` fetches a JSON document from
+  /// the Sellwild CDN at app launch and returns a fully-built `SellwildConfig`.
+  /// Two strings — partner code and slug — and the SDK is ready. On any
+  /// network/timeout/404 failure the call falls back to a `SellwildConfig`
+  /// with deterministic defaults so ads still render.
+  ///
+  /// Usage:
+  ///   let config = await SellwildConfig.demo()
+  static func demo() async -> SellwildConfig {
+    return await SellwildSDK.configure(
       partnerCode: "YOUR_PARTNER_CODE",
-      listingsUrl: "https://api.sellwild.com/widget/listings?partner=YOUR_PARTNER_CODE&count=20"
-    )
+      slug: "your-partner-slug"
+    ) { c in
+      // App-controlled overrides win over CDN values.
+      c.appBundleId = Bundle.main.bundleIdentifier ?? "com.mycompany.myapp"
+      c.debug = true
+    }
+  }
+
+  /// Static config (fallback when you can't make a network call before
+  /// rendering ads). 1.2.0+ makes `listingsUrl` optional — if you leave it
+  /// unset, the SDK derives a default from `partnerCode`.
+  static var staticDemo: SellwildConfig {
+    var c = SellwildConfig(partnerCode: "YOUR_PARTNER_CODE")
     c.appBundleId = Bundle.main.bundleIdentifier ?? "com.mycompany.myapp"
     c.appStoreUrl = "https://apps.apple.com/app/idXXXXXXXXX"
     c.adRefreshMaxMobile = 5
     c.adRefreshInterval = 30.0
     c.debug = true
     return c
-  }
-
-  /// Load config with remote overrides from the CDN.
-  /// The CMS publishes JSON at: https://widget.sellwild.com/app/{code}/{slug}.json
-  /// Toggle bidders, adjust refresh limits, enable interstitials — no app update needed.
-  ///
-  /// Usage:
-  ///   let config = await SellwildConfig.withRemoteOverrides(slug: "your-partner-slug")
-  static func withRemoteOverrides(slug: String) async -> SellwildConfig {
-    let base = Self.demo
-    let url = URL(string: "https://widget.sellwild.com/app/\(base.partnerCode)/\(slug).json")!
-    do {
-      let (data, _) = try await URLSession.shared.data(from: url)
-      let remote = try JSONDecoder().decode(SellwildConfig.self, from: data)
-      // Merge: remote overrides win, but keep identity fields from static config
-      var merged = remote
-      merged.partnerCode = base.partnerCode
-      merged.listingsUrl = base.listingsUrl
-      merged.appBundleId = base.appBundleId
-      merged.appStoreUrl = base.appStoreUrl
-      merged.debug = base.debug
-      return merged
-    } catch {
-      print("[Sellwild] Remote config fetch failed, using static config: \(error)")
-      return base
-    }
   }
 }
 
@@ -109,7 +101,7 @@ extension SellwildConfig {
 
 final class WidgetViewController: UIViewController {
 
-  private lazy var widgetView = SellwildWidgetView(config: .demo)
+  private lazy var widgetView = SellwildWidgetView(config: .staticDemo)
 
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -157,7 +149,7 @@ extension WidgetViewController: SellwildWidgetViewDelegate {
 @available(iOS 14, *)
 struct SellwildDemoView: View {
 
-  let config: SellwildConfig = .demo
+  let config: SellwildConfig = .staticDemo
 
   var body: some View {
     TabView {

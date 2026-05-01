@@ -24,22 +24,29 @@ Then run `pod install` and open the `.xcworkspace` file.
 ```swift
 import SellwildSDK
 
-let config: SellwildConfig = {
-    var c = SellwildConfig(
-        partnerCode: "weatherbug",
-        listingsUrl: "https://api.sellwild.com/widget/listings?partner=weatherbug"
-    )
+// Partner code + slug. Everything else — listings URL, ad zones, app
+// identity, refresh intervals, waterfall partners, compliance flags — is
+// fetched from the Sellwild CDN at app launch. On any network/timeout/404
+// failure the SDK falls back to deterministic defaults so ads still render.
+let config = await SellwildSDK.configure(
+    partnerCode: "weatherbug",
+    slug: "weatherbug-main"
+) { c in
+    // Override CDN with app-controlled values.
     c.appBundleId = Bundle.main.bundleIdentifier ?? "com.example.myapp"
-    c.appStoreUrl = "https://apps.apple.com/app/id1234567890"
-    c.prebidServer = PrebidServerConfig(
-        accountId: "weatherbug-prod",
-        endpoint: "https://prebid.sellwild.com/openrtb2/auction",
-        bidders: ["appnexus", "rubicon", "ix", "openx"],
-        timeout: 1500
-    )
-    return c
-}()
+}
 ```
+
+::: details Static config (no network at startup)
+If you can't make a network call before rendering ads (e.g. an offline-first
+app), build a `SellwildConfig` directly:
+
+```swift
+var config = SellwildConfig(partnerCode: "weatherbug")
+config.appBundleId = Bundle.main.bundleIdentifier
+// Set listingsUrl, prebidServer, ad zones, etc. by hand.
+```
+:::
 
 ### 3. Render (SwiftUI)
 
@@ -100,7 +107,7 @@ Add the dependency to `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.1.0")
+    implementation("com.sellwild:sdk:1.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
 ```
@@ -117,29 +124,23 @@ In `AndroidManifest.xml`:
 
 ```kotlin
 import com.sellwild.sdk.*
+import kotlinx.coroutines.launch
 
 class AdActivity : AppCompatActivity() {
 
     private lateinit var adView: SellwildAdView
 
-    private val config = SellwildConfig(
-        partnerCode = "weatherbug",
-        listingsUrl = "https://api.sellwild.com/widget/listings?partner=weatherbug",
-        appBundleId = "com.aws.android",
-        appStoreUrl = "https://play.google.com/store/apps/details?id=com.aws.android",
-        prebidServer = PrebidServerConfig(
-            accountId = "sellwild",
-            endpoint = "https://prebid.sellwild.com/openrtb2/auction",
-            bidders = listOf("appnexus", "pubmatic", "ix", "rubicon", "openx"),
-            timeout = 1500
-        )
-    )
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         adView = SellwildAdView(this)
-        adView.setup(config, AdSize.MREC_300x250)
+        setContentView(adView)
+
+        // Partner code + slug. Everything else — listings URL, ad zones, app
+        // identity, refresh intervals, waterfall partners, compliance flags —
+        // is fetched from the Sellwild CDN at app launch. On any network or
+        // 404 failure the SDK falls back to deterministic defaults so ads
+        // still render.
         adView.listener = object : SellwildAdView.Listener {
             override fun onAdLoaded(adView: SellwildAdView) {
                 Log.d("Sellwild", "Ad loaded")
@@ -152,8 +153,14 @@ class AdActivity : AppCompatActivity() {
             }
         }
 
-        setContentView(adView)
-        adView.load()
+        lifecycleScope.launch {
+            val config = SellwildSDK.configure(
+                partnerCode = "weatherbug",
+                slug = "weatherbug-main",
+            ) { c -> c.copy(appBundleId = packageName) }
+            adView.setup(config, AdSize.MREC_300x250)
+            adView.load()
+        }
     }
 
     override fun onPause() { super.onPause(); adView.pause() }
@@ -161,6 +168,19 @@ class AdActivity : AppCompatActivity() {
     override fun onDestroy() { adView.destroy(); super.onDestroy() }
 }
 ```
+
+::: details Static config (no network at startup)
+If you can't make a network call before rendering ads, build a `SellwildConfig`
+directly:
+
+```kotlin
+val config = SellwildConfig(
+    partnerCode = "weatherbug",
+    listingsUrl = "https://api.sellwild.com/widget/listings?partner=weatherbug",
+    appBundleId = packageName,
+)
+```
+:::
 
 **Next:** [Full Android Guide](/guide/android) -- Jetpack Compose, ProGuard rules, multi-process WebView, GDPR, listing cards.
 
@@ -178,24 +198,28 @@ cd ios && pod install && cd ..
 ### 2. Render
 
 ```tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native';
-import { SellwildBanner, buildConfig } from '@sellwild/react-native-sdk';
-
-const config = buildConfig({
-  partnerCode: 'weatherbug',
-  listingsUrl: 'https://api.sellwild.com/listings/weatherbug',
-  appBundleId: 'com.aws.android',
-  appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
-  prebidServer: {
-    accountId: 'weatherbug',
-    endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
-    bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
-    timeout: 1500,
-  },
-});
+import {
+  SellwildBanner,
+  configure,
+  type SellwildConfig,
+} from '@sellwild/react-native-sdk';
 
 export default function App() {
+  const [config, setConfig] = useState<SellwildConfig | null>(null);
+
+  useEffect(() => {
+    // Partner code + slug. Everything else — listings URL, ad zones, app
+    // identity, refresh intervals, waterfall partners, compliance flags — is
+    // fetched from the Sellwild CDN at app launch. On any network/timeout/
+    // 404 failure the SDK falls back to deterministic defaults so ads still
+    // render.
+    configure('weatherbug', 'weatherbug-main').then(setConfig);
+  }, []);
+
+  if (!config) return null;
+
   return (
     <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       <SellwildBanner
@@ -210,7 +234,15 @@ export default function App() {
 }
 ```
 
-**Tip:** swap `buildConfig` for `buildConfigWithRemote(partial, slug)` to load ad zones and partner settings from the Sellwild CDN at launch. See [Configuration > Remote Config](/guide/configuration#remote-config).
+::: details Static config (no network at startup)
+```tsx
+import { buildConfig } from '@sellwild/react-native-sdk';
+const config = buildConfig({
+  partnerCode: 'weatherbug',
+  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+});
+```
+:::
 
 **Next:** [Full React Native Guide](/guide/react-native) -- listing cards, `useSellwildListings` hook, direct auction API, Metro config, GDPR.
 
@@ -224,7 +256,7 @@ Add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  sellwild_sdk: ^1.1.0
+  sellwild_sdk: ^1.2.0
 ```
 
 Then run:
@@ -253,29 +285,35 @@ flutter pub get
 import 'package:flutter/material.dart';
 import 'package:sellwild_sdk/sellwild_sdk.dart';
 
-class AdScreen extends StatelessWidget {
+class AdScreen extends StatefulWidget {
   const AdScreen({super.key});
+  @override
+  State<AdScreen> createState() => _AdScreenState();
+}
+
+class _AdScreenState extends State<AdScreen> {
+  SellwildConfig? config;
+
+  @override
+  void initState() {
+    super.initState();
+    // Partner code + slug. Everything else — listings URL, ad zones, app
+    // identity, refresh intervals, waterfall partners, compliance flags — is
+    // fetched from the Sellwild CDN at app launch.
+    SellwildSDK.configure(
+      partnerCode: 'weatherbug',
+      slug: 'weatherbug-main',
+    ).then((c) => setState(() => config = c));
+  }
 
   @override
   Widget build(BuildContext context) {
-    final config = SellwildConfig(
-      partnerCode: 'weatherbug',
-      listingsUrl: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
-      appBundleId: 'com.aws.android',
-      appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
-      prebidServer: PrebidServerConfig(
-        accountId: 'weatherbug',
-        endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
-        bidders: ['appnexus', 'pubmatic', 'ix', 'rubicon', 'openx'],
-        timeout: 1500,
-      ),
-    );
-
+    if (config == null) return const SizedBox.shrink();
     return Scaffold(
       appBar: AppBar(title: const Text('Ad Demo')),
       body: Center(
         child: SellwildBanner(
-          config: config,
+          config: config!,
           adSize: SellwildAdSize.mrec300x250,
           onImpression: () => debugPrint('Ad impression'),
           onError: (error) => debugPrint('Ad error: $error'),
@@ -285,6 +323,15 @@ class AdScreen extends StatelessWidget {
   }
 }
 ```
+
+::: details Static config (no network at startup)
+```dart
+final config = SellwildConfig(
+  partnerCode: 'weatherbug',
+  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+);
+```
+:::
 
 **Next:** [Full Flutter Guide](/guide/flutter) -- widget reference, `SellwildAPIClient`, listing cards, GDPR, troubleshooting.
 
@@ -302,17 +349,22 @@ After `load()` is called (or the SwiftUI/Compose view appears), the SDK:
 
 No client-side bidder SDKs. No waterfall. No cookies. Total auction time: under 200ms.
 
-## Required Fields
+## What `configure()` provides
 
-Every integration must set these fields for proper in-app traffic classification:
+In 1.2.0+, `configure(partnerCode, slug)` is the first-class integration path.
+The SDK fetches a JSON document from the Sellwild CDN at
+`https://widget.sellwild.com/app/{partnerCode}/{slug}.json` and populates every
+runtime field — listings URL, ad zones, refresh intervals, waterfall partners,
+compliance flags, app identity — without an app update.
 
-| Field | Why |
-|-------|-----|
-| `partnerCode` | Identifies your account. |
-| `listingsUrl` | API endpoint for marketplace listings. |
-| `appBundleId` | Sent as `ortb2.app.bundle`. Without this, DSPs classify traffic as web and will not bid. |
-| `appStoreUrl` | Sent as `ortb2.app.storeurl`. Required for app-ads.txt verification. |
-| `prebidServer` | Enables server-side header bidding through Prebid Server. |
+| Field | Source |
+|-------|--------|
+| `partnerCode` | You provide it (CMS-provisioned). |
+| `slug` | You provide it (CMS-provisioned). |
+| `listingsUrl` | CDN. Falls back to `${apiBaseUrl}/widget/listings?partner=${partnerCode}` if absent. |
+| `mobileZids`, ad zones, refresh intervals | CDN. |
+| `appBundleId`, `appStoreUrl` | CDN, or override in your `configure()` callback. |
+| `prebidServer` | CDN. Required for server-side header bidding. |
 
 ## Next Steps
 

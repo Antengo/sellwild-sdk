@@ -200,7 +200,7 @@ class SellwildWidgetView @JvmOverloads constructor(
         }
 
         add("partner-code", config.partnerCode)
-        add("listings", config.listingsUrl)
+        add("listings", config.effectiveListingsUrl)
         // Disable remote customization fetch — see RN htmlBuilder.ts for details.
         parts.add("customize=\"false\"")
         // Ad system selection — REQUIRED. See RN htmlBuilder.ts for details.

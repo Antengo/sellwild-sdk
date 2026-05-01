@@ -21,9 +21,9 @@ All five platform packages should stay in sync on the same version number. Befor
    because SPM/CocoaPods resolve by the bare version while our own conventions
    prefer `v`-prefixed tags:
    ```bash
-   git tag v1.1.0
-   git tag 1.1.0
-   git push origin v1.1.0 1.1.0
+   git tag v1.2.0
+   git tag 1.2.0
+   git push origin v1.2.0 1.2.0
    ```
 
 ---
@@ -113,8 +113,8 @@ open Package.swift
 
 ### Swift Package Manager (SPM)
 
-SPM uses git tags and resolves by **bare SemVer** (`1.1.0`, not `v1.1.0`).
-After pushing both `v1.1.0` and `1.1.0` tags (see [Versioning](#versioning)),
+SPM uses git tags and resolves by **bare SemVer** (`1.2.0`, not `v1.2.0`).
+After pushing both `v1.2.0` and `1.2.0` tags (see [Versioning](#versioning)),
 consumers add the package via its git URL:
 ```
 https://github.com/sellwild/sdk-ios.git
@@ -124,9 +124,9 @@ No separate publish step — the tag IS the release.
 
 ### CocoaPods
 
-CocoaPods also resolves by bare SemVer. The `1.1.0` tag (no `v` prefix) **must
+CocoaPods also resolves by bare SemVer. The `1.2.0` tag (no `v` prefix) **must
 exist on the remote** before `pod trunk push`, otherwise lint fails with
-`Unable to find a specification for SellwildSDK (= 1.1.0)`.
+`Unable to find a specification for SellwildSDK (= 1.2.0)`.
 
 1. Validate the podspec:
    ```bash
@@ -198,7 +198,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "com.sellwild"
             artifactId = "sdk"
-            version = "1.1.0"
+            version = "1.2.0"
             afterEvaluate { from(components["release"]) }
             pom {
                 name.set("Sellwild SDK")
@@ -232,10 +232,10 @@ cd sdk/android
 
 This uploads, in one shot:
 
-- `sdk-1.1.0.aar` + `.md5` + `.sha1`
-- `sdk-1.1.0.pom` + `.md5` + `.sha1`
-- `sdk-1.1.0.module` + `.md5` + `.sha1`     ← Gradle Module Metadata
-- `sdk-1.1.0-sources.jar` + `.md5` + `.sha1`
+- `sdk-1.2.0.aar` + `.md5` + `.sha1`
+- `sdk-1.2.0.pom` + `.md5` + `.sha1`
+- `sdk-1.2.0.module` + `.md5` + `.sha1`     ← Gradle Module Metadata
+- `sdk-1.2.0-sources.jar` + `.md5` + `.sha1`
 - `maven-metadata.xml` + `.md5` + `.sha1`   ← **correct filename, with checksums**
 
 **Invalidate CloudFront after publish**
@@ -265,7 +265,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.sellwild:sdk:1.1.0")  // or "com.sellwild:sdk:1.+"
+    implementation("com.sellwild:sdk:1.2.0")  // or "com.sellwild:sdk:1.+"
 }
 ```
 

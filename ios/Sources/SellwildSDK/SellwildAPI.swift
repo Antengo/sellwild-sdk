@@ -72,8 +72,9 @@ public final class SellwildAPIClient {
         config: SellwildConfig,
         completion: @escaping (Result<SellwildListingsResponse, Error>) -> Void
     ) {
-        guard let url = URL(string: config.listingsUrl) else {
-            completion(.failure(SellwildError.invalidURL(config.listingsUrl)))
+        let listingsUrlString = config.effectiveListingsUrl
+        guard let url = URL(string: listingsUrlString) else {
+            completion(.failure(SellwildError.invalidURL(listingsUrlString)))
             return
         }
 

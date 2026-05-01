@@ -19,6 +19,7 @@
 import {
   buildConfig,
   buildConfigWithRemote,
+  configure,
   fetchRemoteConfig,
   clearRemoteConfigCache,
   fetchListings,
@@ -86,17 +87,16 @@ console.log('Ad refresh interval:', config.adRefreshInterval, 'ms')
 console.log('Max mobile refreshes:', config.adRefreshMaxMobile)
 console.log()
 
-// ─── 1b. Remote config from CDN ─────────────────────────────────────────────
-// Fetches overrides from https://widget.sellwild.com/app/{partnerCode}/{slug}.json
-// Managed via the Sellwild CMS — toggle bidders, adjust refresh, enable interstitials.
+// ─── 1b. Remote config from CDN — the first-class path ─────────────────────
+// `configure(partnerCode, slug)` fetches every runtime field from
+// https://widget.sellwild.com/app/{partnerCode}/{slug}.json and returns a
+// fully-built SellwildConfig. Two strings = working SDK.
+// Managed via the Sellwild CMS — toggle bidders, adjust refresh, enable
+// interstitials, change ad zones, all without an app update.
 
 async function runRemoteConfig() {
-  console.log('=== Remote Config ===')
-  const remoteConfig = await buildConfigWithRemote(
-    { partnerCode: 'weatherbug', listingsUrl: 'https://cache.sellwild.com/listings-img-data-sm-weatherbug' },
-    'weatherbug-weatherbug',
-    { timeout: 5000 },
-  )
+  console.log('=== Remote Config (configure) ===')
+  const remoteConfig = await configure('weatherbug', 'weatherbug-main', { timeout: 5000 })
   console.log('Partner:', remoteConfig.partnerCode)
   console.log('Ad refresh max:', remoteConfig.adRefreshMax)
   console.log('Ad refresh max mobile:', remoteConfig.adRefreshMaxMobile)

@@ -6,9 +6,10 @@ export const WIDGET_BASE_URL = 'https://widget.sellwild.com'
 export const SELLWILD_URL = 'https://sellwild.com'
 export const EVENTS_URL = 'https://tbd4rmdvjk.execute-api.us-east-1.amazonaws.com/dev/events/queue'
 
-const defaultConfig: Omit<SellwildConfig, 'partnerCode' | 'listingsUrl'> = {
+const defaultConfig: Omit<SellwildConfig, 'partnerCode'> = {
   slug: '',
   name: '',
+  listingsUrl: undefined,
   apiBaseUrl: API_BASE_URL,
 
   // Display defaults
@@ -87,6 +88,10 @@ const defaultConfig: Omit<SellwildConfig, 'partnerCode' | 'listingsUrl'> = {
   eventHistoryTTL: 0,
 }
 
+/**
+ * @deprecated since 1.2.0 — prefer `configure(partnerCode, slug)` for the
+ * remote-config-first flow. `buildConfig` remains for static/offline integrations.
+ */
 export function buildConfig(partial: PartialSellwildConfig): SellwildConfig {
   return {
     ...defaultConfig,
@@ -95,6 +100,8 @@ export function buildConfig(partial: PartialSellwildConfig): SellwildConfig {
 }
 
 /**
+ * @deprecated since 1.2.0 — prefer `configure(partnerCode, slug, { overrides })`.
+ *
  * Builds config with remote overrides from the CDN.
  *
  * Merge order: defaults → partner static config → remote CDN config
@@ -113,6 +120,55 @@ export async function buildConfigWithRemote(
     ...defaultConfig,
     ...partial,
     ...remote,
+  } as SellwildConfig
+}
+
+export interface ConfigureOptions extends RemoteConfigOptions {
+  /**
+   * App-controlled values that override the remote CDN config.
+   * Use this for values the host app must control at runtime — for example,
+   * `appBundleId` from the host's bundle metadata, or `debug: __DEV__`.
+   *
+   * Merge order: defaults → remote CDN config → overrides
+   */
+  overrides?: Partial<SellwildConfig>
+}
+
+/**
+ * The first-class entry point for the SDK in 1.2.0+. Fetches the partner's
+ * remote config from the Sellwild CDN and returns a fully-populated
+ * `SellwildConfig`.
+ *
+ * The CDN JSON at `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`
+ * carries `LISTINGS`, ad zones, refresh intervals, partners, and compliance
+ * flags. Anything missing falls back to the SDK's deterministic defaults.
+ *
+ * Failure handling: if the fetch fails (network error, timeout, non-2xx),
+ * `configure` returns a defaulted `SellwildConfig` with the supplied
+ * `partnerCode` and `slug`. Ads still render — `listingsUrl` defaults to
+ * `${apiBaseUrl}/widget/listings?partner=${partnerCode}`.
+ *
+ * @example
+ *   const config = await configure('weatherbug', 'weatherbug-main')
+ *
+ * @example with overrides
+ *   const config = await configure('weatherbug', 'weatherbug-main', {
+ *     overrides: { appBundleId: 'com.aws.android', debug: __DEV__ },
+ *   })
+ */
+export async function configure(
+  partnerCode: string,
+  slug: string,
+  options: ConfigureOptions = {},
+): Promise<SellwildConfig> {
+  const { overrides, ...remoteOptions } = options
+  const remote = await fetchRemoteConfig(partnerCode, slug, remoteOptions)
+  return {
+    ...defaultConfig,
+    partnerCode,
+    slug,
+    ...remote,
+    ...(overrides ?? {}),
   } as SellwildConfig
 }
 

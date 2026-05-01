@@ -517,30 +517,30 @@ Call `requestTrackingAuthorization()` after your app has loaded its initial UI. 
 
 ---
 
-## Remote Config
+## Remote Config (the first-class path)
 
-Change ad zones, refresh intervals, hide flags, interstitial controls, and waterfall partners without shipping an app update. The SDK fetches a JSON document from the Sellwild CDN at app launch and merges it onto your static `SellwildConfig`.
-
-```
-https://widget.sellwild.com/app/{partnerCode}/{slug}.json
-```
-
-The merge order is **defaults → static config → remote CDN config** (remote wins). Network or parse failures fall back silently to your static config so the app always renders.
-
-A drop-in `SellwildRemoteConfig.build(base:slug:)` Swift helper, the full CONSTANT_CASE → camelCase key map, and merge semantics live in [Configuration → Remote Config (Native platforms)](./configuration#native-platforms-ios-android-flutter). Copy that helper into your app, then call it once at launch:
+`SellwildSDK.configure(partnerCode:slug:)` is the recommended way to integrate the SDK. It fetches a JSON document from the Sellwild CDN at app launch and returns a fully-built `SellwildConfig` — listings URL, ad zones, refresh intervals, app identity, waterfall partners, compliance flags, and more — so you can change everything without an app update.
 
 ```swift
+import SellwildSDK
+
 Task {
-    let base = SellwildConfig(
+    let config = await SellwildSDK.configure(
         partnerCode: "weatherbug",
-        listingsUrl: "https://api.sellwild.com/widget/listings?partner=weatherbug"
-    )
-    let config = await SellwildRemoteConfig.build(base: base, slug: "weatherbug-main")
+        slug: "weatherbug-main"
+    ) { c in
+        // Optional: override CDN values with app-controlled ones.
+        c.appBundleId = Bundle.main.bundleIdentifier
+    }
     // Hand `config` to your SellwildAdView / SellwildAdBanner / SellwildWidget.
 }
 ```
 
-Your Sellwild contact provides the `slug` and manages the CDN document.
+The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your Sellwild contact provisions the `slug` in the CMS.
+
+**Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode:)` with deterministic defaults. The `listingsUrl` derives from `partnerCode`, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
+
+See [Configuration → Remote Config](./configuration#remote-config) for the full CDN field reference.
 
 ---
 

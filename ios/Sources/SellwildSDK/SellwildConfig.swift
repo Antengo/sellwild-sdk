@@ -12,8 +12,18 @@ public struct SellwildConfig: Codable {
     public var name: String
 
     // MARK: API
-    public var listingsUrl: String
+    /// URL of the listings API. Optional in 1.2.0+ — typically populated from
+    /// remote config. When unset, the SDK derives a default of
+    /// `"\(apiBaseUrl)/widget/listings?partner=\(partnerCode)"`.
+    public var listingsUrl: String?
     public var apiBaseUrl: String
+
+    /// Effective listings URL. Returns `listingsUrl` when set, otherwise
+    /// derives a deterministic default from `partnerCode`.
+    public var effectiveListingsUrl: String {
+        if let url = listingsUrl, !url.isEmpty { return url }
+        return "\(apiBaseUrl)/widget/listings?partner=\(partnerCode)"
+    }
 
     // MARK: Display
     public var title: String?
@@ -108,7 +118,7 @@ public struct SellwildConfig: Codable {
 
     public init(
         partnerCode: String,
-        listingsUrl: String,
+        listingsUrl: String? = nil,
         apiBaseUrl: String = "https://api.sellwild.com",
         slug: String = "",
         name: String = ""

@@ -1,4 +1,5 @@
 import type { SellwildConfig, AdSize } from '@sellwild/sdk-core'
+import { resolveListingsUrl } from '@sellwild/sdk-core'
 
 const WIDGET_CDN = 'https://widget.sellwild.com'
 
@@ -109,7 +110,7 @@ function configToAttributes(config: SellwildConfig): string {
 
   // Identity / listings
   add('partner-code', config.partnerCode)
-  add('listings', config.listingsUrl)
+  add('listings', resolveListingsUrl(config))
 
   // Disable remote customization fetch — the widget defaults to fetching
   // https://widget.sellwild.com/{partnerCode}/{slug}.json which (a) doesn't

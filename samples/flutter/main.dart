@@ -31,14 +31,25 @@ import 'package:url_launcher/url_launcher.dart';
 //    Solves cookie/IDFA limitations. Uncomment prebidServer below.
 //    See sdk/PREBID.md for full setup instructions.
 
-// Static config — the minimum required fields.
-// Bidders, refresh limits, geo-blocking, and ad controls come from the remote
-// app config on the CDN, managed via the Sellwild CMS.
-// CDN URL: https://widget.sellwild.com/app/{partnerCode}/{slug}.json
+// Remote config (the first-class path, 1.2.0+).
+// `SellwildSDK.configure(partnerCode:, slug:)` fetches a JSON document from
+// https://widget.sellwild.com/app/{partnerCode}/{slug}.json and returns a
+// fully-built SellwildConfig — listings URL, ad zones, refresh intervals,
+// app identity, waterfall partners, compliance flags, all populated from the
+// CMS. Two strings = working SDK. On any network/timeout/404 failure the SDK
+// falls back to deterministic defaults so ads still render.
+//
+// Usage:
+//   final config = await SellwildSDK.configure(
+//     partnerCode: 'YOUR_PARTNER_CODE',
+//     slug: 'your-partner-slug',
+//   );
+
+// Static fallback config (use this when you can't make a network call before
+// rendering ads). 1.2.0+ makes `listingsUrl` optional — if you leave it null,
+// the SDK derives a default from `partnerCode`.
 const _config = SellwildConfig(
   partnerCode: 'YOUR_PARTNER_CODE',
-  listingsUrl:
-      'https://api.sellwild.com/widget/listings?partner=YOUR_PARTNER_CODE&count=20',
   appBundleId: 'com.mycompany.myapp',
   appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
   adRefreshMaxMobile: 5,
@@ -46,8 +57,6 @@ const _config = SellwildConfig(
   debug: true,
 );
 
-// Remote config slug — matches the CMS file app/{code}-{slug}.md
-// Toggle bidders, adjust refresh, enable interstitials — no app update needed.
 const _remoteSlug = 'your-partner-slug';
 
 // ─── App Entry Point ──────────────────────────────────────────────────────────

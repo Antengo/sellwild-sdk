@@ -9,7 +9,12 @@ import org.json.JSONObject
 data class SellwildConfig(
     // Identity
     val partnerCode: String,
-    val listingsUrl: String,
+    /**
+     * URL of the listings API. Optional in 1.2.0+ — typically populated from
+     * remote config. When null, [effectiveListingsUrl] derives a default of
+     * `"$apiBaseUrl/widget/listings?partner=$partnerCode"`.
+     */
+    val listingsUrl: String? = null,
     val slug: String = "",
     val name: String = "",
     val apiBaseUrl: String = "https://api.sellwild.com",
@@ -99,9 +104,17 @@ data class SellwildConfig(
     // Debug
     val debug: Boolean = false,
 ) {
+    /**
+     * Effective listings URL. Returns [listingsUrl] when set, otherwise derives
+     * a deterministic default from [partnerCode].
+     */
+    val effectiveListingsUrl: String
+        get() = listingsUrl?.takeIf { it.isNotEmpty() }
+            ?: "$apiBaseUrl/widget/listings?partner=$partnerCode"
+
     fun toJson(): JSONObject = JSONObject().apply {
         put("partnerCode", partnerCode)
-        put("listingsUrl", listingsUrl)
+        put("listingsUrl", effectiveListingsUrl)
         put("slug", slug)
         put("name", name)
         put("apiBaseUrl", apiBaseUrl)

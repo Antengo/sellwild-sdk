@@ -22,9 +22,12 @@ export type {
 } from '@sellwild/sdk-core'
 
 export {
+  configure,
   buildConfig,
   buildConfigWithRemote,
   currencyToSymbol,
   fetchRemoteConfig,
   clearRemoteConfigCache,
 } from '@sellwild/sdk-core'
+
+export type { ConfigureOptions } from '@sellwild/sdk-core'
