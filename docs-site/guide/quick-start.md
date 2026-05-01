@@ -210,6 +210,8 @@ export default function App() {
 }
 ```
 
+**Tip:** swap `buildConfig` for `buildConfigWithRemote(partial, slug)` to load ad zones and partner settings from the Sellwild CDN at launch. See [Configuration > Remote Config](/guide/configuration#remote-config).
+
 **Next:** [Full React Native Guide](/guide/react-native) -- listing cards, `useSellwildListings` hook, direct auction API, Metro config, GDPR.
 
 ---

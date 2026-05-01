@@ -50,3 +50,4 @@ Choose your platform to get started:
 Or learn about the ad server:
 
 - [Prebid Server](/guide/prebid-server) — SSP configuration, GDPR, auction telemetry
+- [Remote Config](/guide/configuration#remote-config) — change ad zones, refresh intervals, and waterfall partners without an app update
