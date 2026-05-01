@@ -103,6 +103,27 @@ const origFetch = globalThis.fetch
   check('cache prevents second fetch', mock.calls.length === 1)
 }
 
+// Test 5 — config.remote contains raw CDN payload (passthrough for unmapped keys)
+{
+  clearRemoteConfigCache()
+  const raw = {
+    CODE: 'weatherbug',
+    LISTINGS: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+    // Unmapped CMS keys (no entry in KEY_MAP) — must still flow through:
+    MEDIANET: { cid: '8CU123ABC' },
+    AMX: { tagId: 'amx-tag-1' },
+    SOVRN: { tagid: 12345 },
+    ONETAG: { pubId: 'abc' },
+    YIELDMO: { placementId: 'ym-1' },
+  }
+  globalThis.fetch = makeFetch(raw)
+  const config = await configure('weatherbug', 'weatherbug-main')
+  check('remote populated', config.remote && typeof config.remote === 'object')
+  check('remote carries unmapped MEDIANET', config.remote?.MEDIANET?.cid === '8CU123ABC')
+  check('remote carries unmapped AMX', config.remote?.AMX?.tagId === 'amx-tag-1')
+  check('remote carries unmapped SOVRN', config.remote?.SOVRN?.tagid === 12345)
+}
+
 globalThis.fetch = origFetch
 
 console.log(`\n${pass} passed, ${fail} failed`)

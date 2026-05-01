@@ -111,10 +111,15 @@ const KEY_MAP: Record<string, keyof SellwildConfig> = {
 
 /**
  * Maps a CDN JSON object (CONSTANT_CASE keys) to a partial SellwildConfig (camelCase).
- * Unknown keys are ignored so the CDN can carry extra fields without breaking the SDK.
+ *
+ * Behavior:
+ *  - Known CONSTANT_CASE keys are mapped to their typed camelCase counterparts.
+ *  - The raw payload is stashed on `remote` so unknown / forward-compatible
+ *    keys (e.g. new bidders the CMS adds after the SDK ships) flow through to
+ *    the WebView attribute serializer without an SDK release.
  */
 export function mapRemoteConfig(raw: Record<string, unknown>): Partial<SellwildConfig> {
-  const mapped: Record<string, unknown> = {}
+  const mapped: Record<string, unknown> = { remote: raw }
 
   for (const [cdnKey, value] of Object.entries(raw)) {
     const configKey = KEY_MAP[cdnKey]

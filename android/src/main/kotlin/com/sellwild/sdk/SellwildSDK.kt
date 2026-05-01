@@ -55,7 +55,10 @@ object SellwildSDK {
             connection.readTimeout = timeoutMs
             if (connection.responseCode in 200..299) {
                 val body = connection.inputStream.bufferedReader().readText()
-                config = apply(JSONObject(body), config)
+                // Stash the raw payload so unmapped CDN keys (new bidders,
+                // forward-compatible settings) flow through to the WebView
+                // attribute serializer without an SDK release.
+                config = apply(JSONObject(body), config).copy(remoteJson = body)
             }
         }
         // Silent fallback — config retains defaults on any failure.

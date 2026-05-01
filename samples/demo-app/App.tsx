@@ -489,7 +489,13 @@ function NativeScreen() {
   // If the fetch fails (offline, timeout), falls back silently to static config.
   useEffect(() => {
     configure(STATIC_CONFIG.partnerCode!, REMOTE_SLUG, { timeout: 5000, overrides: STATIC_CONFIG })
-      .then(setConfig)
+      .then((cfg) => {
+        // Passthrough verification: log every key that flows from CDN → widget.
+        // Confirms unmapped bidders (MEDIANET, AMX, SOVRN, etc.) survive.
+        const remoteKeys = cfg.remote ? Object.keys(cfg.remote).sort() : []
+        console.log('[Sellwild] configure() resolved. remote passthrough keys:', remoteKeys)
+        setConfig(cfg)
+      })
   }, [])
 
   // On app foreground, clear cache so next init picks up CMS changes
@@ -623,7 +629,11 @@ function WidgetScreen() {
 
   useEffect(() => {
     configure(STATIC_CONFIG.partnerCode!, REMOTE_SLUG, { timeout: 5000, overrides: STATIC_CONFIG })
-      .then(setConfig)
+      .then((cfg) => {
+        const remoteKeys = cfg.remote ? Object.keys(cfg.remote).sort() : []
+        console.log('[Sellwild] WidgetScreen configure() resolved. remote passthrough keys:', remoteKeys)
+        setConfig(cfg)
+      })
   }, [])
 
   return (

@@ -215,18 +215,42 @@ export interface SellwildConfig {
   iabCats: string[]
 
   // Ad network bidders
+  /** @deprecated 1.2.1 — populate via remote config; access raw values through `config.remote['IX']`. Kept for back-compat; will be removed in 2.0. */
   ix?: IxConfig
+  /** @deprecated 1.2.1 — see `config.remote['OPENX']`. Will be removed in 2.0. */
   openx?: OpenxConfig
+  /** @deprecated 1.2.1 — see `config.remote['PUBMATIC']`. Will be removed in 2.0. */
   pubmatic?: PubmaticConfig
+  /** @deprecated 1.2.1 — see `config.remote['APPNEXUS']`. Will be removed in 2.0. */
   appnexus?: AppnexusConfig
+  /** @deprecated 1.2.1 — see `config.remote['RUBICON']`. Will be removed in 2.0. */
   rubicon?: RubiconConfig
+  /** @deprecated 1.2.1 — see `config.remote['APSTAG']`. Will be removed in 2.0. */
   apstag?: ApStagConfig
 
   // Waterfall partners
+  /** @deprecated 1.2.1 — see `config.remote['PUB_VENTURES']`. Will be removed in 2.0. */
   pubVentures?: WaterfallPartnerConfig
+  /** @deprecated 1.2.1 — see `config.remote['SAAMBAA']`. Will be removed in 2.0. */
   saambaa?: WaterfallPartnerConfig & { placementD970x250: string; hardcap: number; exclusive: boolean }
+  /** @deprecated 1.2.1 — see `config.remote['OPSCO']`. Will be removed in 2.0. */
   opsco?: WaterfallPartnerConfig
+  /** @deprecated 1.2.1 — see `config.remote['BIDSTREAM']`. Will be removed in 2.0. */
   bidstream?: WaterfallPartnerConfig
+
+  /**
+   * Raw remote-config payload as fetched from the CDN.
+   * Populated by `configure(partnerCode, slug)` with the entire JSON document.
+   *
+   * The widget's WebView attribute parser is case-insensitive and accepts
+   * CONSTANT_CASE keys, so every entry in `remote` is forwarded to the widget
+   * verbatim. This means the SDK does NOT need a release whenever the CMS
+   * adds a new bidder or remote setting — partners receive new fields
+   * automatically the moment the CDN JSON includes them.
+   *
+   * Static callers using `buildConfig({...})` may set this manually.
+   */
+  remote?: Record<string, unknown>
 
   // Third-party integrations
   boltive: boolean

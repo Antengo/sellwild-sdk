@@ -70,16 +70,47 @@ public struct SellwildConfig: Codable {
     public var iabCats: [String]
 
     // MARK: Ad Networks
+    /// Deprecated in 1.2.1 — bidder configs now flow through `remoteJSON` as
+    /// raw CDN passthrough. Kept for back-compat; will be removed in 2.0.
+    @available(*, deprecated, message: "Access via remoteJSON instead. Will be removed in 2.0.")
     public var ix: IxConfig?
+    @available(*, deprecated, message: "Access via remoteJSON instead. Will be removed in 2.0.")
     public var openx: OpenxConfig?
+    @available(*, deprecated, message: "Access via remoteJSON instead. Will be removed in 2.0.")
     public var pubmatic: PubmaticConfig?
+    @available(*, deprecated, message: "Access via remoteJSON instead. Will be removed in 2.0.")
     public var appnexus: AppnexusConfig?
 
     // MARK: Waterfall Partners
+    @available(*, deprecated, message: "Access via remoteJSON instead. Will be removed in 2.0.")
     public var pubVentures: WaterfallPartnerConfig?
+    @available(*, deprecated, message: "Access via remoteJSON instead. Will be removed in 2.0.")
     public var saambaa: WaterfallPartnerConfig?
+    @available(*, deprecated, message: "Access via remoteJSON instead. Will be removed in 2.0.")
     public var opsco: WaterfallPartnerConfig?
+    @available(*, deprecated, message: "Access via remoteJSON instead. Will be removed in 2.0.")
     public var bidstream: WaterfallPartnerConfig?
+
+    // MARK: Remote Passthrough
+    /// Raw remote-config payload as fetched from the CDN, stored as the
+    /// original JSON bytes. Populated by `SellwildRemoteConfig.configure`.
+    ///
+    /// The widget's WebView attribute parser is case-insensitive and accepts
+    /// arbitrary keys, so every entry in `remoteJSON` is forwarded to the
+    /// widget verbatim. This means the SDK does NOT need a release whenever
+    /// the CMS adds a new bidder or remote setting — partners receive new
+    /// fields automatically the moment the CDN JSON includes them.
+    ///
+    /// Stored as `Data?` rather than `[String: Any]?` so the struct stays
+    /// Codable. Use `remoteValues` for an `[String: Any]` view.
+    public var remoteJSON: Data?
+
+    /// Convenience: the raw CDN payload as a dictionary, parsed lazily on access.
+    /// Returns nil if `remoteJSON` is unset or fails to parse.
+    public var remoteValues: [String: Any]? {
+        guard let data = remoteJSON else { return nil }
+        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
 
     // MARK: Third-party
     public var boltive: Bool
@@ -166,6 +197,7 @@ public struct SellwildConfig: Codable {
         self.prebidServer = nil
         self.widgetJsUrl = nil
         self.debug = false
+        self.remoteJSON = nil
     }
 }
 

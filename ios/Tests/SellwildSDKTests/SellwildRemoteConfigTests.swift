@@ -74,4 +74,28 @@ final class SellwildRemoteConfigTests: XCTestCase {
         XCTAssertEqual(config.partnerCode, "weatherbug")
         XCTAssertNil(config.listingsUrl)
     }
+
+    /// Verifies remote-config passthrough: arbitrary CDN keys (including
+    /// bidders the SDK was never built to know about — MEDIANET, AMX, SOVRN)
+    /// must surface via `remoteValues` so the WebView attribute serializer
+    /// can forward them to the widget.
+    func testRemoteJSONExposesUnmappedKeys() throws {
+        var config = SellwildConfig(partnerCode: "weatherbug")
+        let payload: [String: Any] = [
+            "CODE": "weatherbug",
+            "MEDIANET": ["cid": "8CU123ABC"],
+            "AMX": ["tagId": "amx-tag-1"],
+            "SOVRN": ["tagid": 12345],
+            "ONETAG": ["pubId": "abc"],
+            "YIELDMO": ["placementId": "ym-1"],
+        ]
+        config.remoteJSON = try JSONSerialization.data(withJSONObject: payload)
+
+        let values = try XCTUnwrap(config.remoteValues)
+        XCTAssertEqual((values["MEDIANET"] as? [String: Any])?["cid"] as? String, "8CU123ABC")
+        XCTAssertEqual((values["AMX"] as? [String: Any])?["tagId"] as? String, "amx-tag-1")
+        XCTAssertEqual((values["SOVRN"] as? [String: Any])?["tagid"] as? Int, 12345)
+        XCTAssertNotNil(values["ONETAG"])
+        XCTAssertNotNil(values["YIELDMO"])
+    }
 }

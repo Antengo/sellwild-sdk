@@ -84,6 +84,13 @@ class SellwildConfig {
   // Debug
   final bool debug;
 
+  /// Raw remote-config payload as fetched from the CDN. Populated by
+  /// [SellwildSDK.configure]. The widget's WebView attribute parser is
+  /// case-insensitive and accepts arbitrary keys, so every entry in this
+  /// payload is forwarded to the widget verbatim. The SDK does NOT need a
+  /// release whenever the CMS adds a new bidder or remote setting.
+  final Map<String, dynamic>? remoteJson;
+
   const SellwildConfig({
     required this.partnerCode,
     this.listingsUrl,
@@ -136,6 +143,7 @@ class SellwildConfig {
     this.appStoreUrl,
     this.prebidServer,
     this.debug = false,
+    this.remoteJson,
   });
 
   /// Effective listings URL. Returns [listingsUrl] when set, otherwise derives

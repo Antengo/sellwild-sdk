@@ -52,7 +52,7 @@ extension SellwildConfig {
   /// Usage:
   ///   let config = await SellwildConfig.demo()
   static func demo() async -> SellwildConfig {
-    return await SellwildSDK.configure(
+    let config = await SellwildSDK.configure(
       partnerCode: "YOUR_PARTNER_CODE",
       slug: "your-partner-slug"
     ) { c in
@@ -60,6 +60,16 @@ extension SellwildConfig {
       c.appBundleId = Bundle.main.bundleIdentifier ?? "com.mycompany.myapp"
       c.debug = true
     }
+
+    // Passthrough verification: log every CDN key that flowed through to the
+    // widget. Confirms unmapped bidders (MEDIANET, AMX, SOVRN, etc.) survive.
+    if let remote = config.remote {
+      let keys = remote.keys.sorted()
+      print("[Sellwild] configure() resolved. remote passthrough keys:", keys)
+    } else {
+      print("[Sellwild] configure() resolved. no remote payload (offline fallback?)")
+    }
+    return config
   }
 
   /// Static config (fallback when you can't make a network call before

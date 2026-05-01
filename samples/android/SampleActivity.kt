@@ -35,7 +35,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
+import org.json.JSONObject
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.sellwild.sdk.*
@@ -178,7 +180,26 @@ class WidgetFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        widgetView.load()
+
+        // Fetch remote config and re-setup the widget. This proves the
+        // passthrough path end-to-end: configure() returns a SellwildConfig
+        // whose `remoteJson` field carries every key from the CDN, including
+        // unmapped bidders (MEDIANET, AMX, SOVRN, etc.).
+        lifecycleScope.launch {
+            val config = SellwildSDK.configure(
+                partnerCode = STATIC_CONFIG.partnerCode,
+                slug = REMOTE_SLUG,
+            ) { c -> c.copy(appBundleId = STATIC_CONFIG.appBundleId, debug = true) }
+
+            val keys = config.remoteJson?.let { raw ->
+                runCatching { JSONObject(raw).keys().asSequence().toList().sorted() }
+                    .getOrDefault(emptyList())
+            } ?: emptyList()
+            Log.d(TAG, "configure() resolved. remote passthrough keys: $keys")
+
+            widgetView.setup(config)
+            widgetView.load()
+        }
     }
 
     override fun onResume() { super.onResume(); widgetView.resume() }

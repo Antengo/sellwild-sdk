@@ -121,15 +121,42 @@ class _MainScreenState extends State<MainScreen> {
 
 // ─── Page 1: Full WebView Widget ─────────────────────────────────────────────
 
-class _WebViewWidgetPage extends StatelessWidget {
+class _WebViewWidgetPage extends StatefulWidget {
   const _WebViewWidgetPage();
+
+  @override
+  State<_WebViewWidgetPage> createState() => _WebViewWidgetPageState();
+}
+
+class _WebViewWidgetPageState extends State<_WebViewWidgetPage> {
+  SellwildConfig _resolved = _config;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRemote();
+  }
+
+  Future<void> _loadRemote() async {
+    // Fetch remote config and re-render the widget. Logs every CDN key that
+    // flowed through to `remoteJson` so unmapped bidders (MEDIANET, AMX,
+    // SOVRN, etc.) can be verified on-device.
+    final config = await SellwildSDK.configure(
+      partnerCode: _config.partnerCode,
+      slug: _remoteSlug,
+    );
+    final rawKeys = config.remoteJson?.keys.toList() ?? const <String>[];
+    final keys = List<String>.from(rawKeys)..sort();
+    debugPrint('[Sellwild] configure() resolved. remote passthrough keys: $keys');
+    if (mounted) setState(() => _resolved = config);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Sellwild Widget')),
       body: SellwildWidget(
-        config: _config,
+        config: _resolved,
         onListingTap: (listing) async {
           final url = listing.url;
           if (url != null) {

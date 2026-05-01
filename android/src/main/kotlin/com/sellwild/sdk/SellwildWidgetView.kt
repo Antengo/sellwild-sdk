@@ -12,6 +12,7 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.os.Handler
 import android.os.Looper
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -269,6 +270,34 @@ class SellwildWidgetView @JvmOverloads constructor(
         addBool("enable-fullscreen-video", config.enableFullscreenVideo)
         addInt("interstitials-per-session", config.interstitialsPerSession)
         addInt("video-takeovers-per-session", config.videoTakeoversPerSession)
+
+        // Passthrough: forward every key from the raw remote-config JSON to the
+        // widget. The widget's attribute parser is case-insensitive, so we can
+        // emit CONSTANT_CASE keys verbatim. The widget's parseValue() handles
+        // strings, JSON, numbers, and booleans. This is what makes new bidders
+        // / remote settings work without an SDK release.
+        config.remoteJson?.let { body ->
+            runCatching {
+                val raw = JSONObject(body)
+                val emitted = parts.map { it.substringBefore("=") }.toMutableSet()
+                // Skip keys already emitted by the typed serializer above
+                // (case-insensitive match against typed attribute names).
+                val keys = raw.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    val attr = key.lowercase().replace("_", "-")
+                    if (emitted.contains(attr)) continue
+                    val value = raw.get(key)
+                    val str = when (value) {
+                        is JSONObject, is JSONArray -> value.toString()
+                        else -> value.toString()
+                    }
+                    val escaped = str.replace("\"", "&quot;")
+                    parts.add("$attr=\"$escaped\"")
+                    emitted.add(attr)
+                }
+            }
+        }
 
         return parts.joinToString("\n    ")
     }

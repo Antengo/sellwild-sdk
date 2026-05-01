@@ -185,21 +185,8 @@ function configToAttributes(config: SellwildConfig): string {
   add('s2s-config', config.s2sConfig)
   add('iab-cats', config.iabCats?.join(','))
 
-  // Bidders (serialized as JSON — parseValue() in the widget will JSON.parse these)
-  add('ix', config.ix)
-  add('openx', config.openx)
-  add('pubmatic', config.pubmatic)
-  add('appnexus', config.appnexus)
-  add('rubicon', config.rubicon)
-  add('apstag', config.apstag)
-
-  // Waterfall
-  add('pub-ventures', config.pubVentures)
-  add('saambaa', config.saambaa)
-  add('opsco', config.opsco)
-  add('bidstream', config.bidstream)
-
-  // Third-party
+  // Third-party (typed fields with defaults — kept emitted explicitly for
+  // backwards compatibility with static buildConfig() callers)
   add('boltive', config.boltive || undefined)
   add('boltive-client-id', config.boltiveClientId)
   add('lotame', config.lotame || undefined)
@@ -215,6 +202,41 @@ function configToAttributes(config: SellwildConfig): string {
   // Debug
   add('debug', config.debug || undefined)
   add('membership-type', config.membershipType)
+
+  // ─── Remote passthrough ────────────────────────────────────────────────────
+  // Forward the raw CDN payload verbatim. The widget's attribute parser is
+  // case-insensitive (kebab-case / camelCase / CONSTANT_CASE all work) and
+  // accepts unknown keys, so every CMS-defined bidder, waterfall partner, or
+  // ad-network setting flows through to the WebView without an SDK release.
+  //
+  // Skip keys that we already emitted via typed fields above to avoid
+  // double-emission. Identity fields (CODE, SLUG, NAME, LISTINGS) are handled
+  // by the typed block; everything else (bidders, third-party, etc.) lands
+  // here as the canonical CONSTANT_CASE attribute.
+  const emittedFromTyped = new Set<string>([
+    'CODE', 'SLUG', 'NAME', 'LISTINGS',
+    'TITLE', 'LINK_TEXT', 'BUY_NOW_TEXT', 'TITLE_COLOR', 'LINK_COLOR',
+    'FONT_FAMILY', 'FONT_URL', 'FONT_COLOR', 'PRICE_COLOR', 'PRICE_FONT_COLOR',
+    'MARGIN_BOTTOM', 'CARD_WIDTH', 'OVERLAY_TITLE', 'COLORS', 'CSS',
+    'WATERMARK', 'WATERMARK_TITLE',
+    'BANNER_ZID', 'BOTTOM_BANNER_ZID', 'MOBILE_BANNER_ZID', 'MOBILE_ZID',
+    'DISPLAY_ZID', 'HIDE_BANNER_TOP', 'HIDE_BANNER_BOTTOM', 'GAM',
+    'DISABLE_GPT', 'AD_UNITS', 'SAFE_FRAME', 'AD_DISABLE_DISPLAY',
+    'AD_REFRESH_MAX', 'AD_REFRESH_MAX_MOBILE', 'AD_REFRESH_INTERVAL',
+    'MAX_FAILED_AUCTIONS', 'PREBID_DEFER', 'PREBID_SRC',
+    'AD_GEO_BLOCK', 'AD_GEO_BLOCK_REFRESH',
+    'GPP_ENABLED', 'TCF_VERSION', 'CONSENT_MANAGEMENT', 'SCHAIN_SID',
+    'S2S_CONFIG', 'IAB_CATS',
+    'ENABLE_INTERSTITIAL', 'ENABLE_FULLSCREEN_VIDEO',
+    'INTERSTITIALS_PER_SESSION', 'VIDEO_TAKEOVERS_PER_SESSION',
+    'BOLTIVE', 'BOLTIVE_CLIENT_ID', 'LOTAME', 'GROWTHCODE', 'BH_TAG',
+  ])
+  if (config.remote) {
+    for (const [key, value] of Object.entries(config.remote)) {
+      if (emittedFromTyped.has(key)) continue
+      add(key, value)
+    }
+  }
 
   return parts.join('\n    ')
 }

@@ -65,17 +65,37 @@ data class SellwildConfig(
     val tcfVersion: Int = 0,
     val iabCats: List<String> = emptyList(),
 
-    // Ad Networks
+    // Ad Networks (deprecated 1.2.1 — use remoteJson; will be removed in 2.0)
+    @Deprecated("Access via remoteJson instead. Will be removed in 2.0.")
     val ix: IxConfig? = null,
+    @Deprecated("Access via remoteJson instead. Will be removed in 2.0.")
     val openx: OpenxConfig? = null,
+    @Deprecated("Access via remoteJson instead. Will be removed in 2.0.")
     val pubmatic: PubmaticConfig? = null,
+    @Deprecated("Access via remoteJson instead. Will be removed in 2.0.")
     val appnexus: AppnexusConfig? = null,
 
-    // Waterfall Partners
+    // Waterfall Partners (deprecated 1.2.1)
+    @Deprecated("Access via remoteJson instead. Will be removed in 2.0.")
     val pubVentures: WaterfallPartnerConfig? = null,
+    @Deprecated("Access via remoteJson instead. Will be removed in 2.0.")
     val saambaa: WaterfallPartnerConfig? = null,
+    @Deprecated("Access via remoteJson instead. Will be removed in 2.0.")
     val opsco: WaterfallPartnerConfig? = null,
+    @Deprecated("Access via remoteJson instead. Will be removed in 2.0.")
     val bidstream: WaterfallPartnerConfig? = null,
+
+    /**
+     * Raw remote-config payload as fetched from the CDN, as the original
+     * JSON string. Populated by [SellwildSDK.configure].
+     *
+     * The widget's WebView attribute parser is case-insensitive and accepts
+     * arbitrary keys, so every entry in this payload is forwarded to the
+     * widget verbatim. This means the SDK does NOT need a release whenever
+     * the CMS adds a new bidder or remote setting — partners receive new
+     * fields automatically the moment the CDN JSON includes them.
+     */
+    val remoteJson: String? = null,
 
     // Third-party
     val boltive: Boolean = false,

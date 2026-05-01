@@ -134,14 +134,6 @@ public final class SellwildWidgetView: UIView {
         add("price-font-color", config.priceFontColor)
         if !config.colors.isEmpty { add("colors", config.colors.joined(separator: ",")) }
         addBool("debug", config.debug)
-        addJSON("ix", config.ix)
-        addJSON("openx", config.openx)
-        addJSON("pubmatic", config.pubmatic)
-        addJSON("appnexus", config.appnexus)
-        addJSON("pub-ventures", config.pubVentures)
-        addJSON("saambaa", config.saambaa)
-        addJSON("opsco", config.opsco)
-        addJSON("bidstream", config.bidstream)
 
         // Mobile ad controls
         addBool("enable-interstitial", config.enableInterstitial)
@@ -149,7 +141,61 @@ public final class SellwildWidgetView: UIView {
         addNum("interstitials-per-session", config.interstitialsPerSession)
         addNum("video-takeovers-per-session", config.videoTakeoversPerSession)
 
+        // ─── Remote passthrough ────────────────────────────────────────────
+        // Forward the raw CDN payload verbatim. The widget's attribute parser
+        // is case-insensitive (kebab-case / camelCase / CONSTANT_CASE all
+        // work) and accepts unknown keys, so every CMS-defined bidder,
+        // waterfall partner, or ad-network setting flows through to the
+        // WebView without an SDK release.
+        let emittedFromTyped: Set<String> = [
+            "CODE", "SLUG", "NAME", "LISTINGS",
+            "TITLE", "LINK_TEXT", "BUY_NOW_TEXT", "TITLE_COLOR", "LINK_COLOR",
+            "FONT_FAMILY", "FONT_URL", "FONT_COLOR", "PRICE_COLOR",
+            "PRICE_FONT_COLOR", "MARGIN_BOTTOM", "OVERLAY_TITLE", "COLORS",
+            "WATERMARK", "WATERMARK_TITLE",
+            "BANNER_ZID", "BOTTOM_BANNER_ZID", "MOBILE_BANNER_ZID",
+            "MOBILE_ZID", "HIDE_BANNER_TOP", "HIDE_BANNER_BOTTOM", "GAM",
+            "DISABLE_GPT", "AD_DISABLE_DISPLAY",
+            "AD_REFRESH_MAX", "AD_REFRESH_MAX_MOBILE", "AD_REFRESH_INTERVAL",
+            "MAX_FAILED_AUCTIONS",
+            "GPP_ENABLED", "TCF_VERSION", "IAB_CATS",
+            "ENABLE_INTERSTITIAL", "ENABLE_FULLSCREEN_VIDEO",
+            "INTERSTITIALS_PER_SESSION", "VIDEO_TAKEOVERS_PER_SESSION",
+            "APP_BUNDLE_ID", "APP_STORE_URL",
+            "BOLTIVE", "BOLTIVE_CLIENT_ID", "LOTAME",
+            "DEBUG",
+        ]
+        if let remote = config.remoteValues {
+            for (key, value) in remote where !emittedFromTyped.contains(key) {
+                emitRemoteAttr(name: key, value: value, attrs: &attrs)
+            }
+        }
+
         return attrs.joined(separator: "\n    ")
+    }
+
+    /// Emits a single remote-passthrough attribute. Strings/numbers/bools are
+    /// stringified directly; arrays and dictionaries are JSON-encoded.
+    private func emitRemoteAttr(name: String, value: Any, attrs: inout [String]) {
+        // Skip empty / falsy values to match the typed-block convention.
+        if value is NSNull { return }
+        if let b = value as? Bool { if !b { return } ; attrs.append("\(name)=\"true\"") ; return }
+        if let s = value as? String {
+            if s.isEmpty { return }
+            let escaped = s.replacingOccurrences(of: "\"", with: "&quot;")
+            attrs.append("\(name)=\"\(escaped)\"")
+            return
+        }
+        if let n = value as? NSNumber {
+            attrs.append("\(name)=\"\(n)\"")
+            return
+        }
+        // Array or dictionary → JSON-encode and HTML-escape quotes.
+        if let data = try? JSONSerialization.data(withJSONObject: value, options: []),
+           let str = String(data: data, encoding: .utf8) {
+            let escaped = str.replacingOccurrences(of: "\"", with: "&quot;")
+            attrs.append("\(name)=\"\(escaped)\"")
+        }
     }
 
     // Build a Prebid.js pre-configuration <script> block.

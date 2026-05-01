@@ -157,6 +157,10 @@ class SellwildSDK {
 
       // Debug
       debug: boolean('DEBUG') ?? base.debug,
+
+      // Raw passthrough — every CDN key flows to the WebView verbatim,
+      // so new bidders/settings don't require an SDK release.
+      remoteJson: raw,
     );
   }
 }

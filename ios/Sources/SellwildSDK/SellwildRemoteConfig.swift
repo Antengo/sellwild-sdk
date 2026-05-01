@@ -51,6 +51,10 @@ public enum SellwildSDK {
                (200..<300).contains(http.statusCode),
                let raw = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 config = apply(raw, to: config)
+                // Stash the raw payload so unmapped CDN keys (new bidders,
+                // forward-compatible settings) flow through to the WebView
+                // attribute serializer without an SDK release.
+                config.remoteJSON = data
             }
         } catch {
             // Silent fallback — config retains defaults.

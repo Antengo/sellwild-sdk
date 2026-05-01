@@ -205,6 +205,25 @@ class _SellwildWidgetState extends State<SellwildWidget> {
     addNum('interstitials-per-session', c.interstitialsPerSession);
     addNum('video-takeovers-per-session', c.videoTakeoversPerSession);
 
+    // Passthrough: forward every key from the raw remote-config JSON to the
+    // widget. The widget's attribute parser is case-insensitive and accepts
+    // arbitrary keys, so unmapped CDN entries (new bidders, forward-compatible
+    // settings) flow through without an SDK release.
+    final raw = c.remoteJson;
+    if (raw != null) {
+      final emitted = parts.map((p) => p.split('=').first).toSet();
+      raw.forEach((key, value) {
+        final attr = key.toLowerCase().replaceAll('_', '-');
+        if (emitted.contains(attr)) return;
+        final str = value is Map || value is List
+            ? jsonEncode(value)
+            : value.toString();
+        final escaped = str.replaceAll('"', '&quot;');
+        parts.add('$attr="$escaped"');
+        emitted.add(attr);
+      });
+    }
+
     return parts.join('\n    ');
   }
 
