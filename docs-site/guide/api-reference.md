@@ -537,7 +537,7 @@ const config = await buildConfigWithRemote(
 
 Results are cached in-memory per `(partnerCode, slug)` for the lifetime of the process. Call `clearRemoteConfigCache()` to force a re-fetch (e.g. on app foreground).
 
-**Platform availability:** `buildConfigWithRemote` is currently TypeScript / React Native only. iOS, Android, and Flutter consumers can fetch the same JSON manually at app launch — see [Configuration → Remote Config](./configuration#native-platforms-ios-android-flutter) for an example.
+**Platform availability:** `buildConfigWithRemote` is the TypeScript / React Native helper. Native consumers (iOS / Android / Flutter) get the same merge semantics via drop-in Swift / Kotlin / Dart helpers — see [Configuration → Remote Config (Native platforms)](./configuration#native-platforms-ios-android-flutter).
 
 ---
 

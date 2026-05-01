@@ -13,12 +13,13 @@ Integration guide for the Sellwild native ad SDK. The SDK runs server-side heade
 5. [SwiftUI Integration](#swiftui-integration)
 6. [Native Listing Cards](#native-listing-cards)
 7. [App Tracking Transparency](#app-tracking-transparency)
-8. [Prebid Server Configuration](#prebid-server-configuration)
-9. [GDPR and Privacy](#gdpr-and-privacy)
-10. [Ad Refresh](#ad-refresh)
-11. [Lifecycle Management](#lifecycle-management)
-12. [Troubleshooting](#troubleshooting)
-13. [API Reference](#api-reference)
+8. [Remote Config](#remote-config)
+9. [Prebid Server Configuration](#prebid-server-configuration)
+10. [GDPR and Privacy](#gdpr-and-privacy)
+11. [Ad Refresh](#ad-refresh)
+12. [Lifecycle Management](#lifecycle-management)
+13. [Troubleshooting](#troubleshooting)
+14. [API Reference](#api-reference)
 
 ---
 
@@ -513,6 +514,33 @@ func requestTrackingAuthorization() {
 Call `requestTrackingAuthorization()` after your app has loaded its initial UI. Presenting the ATT prompt on first launch before any context is shown may result in lower opt-in rates. A common pattern is to request authorization in `viewDidAppear` of your first content screen, or after a brief onboarding flow.
 
 > **Important:** The ATT prompt can only be presented once per install. Subsequent calls return the cached status without showing the dialog. Always check `ATTrackingManager.trackingAuthorizationStatus` before presenting ad UI that depends on the IDFA.
+
+---
+
+## Remote Config
+
+Change ad zones, refresh intervals, hide flags, interstitial controls, and waterfall partners without shipping an app update. The SDK fetches a JSON document from the Sellwild CDN at app launch and merges it onto your static `SellwildConfig`.
+
+```
+https://widget.sellwild.com/app/{partnerCode}/{slug}.json
+```
+
+The merge order is **defaults → static config → remote CDN config** (remote wins). Network or parse failures fall back silently to your static config so the app always renders.
+
+A drop-in `SellwildRemoteConfig.build(base:slug:)` Swift helper, the full CONSTANT_CASE → camelCase key map, and merge semantics live in [Configuration → Remote Config (Native platforms)](./configuration#native-platforms-ios-android-flutter). Copy that helper into your app, then call it once at launch:
+
+```swift
+Task {
+    let base = SellwildConfig(
+        partnerCode: "weatherbug",
+        listingsUrl: "https://api.sellwild.com/widget/listings?partner=weatherbug"
+    )
+    let config = await SellwildRemoteConfig.build(base: base, slug: "weatherbug-main")
+    // Hand `config` to your SellwildAdView / SellwildAdBanner / SellwildWidget.
+}
+```
+
+Your Sellwild contact provides the `slug` and manages the CDN document.
 
 ---
 
