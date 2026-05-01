@@ -243,6 +243,12 @@ export interface SellwildConfig {
   appBundleId?: string    // iOS bundle ID or Android package name (e.g., "com.mycompany.myapp")
   appStoreUrl?: string    // App Store or Google Play URL for the host app
 
+  // Mobile ad controls — toggled remotely via CMS app config
+  enableInterstitial?: boolean       // Allow interstitial ads
+  enableFullscreenVideo?: boolean    // Allow fullscreen video takeovers
+  interstitialsPerSession?: number   // Max interstitials per user session (default: 1)
+  videoTakeoversPerSession?: number  // Max fullscreen video takeovers per session (default: 0)
+
   // Debug
   debug: boolean
   membershipType: string

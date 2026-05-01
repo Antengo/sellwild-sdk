@@ -85,6 +85,12 @@ public struct SellwildConfig: Codable {
     /// App Store URL of the host app. Populates `ortb2.app.storeurl`.
     public var appStoreUrl: String?
 
+    // MARK: Mobile ad controls (toggled remotely via CMS app config)
+    public var enableInterstitial: Bool
+    public var enableFullscreenVideo: Bool
+    public var interstitialsPerSession: Int
+    public var videoTakeoversPerSession: Int
+
     // MARK: Prebid Server S2S (optional)
     /// Route all Prebid.js bidder calls through a Prebid Server instance instead of
     /// running client-side adapters in the WebView. Solves cookie/IDFA limitations.
@@ -141,6 +147,10 @@ public struct SellwildConfig: Codable {
         self.boltive = false
         self.boltiveClientId = ""
         self.lotame = false
+        self.enableInterstitial = false
+        self.enableFullscreenVideo = false
+        self.interstitialsPerSession = 1
+        self.videoTakeoversPerSession = 0
         self.appBundleId = nil
         self.appStoreUrl = nil
         self.prebidServer = nil

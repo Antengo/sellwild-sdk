@@ -18,6 +18,9 @@
 // For local development from the monorepo, use a relative path:
 import {
   buildConfig,
+  buildConfigWithRemote,
+  fetchRemoteConfig,
+  clearRemoteConfigCache,
   fetchListings,
   getAdPlacements,
   buildPrebidAdUnit,
@@ -77,11 +80,37 @@ const config = buildConfig({
 //   },
 // })
 
-console.log('=== Config ===')
+console.log('=== Static Config ===')
 console.log('Partner:', config.partnerCode)
 console.log('Ad refresh interval:', config.adRefreshInterval, 'ms')
 console.log('Max mobile refreshes:', config.adRefreshMaxMobile)
 console.log()
+
+// ─── 1b. Remote config from CDN ─────────────────────────────────────────────
+// Fetches overrides from https://widget.sellwild.com/app/{partnerCode}/{slug}.json
+// Managed via the Sellwild CMS — toggle bidders, adjust refresh, enable interstitials.
+
+async function runRemoteConfig() {
+  console.log('=== Remote Config ===')
+  const remoteConfig = await buildConfigWithRemote(
+    { partnerCode: 'weatherbug', listingsUrl: 'https://cache.sellwild.com/listings-img-data-sm-weatherbug' },
+    'weatherbug-weatherbug',
+    { timeout: 5000 },
+  )
+  console.log('Partner:', remoteConfig.partnerCode)
+  console.log('Ad refresh max:', remoteConfig.adRefreshMax)
+  console.log('Ad refresh max mobile:', remoteConfig.adRefreshMaxMobile)
+  console.log('Enable interstitial:', remoteConfig.enableInterstitial)
+  console.log('Enable fullscreen video:', remoteConfig.enableFullscreenVideo)
+  console.log('Interstitials per session:', remoteConfig.interstitialsPerSession)
+  console.log('IX disabled:', remoteConfig.ix?.disabled)
+  console.log('OpenX disabled:', remoteConfig.openx?.disabled)
+
+  // Clear cache on app foreground to pick up CMS changes
+  clearRemoteConfigCache()
+  console.log('Remote config cache cleared.')
+  console.log()
+}
 
 // ─── 2. Fetch listings ───────────────────────────────────────────────────────
 
@@ -211,6 +240,9 @@ async function main() {
   runGeoBlocking()
   runEventQueue()
   runCacheManagement()
+
+  // Remote config fetch — demonstrates CDN config loading
+  await runRemoteConfig()
 
   // Listings fetch requires network — runs last
   await runListingsFetch()

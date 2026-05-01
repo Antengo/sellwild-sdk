@@ -77,6 +77,12 @@ data class SellwildConfig(
     val boltiveClientId: String = "",
     val lotame: Boolean = false,
 
+    // Mobile ad controls (toggled remotely via CMS app config)
+    val enableInterstitial: Boolean = false,
+    val enableFullscreenVideo: Boolean = false,
+    val interstitialsPerSession: Int = 1,
+    val videoTakeoversPerSession: Int = 0,
+
     // Mobile app identity (for ortb2.app in Prebid.js)
     // Without appBundleId, Prebid.js sends bids as web (ortb2.site) traffic instead
     // of in-app traffic. DSPs that buy app inventory separately will not bid, and
@@ -120,6 +126,10 @@ data class SellwildConfig(
         put("adRefreshInterval", adRefreshIntervalMs)
         put("boltive", boltive)
         put("boltiveClientId", boltiveClientId)
+        put("enableInterstitial", enableInterstitial)
+        put("enableFullscreenVideo", enableFullscreenVideo)
+        put("interstitialsPerSession", interstitialsPerSession)
+        put("videoTakeoversPerSession", videoTakeoversPerSession)
         put("debug", debug)
     }
 }

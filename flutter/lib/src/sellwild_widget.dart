@@ -199,6 +199,12 @@ class _SellwildWidgetState extends State<SellwildWidget> {
     if (c.colors.isNotEmpty) add('colors', c.colors.join(','));
     addBool('debug', c.debug);
 
+    // Mobile ad controls
+    addBool('enable-interstitial', c.enableInterstitial);
+    addBool('enable-fullscreen-video', c.enableFullscreenVideo);
+    addNum('interstitials-per-session', c.interstitialsPerSession);
+    addNum('video-takeovers-per-session', c.videoTakeoversPerSession);
+
     return parts.join('\n    ');
   }
 

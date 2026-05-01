@@ -143,6 +143,12 @@ public final class SellwildWidgetView: UIView {
         addJSON("opsco", config.opsco)
         addJSON("bidstream", config.bidstream)
 
+        // Mobile ad controls
+        addBool("enable-interstitial", config.enableInterstitial)
+        addBool("enable-fullscreen-video", config.enableFullscreenVideo)
+        addNum("interstitials-per-session", config.interstitialsPerSession)
+        addNum("video-takeovers-per-session", config.videoTakeoversPerSession)
+
         return attrs.joined(separator: "\n    ")
     }
 
