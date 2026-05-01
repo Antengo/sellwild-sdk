@@ -11,10 +11,11 @@ This guide covers everything needed to integrate the Sellwild SDK into a Flutter
 3. [Platform Configuration](#platform-configuration)
 4. [Quick Start](#quick-start)
 5. [Widgets Reference](#widgets-reference)
-6. [Prebid Server (S2S) Configuration](#prebid-server-s2s-configuration)
-7. [Native Listing Fetch with SellwildAPIClient](#native-listing-fetch-with-sellwildapiclient)
-8. [GDPR and Consent Management](#gdpr-and-consent-management)
-9. [Troubleshooting](#troubleshooting)
+6. [Remote Config](#remote-config)
+7. [Prebid Server (S2S) Configuration](#prebid-server-s2s-configuration)
+8. [Native Listing Fetch with SellwildAPIClient](#native-listing-fetch-with-sellwildapiclient)
+9. [GDPR and Consent Management](#gdpr-and-consent-management)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -386,6 +387,34 @@ class _ListingGridState extends State<ListingGrid> {
   }
 }
 ```
+
+---
+
+## Remote Config
+
+Change ad zones, refresh intervals, hide flags, interstitial controls, and waterfall partners without shipping an app update. The SDK fetches a JSON document from the Sellwild CDN at app launch and merges it onto your static `SellwildConfig`.
+
+```
+https://widget.sellwild.com/app/{partnerCode}/{slug}.json
+```
+
+The merge order is **defaults → static config → remote CDN config** (remote wins). Network or parse failures fall back silently to your static config so the app always renders.
+
+A drop-in `SellwildRemoteConfig.build(base:, slug:)` Dart helper, the full CONSTANT_CASE → camelCase key map, and merge semantics live in [Configuration → Remote Config (Native platforms)](./configuration#native-platforms-ios-android-flutter). Copy that helper into your app, then call it once at launch:
+
+```dart
+final base = SellwildConfig(
+  partnerCode: 'weatherbug',
+  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+);
+final config = await SellwildRemoteConfig.build(
+  base: base,
+  slug: 'weatherbug-main',
+);
+// Hand `config` to your SellwildAdView / SellwildWidgetView.
+```
+
+Your Sellwild contact provides the `slug` and manages the CDN document. The Dart helper depends only on `package:http` (already a transitive dep of the SDK).
 
 ---
 

@@ -15,13 +15,14 @@ All auctions run server-to-server via `prebid.sellwild.com`. The SDK renders ads
 5. [Jetpack Compose](#jetpack-compose)
 6. [Native Listing Cards](#native-listing-cards)
 7. [Coroutines API](#coroutines-api)
-8. [Prebid Server Configuration](#prebid-server-configuration)
-9. [GDPR and Privacy](#gdpr-and-privacy)
-10. [Lifecycle Management](#lifecycle-management)
-11. [Multi-Process WebView](#multi-process-webview)
-12. [Ad Refresh](#ad-refresh)
-13. [ProGuard and R8](#proguard-and-r8)
-14. [Troubleshooting](#troubleshooting)
+8. [Remote Config](#remote-config)
+9. [Prebid Server Configuration](#prebid-server-configuration)
+10. [GDPR and Privacy](#gdpr-and-privacy)
+11. [Lifecycle Management](#lifecycle-management)
+12. [Multi-Process WebView](#multi-process-webview)
+13. [Ad Refresh](#ad-refresh)
+14. [ProGuard and R8](#proguard-and-r8)
+15. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -585,6 +586,35 @@ sealed interface ListingsUiState {
 - `fetchListings()` switches to `Dispatchers.IO` internally. You do not need to wrap it in `withContext`.
 - Results are cached by URL. Call `apiClient.clearCache()` before re-fetching if you need fresh data.
 - The function returns `Result<SellwildListingsResponse>`, so use `.onSuccess` / `.onFailure` for structured error handling.
+
+---
+
+## Remote Config
+
+Change ad zones, refresh intervals, hide flags, interstitial controls, and waterfall partners without shipping an app update. The SDK fetches a JSON document from the Sellwild CDN at app launch and merges it onto your static `SellwildConfig`.
+
+```
+https://widget.sellwild.com/app/{partnerCode}/{slug}.json
+```
+
+The merge order is **defaults → static config → remote CDN config** (remote wins). Network or parse failures fall back silently to your static config so the app always renders.
+
+A drop-in `SellwildRemoteConfig.build(base, slug)` Kotlin helper, the full CONSTANT_CASE → camelCase key map, and merge semantics live in [Configuration → Remote Config (Native platforms)](./configuration#native-platforms-ios-android-flutter). Copy that helper into your app, then call it once at launch:
+
+```kotlin
+lifecycleScope.launch {
+    val base = SellwildConfig(
+        partnerCode = "weatherbug",
+        listingsUrl = "https://api.sellwild.com/widget/listings?partner=weatherbug",
+    )
+    val config = SellwildRemoteConfig.build(base, slug = "weatherbug-main")
+    // Hand `config` to your SellwildAdView / SellwildWidgetView.
+}
+```
+
+Your Sellwild contact provides the `slug` and manages the CDN document.
+
+> The CDN's `AD_REFRESH_INTERVAL` is in **seconds**, while Android's `adRefreshIntervalMs` is in **milliseconds**. The reference helper handles the conversion.
 
 ---
 

@@ -361,17 +361,414 @@ See the [API Reference](./api-reference#buildconfigwithremote) for full options.
 
 ### Native platforms (iOS / Android / Flutter)
 
-iOS, Android, and Flutter do not yet ship a built-in remote config fetcher. To use remote config on those platforms, fetch and parse the JSON yourself at app launch and pass the values into `SellwildConfig`:
+iOS, Android, and Flutter consume the same remote config JSON, but you fetch and apply it at app launch. The recipes below match the TypeScript merge semantics:
+
+- **Merge order:** SDK defaults → your static config → remote CDN config (remote wins)
+- **Failure handling:** any network error, timeout, or non-2xx response falls back silently to your static config so the app still renders
+- **Timeout:** 5 seconds (recommended)
+- **Caching:** the recipes fetch once per app launch — call again on app foreground if you want a refresh
+
+The CDN JSON uses CONSTANT_CASE keys (e.g. `AD_REFRESH_MAX`, `HIDE_BANNER_TOP`, `MOBILE_ZID`). Each recipe includes the full key map.
+
+#### iOS (Swift)
 
 ```swift
-// iOS
-let url = URL(string: "https://widget.sellwild.com/app/weatherbug/weatherbug-main.json")!
-let (data, _) = try await URLSession.shared.data(from: url)
-let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-// Map CONSTANT_CASE keys to your SellwildConfig fields, then construct config.
+import Foundation
+import SellwildSDK
+
+enum SellwildRemoteConfig {
+
+    /// Fetch the partner's remote config from the Sellwild CDN, merge it onto a
+    /// static base config, and return a fully-populated `SellwildConfig`.
+    /// Falls back silently to `base` on any network/parse failure.
+    static func build(
+        base: SellwildConfig,
+        slug: String,
+        timeout: TimeInterval = 5.0
+    ) async -> SellwildConfig {
+        let url = URL(string:
+            "https://widget.sellwild.com/app/\(base.partnerCode)/\(slug).json"
+        )!
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode),
+                  let raw = try JSONSerialization.jsonObject(with: data)
+                    as? [String: Any]
+            else { return base }
+            return apply(raw, to: base)
+        } catch {
+            return base
+        }
+    }
+
+    /// Maps CONSTANT_CASE CDN keys onto the corresponding `SellwildConfig` fields.
+    private static func apply(
+        _ raw: [String: Any],
+        to base: SellwildConfig
+    ) -> SellwildConfig {
+        var c = base
+
+        // Identity
+        if let v = raw["CODE"]      as? String { c.partnerCode = v }
+        if let v = raw["SLUG"]      as? String { c.slug = v }
+        if let v = raw["NAME"]      as? String { c.name = v }
+        if let v = raw["LISTINGS"]  as? String { c.listingsUrl = v }
+
+        // Display
+        if let v = raw["TITLE"]            as? String   { c.title = v }
+        if let v = raw["LINK_TEXT"]        as? String   { c.linkText = v }
+        if let v = raw["BUY_NOW_TEXT"]     as? String   { c.buyNowText = v }
+        if let v = raw["TITLE_COLOR"]      as? String   { c.titleColor = v }
+        if let v = raw["LINK_COLOR"]       as? String   { c.linkColor = v }
+        if let v = raw["FONT_COLOR"]       as? String   { c.fontColor = v }
+        if let v = raw["PRICE_COLOR"]      as? String   { c.priceColor = v }
+        if let v = raw["PRICE_FONT_COLOR"] as? String   { c.priceFontColor = v }
+        if let v = raw["MARGIN_BOTTOM"]    as? Int      { c.marginBottom = v }
+        if let v = raw["COLORS"]           as? [String] { c.colors = v }
+        if let v = raw["OVERLAY_TITLE"]    as? Bool     { c.overlayTitle = v }
+        if let v = raw["WATERMARK"]        as? Bool     { c.watermark = v }
+        if let v = raw["WATERMARK_TITLE"]  as? String   { c.watermarkTitle = v }
+
+        // Ad zones
+        if let v = raw["BANNER_ZID"]         as? String   { c.bannerZid = v }
+        if let v = raw["BOTTOM_BANNER_ZID"]  as? String   { c.bottomBannerZid = v }
+        if let v = raw["MOBILE_BANNER_ZID"]  as? String   { c.mobileBannerZid = v }
+        if let v = raw["MOBILE_ZID"]         as? [String] { c.mobileZids = v }
+        if let v = raw["HIDE_BANNER_TOP"]    as? Bool     { c.hideBannerTop = v }
+        if let v = raw["HIDE_BANNER_BOTTOM"] as? Bool     { c.hideBannerBottom = v }
+        if let v = raw["GAM"]                as? String   { c.gamTag = v }
+        if let v = raw["DISABLE_GPT"]        as? Bool     { c.disableGpt = v }
+        if let v = raw["AD_DISABLE_DISPLAY"] as? Bool     { c.adDisableDisplay = v }
+
+        // Refresh
+        if let v = raw["AD_REFRESH_MAX"]        as? Int { c.adRefreshMax = v }
+        if let v = raw["AD_REFRESH_MAX_MOBILE"] as? Int { c.adRefreshMaxMobile = v }
+        if let v = raw["AD_REFRESH_INTERVAL"]   as? Double {
+            c.adRefreshInterval = v
+        }
+        if let v = raw["MAX_FAILED_AUCTIONS"]   as? Int { c.maxFailedAuctions = v }
+
+        // Compliance
+        if let v = raw["GPP_ENABLED"] as? Bool     { c.gppEnabled = v }
+        if let v = raw["TCF_VERSION"] as? Int      { c.tcfVersion = v }
+        if let v = raw["IAB_CATS"]    as? [String] { c.iabCats = v }
+
+        // Mobile ad controls
+        if let v = raw["ENABLE_INTERSTITIAL"]         as? Bool { c.enableInterstitial = v }
+        if let v = raw["ENABLE_FULLSCREEN_VIDEO"]     as? Bool { c.enableFullscreenVideo = v }
+        if let v = raw["INTERSTITIALS_PER_SESSION"]   as? Int  { c.interstitialsPerSession = v }
+        if let v = raw["VIDEO_TAKEOVERS_PER_SESSION"] as? Int  { c.videoTakeoversPerSession = v }
+
+        // Third-party
+        if let v = raw["BOLTIVE"]           as? Bool   { c.boltive = v }
+        if let v = raw["BOLTIVE_CLIENT_ID"] as? String { c.boltiveClientId = v }
+        if let v = raw["LOTAME"]            as? Bool   { c.lotame = v }
+
+        return c
+    }
+}
 ```
 
-The JSON schema is the same across platforms — see the [key mapping in core/src/remote-config.ts](https://github.com/Antengo/sellwild-sdk/blob/main/core/src/remote-config.ts) for the full list. Native helpers for iOS / Android / Flutter are planned for a future release.
+Usage:
+
+```swift
+// At app launch (e.g. in your AppDelegate / @main App)
+Task {
+    let base = SellwildConfig(
+        partnerCode: "weatherbug",
+        listingsUrl: "https://api.sellwild.com/widget/listings?partner=weatherbug"
+    )
+    let config = await SellwildRemoteConfig.build(base: base, slug: "weatherbug-main")
+    // Hand `config` to your SellwildAdView / SellwildAdBanner / SellwildWidget.
+}
+```
+
+#### Android (Kotlin)
+
+```kotlin
+package com.example.app
+
+import com.sellwild.sdk.SellwildConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+
+object SellwildRemoteConfig {
+
+    /**
+     * Fetch the partner's remote config from the Sellwild CDN, merge it onto a
+     * static base config, and return a fully-populated [SellwildConfig].
+     * Falls back silently to [base] on any network/parse failure.
+     */
+    suspend fun build(
+        base: SellwildConfig,
+        slug: String,
+        timeoutMs: Long = 5_000L,
+    ): SellwildConfig = withContext(Dispatchers.IO) {
+        val raw = withTimeoutOrNull(timeoutMs) { fetch(base.partnerCode, slug) }
+        if (raw == null) base else apply(raw, base)
+    }
+
+    private fun fetch(partnerCode: String, slug: String): JSONObject? {
+        val url = URL("https://widget.sellwild.com/app/$partnerCode/$slug.json")
+        val conn = (url.openConnection() as HttpURLConnection).apply {
+            connectTimeout = 5_000
+            readTimeout = 5_000
+            requestMethod = "GET"
+        }
+        return try {
+            if (conn.responseCode !in 200..299) return null
+            JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+        } catch (_: Exception) {
+            null
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    private fun apply(r: JSONObject, base: SellwildConfig): SellwildConfig {
+        fun str(k: String) = if (r.has(k) && !r.isNull(k)) r.optString(k) else null
+        fun int(k: String) = if (r.has(k) && !r.isNull(k)) r.optInt(k) else null
+        fun bool(k: String) = if (r.has(k) && !r.isNull(k)) r.optBoolean(k) else null
+        fun strs(k: String): List<String>? {
+            val a = r.optJSONArray(k) ?: return null
+            return List(a.length()) { a.optString(it) }
+        }
+
+        return base.copy(
+            // Identity
+            partnerCode      = str("CODE")             ?: base.partnerCode,
+            slug             = str("SLUG")             ?: base.slug,
+            name             = str("NAME")             ?: base.name,
+            listingsUrl      = str("LISTINGS")         ?: base.listingsUrl,
+
+            // Display
+            title            = str("TITLE")            ?: base.title,
+            linkText         = str("LINK_TEXT")        ?: base.linkText,
+            buyNowText       = str("BUY_NOW_TEXT")     ?: base.buyNowText,
+            titleColor       = str("TITLE_COLOR")      ?: base.titleColor,
+            linkColor        = str("LINK_COLOR")       ?: base.linkColor,
+            fontColor        = str("FONT_COLOR")       ?: base.fontColor,
+            priceColor       = str("PRICE_COLOR")      ?: base.priceColor,
+            priceFontColor   = str("PRICE_FONT_COLOR") ?: base.priceFontColor,
+            marginBottom     = int("MARGIN_BOTTOM")    ?: base.marginBottom,
+            colors           = strs("COLORS")          ?: base.colors,
+            overlayTitle     = bool("OVERLAY_TITLE")   ?: base.overlayTitle,
+            watermark        = bool("WATERMARK")       ?: base.watermark,
+            watermarkTitle   = str("WATERMARK_TITLE")  ?: base.watermarkTitle,
+
+            // Ad zones
+            bannerZid        = str("BANNER_ZID")         ?: base.bannerZid,
+            bottomBannerZid  = str("BOTTOM_BANNER_ZID")  ?: base.bottomBannerZid,
+            mobileBannerZid  = str("MOBILE_BANNER_ZID")  ?: base.mobileBannerZid,
+            mobileZids       = strs("MOBILE_ZID")        ?: base.mobileZids,
+            hideBannerTop    = bool("HIDE_BANNER_TOP")    ?: base.hideBannerTop,
+            hideBannerBottom = bool("HIDE_BANNER_BOTTOM") ?: base.hideBannerBottom,
+            gamTag           = str("GAM")                 ?: base.gamTag,
+            disableGpt       = bool("DISABLE_GPT")        ?: base.disableGpt,
+            adDisableDisplay = bool("AD_DISABLE_DISPLAY") ?: base.adDisableDisplay,
+
+            // Refresh — note: Android uses milliseconds (Long)
+            adRefreshMax        = int("AD_REFRESH_MAX")        ?: base.adRefreshMax,
+            adRefreshMaxMobile  = int("AD_REFRESH_MAX_MOBILE") ?: base.adRefreshMaxMobile,
+            adRefreshIntervalMs = (int("AD_REFRESH_INTERVAL")?.toLong()?.times(1000L))
+                                   ?: base.adRefreshIntervalMs,
+            maxFailedAuctions   = int("MAX_FAILED_AUCTIONS")   ?: base.maxFailedAuctions,
+
+            // Compliance
+            gppEnabled = bool("GPP_ENABLED") ?: base.gppEnabled,
+            tcfVersion = int("TCF_VERSION")  ?: base.tcfVersion,
+            iabCats    = strs("IAB_CATS")    ?: base.iabCats,
+
+            // Mobile ad controls
+            enableInterstitial       = bool("ENABLE_INTERSTITIAL")       ?: base.enableInterstitial,
+            enableFullscreenVideo    = bool("ENABLE_FULLSCREEN_VIDEO")   ?: base.enableFullscreenVideo,
+            interstitialsPerSession  = int("INTERSTITIALS_PER_SESSION")  ?: base.interstitialsPerSession,
+            videoTakeoversPerSession = int("VIDEO_TAKEOVERS_PER_SESSION") ?: base.videoTakeoversPerSession,
+
+            // Third-party
+            boltive          = bool("BOLTIVE")           ?: base.boltive,
+            boltiveClientId  = str("BOLTIVE_CLIENT_ID")  ?: base.boltiveClientId,
+            lotame           = bool("LOTAME")            ?: base.lotame,
+        )
+    }
+}
+```
+
+Usage:
+
+```kotlin
+// At app launch (e.g. in your Application.onCreate or first Activity)
+lifecycleScope.launch {
+    val base = SellwildConfig(
+        partnerCode = "weatherbug",
+        listingsUrl = "https://api.sellwild.com/widget/listings?partner=weatherbug",
+    )
+    val config = SellwildRemoteConfig.build(base, slug = "weatherbug-main")
+    // Hand `config` to your SellwildAdView / SellwildWidgetView.
+}
+```
+
+> Android `adRefreshIntervalMs` is in **milliseconds**, while the CDN value `AD_REFRESH_INTERVAL` is in **seconds** (matching the JS convention). The recipe multiplies by 1000.
+
+#### Flutter (Dart)
+
+```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:sellwild_sdk/sellwild_sdk.dart';
+
+class SellwildRemoteConfig {
+  /// Fetch the partner's remote config from the Sellwild CDN, merge it onto a
+  /// static base config, and return a fully-populated [SellwildConfig].
+  /// Falls back silently to [base] on any network/parse failure.
+  static Future<SellwildConfig> build({
+    required SellwildConfig base,
+    required String slug,
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    try {
+      final uri = Uri.parse(
+        'https://widget.sellwild.com/app/${base.partnerCode}/$slug.json',
+      );
+      final res = await http.get(uri).timeout(timeout);
+      if (res.statusCode < 200 || res.statusCode >= 300) return base;
+      final raw = jsonDecode(res.body) as Map<String, dynamic>;
+      return _apply(raw, base);
+    } catch (_) {
+      return base;
+    }
+  }
+
+  static SellwildConfig _apply(Map<String, dynamic> r, SellwildConfig b) {
+    String?       s(String k) => r[k] is String ? r[k] as String : null;
+    int?          i(String k) => r[k] is num ? (r[k] as num).toInt() : null;
+    bool?         z(String k) => r[k] is bool ? r[k] as bool : null;
+    List<String>? a(String k) =>
+        r[k] is List ? (r[k] as List).map((e) => e.toString()).toList() : null;
+
+    return SellwildConfig(
+      // Identity
+      partnerCode:      s('CODE')      ?? b.partnerCode,
+      slug:             s('SLUG')      ?? b.slug,
+      name:             s('NAME')      ?? b.name,
+      listingsUrl:      s('LISTINGS')  ?? b.listingsUrl,
+      apiBaseUrl:       b.apiBaseUrl,
+
+      // Display
+      title:            s('TITLE')             ?? b.title,
+      linkText:         s('LINK_TEXT')         ?? b.linkText,
+      buyNowText:       s('BUY_NOW_TEXT')      ?? b.buyNowText,
+      titleColor:       s('TITLE_COLOR')       ?? b.titleColor,
+      linkColor:        s('LINK_COLOR')        ?? b.linkColor,
+      fontColor:        s('FONT_COLOR')        ?? b.fontColor,
+      priceColor:       s('PRICE_COLOR')       ?? b.priceColor,
+      priceFontColor:   s('PRICE_FONT_COLOR')  ?? b.priceFontColor,
+      marginBottom:     i('MARGIN_BOTTOM')     ?? b.marginBottom,
+      colors:           a('COLORS')            ?? b.colors,
+      overlayTitle:     z('OVERLAY_TITLE')     ?? b.overlayTitle,
+      watermark:        z('WATERMARK')         ?? b.watermark,
+      watermarkTitle:   s('WATERMARK_TITLE')   ?? b.watermarkTitle,
+
+      // Ad zones
+      bannerZid:        s('BANNER_ZID')         ?? b.bannerZid,
+      bottomBannerZid:  s('BOTTOM_BANNER_ZID')  ?? b.bottomBannerZid,
+      mobileBannerZid:  s('MOBILE_BANNER_ZID')  ?? b.mobileBannerZid,
+      mobileZids:       a('MOBILE_ZID')         ?? b.mobileZids,
+      hideBannerTop:    z('HIDE_BANNER_TOP')    ?? b.hideBannerTop,
+      hideBannerBottom: z('HIDE_BANNER_BOTTOM') ?? b.hideBannerBottom,
+      gamTag:           s('GAM')                ?? b.gamTag,
+      disableGpt:       z('DISABLE_GPT')        ?? b.disableGpt,
+      adDisableDisplay: z('AD_DISABLE_DISPLAY') ?? b.adDisableDisplay,
+
+      // Refresh — CDN value is in seconds; Flutter uses Duration.
+      adRefreshMax:       i('AD_REFRESH_MAX')        ?? b.adRefreshMax,
+      adRefreshMaxMobile: i('AD_REFRESH_MAX_MOBILE') ?? b.adRefreshMaxMobile,
+      adRefreshInterval:  i('AD_REFRESH_INTERVAL') != null
+          ? Duration(seconds: i('AD_REFRESH_INTERVAL')!)
+          : b.adRefreshInterval,
+      maxFailedAuctions:  i('MAX_FAILED_AUCTIONS')   ?? b.maxFailedAuctions,
+
+      // Compliance
+      gppEnabled: z('GPP_ENABLED') ?? b.gppEnabled,
+      tcfVersion: i('TCF_VERSION') ?? b.tcfVersion,
+      iabCats:    a('IAB_CATS')    ?? b.iabCats,
+
+      // Mobile ad controls
+      enableInterstitial:       z('ENABLE_INTERSTITIAL')       ?? b.enableInterstitial,
+      enableFullscreenVideo:    z('ENABLE_FULLSCREEN_VIDEO')   ?? b.enableFullscreenVideo,
+      interstitialsPerSession:  i('INTERSTITIALS_PER_SESSION') ?? b.interstitialsPerSession,
+      videoTakeoversPerSession: i('VIDEO_TAKEOVERS_PER_SESSION') ?? b.videoTakeoversPerSession,
+
+      // Third-party
+      boltive:         z('BOLTIVE')           ?? b.boltive,
+      boltiveClientId: s('BOLTIVE_CLIENT_ID') ?? b.boltiveClientId,
+      lotame:          z('LOTAME')            ?? b.lotame,
+
+      // Carry forward fields not exposed via remote config
+      appBundleId:    b.appBundleId,
+      appStoreUrl:    b.appStoreUrl,
+      prebidServer:   b.prebidServer,
+      debug:          b.debug,
+    );
+  }
+}
+```
+
+Usage:
+
+```dart
+// At app launch (e.g. in main() before runApp)
+final base = SellwildConfig(
+  partnerCode: 'weatherbug',
+  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+);
+final config = await SellwildRemoteConfig.build(
+  base: base,
+  slug: 'weatherbug-main',
+);
+// Hand `config` to your SellwildAdView / SellwildWidgetView.
+```
+
+#### Field reference
+
+The CDN may carry any subset of these keys. Unknown keys are ignored, so the CMS can add fields without breaking the app.
+
+| CDN key | Maps to (camelCase) | Type |
+|---|---|---|
+| `CODE` | `partnerCode` | string |
+| `SLUG` | `slug` | string |
+| `NAME` | `name` | string |
+| `LISTINGS` | `listingsUrl` | string |
+| `TITLE`, `LINK_TEXT`, `BUY_NOW_TEXT` | `title`, `linkText`, `buyNowText` | string |
+| `TITLE_COLOR`, `LINK_COLOR`, `FONT_COLOR`, `PRICE_COLOR`, `PRICE_FONT_COLOR` | matching camelCase | string |
+| `MARGIN_BOTTOM` | `marginBottom` | int |
+| `COLORS` | `colors` | string[] |
+| `OVERLAY_TITLE`, `WATERMARK` | matching camelCase | bool |
+| `WATERMARK_TITLE` | `watermarkTitle` | string |
+| `BANNER_ZID`, `BOTTOM_BANNER_ZID`, `MOBILE_BANNER_ZID` | matching camelCase | string |
+| `MOBILE_ZID` | `mobileZids` | string[] |
+| `HIDE_BANNER_TOP`, `HIDE_BANNER_BOTTOM`, `DISABLE_GPT`, `AD_DISABLE_DISPLAY` | matching camelCase | bool |
+| `GAM` | `gamTag` | string |
+| `AD_REFRESH_MAX`, `AD_REFRESH_MAX_MOBILE`, `MAX_FAILED_AUCTIONS` | matching camelCase | int |
+| `AD_REFRESH_INTERVAL` | `adRefreshInterval` (seconds) | int |
+| `GPP_ENABLED` | `gppEnabled` | bool |
+| `TCF_VERSION` | `tcfVersion` | int |
+| `IAB_CATS` | `iabCats` | string[] |
+| `ENABLE_INTERSTITIAL`, `ENABLE_FULLSCREEN_VIDEO` | matching camelCase | bool |
+| `INTERSTITIALS_PER_SESSION`, `VIDEO_TAKEOVERS_PER_SESSION` | matching camelCase | int |
+| `BOLTIVE`, `LOTAME` | matching camelCase | bool |
+| `BOLTIVE_CLIENT_ID` | `boltiveClientId` | string |
 
 ---
 
