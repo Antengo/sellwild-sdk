@@ -6,35 +6,46 @@ How to build, version, and publish each platform SDK.
 
 ## Versioning
 
-All four platform packages should stay in sync on the same version number. Before any release:
+All five platform packages should stay in sync on the same version number. Before any release:
 
 1. Update version in:
    - `core/package.json`
-   - `react-native/package.json`
+   - `react-native/package.json` (also bump the `@sellwild/sdk-core` dep version)
    - `ios/Package.swift` (tag-based, update git tag)
    - `ios/SellwildSDK.podspec` → `s.version`
    - `android/build.gradle.kts` → `version = "x.y.z"`
    - `flutter/pubspec.yaml` → `version:`
+   - `flutter/CHANGELOG.md` (pub.dev requires an entry for every version)
 
-2. Tag the git commit:
+2. Tag the git commit. **Push two tags — both `vX.Y.Z` and `X.Y.Z`** —
+   because SPM/CocoaPods resolve by the bare version while our own conventions
+   prefer `v`-prefixed tags:
    ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
+   git tag v1.1.0
+   git tag 1.1.0
+   git push origin v1.1.0 1.1.0
    ```
 
 ---
 
 ## Core (TypeScript)
 
-The core package is a build dependency for the React Native SDK. It is not published separately unless consumed directly.
+The core package is published to npm as `@sellwild/sdk-core` and is also a
+build/runtime dependency for the React Native SDK. **Publish core first**, then
+React Native (so the RN package can resolve the new core version from the
+registry).
 
 ```bash
 cd sdk/core
 npm install
-npm run build   # outputs to dist/
+npm run build   # outputs compiled JS + types to dist/
 ```
 
-To publish to npm:
+> ⚠️ Verify `package.json` `main` and `types` point into `dist/` (e.g.
+> `dist/index.js`, `dist/index.d.ts`) — **never** ship `src/index.ts` as the
+> entry point. Consumers should not have to compile our sources.
+
+Publish to npm:
 ```bash
 npm publish --access public
 ```
@@ -102,7 +113,9 @@ open Package.swift
 
 ### Swift Package Manager (SPM)
 
-SPM uses git tags. After tagging (`git tag v1.0.0 && git push origin v1.0.0`), consumers add the package via its git URL:
+SPM uses git tags and resolves by **bare SemVer** (`1.1.0`, not `v1.1.0`).
+After pushing both `v1.1.0` and `1.1.0` tags (see [Versioning](#versioning)),
+consumers add the package via its git URL:
 ```
 https://github.com/sellwild/sdk-ios.git
 ```
@@ -110,6 +123,10 @@ https://github.com/sellwild/sdk-ios.git
 No separate publish step — the tag IS the release.
 
 ### CocoaPods
+
+CocoaPods also resolves by bare SemVer. The `1.1.0` tag (no `v` prefix) **must
+exist on the remote** before `pod trunk push`, otherwise lint fails with
+`Unable to find a specification for SellwildSDK (= 1.1.0)`.
 
 1. Validate the podspec:
    ```bash
@@ -151,43 +168,118 @@ cd sdk/android
 ./gradlew test
 ```
 
-### Publish to GitHub Packages
+### Publish to the Sellwild Maven repo (S3-backed)
 
-Set credentials in `~/.gradle/gradle.properties`:
-```properties
-gpr.user=YOUR_GITHUB_USERNAME
-gpr.key=YOUR_GITHUB_TOKEN
-```
+The public Sellwild Maven repo is `https://maven.sellwild.com/releases`, backed
+by `s3://maven.sellwild.com/releases/` and fronted by CloudFront.
 
-Add the publishing destination to `build.gradle.kts`:
+> ⚠️ **Do not use `publishToMavenLocal` followed by `aws s3 sync`.** That produces
+> `maven-metadata-local.xml` (wrong filename) and skips checksum generation
+> (`.md5` / `.sha1`). Gradle dynamic version resolution (`1.+`, `1.1.+`,
+> `latest.release`) will silently fail. Always publish directly to the S3 repo
+> as shown below — Gradle will write the correct `maven-metadata.xml` and
+> checksums for every artifact.
+
+**One-time setup**
+
+1. Install the Gradle `maven-publish-s3` wagon (already wired into
+   `android/build.gradle.kts`) — no extra plugin needed; Gradle's built-in
+   `maven { url = "s3://..." }` support is used.
+2. Configure AWS credentials. Either:
+   - Have a working `aws configure` profile (the default profile is used), **or**
+   - Export `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for a user with
+     `s3:PutObject` on `arn:aws:s3:::maven.sellwild.com/releases/*`.
+
+**Publishing block in `android/build.gradle.kts`**
+
 ```kotlin
 publishing {
+    publications {
+        register<MavenPublication>("release") {
+            groupId = "com.sellwild"
+            artifactId = "sdk"
+            version = "1.1.0"
+            afterEvaluate { from(components["release"]) }
+            pom {
+                name.set("Sellwild SDK")
+                description.set("Sellwild mobile advertising SDK for Android")
+                url.set("https://github.com/sellwild/sdk-android")
+            }
+        }
+    }
     repositories {
         maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/sellwild/sdk-android")
-            credentials {
-                username = project.findProperty("gpr.user") as String?
-                password = project.findProperty("gpr.key") as String?
+            name = "SellwildS3"
+            url = uri("s3://maven.sellwild.com/releases")
+            credentials(AwsCredentials::class) {
+                accessKey = System.getenv("AWS_ACCESS_KEY_ID")
+                    ?: (project.findProperty("aws.accessKey") as String?)
+                secretKey = System.getenv("AWS_SECRET_ACCESS_KEY")
+                    ?: (project.findProperty("aws.secretKey") as String?)
             }
         }
     }
 }
 ```
 
-Then publish:
+**Publish**
+
 ```bash
-./gradlew publishReleasePublicationToGitHubPackagesRepository
+cd sdk/android
+./gradlew clean assembleRelease
+./gradlew publishReleasePublicationToSellwildS3Repository
 ```
 
-### Publish to local Maven repository (for testing)
+This uploads, in one shot:
+
+- `sdk-1.1.0.aar` + `.md5` + `.sha1`
+- `sdk-1.1.0.pom` + `.md5` + `.sha1`
+- `sdk-1.1.0.module` + `.md5` + `.sha1`     ← Gradle Module Metadata
+- `sdk-1.1.0-sources.jar` + `.md5` + `.sha1`
+- `maven-metadata.xml` + `.md5` + `.sha1`   ← **correct filename, with checksums**
+
+**Invalidate CloudFront after publish**
+
+```bash
+aws cloudfront create-invalidation \
+  --distribution-id E2I8MYVEM6ZX5R \
+  --paths "/releases/com/sellwild/sdk/*"
+```
+
+**Verify**
+
+```bash
+# Pinned version + dynamic version both resolve:
+curl -sI https://maven.sellwild.com/releases/com/sellwild/sdk/maven-metadata.xml
+curl -s  https://maven.sellwild.com/releases/com/sellwild/sdk/maven-metadata.xml \
+  | grep -E "<latest>|<release>|<version>"
+```
+
+A consumer app then resolves it with:
+
+```kotlin
+repositories {
+    maven { url = uri("https://maven.sellwild.com/releases") }
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation("com.sellwild:sdk:1.1.0")  // or "com.sellwild:sdk:1.+"
+}
+```
+
+### Publish to local Maven repository (for testing only)
 
 ```bash
 ./gradlew publishToMavenLocal
 # Output lands in ~/.m2/repository/com/sellwild/sdk/
 ```
 
-Host app consumes it by adding `mavenLocal()` to repositories:
+> Note: this writes `maven-metadata-local.xml` (Gradle's local-only convention).
+> **Never** sync that directory directly to S3 — use the S3 publish task above.
+
+Host app consumes the local copy via:
 ```kotlin
 repositories {
     mavenLocal()
@@ -196,7 +288,33 @@ repositories {
 }
 ```
 
-### Publish to Maven Central
+### Repairing a broken Maven repo (if `maven-metadata-local.xml` slipped through)
+
+If you suspect a previous release was uploaded via `s3 sync` and is missing the
+proper metadata file or checksums:
+
+```bash
+cd /tmp && mkdir -p maven-fix && cd maven-fix
+aws s3 sync s3://maven.sellwild.com/releases/com/sellwild/sdk/ ./sdk/
+
+# Rename if needed
+[ -f sdk/maven-metadata-local.xml ] && \
+  mv sdk/maven-metadata-local.xml sdk/maven-metadata.xml
+
+# Generate checksums for everything missing them
+cd sdk
+for f in $(find . -type f ! -name "*.md5" ! -name "*.sha1"); do
+  [ -f "$f.md5"  ] || md5    -q "$f" > "$f.md5"
+  [ -f "$f.sha1" ] || shasum -a 1 "$f" | awk '{print $1}' > "$f.sha1"
+done
+
+aws s3 sync . s3://maven.sellwild.com/releases/com/sellwild/sdk/
+aws cloudfront create-invalidation \
+  --distribution-id E2I8MYVEM6ZX5R \
+  --paths "/releases/com/sellwild/sdk/*"
+```
+
+### Publish to Maven Central (future)
 
 Requires signing config and Sonatype credentials. Add to `build.gradle.kts`:
 ```kotlin
