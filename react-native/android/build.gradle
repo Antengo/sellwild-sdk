@@ -1,0 +1,72 @@
+// React Native Android module for @sellwild/react-native-sdk.
+//
+// Hosts the SellwildBannerView component manager that bridges the JS
+// <SellwildBanner> to the native com.sellwild.sdk.SellwildAdView (which
+// runs a Prebid Mobile auction and renders into AdManagerAdView).
+
+buildscript {
+    ext.getExtOrDefault = { name, defaultValue ->
+        return rootProject.ext.has(name) ? rootProject.ext.get(name) : defaultValue
+    }
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "com.android.tools.build:gradle:8.7.3"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${getExtOrDefault('kotlinVersion', '2.1.20')}"
+    }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "org.jetbrains.kotlin.android"
+
+def safeExtGet(prop, fallback) {
+    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+}
+
+android {
+    namespace "com.sellwild.rnsdk"
+    compileSdk safeExtGet("compileSdkVersion", 35)
+
+    defaultConfig {
+        minSdk safeExtGet("minSdkVersion", 23)
+        targetSdk safeExtGet("targetSdkVersion", 35)
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+// Repositories are intentionally not declared here. Downstream React
+// Native apps that consume @sellwild/react-native-sdk via npm autolinking
+// declare `https://maven.sellwild.com/releases` in their own
+// `allprojects { repositories { ... } }` block (see the README).
+//
+// Inside the SDK monorepo (samples/demo-app), the host build substitutes
+// this `com.sellwild:sdk:1.3.0` coordinate for the in-repo `:sellwild-sdk`
+// project via Gradle dependency substitution.
+
+dependencies {
+    // RN libraries are linked against the host app's React Native install,
+    // so we depend on it as compileOnly. The host app provides the runtime
+    // classes via its own `react-native` node_modules.
+    compileOnly "com.facebook.react:react-android"
+
+    // The native SDK that owns SellwildAdView, SellwildPrebidMobile, etc.
+    //
+    // Downstream apps consuming this package via npm pull the published AAR
+    // off https://maven.sellwild.com/releases. For local development inside
+    // the SDK monorepo the host app is expected to substitute the in-repo
+    // module via Gradle (`include ':sellwild-sdk'` + dependencySubstitution),
+    // which is what samples/demo-app does.
+    implementation "com.sellwild:sdk:1.3.0"
+}
