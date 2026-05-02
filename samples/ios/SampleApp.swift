@@ -5,9 +5,12 @@
  *   1. Create a new iOS app in Xcode (SwiftUI or UIKit, targeting iOS 14+).
  *   2. Add the SellwildSDK package:
  *        File → Add Package Dependencies →
- *        https://github.com/Antengo/sellwild-sdk.git  (version 1.2.0)
+ *        https://github.com/Antengo/sellwild-sdk.git  (version 1.3.0)
  *        — OR —
- *        Add to your Podfile: pod 'SellwildSDK', '~> 1.2'  then pod install
+ *        Add to your Podfile: pod 'SellwildSDK', '~> 1.3'  then pod install
+ *
+ *      As of 1.3.0 the SDK pulls in PrebidMobile + Google Mobile Ads.
+ *      SPM requires Xcode 16+. CocoaPods works with Xcode 15+.
  *   3. Copy the relevant section below into your app.
  *   4. Replace 'YOUR_PARTNER_CODE' with your real partner code.
  *
@@ -23,22 +26,17 @@ import SwiftUI
 import SellwildSDK
 
 // ─── Shared Config ────────────────────────────────────────────────────────────
-
-// ─── Shared Config ────────────────────────────────────────────────────────────
 //
-// TWO PREBID MODES are available:
+// Ad path (1.3.0+):
+//   `SellwildAdView` / `SellwildAdBanner` runs a NATIVE Prebid Mobile auction
+//   and renders the winner into a NATIVE GAM `AdManagerBannerView`. There is
+//   no WebView in the banner ad path. The marketplace `SellwildWidget` still
+//   uses a WebView; that surface is intentional.
 //
-//  Mode A (default) — Prebid.js client-side in the WebView.
-//    Set appBundleId so Prebid.js declares in-app (ortb2.app) inventory.
-//
-//  Mode B — Prebid Server S2S.
-//    Routes all bids server-side through a Prebid Server instance.
-//    Solves cookie/IDFA limitations. Uncomment prebidServer below.
-//    See sdk/PREBID.md for full setup instructions.
-//
-//  Mode C — Prebid Mobile SDK (native, no WebView for bidding).
-//    Uses true native bidding via PrebidMobile pod/SPM package.
-//    See SellwildPrebidMobile.swift and sdk/PREBID.md for setup.
+// Prebid Mobile + GMA bootstrap automatically on the first ad view — partners
+// don't need to call `MobileAds.shared.start()` themselves. Server URL +
+// account id are resolved from typed config (`config.prebidServer`) or fall
+// back to raw passthrough (`config.remote["S2S_CONFIG"]`).
 
 extension SellwildConfig {
   /// Remote config (the first-class path, 1.2.0+).
@@ -53,8 +51,8 @@ extension SellwildConfig {
   ///   let config = await SellwildConfig.demo()
   static func demo() async -> SellwildConfig {
     let config = await SellwildSDK.configure(
-      partnerCode: "YOUR_PARTNER_CODE",
-      slug: "your-partner-slug"
+      partnerCode: "weatherbug",
+      slug: "weatherbug-weatherbug"
     ) { c in
       // App-controlled overrides win over CDN values.
       c.appBundleId = Bundle.main.bundleIdentifier ?? "com.mycompany.myapp"
@@ -76,36 +74,17 @@ extension SellwildConfig {
   /// rendering ads). 1.2.0+ makes `listingsUrl` optional — if you leave it
   /// unset, the SDK derives a default from `partnerCode`.
   static var staticDemo: SellwildConfig {
-    var c = SellwildConfig(partnerCode: "YOUR_PARTNER_CODE")
+    var c = SellwildConfig(partnerCode: "weatherbug")
+    c.bannerZid = "43"
+    c.mobileZids = ["280"]
     c.appBundleId = Bundle.main.bundleIdentifier ?? "com.mycompany.myapp"
-    c.appStoreUrl = "https://apps.apple.com/app/idXXXXXXXXX"
-    c.adRefreshMaxMobile = 5
+    c.appStoreUrl = "https://apps.apple.com/us/app/weatherbug-weather-forecast/id281940292"
+    c.adRefreshMaxMobile = 3
     c.adRefreshInterval = 30.0
     c.debug = true
     return c
   }
 }
-
-// ─── Mode C: Prebid Mobile SDK initialization (optional) ─────────────────────
-// Uncomment and add PrebidMobile pod/SPM package to use true native bidding.
-// Call from AppDelegate.application(_:didFinishLaunchingWithOptions:).
-//
-// func initPrebidMobileSDK() {
-//   SellwildPrebidMobile.initialize(
-//     serverHost: .appnexus,            // or .rubicon / .custom
-//     accountId:  "YOUR_ACCOUNT_ID",
-//     debug: true
-//   )
-// }
-//
-// Then create ad units in your view controllers:
-//   let banner = SellwildPrebidMobile.makeBannerAdUnit(
-//     configId: "YOUR_CONFIG_ID",
-//     adSize:   CGSize(width: 320, height: 50)
-//   )
-//   banner?.fetchDemand(adObject: gamBannerView) { _ in
-//     gamBannerView.load(GAMRequest())
-//   }
 
 // ─── A. UIKit — Full Widget ───────────────────────────────────────────────────
 
@@ -163,7 +142,46 @@ struct SellwildDemoView: View {
 
   var body: some View {
     TabView {
-      // Tab 1: Full WebView widget
+      // Tab 1 (primary): Native banner ads — Prebid Mobile auction + GAM render
+      VStack(spacing: 16) {
+        Text("Native Banner Ads")
+          .font(.headline)
+        Text("Prebid Mobile auction → GAM render. No WebView in the ad path.")
+          .font(.caption)
+          .foregroundColor(.secondary)
+          .multilineTextAlignment(.center)
+          .padding(.horizontal)
+
+        SellwildAdBanner(
+          config: config,
+          adSize: .mrec300x250,
+          zoneId: config.bannerZid,
+          onImpression: {
+            print("[Sellwild] MREC impression (native render)")
+          },
+          onError: { error in
+            print("[Sellwild] Banner error:", error.localizedDescription)
+          }
+        )
+        .frame(width: 300, height: 250)
+
+        SellwildAdBanner(
+          config: config,
+          adSize: .banner320x50,
+          zoneId: config.mobileZids.first ?? config.bannerZid,
+          onImpression: {
+            print("[Sellwild] 320x50 impression (native render)")
+          }
+        )
+        .frame(width: 320, height: 50)
+
+        Spacer()
+      }
+      .padding()
+      .tabItem { Label("Banners", systemImage: "rectangle.3.group") }
+
+      // Tab 2: Marketplace widget (still WebView — that's the right surface
+      // for marketplace listings, not for ad rendering).
       SellwildWidget(
         config: config,
         onListingTap: { listing in
@@ -181,40 +199,7 @@ struct SellwildDemoView: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .tabItem { Label("Widget", systemImage: "house") }
 
-      // Tab 2: Standalone MREC banner
-      VStack(spacing: 16) {
-        Text("Banner Ad Demo")
-          .font(.headline)
-
-        SellwildAdBanner(
-          config: config,
-          adSize: .mrec300x250,
-          zoneId: config.bannerZid,
-          onImpression: {
-            print("[Sellwild] MREC impression")
-          },
-          onError: { error in
-            print("[Sellwild] Banner error:", error.localizedDescription)
-          }
-        )
-        .frame(width: 300, height: 250)
-
-        SellwildAdBanner(
-          config: config,
-          adSize: .banner320x50,
-          zoneId: config.bannerZid,
-          onImpression: {
-            print("[Sellwild] 320x50 impression")
-          }
-        )
-        .frame(width: 320, height: 50)
-
-        Spacer()
-      }
-      .padding()
-      .tabItem { Label("Banners", systemImage: "rectangle.3.group") }
-
-      // Tab 3: Native listings
+      // Tab 3: Native listings via SellwildAPIClient
       NativeListingsView(config: config)
         .tabItem { Label("Listings", systemImage: "list.bullet") }
     }
