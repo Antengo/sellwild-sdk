@@ -2,22 +2,33 @@
  * Sellwild Android SDK — Runnable Sample App
  *
  * How to run:
- *   1. Create a new Android project in Android Studio (API 21+ / Kotlin).
+ *   1. Create a new Android project in Android Studio (API 23+ / Kotlin).
  *   2. Add the SDK dependency to app/build.gradle.kts:
- *        implementation("com.sellwild:sdk:1.2.0")
+ *        implementation("com.sellwild:sdk:1.3.0")
  *        — OR for local Maven during development:
  *        implementation(files("../../android/build/outputs/aar/sdk-release.aar"))
+ *      The SDK transitively pulls in Prebid Mobile 3.x and Google Mobile Ads
+ *      24.x; you do not need to declare them yourself.
  *   3. Add INTERNET permission to AndroidManifest.xml:
  *        <uses-permission android:name="android.permission.INTERNET" />
- *   4. Optionally add cleartext traffic for ad networks:
- *        android:usesCleartextTraffic="true"  (in <application>)
+ *   4. Add the Google Mobile Ads app ID to AndroidManifest.xml:
+ *        <meta-data
+ *          android:name="com.google.android.gms.ads.APPLICATION_ID"
+ *          android:value="ca-app-pub-3940256099942544~3347511713" /> <!-- test -->
+ *      Replace with your real GMA app ID before shipping.
  *   5. Copy the files below into your project.
  *   6. Replace 'YOUR_PARTNER_CODE' with your real partner code.
  *
+ * The default route is `NativeBannerFragment` — a native banner ad backed by
+ * Prebid Mobile + GMA, with no WebView in the ad path. The widget tab still
+ * uses a WebView for the marketplace listings surface only; that is
+ * intentional. Ads always render natively in 1.3.0+.
+ *
  * Files covered:
- *   - MainActivity.kt          — entry point, tab navigation
- *   - WidgetFragment.kt        — full WebView widget tab
- *   - NativeListingsFragment.kt — native RecyclerView listings + banner tab
+ *   - MainActivity.kt          — entry point
+ *   - NativeBannerFragment.kt  — default tab: native 320×50 banner
+ *   - WidgetFragment.kt        — marketplace listings (WebView surface only)
+ *   - NativeListingsFragment.kt — native RecyclerView + banner combo
  *   - ListingsViewModel.kt     — ViewModel using coroutines
  */
 
@@ -45,46 +56,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-// ─── Shared Config ────────────────────────────────────────────────────────────
-
 // ─── Config ───────────────────────────────────────────────────────────────────
 //
-// TWO PREBID MODES are available:
-//
-//  Mode A (default) — Prebid.js client-side in the WebView.
-//    Set appBundleId so Prebid.js declares in-app (ortb2.app) inventory.
-//
-//  Mode B — Prebid Server S2S.
-//    Routes all bids server-side through a Prebid Server instance.
-//    Solves cookie/IDFA limitations. Uncomment prebidServer below.
-//    See sdk/PREBID.md for full setup instructions.
-//
-//  Mode C — Prebid Mobile SDK (native, no WebView for bidding).
-//    Requires: implementation("org.prebid:prebid-mobile-sdk-core:2.3.2") in build.gradle.kts
-//    Call SellwildPrebidMobile.initialize() from Application.onCreate().
-//    See SellwildPrebidMobile.kt and sdk/PREBID.md for setup.
-
-// Remote config (the first-class path, 1.2.0+).
 // `SellwildSDK.configure(partnerCode, slug)` fetches a JSON document from
-// https://widget.sellwild.com/app/{partnerCode}/{slug}.json and returns a
-// fully-built SellwildConfig — listings URL, ad zones, refresh intervals, app
-// identity, waterfall partners, compliance flags, all populated from the CMS.
-// Two strings = working SDK. On any network/timeout/404 failure the SDK falls
-// back to deterministic defaults so ads still render.
+//   https://widget.sellwild.com/app/{partnerCode}/{slug}.json
+// and returns a fully-built SellwildConfig — listings URL, ad zones, refresh
+// intervals, app identity, waterfall partners, compliance flags, all populated
+// from the CMS. Two strings = working SDK. On any network/timeout/404 failure
+// the SDK falls back to deterministic defaults so ads still render.
 //
-// Usage:
-//   lifecycleScope.launch {
-//     val config = SellwildSDK.configure(
-//       partnerCode = "YOUR_PARTNER_CODE",
-//       slug = "your-partner-slug",
-//     ) { c -> c.copy(appBundleId = packageName, debug = BuildConfig.DEBUG) }
-//     adView.setup(config, AdSize.MREC_300x250)
-//     adView.load()
-//   }
+// In 1.3.0+ the auction itself runs natively via Prebid Mobile and renders
+// into a Google `AdManagerAdView`; there is no WebView in the ad path.
 
-// Static fallback config (use this when you can't make a network call before
-// rendering ads). 1.2.0+ makes `listingsUrl` optional — if you leave it null,
-// the SDK derives a default from `partnerCode`.
 private val STATIC_CONFIG = SellwildConfig(
     partnerCode = "YOUR_PARTNER_CODE",
     appBundleId = "com.mycompany.myapp",   // use BuildConfig.APPLICATION_ID in production
@@ -98,23 +81,6 @@ private const val REMOTE_SLUG = "your-partner-slug"
 
 private val DEMO_CONFIG = STATIC_CONFIG
 
-// ─── Mode C: Prebid Mobile SDK initialization (optional) ─────────────────────
-// Uncomment after adding: implementation("org.prebid:prebid-mobile-sdk-core:2.3.2")
-// Call from Application.onCreate() BEFORE creating any SellwildWidgetView.
-//
-// class DemoApplication : Application() {
-//     override fun onCreate() {
-//         super.onCreate()
-//         SellwildWebViewCompat.configureForMultiProcess(this)
-//         SellwildPrebidMobile.initialize(
-//             context   = this,
-//             host      = "appnexus",           // or "rubicon" / "custom"
-//             accountId = "YOUR_ACCOUNT_ID",
-//             debug     = BuildConfig.DEBUG,
-//         )
-//     }
-// }
-
 private const val TAG = "SellwildDemo"
 
 // ─── MainActivity ─────────────────────────────────────────────────────────────
@@ -124,24 +90,96 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Simple layout with a FrameLayout + bottom nav
-        val root = FrameLayout(this).also { setContentView(it) }
+        FrameLayout(this).also { setContentView(it) }
 
         if (savedInstanceState == null) {
+            // Lead with the native banner fragment — this is the
+            // recommended integration path for 1.3.0+. Native auction,
+            // native render, no WebView in the ad pipeline.
             supportFragmentManager.beginTransaction()
-                .replace(android.R.id.content, WidgetFragment())
+                .replace(android.R.id.content, NativeBannerFragment())
                 .commit()
         }
 
-        // In a real app, replace with ViewPager2 + BottomNavigationView or Jetpack Navigation.
-        // For a quickstart: uncomment to switch between the two sample fragments:
-        //   supportFragmentManager.beginTransaction()
-        //       .replace(android.R.id.content, NativeListingsFragment())
-        //       .commit()
+        // To explore the other surfaces, swap the call above for one of:
+        //   .replace(android.R.id.content, NativeListingsFragment())
+        //   .replace(android.R.id.content, WidgetFragment())
     }
 }
 
-// ─── A. WidgetFragment — Full WebView Widget ──────────────────────────────────
+// ─── A. NativeBannerFragment — Default tab: native 320×50 banner ─────────────
+//
+// Minimal, copy-pasteable banner integration. `SellwildSDK.configure()` does
+// the network fetch; `SellwildAdView` runs the Prebid auction and hands the
+// winner to GMA. No WebView. No bridge. Just a view in your layout.
+
+class NativeBannerFragment : Fragment() {
+
+    private lateinit var bannerView: SellwildAdView
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        val root = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER_HORIZONTAL
+            setPadding(0, 32, 0, 0)
+        }
+
+        bannerView = SellwildAdView(requireContext())
+        bannerView.listener = object : SellwildAdView.Listener {
+            override fun onAdLoaded(adView: SellwildAdView) {
+                Log.d(TAG, "Native banner loaded")
+            }
+            override fun onAdImpression(adView: SellwildAdView, zoneId: String) {
+                Log.d(TAG, "Native banner impression, zoneId=$zoneId")
+            }
+            override fun onAdFailed(adView: SellwildAdView, message: String) {
+                Log.w(TAG, "Native banner failed: $message")
+            }
+        }
+        root.addView(bannerView, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ))
+
+        return root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            // Two-string init. configure() fetches the CDN JSON and merges
+            // it with defaults; the resulting config carries every key the
+            // CMS shipped (typed first-class fields plus a `remoteJson`
+            // passthrough for unmapped bidders like MEDIANET, AMX, SOVRN).
+            val config = SellwildSDK.configure(
+                partnerCode = STATIC_CONFIG.partnerCode,
+                slug = REMOTE_SLUG,
+            ) { c -> c.copy(appBundleId = STATIC_CONFIG.appBundleId, debug = true) }
+
+            bannerView.setup(
+                config = config,
+                adSize = AdSize.BANNER_320x50,
+                zoneId = config.bannerZid,
+            )
+            bannerView.load()
+        }
+    }
+
+    override fun onResume() { super.onResume(); bannerView.resume() }
+    override fun onPause()  { super.onPause();  bannerView.pause()  }
+    override fun onDestroyView() { super.onDestroyView(); bannerView.destroy() }
+}
+
+// ─── B. WidgetFragment — Marketplace listings (WebView surface) ──────────────
+//
+// The widget surface intentionally renders the marketplace listing grid
+// inside a WebView. This is *not* the ad pipeline — banners and other
+// monetizing units render natively via [NativeBannerFragment] above.
 
 class WidgetFragment : Fragment() {
 
@@ -207,7 +245,7 @@ class WidgetFragment : Fragment() {
     override fun onDestroyView() { super.onDestroyView(); widgetView.destroy() }
 }
 
-// ─── B. NativeListingsFragment — RecyclerView + Banner ────────────────────────
+// ─── C. NativeListingsFragment — Native banner + RecyclerView listings ──────
 
 class NativeListingsFragment : Fragment() {
 

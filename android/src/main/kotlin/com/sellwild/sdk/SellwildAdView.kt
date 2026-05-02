@@ -1,27 +1,34 @@
 package com.sellwild.sdk
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
-import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import com.google.android.gms.ads.AdListener
+import com.google.android.gms.ads.AdSize as GmaAdSize
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.admanager.AdManagerAdRequest
+import com.google.android.gms.ads.admanager.AdManagerAdView
 import org.json.JSONObject
 
 /**
- * Android View that renders a Sellwild ad unit via WebView.
- * Supports banner ads using GPT or zone-based delivery.
+ * Native banner ad view. As of 1.3.0 this view runs a Prebid Mobile auction
+ * and renders into an [AdManagerAdView]. There is **no WebView** in the ad
+ * path.
+ *
+ * The widget surface ([SellwildWidgetView]) still uses a WebView for
+ * marketplace listings — that surface is intentionally a WebView. Banners and
+ * other monetizing ad units render natively.
  *
  * Usage:
  * ```kotlin
- * val adView = SellwildAdView(context)
- * adView.setup(config, AdSize.MREC_300x250, zoneId = "12345")
- * adView.load()
+ * val config = SellwildSDK.configure(context, "weatherbug", "weatherbug-weatherbug")
+ * val ad = SellwildAdView(context).apply {
+ *     setup(config, AdSize.BANNER_320x50, zoneId = "43")
+ * }
+ * parent.addView(ad)
+ * ad.load()
  * ```
  */
 class SellwildAdView @JvmOverloads constructor(
@@ -37,13 +44,13 @@ class SellwildAdView @JvmOverloads constructor(
         fun onAdFailed(adView: SellwildAdView, message: String) {}
     }
 
+    var listener: Listener? = null
+
     private lateinit var config: SellwildConfig
     private lateinit var adSize: AdSize
     private var zoneId: String? = null
-    var listener: Listener? = null
 
-    private val webView: WebView by lazy { createWebView() }
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private var bannerView: AdManagerAdView? = null
     private var refreshHandler: Handler? = null
     private var refreshCount = 0
 
@@ -52,80 +59,94 @@ class SellwildAdView @JvmOverloads constructor(
         this.adSize = adSize
         this.zoneId = zoneId
 
-        if (childCount == 0) {
+        if (bannerView == null) {
+            val banner = AdManagerAdView(context).apply {
+                setAdSizes(GmaAdSize(adSize.width, adSize.height))
+                adUnitId = resolveGAMAdUnitID()
+                adListener = bannerAdListener()
+            }
+            bannerView = banner
+
             val dp = context.resources.displayMetrics.density
             val widthPx = (adSize.width * dp).toInt()
             val heightPx = (adSize.height * dp).toInt()
-            addView(webView, LayoutParams(widthPx, heightPx))
+            addView(banner, LayoutParams(widthPx, heightPx))
         }
     }
 
+    /**
+     * Run the Prebid auction and load the winning ad. Safe to call multiple
+     * times; each call triggers a fresh auction + GAM request.
+     */
     fun load() {
-        val html = buildAdHTML()
-        val baseUrl = "https://widget.sellwild.com"
-        webView.loadDataWithBaseURL(baseUrl, html, "text/html", "UTF-8", null)
+        val banner = bannerView ?: run {
+            listener?.onAdFailed(this, "SellwildAdView.load() called before setup()")
+            return
+        }
+
+        // Idempotent — first call wins, the rest are cheap.
+        SellwildPrebidMobile.bootstrap(context, config)
+
+        // Re-resolve in case `config` was swapped between loads.
+        banner.adUnitId = resolveGAMAdUnitID()
+
+        val configId = zoneId
+        if (configId.isNullOrEmpty()) {
+            // No zoneId means we can't run a Prebid auction. Fall through to a
+            // plain GAM request so GAM line items still serve.
+            banner.loadAd(AdManagerAdRequest.Builder().build())
+            return
+        }
+
+        SellwildPrebidMobile.runBannerAuction(
+            adView = banner,
+            configId = configId,
+            widthDp = adSize.width,
+            heightDp = adSize.height,
+            bidderParams = bidderParamsFromRemote(config),
+        )
     }
 
     fun pause() {
         refreshHandler?.removeCallbacksAndMessages(null)
         refreshHandler = null
-        webView.onPause()
+        bannerView?.pause()
     }
 
     fun resume() {
-        webView.onResume()
+        bannerView?.resume()
     }
 
     fun destroy() {
         pause()
-        webView.destroy()
+        bannerView?.destroy()
+        bannerView = null
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
-    private fun createWebView(): WebView {
-        val wv = WebView(context)
-        with(wv.settings) {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            cacheMode = WebSettings.LOAD_DEFAULT
-            mediaPlaybackRequiresUserGesture = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-            useWideViewPort = true
-            loadWithOverviewMode = true
-        }
-        wv.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                mainHandler.post { listener?.onAdLoaded(this@SellwildAdView) }
-            }
-        }
-        wv.webChromeClient = WebChromeClient()
-        wv.addJavascriptInterface(SellwildJSBridge(), "SellwildBridge")
-        wv.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-        return wv
-    }
+    // ── Internals ──────────────────────────────────────────────────────────
 
-    private inner class SellwildJSBridge {
-        @JavascriptInterface
-        fun postMessage(json: String) {
-            mainHandler.post {
-                try {
-                    val obj = JSONObject(json)
-                    when (obj.optString("type")) {
-                        "impression" -> {
-                            val zid = obj.optString("zoneId").ifEmpty { zoneId ?: "" }
-                            listener?.onAdImpression(this@SellwildAdView, zid)
-                            scheduleRefresh()
-                        }
-                        "click" -> listener?.onAdClicked(this@SellwildAdView)
-                        "error" -> listener?.onAdFailed(this@SellwildAdView, obj.optString("message"))
-                    }
-                } catch (_: Exception) {}
-            }
+    private fun bannerAdListener() = object : AdListener() {
+        override fun onAdLoaded() {
+            val self = this@SellwildAdView
+            self.listener?.onAdLoaded(self)
+            self.listener?.onAdImpression(self, self.zoneId.orEmpty())
+            scheduleRefresh()
+        }
+
+        override fun onAdFailedToLoad(error: LoadAdError) {
+            val self = this@SellwildAdView
+            self.listener?.onAdFailed(self, error.message)
+            scheduleRefresh()
+        }
+
+        override fun onAdClicked() {
+            val self = this@SellwildAdView
+            self.listener?.onAdClicked(self)
         }
     }
 
     private fun scheduleRefresh() {
-        val maxRefresh = config.adRefreshMaxMobile.takeIf { it > 0 } ?: config.adRefreshMax
+        val maxRefresh = if (config.adRefreshMaxMobile > 0) config.adRefreshMaxMobile else config.adRefreshMax
         if (maxRefresh <= 0 || refreshCount >= maxRefresh) return
 
         val handler = Handler(Looper.getMainLooper())
@@ -136,69 +157,86 @@ class SellwildAdView @JvmOverloads constructor(
         }, config.adRefreshIntervalMs)
     }
 
-    private fun buildAdHTML(): String {
-        val w = adSize.width
-        val h = adSize.height
-        val gptBase = config.gptProxyUrl ?: "https://securepubads.g.doubleclick.net"
-        val gptSrc = "$gptBase/tag/js/gpt.js"
+    /**
+     * Resolve the GAM ad unit ID. Order of preference:
+     *   1. `config.gamTag` (the real GAM ad unit path provisioned by the CMS).
+     *   2. `config.remoteJson["GAM"]` raw passthrough, if set.
+     *   3. GMA test ad unit (`/6499/example/banner`) — partners notice their
+     *      CMS is missing a `GAM` field in production.
+     */
+    private fun resolveGAMAdUnitID(): String = resolveGAMAdUnitID(config)
 
-        val adScript = when {
-            !config.gamTag.isNullOrEmpty() && !config.disableGpt ->
-                buildGptScript(config.gamTag!!, gptSrc, w, h)
-            !zoneId.isNullOrEmpty() ->
-                buildZoneScript(zoneId!!, w, h)
-            else -> "// No ad configuration"
+    companion object {
+        private const val TAG = "SellwildAdView"
+
+        internal const val GAM_TEST_AD_UNIT = "/6499/example/banner"
+
+        /**
+         * Resolve the GAM ad unit ID. Order of preference:
+         *   1. `config.gamTag` (the real GAM ad unit path provisioned by the CMS).
+         *   2. `config.remoteJson["GAM"]` raw passthrough, if set.
+         *   3. GMA test ad unit (`/6499/example/banner`) — partners notice their
+         *      CMS is missing a `GAM` field in production.
+         */
+        internal fun resolveGAMAdUnitID(config: SellwildConfig): String {
+            config.gamTag?.takeIf { it.isNotEmpty() }?.let { return it }
+
+            config.remoteJson?.let { raw ->
+                runCatching {
+                    val obj = JSONObject(raw)
+                    val gam = obj.optString("GAM", "")
+                    if (gam.isNotEmpty()) return gam
+                }
+            }
+
+            if (config.debug) {
+                android.util.Log.w(
+                    TAG,
+                    "No GAM ad unit configured. Falling back to Google's test ad " +
+                        "unit `/6499/example/banner`. Set `GAM` in your CMS config " +
+                        "to enable production fill.",
+                )
+            }
+            return GAM_TEST_AD_UNIT
         }
 
-        return """<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: ${w}px; height: ${h}px; overflow: hidden; background: transparent; }
-    #ad { width: ${w}px; height: ${h}px; }
-  </style>
-</head>
-<body>
-  <div id="ad"></div>
-  <script>
-    function notify(type, data) {
-      var msg = JSON.stringify(Object.assign({ type: type }, data || {}));
-      SellwildBridge.postMessage(msg);
-    }
-    $adScript
-  </script>
-</body>
-</html>"""
-    }
+        /**
+         * Forward bidder configs from the raw CDN payload as ext data on the
+         * Prebid auction. Each new bidder added to the CMS becomes available
+         * to every consuming app immediately, no SDK release.
+         */
+        internal fun bidderParamsFromRemote(config: SellwildConfig): Map<String, Any?> {
+            val raw = config.remoteJson ?: return emptyMap()
+            val obj = runCatching { JSONObject(raw) }.getOrNull() ?: return emptyMap()
 
-    private fun buildGptScript(gamTag: String, gptSrc: String, w: Int, h: Int) = """
-        window.googletag = window.googletag || { cmd: [] };
-        var s = document.createElement('script');
-        s.src = '$gptSrc';
-        s.async = true;
-        document.head.appendChild(s);
-        googletag.cmd.push(function() {
-          var slot = googletag.defineSlot('$gamTag', [$w, $h], 'ad');
-          if (slot) {
-            slot.addService(googletag.pubads());
-            googletag.pubads().enableSingleRequest();
-            googletag.pubads().addEventListener('slotRenderEnded', function(e) {
-              if (!e.isEmpty) notify('impression', { zoneId: '' });
-            });
-            googletag.enableServices();
-            googletag.display('ad');
-          }
-        });
-    """.trimIndent()
+            val params = mutableMapOf<String, Any?>()
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                // CDN ships bidder params as CONSTANT_CASE; non-bidder typed
+                // keys are skipped via the static deny list.
+                if (key != key.uppercase()) continue
+                if (NON_BIDDER_REMOTE_KEYS.contains(key)) continue
+                params[key] = obj.opt(key)
+            }
+            return params
+        }
 
-    private fun buildZoneScript(zoneId: String, w: Int, h: Int) = """
-        var s = document.createElement('script');
-        s.src = 'https://bidstream.sellwild.com/ads?zone=$zoneId&w=$w&h=$h';
-        s.async = true;
-        s.onload = function() { notify('impression', { zoneId: '$zoneId' }); };
-        document.getElementById('ad').appendChild(s);
-    """.trimIndent()
+        /** CDN keys that are first-class typed config and not bidder params. */
+        private val NON_BIDDER_REMOTE_KEYS: Set<String> = setOf(
+            "CODE", "LISTINGS", "SLUG", "NAME", "TITLE", "COLORS", "LINK_TEXT",
+            "BUY_NOW_TEXT", "FONT_FAMILY", "FONT_URL", "FONT_COLOR", "PRICE_COLOR",
+            "PRICE_FONT_COLOR", "MARGIN_BOTTOM", "CARD_WIDTH", "OVERLAY_TITLE",
+            "CSS", "WATERMARK", "WATERMARK_TITLE", "BANNER_ZID", "BOTTOM_BANNER_ZID",
+            "MOBILE_BANNER_ZID", "MOBILE_ZID", "DISPLAY_ZID", "HIDE_BANNER_TOP",
+            "HIDE_BANNER_BOTTOM", "GAM", "DISABLE_GPT", "AD_UNITS", "SAFE_FRAME",
+            "AD_DISABLE_DISPLAY", "AD_REFRESH_MAX", "AD_REFRESH_MAX_MOBILE",
+            "AD_REFRESH_INTERVAL", "MAX_FAILED_AUCTIONS", "PREBID_DEFER",
+            "PREBID_SRC", "AD_GEO_BLOCK", "AD_GEO_BLOCK_REFRESH", "GPP_ENABLED",
+            "TCF_VERSION", "CONSENT_MANAGEMENT", "SCHAIN_SID", "S2S_CONFIG",
+            "IAB_CATS", "APP_BUNDLE_ID", "APP_STORE_URL", "ENABLE_INTERSTITIAL",
+            "ENABLE_FULLSCREEN_VIDEO", "INTERSTITIALS_PER_SESSION",
+            "VIDEO_TAKEOVERS_PER_SESSION", "DEBUG", "MEMBERSHIP_TYPE",
+        )
+    }
 }
