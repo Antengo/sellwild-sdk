@@ -1,121 +1,180 @@
-// SellwildPrebidMobile.swift — Optional Prebid Mobile SDK integration
+// SellwildPrebidMobile.swift — Prebid Mobile SDK bridge (required, not optional).
 //
-// This file is compiled only when the host app includes the PrebidMobile pod/SPM package.
-// It provides a lightweight bridge between SellwildConfig and the Prebid Mobile SDK,
-// enabling true native header bidding without a WebView.
+// In 1.3.0+, PrebidMobile (3.x) and Google-Mobile-Ads-SDK (11.x) are required
+// dependencies of SellwildSDK. SellwildAdView runs a native Prebid auction and
+// renders into a GAMBannerView — there is no WebView in the banner ad path.
 //
-// REQUIREMENTS
-// ─────────────
-// Podfile:   pod 'PrebidMobile', '~> 2.3'
-//            pod 'PrebidMobileGAMEventHandlers', '~> 2.3'  // if using GAM
-// SPM:       https://github.com/prebid/prebid-mobile-swift (version 2.3.x)
-//
-// USAGE
-// ─────
-// 1. In your AppDelegate / App init:
-//    SellwildPrebidMobile.initialize(
-//      serverHost: .appnexus,          // or .rubicon, or .custom(host:)
-//      accountId:  "YOUR_ACCOUNT_ID"
-//    )
-//
-// 2. Create a native banner ad unit:
-//    let banner = SellwildPrebidMobile.makeBannerAdUnit(
-//      configId: "YOUR_CONFIG_ID",
-//      adSize:   CGSize(width: 320, height: 50)
-//    )
-//    banner?.fetchDemand(adObject: gamBannerView) { _ in
-//      gamBannerView.load(DFPRequest())
-//    }
-//
-// NOTE: When using the Prebid Mobile SDK, you typically replace or supplement the
-// SellwildWidget WebView with a GAM/MoPub ad view managed by PrebidMobile.
-// The two approaches (WebView widget + native Prebid Mobile) can coexist — use
-// SellwildWidget for the listing carousel and native Prebid Mobile for standalone
-// banner / interstitial placements.
+// This file is the single point of contact between the SDK and the Prebid
+// Mobile SDK. It reads its parameters off `SellwildConfig.prebidServer` /
+// `config.remoteValues["S2S_CONFIG"]` so partners do not have to wire Prebid
+// by hand.
 
-#if canImport(PrebidMobile)
 import Foundation
 import PrebidMobile
+import GoogleMobileAds
 
-/// Convenience wrapper for bootstrapping Prebid Mobile SDK from SellwildConfig.
+/// Public surface for bootstrapping Prebid Mobile + GMA from a `SellwildConfig`.
 public enum SellwildPrebidMobile {
 
-    /// Initialize the Prebid Mobile SDK.
-    /// Call once from `AppDelegate.application(_:didFinishLaunchingWithOptions:)`.
+    /// Set to `true` once `bootstrap(with:)` has successfully kicked off
+    /// initialization for both PrebidMobile and the GMA SDK. Subsequent calls
+    /// become no-ops.
+    private static var didBootstrap = false
+    private static let lock = NSLock()
+
+    /// Initialize PrebidMobile + GMA SDK from a `SellwildConfig`.
+    ///
+    /// Idempotent: safe to call from every `SellwildSDK.configure(...)` result
+    /// and from every `SellwildAdView.load()` — only the first call performs
+    /// SDK initialization. Subsequent calls return immediately.
+    @discardableResult
+    public static func bootstrap(with config: SellwildConfig) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if didBootstrap { return true }
+
+        // GMA first — Prebid hands off to GAM, GAM must be live before any
+        // ad request runs.
+        MobileAds.shared.start(completionHandler: nil)
+
+        // Resolve Prebid Server URL + account id. Typed config wins; fall back
+        // to raw CDN passthrough; final fallback is Sellwild's hosted Prebid
+        // Server so the SDK still does *something* on partial CMS config.
+        let resolved = resolvePrebidServer(from: config)
+        Prebid.shared.prebidServerAccountId = resolved.accountId
+        Prebid.shared.timeoutMillis = config.prebidServer?.timeout ?? 1500
+        Prebid.shared.shareGeoLocation = true
+        if config.debug {
+            Prebid.shared.logLevel = .debug
+        }
+
+        // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
+        if let bundleId = config.appBundleId {
+            Targeting.shared.sourceapp = bundleId
+            if let store = config.appStoreUrl {
+                Targeting.shared.storeURL = store
+            }
+        }
+
+        do {
+            // Prebid 3.x signature: serverURL is required, GMA version is
+            // checked for compatibility.
+            let v = MobileAds.shared.versionNumber
+            let gmaVersion = "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
+            try Prebid.initializeSDK(
+                serverURL: resolved.url,
+                gadMobileAdsVersion: gmaVersion
+            ) { status, error in
+                if let error {
+                    log("Prebid.initializeSDK error: \(error.localizedDescription)")
+                } else {
+                    log("Prebid.initializeSDK status: \(status)")
+                }
+            }
+        } catch {
+            log("Prebid.initializeSDK threw: \(error.localizedDescription)")
+        }
+
+        didBootstrap = true
+        return true
+    }
+
+    // MARK: - Banner auction
+
+    /// Run a Prebid auction for `adSize` keyed by `configId`, then load a
+    /// `GAMBannerView` with the winning Prebid keywords applied.
+    ///
+    /// If Prebid wins, GAM serves the cached creative. If Prebid loses or the
+    /// auction errors, GAM still gets the request and serves its own demand.
+    /// Either way, ad fill is attempted.
     ///
     /// - Parameters:
-    ///   - serverHost: The Prebid Server host. Use `.appnexus`, `.rubicon`,
-    ///                 or `.custom(host: "prebid-server.example.com")`.
-    ///   - accountId:  Your Prebid Server account ID.
-    ///   - timeoutMillis: Auction timeout. Default: 1000 ms.
-    ///   - debug:      Enable Prebid SDK console logging.
-    public static func initialize(
-        serverHost: PrebidHost,
-        accountId: String,
-        timeoutMillis: Int = 1000,
-        debug: Bool = false
+    ///   - bannerView: An already-constructed `AdManagerBannerView` (sized + adUnitID
+    ///     set + rootViewController set + delegate set by the caller).
+    ///   - configId: Prebid Server stored impression id.
+    ///   - adSize: Banner size to auction.
+    ///   - bidderParams: Optional bidder params forwarded to Prebid Server as
+    ///     impression-level ORTB ext data via `setImpORTBConfig`.
+    public static func runBannerAuction(
+        on bannerView: AdManagerBannerView,
+        configId: String,
+        adSize: CGSize,
+        bidderParams: [String: Any] = [:],
+        completion: @escaping (ResultCode) -> Void
     ) {
-        Prebid.shared.prebidServerHost = serverHost
-        Prebid.shared.prebidServerAccountId = accountId
-        Prebid.shared.timeoutMillisDynamic = timeoutMillis as NSNumber
-        Prebid.shared.debugLogFileEnabled = debug
-        Prebid.initializeSDK { status, error in
-            if let error {
-                print("[SellwildPrebidMobile] Init error: \(error)")
-            }
+        let unit = BannerAdUnit(configId: configId, size: adSize)
+
+        // Forward raw CDN bidder params as ORTB imp.ext config. Prebid Server
+        // resolves stored requests against this on its side.
+        if !bidderParams.isEmpty,
+           let ortbExt = ortbExtJSON(for: bidderParams) {
+            unit.setImpORTBConfig(ortbExt)
+        }
+
+        let request = AdManagerRequest()
+        unit.fetchDemand(adObject: request) { result in
+            // Whether or not Prebid won, we always load the GAM request so
+            // GAM's own demand can fill on no-bid.
+            bannerView.load(request)
+            completion(result)
         }
     }
 
-    /// Initialize using a custom Prebid Server host URL.
-    ///
-    /// - Parameters:
-    ///   - serverUrl: Full host URL, e.g. "https://prebid-server.example.com".
-    ///   - accountId: Your Prebid Server account ID.
-    public static func initialize(
-        serverUrl: String,
-        accountId: String,
-        timeoutMillis: Int = 1000,
-        debug: Bool = false
-    ) {
-        try? Prebid.shared.setCustomPrebidServer(url: serverUrl)
-        initialize(
-            serverHost: .custom,
-            accountId: accountId,
-            timeoutMillis: timeoutMillis,
-            debug: debug
+    // MARK: - Helpers
+
+    private struct PrebidServerResolution {
+        let url: String
+        let accountId: String
+    }
+
+    private static func resolvePrebidServer(
+        from config: SellwildConfig
+    ) -> PrebidServerResolution {
+        // 1. Typed config (set by SDK code or partner override).
+        if let p = config.prebidServer {
+            return PrebidServerResolution(url: p.endpoint, accountId: p.accountId)
+        }
+        // 2. Raw CDN passthrough.
+        if let s2s = config.remoteValues?["S2S_CONFIG"] as? [String: Any] {
+            let url = (s2s["endpoint"] as? String)
+                ?? (s2s["url"] as? String)
+                ?? defaultPrebidEndpoint
+            let acct = (s2s["accountId"] as? String)
+                ?? (s2s["account"] as? String)
+                ?? config.partnerCode
+            return PrebidServerResolution(url: url, accountId: acct)
+        }
+        // 3. Sellwild-hosted default.
+        return PrebidServerResolution(
+            url: defaultPrebidEndpoint,
+            accountId: config.partnerCode
         )
     }
 
-    /// Create a Prebid Mobile banner ad unit.
-    ///
-    /// - Parameters:
-    ///   - configId: The Prebid config ID for this placement (from your Prebid Server).
-    ///   - adSize:   The ad size (e.g. CGSize(width: 320, height: 50)).
-    /// - Returns: A configured `BannerAdUnit` ready for `fetchDemand(adObject:)`.
-    public static func makeBannerAdUnit(
-        configId: String,
-        adSize: CGSize
-    ) -> BannerAdUnit? {
-        let unit = BannerAdUnit(
-            configId: configId,
-            size: adSize
-        )
-        unit.setAutoRefreshMillis(time: 30_000)
-        return unit
+    private static let defaultPrebidEndpoint =
+        "https://prebid.sellwild.com/openrtb2/auction"
+
+    /// Wrap CDN bidder params as `imp.ext` JSON. Prebid Server merges this
+    /// with its own stored impression configuration.
+    private static func ortbExtJSON(for params: [String: Any]) -> String? {
+        // imp.ext expects bidder names lowercased; CDN ships CONSTANT_CASE.
+        var bidders: [String: Any] = [:]
+        for (k, v) in params {
+            bidders[k.lowercased()] = v
+        }
+        let imp: [String: Any] = ["ext": ["prebid": ["bidder": bidders]]]
+        guard JSONSerialization.isValidJSONObject(imp),
+              let data = try? JSONSerialization.data(withJSONObject: imp),
+              let s = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        return s
     }
 
-    /// Create a Prebid Mobile interstitial ad unit.
-    ///
-    /// - Parameters:
-    ///   - configId: The Prebid config ID for this placement.
-    ///   - formats:  Allowed formats. Default: [.banner, .video].
-    public static func makeInterstitialAdUnit(
-        configId: String,
-        formats: Set<AdFormat> = [.banner, .video]
-    ) -> InterstitialAdUnit {
-        let unit = InterstitialAdUnit(configId: configId)
-        unit.adFormats = formats
-        return unit
+    @inline(__always)
+    private static func log(_ message: @autoclosure () -> String) {
+        #if DEBUG
+        print("[SellwildPrebidMobile] \(message())")
+        #endif
     }
 }
-#endif

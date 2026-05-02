@@ -124,11 +124,29 @@ export function mapRemoteConfig(raw: Record<string, unknown>): Partial<SellwildC
   for (const [cdnKey, value] of Object.entries(raw)) {
     const configKey = KEY_MAP[cdnKey]
     if (configKey !== undefined && value !== undefined && value !== null && value !== '') {
-      mapped[configKey] = value
+      mapped[configKey] = coerceConfigValue(configKey, value)
     }
   }
 
   return mapped as Partial<SellwildConfig>
+}
+
+/**
+ * Coerce CDN values into the shape SellwildConfig expects.
+ *
+ * The CMS sometimes ships scalar values where the SDK type is an array (e.g.
+ * `IAB_CATS: "IAB15"` instead of `["IAB15"]`). Normalize at the boundary so
+ * downstream code can rely on the typed contract.
+ */
+function coerceConfigValue(configKey: string, value: unknown): unknown {
+  if (configKey === 'iabCats') {
+    if (Array.isArray(value)) return value
+    if (typeof value === 'string') {
+      return value.split(',').map((s) => s.trim()).filter(Boolean)
+    }
+    return []
+  }
+  return value
 }
 
 // ── Fetch ────────────��──────────────────────────────────────────────────────

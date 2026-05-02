@@ -124,6 +124,33 @@ const origFetch = globalThis.fetch
   check('remote carries unmapped SOVRN', config.remote?.SOVRN?.tagid === 12345)
 }
 
+// Test 6 — IAB_CATS scalar from CDN is coerced to string[] (regression: $configIabCats.join is not a function)
+{
+  clearRemoteConfigCache()
+  globalThis.fetch = makeFetch({
+    CODE: 'weatherbug',
+    IAB_CATS: 'IAB15', // CMS ships scalar; SDK type is string[]
+  })
+  const config = await configure('weatherbug', 'weatherbug-iab-scalar')
+  check('iabCats coerced from string to array', Array.isArray(config.iabCats))
+  check('iabCats has expected single value', config.iabCats?.length === 1 && config.iabCats[0] === 'IAB15')
+
+  clearRemoteConfigCache()
+  globalThis.fetch = makeFetch({
+    CODE: 'weatherbug',
+    IAB_CATS: 'IAB15, IAB15-10 ,IAB7',
+  })
+  const config2 = await configure('weatherbug', 'weatherbug-iab-csv')
+  check(
+    'iabCats coerced from CSV string',
+    Array.isArray(config2.iabCats) &&
+      config2.iabCats.length === 3 &&
+      config2.iabCats[0] === 'IAB15' &&
+      config2.iabCats[1] === 'IAB15-10' &&
+      config2.iabCats[2] === 'IAB7',
+  )
+}
+
 globalThis.fetch = origFetch
 
 console.log(`\n${pass} passed, ${fail} failed`)

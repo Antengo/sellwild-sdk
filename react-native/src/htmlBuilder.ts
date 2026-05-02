@@ -183,7 +183,7 @@ function configToAttributes(config: SellwildConfig): string {
   add('consent-management', config.consentManagement)
   add('schain-sid', config.schainSid)
   add('s2s-config', config.s2sConfig)
-  add('iab-cats', config.iabCats?.join(','))
+  add('iab-cats', Array.isArray(config.iabCats) ? config.iabCats.join(',') : config.iabCats)
 
   // Third-party (typed fields with defaults — kept emitted explicitly for
   // backwards compatibility with static buildConfig() callers)

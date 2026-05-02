@@ -1,10 +1,24 @@
 import UIKit
-import WebKit
+import GoogleMobileAds
+import PrebidMobile
 
 // MARK: - SellwildAdView
+//
+// Native banner ad view. As of 1.3.0 this view runs a Prebid Mobile auction
+// and renders into a GAMBannerView. There is **no WKWebView** in the ad path.
+//
+// The widget surface (SellwildWidget / SellwildWidgetView) still uses a
+// WebView for marketplace listings — that surface is intentionally a WebView.
+// Banners and other monetizing ad units render natively.
+//
+// USAGE
+// ─────
+// let config = await SellwildSDK.configure(partnerCode: "weatherbug",
+//                                          slug: "weatherbug-weatherbug")
+// let ad = SellwildAdView(config: config, adSize: .banner320x50, zoneId: "43")
+// view.addSubview(ad)
+// ad.load()
 
-/// A UIView subclass that renders a Sellwild ad unit via WKWebView.
-/// Supports banner ads (320x50, 300x250, 728x90) using GPT or zone-based delivery.
 @objc
 public final class SellwildAdView: UIView {
 
@@ -12,33 +26,22 @@ public final class SellwildAdView: UIView {
 
     public var config: SellwildConfig
     public var adSize: AdSize
+    /// The Sellwild-internal zone tag (e.g. `BANNER_ZID` from the CDN). Used
+    /// as the Prebid Server `configId` for this placement. Server-side, the
+    /// CMS maps this tag to a stored impression.
     public var zoneId: String?
+
     public weak var delegate: SellwildAdViewDelegate?
 
     // MARK: Private
 
-    private lazy var webView: WKWebView = {
-        let wvConfig = WKWebViewConfiguration()
-        // JavaScript is required for GPT / Prebid ad delivery.
-        if #available(iOS 14.0, *) {
-            wvConfig.defaultWebpagePreferences.allowsContentJavaScript = true
-        } else {
-            wvConfig.preferences.javaScriptEnabled = true
-        }
-        wvConfig.allowsInlineMediaPlayback = true
-        wvConfig.mediaTypesRequiringUserActionForPlayback = []
-
-        // Message handler for JS -> native bridge
-        let contentController = WKUserContentController()
-        contentController.add(self, name: "sellwildBridge")
-        wvConfig.userContentController = contentController
-
-        let wv = WKWebView(frame: .zero, configuration: wvConfig)
-        wv.scrollView.isScrollEnabled = false
-        wv.backgroundColor = .clear
-        wv.isOpaque = false
-        wv.navigationDelegate = self
-        return wv
+    private lazy var bannerView: AdManagerBannerView = {
+        let v = AdManagerBannerView(adSize: adSizeFor(cgSize: adSize.cgSize))
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.delegate = self
+        v.adUnitID = resolveGAMAdUnitID()
+        v.rootViewController = nearestViewController()
+        return v
     }()
 
     private var refreshTimer: Timer?
@@ -60,19 +63,41 @@ public final class SellwildAdView: UIView {
 
     deinit {
         refreshTimer?.invalidate()
-        webView.configuration.userContentController.removeScriptMessageHandler(forName: "sellwildBridge")
     }
 
-    // MARK: Public Methods
+    // MARK: Public
 
-    /// Load the ad. Call after adding to the view hierarchy.
+    /// Run the Prebid auction and load the winning ad. Safe to call multiple
+    /// times; each call triggers a fresh auction + GAM request.
     public func load() {
-        let html = buildAdHTML()
-        let baseURL = URL(string: "https://widget.sellwild.com")
-        webView.loadHTMLString(html, baseURL: baseURL)
+        // Idempotent — first call wins, the rest are cheap.
+        SellwildPrebidMobile.bootstrap(with: config)
+
+        // Re-resolve the GAM ad unit each load() in case `config` was swapped.
+        bannerView.adUnitID = resolveGAMAdUnitID()
+        bannerView.rootViewController = nearestViewController()
+
+        guard let configId = zoneId, !configId.isEmpty else {
+            // No zoneId means we cannot run a Prebid auction. Fall through to
+            // a plain GAM request so the GAM line items still serve.
+            bannerView.load(AdManagerRequest())
+            return
+        }
+
+        SellwildPrebidMobile.runBannerAuction(
+            on: bannerView,
+            configId: configId,
+            adSize: adSize.cgSize,
+            bidderParams: bidderParamsFromRemote()
+        ) { [weak self] result in
+            guard let self else { return }
+            #if DEBUG
+            print("[SellwildAdView] Prebid auction result: \(result)")
+            #endif
+        }
     }
 
-    /// Stop ad refresh.
+    /// Stop the refresh timer. The currently displayed ad (if any) stays.
     public func pause() {
         refreshTimer?.invalidate()
         refreshTimer = nil
@@ -81,13 +106,12 @@ public final class SellwildAdView: UIView {
     // MARK: Private
 
     private func setup() {
-        addSubview(webView)
-        webView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(bannerView)
         NSLayoutConstraint.activate([
-            webView.topAnchor.constraint(equalTo: topAnchor),
-            webView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            webView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            bannerView.topAnchor.constraint(equalTo: topAnchor),
+            bannerView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            bannerView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            bannerView.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
     }
 
@@ -98,126 +122,77 @@ public final class SellwildAdView: UIView {
             withTimeInterval: config.adRefreshInterval,
             repeats: false
         ) { [weak self] _ in
-            self?.refresh()
+            self?.refreshCount += 1
+            self?.load()
         }
     }
 
-    private func refresh() {
-        refreshCount += 1
-        load()
-    }
-
-    private func buildAdHTML() -> String {
-        let size = adSize.cgSize
-        let w = Int(size.width)
-        let h = Int(size.height)
-        let gptSrc = config.gptProxyUrl.flatMap { URL(string: $0 + "/tag/js/gpt.js") }
-            ?? URL(string: "https://securepubads.g.doubleclick.net/tag/js/gpt.js")!
-
-        let adScript: String
-        if let gamTag = config.gamTag, !gamTag.isEmpty, !config.disableGpt {
-            adScript = buildGptScript(gamTag: gamTag, gptSrc: gptSrc.absoluteString, width: w, height: h)
-        } else if let zid = zoneId, !zid.isEmpty {
-            adScript = buildZoneScript(zoneId: zid, width: w, height: h)
-        } else {
-            adScript = "// No ad configuration"
+    /// Resolve the GAM ad unit ID. Order of preference:
+    /// 1. `config.gamTag` (the real GAM ad unit path provisioned by the CMS).
+    /// 2. `config.remoteValues["GAM"]` raw passthrough, if set.
+    /// 3. GMA test ad unit (`/6499/example/banner`) — surfaces a clear log so
+    ///    partners notice their CMS is missing a `GAM` field in production.
+    private func resolveGAMAdUnitID() -> String {
+        if let tag = config.gamTag, !tag.isEmpty {
+            return tag
         }
-
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            html, body { width: \(w)px; height: \(h)px; overflow: hidden; background: transparent; }
-            #ad { width: \(w)px; height: \(h)px; }
-          </style>
-        </head>
-        <body>
-          <div id="ad"></div>
-          <script>
-            function notify(type, data) {
-              window.webkit.messageHandlers.sellwildBridge.postMessage(
-                JSON.stringify(Object.assign({ type: type }, data || {}))
-              );
-            }
-            \(adScript)
-          </script>
-        </body>
-        </html>
-        """
+        if let remoteGAM = config.remoteValues?["GAM"] as? String,
+           !remoteGAM.isEmpty {
+            return remoteGAM
+        }
+        #if DEBUG
+        print("[SellwildAdView] No GAM ad unit configured. Falling back to "
+            + "Google's test ad unit `/6499/example/banner`. Set `GAM` in your "
+            + "CMS config to enable production fill.")
+        #endif
+        return "/6499/example/banner"
     }
 
-    private func buildGptScript(gamTag: String, gptSrc: String, width: Int, height: Int) -> String {
-        return """
-        window.googletag = window.googletag || { cmd: [] };
-        var s = document.createElement('script');
-        s.src = '\(gptSrc)';
-        s.async = true;
-        document.head.appendChild(s);
-        googletag.cmd.push(function() {
-          var slot = googletag.defineSlot('\(gamTag)', [\(width), \(height)], 'ad');
-          if (slot) {
-            slot.addService(googletag.pubads());
-            googletag.pubads().enableSingleRequest();
-            googletag.pubads().addEventListener('slotRenderEnded', function(e) {
-              if (!e.isEmpty) notify('impression');
-            });
-            googletag.enableServices();
-            googletag.display('ad');
-          }
-        });
-        """
+    /// Forward bidder configs from the raw CDN payload as ext data on the
+    /// Prebid auction. The CMS adds new bidders → partners use them
+    /// immediately, no SDK release.
+    private func bidderParamsFromRemote() -> [String: Any] {
+        guard let raw = config.remoteValues else { return [:] }
+        // Skip first-class fields that are not bidder params. The widget's
+        // skip list is exhaustive; here we keep it lean and forward everything
+        // that *looks* like a bidder block (CONSTANT_CASE name, dict value).
+        var params: [String: Any] = [:]
+        for (key, value) in raw {
+            guard key == key.uppercased() else { continue }
+            guard !nonBidderRemoteKeys.contains(key) else { continue }
+            params[key] = value
+        }
+        return params
     }
 
-    private func buildZoneScript(zoneId: String, width: Int, height: Int) -> String {
-        return """
-        var s = document.createElement('script');
-        s.src = 'https://bidstream.sellwild.com/ads?zone=\(zoneId)&w=\(width)&h=\(height)';
-        s.async = true;
-        s.onload = function() { notify('impression'); };
-        document.getElementById('ad').appendChild(s);
-        """
+    private func nearestViewController() -> UIViewController? {
+        var responder: UIResponder? = self
+        while let r = responder {
+            if let vc = r as? UIViewController { return vc }
+            responder = r.next
+        }
+        return nil
     }
 }
 
-// MARK: - WKScriptMessageHandler
+// MARK: - BannerViewDelegate
 
-extension SellwildAdView: WKScriptMessageHandler {
-    public func userContentController(
-        _ userContentController: WKUserContentController,
-        didReceive message: WKScriptMessage
-    ) {
-        guard
-            let body = message.body as? String,
-            let data = body.data(using: .utf8),
-            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let type = json["type"] as? String
-        else { return }
+extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
 
-        switch type {
-        case "impression":
-            delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
-            scheduleRefresh()
-        case "click":
-            delegate?.sellwildAdViewDidRecordClick?(self)
-        default:
-            break
-        }
-    }
-}
-
-// MARK: - WKNavigationDelegate
-
-extension SellwildAdView: WKNavigationDelegate {
-    public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    public func bannerViewDidReceiveAd(_ bannerView: GoogleMobileAds.BannerView) {
         delegate?.sellwildAdViewDidLoad?(self)
+        delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
+        scheduleRefresh()
     }
 
-    public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+    public func bannerView(_ bannerView: GoogleMobileAds.BannerView,
+                           didFailToReceiveAdWithError error: Error) {
         delegate?.sellwildAdView?(self, didFailWithError: error)
+        scheduleRefresh()
+    }
+
+    public func bannerViewDidRecordClick(_ bannerView: GoogleMobileAds.BannerView) {
+        delegate?.sellwildAdViewDidRecordClick?(self)
     }
 }
 
@@ -226,7 +201,29 @@ extension SellwildAdView: WKNavigationDelegate {
 @objc
 public protocol SellwildAdViewDelegate: AnyObject {
     @objc optional func sellwildAdViewDidLoad(_ adView: SellwildAdView)
-    @objc optional func sellwildAdView(_ adView: SellwildAdView, didReceiveImpressionForZoneId zoneId: String)
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didReceiveImpressionForZoneId zoneId: String)
     @objc optional func sellwildAdViewDidRecordClick(_ adView: SellwildAdView)
-    @objc optional func sellwildAdView(_ adView: SellwildAdView, didFailWithError error: Error)
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didFailWithError error: Error)
 }
+
+// MARK: - Static config
+
+/// CDN keys that are first-class typed config (handled elsewhere) and should
+/// not be forwarded as Prebid bidder ext data.
+private let nonBidderRemoteKeys: Set<String> = [
+    "CODE", "LISTINGS", "SLUG", "NAME", "TITLE", "COLORS", "LINK_TEXT",
+    "BUY_NOW_TEXT", "FONT_FAMILY", "FONT_URL", "FONT_COLOR", "PRICE_COLOR",
+    "PRICE_FONT_COLOR", "MARGIN_BOTTOM", "CARD_WIDTH", "OVERLAY_TITLE", "CSS",
+    "WATERMARK", "WATERMARK_TITLE", "BANNER_ZID", "BOTTOM_BANNER_ZID",
+    "MOBILE_BANNER_ZID", "MOBILE_ZID", "DISPLAY_ZID", "HIDE_BANNER_TOP",
+    "HIDE_BANNER_BOTTOM", "GAM", "DISABLE_GPT", "AD_UNITS", "SAFE_FRAME",
+    "AD_DISABLE_DISPLAY", "AD_REFRESH_MAX", "AD_REFRESH_MAX_MOBILE",
+    "AD_REFRESH_INTERVAL", "MAX_FAILED_AUCTIONS", "PREBID_DEFER", "PREBID_SRC",
+    "AD_GEO_BLOCK", "AD_GEO_BLOCK_REFRESH", "GPP_ENABLED", "TCF_VERSION",
+    "CONSENT_MANAGEMENT", "SCHAIN_SID", "S2S_CONFIG", "IAB_CATS",
+    "APP_BUNDLE_ID", "APP_STORE_URL", "ENABLE_INTERSTITIAL",
+    "ENABLE_FULLSCREEN_VIDEO", "INTERSTITIALS_PER_SESSION",
+    "VIDEO_TAKEOVERS_PER_SESSION", "DEBUG", "MEMBERSHIP_TYPE",
+]

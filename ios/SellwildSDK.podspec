@@ -1,12 +1,12 @@
 Pod::Spec.new do |s|
   s.name             = 'SellwildSDK'
-  s.version          = '1.2.0'
+  s.version          = '1.3.0'
   s.summary          = 'Sellwild mobile advertising SDK for iOS'
   s.description      = <<-DESC
     SellwildSDK provides native iOS components for embedding
     Sellwild marketplace listings and ad units in mobile apps.
-    Supports banner ads (320x50, 300x250, 728x90), inline placements,
-    and the full widget with Prebid header bidding.
+    Banner ads run a native Prebid Mobile auction and render
+    in a GAMBannerView — no WebView in the ad path.
   DESC
 
   s.homepage         = 'https://github.com/Antengo/sellwild-sdk'
@@ -19,4 +19,11 @@ Pod::Spec.new do |s|
 
   s.source_files = 'ios/Sources/SellwildSDK/**/*.swift'
   s.frameworks = 'UIKit', 'WebKit', 'Foundation'
+
+  # Native ad stack — required, not optional.
+  # SellwildAdView runs a Prebid Mobile auction and renders in a GAMBannerView.
+  # The widget surface (SellwildWidgetView / SellwildWidget) still uses WKWebView
+  # for marketplace listings; that is intentional.
+  s.dependency 'PrebidMobile', '~> 3.3'
+  s.dependency 'Google-Mobile-Ads-SDK', '~> 13.0'
 end

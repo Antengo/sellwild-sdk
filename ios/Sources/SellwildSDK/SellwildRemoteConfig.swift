@@ -61,6 +61,14 @@ public enum SellwildSDK {
         }
 
         overrides?(&config)
+
+        // Bootstrap PrebidMobile + GMA SDK as soon as we have a config. This
+        // is idempotent — only the first call performs initialization, every
+        // call after that is a cheap lock + early return. Doing it here means
+        // partners get a fully-initialized native ad stack just by calling
+        // `configure(...)`; no extra wiring required at the call site.
+        SellwildPrebidMobile.bootstrap(with: config)
+
         return config
     }
 
