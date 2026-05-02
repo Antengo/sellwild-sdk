@@ -16,6 +16,7 @@ import {
 } from 'react-native'
 import {
   SellwildWidget,
+  SellwildBanner,
   useSellwildListings,
   buildConfig,
   configure,
@@ -649,12 +650,89 @@ function WidgetScreen() {
   )
 }
 
+// ─── Banner Screen — exercises the native <SellwildBanner> bridge ───────────
+//
+// On Android this renders the native com.sellwild.sdk.SellwildAdView (Prebid
+// Mobile auction + AdManagerAdView). On iOS it renders a placeholder until
+// the iOS RN bridge lands.
+
+function BannerScreen() {
+  const [config, setConfig] = useState<SellwildConfig | null>(null)
+
+  useEffect(() => {
+    configure(STATIC_CONFIG.partnerCode!, REMOTE_SLUG, { timeout: 5000, overrides: STATIC_CONFIG })
+      .then((cfg) => {
+        console.log('[Sellwild] BannerScreen configure() resolved')
+        setConfig(cfg)
+      })
+  }, [])
+
+  if (!config) {
+    return (
+      <View style={s.center}>
+        <ActivityIndicator color={ACCENT} />
+        <Text style={s.bannerWaiting}>Loading config…</Text>
+      </View>
+    )
+  }
+
+  const bannerZone = config.bannerZid || '43'
+
+  return (
+    <ScrollView style={s.flex} contentContainerStyle={s.bannerContent}>
+      <View style={s.bannerSection}>
+        <Text style={s.bannerHeader}>320×50 banner</Text>
+        <Text style={s.bannerSub}>zone {bannerZone}</Text>
+        <View style={s.bannerHost}>
+          <SellwildBanner
+            config={config}
+            size="320x50"
+            zoneId={bannerZone}
+            onImpression={() => console.log('[Sellwild] banner impression')}
+            onClick={() => console.log('[Sellwild] banner click')}
+            onError={(err) => console.warn('[Sellwild] banner error:', err.message)}
+          />
+        </View>
+      </View>
+
+      <View style={s.bannerSection}>
+        <Text style={s.bannerHeader}>300×250 MREC</Text>
+        <Text style={s.bannerSub}>zone {bannerZone}</Text>
+        <View style={s.bannerHost}>
+          <SellwildBanner
+            config={config}
+            size="300x250"
+            zoneId={bannerZone}
+            onImpression={() => console.log('[Sellwild] mrec impression')}
+            onClick={() => console.log('[Sellwild] mrec click')}
+            onError={(err) => console.warn('[Sellwild] mrec error:', err.message)}
+          />
+        </View>
+      </View>
+
+      <View style={s.bannerSection}>
+        <Text style={s.bannerNote}>
+          Native banner path — Prebid Mobile auction → AdManagerAdView. No WebView
+          in the ad pipeline. Verify with{'\n'}
+          <Text style={s.bannerCode}>adb shell dumpsys activity top</Text>
+        </Text>
+      </View>
+    </ScrollView>
+  )
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'native' | 'widget'
+type Tab = 'banner' | 'native' | 'widget'
+
+const TAB_LABELS: Record<Tab, string> = {
+  banner: 'Native Banner',
+  native: 'Auction Demo',
+  widget: 'Widget',
+}
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('native')
+  const [tab, setTab] = useState<Tab>('banner')
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" />
@@ -668,16 +746,16 @@ export default function App() {
         </View>
       </SafeAreaView>
       <View style={s.tabBar}>
-        {(['native', 'widget'] as Tab[]).map(t => (
+        {(['banner', 'native', 'widget'] as Tab[]).map(t => (
           <TouchableOpacity key={t} style={[s.tab, tab === t && s.tabActive]} onPress={() => setTab(t)}>
             <Text style={[s.tabLabel, tab === t && s.tabLabelActive]}>
-              {t === 'native' ? 'Native + Auction' : 'Widget'}
+              {TAB_LABELS[t]}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
       <View style={s.flex}>
-        {tab === 'native' ? <NativeScreen /> : <WidgetScreen />}
+        {tab === 'banner' ? <BannerScreen /> : tab === 'native' ? <NativeScreen /> : <WidgetScreen />}
       </View>
     </View>
   )
@@ -720,6 +798,14 @@ const s = StyleSheet.create({
   errorTitle: { fontSize: 17, fontWeight: '700' as const, color: '#0F172A' },
   retryBtn: { backgroundColor: ACCENT, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 10, marginTop: 12 },
   retryText: { color: '#fff', fontWeight: '700' as const },
+  bannerWaiting: { color: '#475569', marginTop: 12, fontSize: 13 },
+  bannerContent: { padding: 16 },
+  bannerSection: { marginBottom: 24, alignItems: 'center' as const },
+  bannerHeader: { fontSize: 13, fontWeight: '700' as const, color: '#0F172A', textTransform: 'uppercase' as const, letterSpacing: 0.5 },
+  bannerSub: { fontSize: 11, color: '#64748B', marginTop: 2, marginBottom: 8 },
+  bannerHost: { backgroundColor: '#fff', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+  bannerNote: { color: '#475569', fontSize: 12, textAlign: 'center' as const, lineHeight: 18 },
+  bannerCode: { fontFamily: 'Menlo', fontSize: 11, color: '#0F172A' },
 })
 
 // ─── Auction + Ad Styles ─────────────────────────────────────────────────────

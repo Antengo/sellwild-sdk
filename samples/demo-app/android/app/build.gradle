@@ -113,6 +113,13 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Sellwild SDK — published to mavenLocal by the standalone build at
+    // android/. See ../settings.gradle for the toolchain mismatch that
+    // prevents co-building. The RN bridge module pulls the same coordinate
+    // transitively, so the app only needs to declare the bridge.
+    implementation("com.sellwild:sdk:1.3.0-SNAPSHOT")
+    implementation project(':sellwild-react-native-sdk')
 }
 
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)

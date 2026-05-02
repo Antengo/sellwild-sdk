@@ -19,3 +19,26 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// The Sellwild SDK module compiles with Kotlin 2.1 (required by GMA 24.x +
+// Prebid Mobile 3.x) but emits 1.9-compatible class metadata so RN 0.74
+// (Kotlin 1.9) can consume the AAR. The SDK is published to mavenLocal by
+// the standalone build at android/ and pulled in as a regular dependency.
+allprojects {
+    repositories {
+        mavenLocal()
+    }
+    configurations.all {
+        resolutionStrategy.eachDependency { details ->
+            // Force kotlin-stdlib down to 1.9.22 across the demo-app
+            // classpath so the bundled RN Kotlin 1.9 compiler can read it.
+            // The SDK's runtime requirements are satisfied at the JVM level
+            // (newer stdlibs are forward-compatible at runtime).
+            if (details.requested.group == 'org.jetbrains.kotlin' &&
+                details.requested.name.startsWith('kotlin-stdlib')) {
+                details.useVersion(rootProject.ext.kotlinVersion)
+                details.because('Align kotlin-stdlib with the host build compiler (1.9.22)')
+            }
+        }
+    }
+}

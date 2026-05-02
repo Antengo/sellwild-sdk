@@ -46,14 +46,14 @@ android {
     }
 }
 
-// Repositories are intentionally not declared here. Downstream React
-// Native apps that consume @sellwild/react-native-sdk via npm autolinking
-// declare `https://maven.sellwild.com/releases` in their own
+// Repositories are intentionally not declared here. Downstream React Native
+// apps that consume @sellwild/react-native-sdk via npm autolinking declare
+// both `https://maven.sellwild.com/releases` and `mavenLocal()` in their
 // `allprojects { repositories { ... } }` block (see the README).
 //
-// Inside the SDK monorepo (samples/demo-app), the host build substitutes
-// this `com.sellwild:sdk:1.3.0` coordinate for the in-repo `:sellwild-sdk`
-// project via Gradle dependency substitution.
+// Inside the SDK monorepo (samples/demo-app), the SDK is published to
+// mavenLocal first so the demo-app's Kotlin 1.9 classpath can consume the
+// AAR without inheriting the SDK's Kotlin 2.1 toolchain.
 
 dependencies {
     // RN libraries are linked against the host app's React Native install,
@@ -62,11 +62,7 @@ dependencies {
     compileOnly "com.facebook.react:react-android"
 
     // The native SDK that owns SellwildAdView, SellwildPrebidMobile, etc.
-    //
-    // Downstream apps consuming this package via npm pull the published AAR
-    // off https://maven.sellwild.com/releases. For local development inside
-    // the SDK monorepo the host app is expected to substitute the in-repo
-    // module via Gradle (`include ':sellwild-sdk'` + dependencySubstitution),
-    // which is what samples/demo-app does.
+    // Resolves to the published AAR off https://maven.sellwild.com/releases
+    // for npm consumers, or to mavenLocal in the SDK monorepo dev workflow.
     implementation "com.sellwild:sdk:1.3.0"
 }

@@ -1,6 +1,9 @@
 plugins {
-    id("com.android.library") version "8.7.3"
-    id("org.jetbrains.kotlin.android") version "2.1.20"
+    // Plugin versions for standalone builds are pinned in settings.gradle.kts.
+    // When this module is included as a subproject (e.g. samples/demo-app),
+    // the host build's plugin classpath supplies the versions.
+    id("com.android.library")
+    id("org.jetbrains.kotlin.android")
     id("maven-publish")
 }
 
@@ -36,6 +39,15 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        // Compile with Kotlin 2.1.20 (required by GMA 24.x + Prebid 3.x)
+        // but emit class metadata that older Kotlin compilers can still
+        // read. RN 0.74 ships a Kotlin 1.9 gradle plugin, and we want a
+        // single AAR that works for both 1.9 and 2.x consumers.
+        languageVersion = "1.9"
+        apiVersion = "1.9"
+        freeCompilerArgs = freeCompilerArgs + listOf(
+            "-Xskip-metadata-version-check",
+        )
     }
 
     publishing {
@@ -70,7 +82,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "com.sellwild"
             artifactId = "sdk"
-            version = "1.3.0-SNAPSHOT"
+            version = "1.3.0"
 
             afterEvaluate {
                 from(components["release"])

@@ -2,3 +2,18 @@ rootProject.name = 'SellwildDemo'
 apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')
+
+// Sellwild SDK monorepo wiring.
+//
+// The Android SDK module uses Kotlin 2.1 (required by GMA 24.x + Prebid 3.x)
+// while RN 0.74's bundled gradle plugin hard-pins Kotlin 1.9. We can't share
+// a Kotlin classpath, so the SDK is built independently and published to
+// mavenLocal — the app-level build.gradle declares it as a regular Maven
+// dependency. Run `(cd ../../../android && ./gradlew publishToMavenLocal)`
+// before building this app.
+//
+// The RN bridge module (react-native/android) only contains the
+// SellwildBannerViewManager + SellwildSdkPackage and depends on the SDK at
+// runtime via the same Maven coordinate, so it stays an in-repo include.
+include ':sellwild-react-native-sdk'
+project(':sellwild-react-native-sdk').projectDir = file("../../../react-native/android")
