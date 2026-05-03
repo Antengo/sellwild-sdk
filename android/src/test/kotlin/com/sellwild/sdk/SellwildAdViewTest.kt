@@ -40,12 +40,30 @@ class SellwildAdViewTest {
     }
 
     @Test
-    fun `resolveGAMAdUnitID falls back to GMA test ad unit when nothing is set`() {
+    fun `resolveGAMAdUnitID falls back to 320x50 test unit for banner size`() {
+        val config = SellwildConfig(partnerCode = "weatherbug")
+
+        val unit = SellwildAdView.resolveGAMAdUnitID(config, AdSize.BANNER_320x50)
+
+        assertEquals(SellwildAdView.GAM_TEST_AD_UNIT_BANNER, unit)
+    }
+
+    @Test
+    fun `resolveGAMAdUnitID falls back to adaptive test unit for non-banner sizes`() {
+        val config = SellwildConfig(partnerCode = "weatherbug")
+
+        val unit = SellwildAdView.resolveGAMAdUnitID(config, AdSize.MREC_300x250)
+
+        assertEquals(SellwildAdView.GAM_TEST_AD_UNIT_ADAPTIVE, unit)
+    }
+
+    @Test
+    fun `resolveGAMAdUnitID defaults to adaptive test unit when size unspecified`() {
         val config = SellwildConfig(partnerCode = "weatherbug")
 
         val unit = SellwildAdView.resolveGAMAdUnitID(config)
 
-        assertEquals(SellwildAdView.GAM_TEST_AD_UNIT, unit)
+        assertEquals(SellwildAdView.GAM_TEST_AD_UNIT_ADAPTIVE, unit)
     }
 
     @Test
@@ -55,9 +73,9 @@ class SellwildAdViewTest {
             remoteJson = JSONObject(mapOf("CODE" to "weatherbug")).toString(),
         )
 
-        val unit = SellwildAdView.resolveGAMAdUnitID(config)
+        val unit = SellwildAdView.resolveGAMAdUnitID(config, AdSize.BANNER_320x50)
 
-        assertEquals(SellwildAdView.GAM_TEST_AD_UNIT, unit)
+        assertEquals(SellwildAdView.GAM_TEST_AD_UNIT_BANNER, unit)
     }
 
     @Test

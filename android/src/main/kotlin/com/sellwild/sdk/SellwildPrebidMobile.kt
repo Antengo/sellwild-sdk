@@ -44,6 +44,14 @@ object SellwildPrebidMobile {
 
     private val lock = Any()
     @Volatile private var didBootstrap = false
+    // Whether PrebidMobile.initializeSdk reached SUCCEEDED. If not, callers
+    // should skip the auction and load GAM directly so ads still serve when
+    // Prebid Server is unreachable.
+    @Volatile private var prebidReady = false
+
+    /** True once Prebid Mobile has reported a successful init. */
+    @JvmStatic
+    fun isReady(): Boolean = prebidReady
 
     /**
      * Initialize Prebid Mobile + GMA from a [SellwildConfig]. Idempotent —
@@ -84,6 +92,8 @@ object SellwildPrebidMobile {
             try {
                 PrebidMobile.initializeSdk(context.applicationContext, resolved.url) { status ->
                     Log.d(TAG, "PrebidMobile.initializeSdk status: $status")
+                    // Status enum values are SUCCEEDED / FAILED in Prebid 3.x.
+                    prebidReady = status.toString().equals("SUCCEEDED", ignoreCase = true)
                 }
             } catch (e: Throwable) {
                 Log.e(TAG, "PrebidMobile.initializeSdk threw", e)

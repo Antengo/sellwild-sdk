@@ -9,6 +9,15 @@
       android:roundIcon="@mipmap/ic_launcher_round"
       android:allowBackup="false"
       android:theme="@style/AppTheme">
+
+      <!-- Google Mobile Ads SDK requires a publisher app ID at startup.
+           The Sellwild SDK transitively pulls in GMA 24.x for native ad
+           rendering. This is the official Google sample / test app ID;
+           replace with your own when shipping a real app. -->
+      <meta-data
+          android:name="com.google.android.gms.ads.APPLICATION_ID"
+          android:value="ca-app-pub-3940256099942544~3347511713" />
+
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"

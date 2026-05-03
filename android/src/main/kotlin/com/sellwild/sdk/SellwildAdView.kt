@@ -87,13 +87,17 @@ class SellwildAdView @JvmOverloads constructor(
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(context, config)
 
-        // Re-resolve in case `config` was swapped between loads.
-        banner.adUnitId = resolveGAMAdUnitID()
+        // GMA forbids reassigning adUnitId on an existing AdManagerAdView.
+        // setup() already set it from the initial config; if the resolved
+        // unit changes (e.g. config swap between loads), the caller needs a
+        // fresh SellwildAdView. We just leave the unit alone here.
 
         val configId = zoneId
-        if (configId.isNullOrEmpty()) {
-            // No zoneId means we can't run a Prebid auction. Fall through to a
-            // plain GAM request so GAM line items still serve.
+        if (configId.isNullOrEmpty() || !SellwildPrebidMobile.isReady()) {
+            // Either there is no zoneId (no Prebid configId to bid against) or
+            // Prebid Mobile hasn't successfully initialized yet (Prebid Server
+            // unreachable, init still in flight, etc.). In every case, fall
+            // through to a plain GAM request so GAM line items still serve.
             banner.loadAd(AdManagerAdRequest.Builder().build())
             return
         }
@@ -161,24 +165,28 @@ class SellwildAdView @JvmOverloads constructor(
      * Resolve the GAM ad unit ID. Order of preference:
      *   1. `config.gamTag` (the real GAM ad unit path provisioned by the CMS).
      *   2. `config.remoteJson["GAM"]` raw passthrough, if set.
-     *   3. GMA test ad unit (`/6499/example/banner`) — partners notice their
+     *   3. A size-appropriate Google test ad unit — partners notice their
      *      CMS is missing a `GAM` field in production.
      */
-    private fun resolveGAMAdUnitID(): String = resolveGAMAdUnitID(config)
+    private fun resolveGAMAdUnitID(): String = resolveGAMAdUnitID(config, adSize)
 
     companion object {
         private const val TAG = "SellwildAdView"
 
-        internal const val GAM_TEST_AD_UNIT = "/6499/example/banner"
+        // Google-provided test ad units. /6499/example/banner only fills 320x50;
+        // mrec / leaderboard / etc. need their own test units or they no-fill.
+        internal const val GAM_TEST_AD_UNIT_BANNER = "/6499/example/banner"
+        internal const val GAM_TEST_AD_UNIT_ADAPTIVE = "/21775744923/example/adaptive-banner"
 
         /**
          * Resolve the GAM ad unit ID. Order of preference:
          *   1. `config.gamTag` (the real GAM ad unit path provisioned by the CMS).
          *   2. `config.remoteJson["GAM"]` raw passthrough, if set.
-         *   3. GMA test ad unit (`/6499/example/banner`) — partners notice their
-         *      CMS is missing a `GAM` field in production.
+         *   3. A size-appropriate Google test ad unit (320x50 → banner test
+         *      unit, everything else → adaptive-banner test unit which fills
+         *      MREC / leaderboard / large sizes).
          */
-        internal fun resolveGAMAdUnitID(config: SellwildConfig): String {
+        internal fun resolveGAMAdUnitID(config: SellwildConfig, adSize: AdSize? = null): String {
             config.gamTag?.takeIf { it.isNotEmpty() }?.let { return it }
 
             config.remoteJson?.let { raw ->
@@ -189,15 +197,21 @@ class SellwildAdView @JvmOverloads constructor(
                 }
             }
 
+            val testUnit = if (adSize != null && adSize.width == 320 && adSize.height == 50) {
+                GAM_TEST_AD_UNIT_BANNER
+            } else {
+                GAM_TEST_AD_UNIT_ADAPTIVE
+            }
+
             if (config.debug) {
                 android.util.Log.w(
                     TAG,
                     "No GAM ad unit configured. Falling back to Google's test ad " +
-                        "unit `/6499/example/banner`. Set `GAM` in your CMS config " +
+                        "unit `$testUnit`. Set `GAM` in your CMS config " +
                         "to enable production fill.",
                 )
             }
-            return GAM_TEST_AD_UNIT
+            return testUnit
         }
 
         /**
