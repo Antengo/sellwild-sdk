@@ -5,11 +5,14 @@
 ///        flutter create sellwild_demo
 ///   2. Add the SDK to pubspec.yaml:
 ///        dependencies:
-///          sellwild_sdk: ^1.2.0
+///          sellwild_sdk: ^1.3.0
 ///          url_launcher: ^6.2.0
 ///   3. Run: flutter pub get
 ///   4. Replace lib/main.dart with this file.
-///   5. Add INTERNET permission and NSAllowsArbitraryLoads (see SETUP.md).
+///   5. Add INTERNET permission, plus iOS `GADApplicationIdentifier` in
+///      Info.plist and Android `com.google.android.gms.ads.APPLICATION_ID`
+///      `<meta-data>` in AndroidManifest.xml. iOS needs Xcode 16+; Android
+///      needs `minSdk 23`. See SETUP.md and https://sdk.sellwild.com/guide/.
 ///   6. Run: flutter run
 ///
 /// Replace 'YOUR_PARTNER_CODE' with your real partner code from sdk@sellwild.com.
@@ -20,30 +23,27 @@ import 'package:sellwild_sdk/sellwild_sdk.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // ─── Shared Config ────────────────────────────────────────────────────────────
-
-// ─── TWO PREBID MODES ─────────────────────────────────────────────────────────
 //
-//  Mode A (default) — Prebid.js client-side in the WebView.
-//    Set appBundleId so Prebid.js declares in-app (ortb2.app) inventory.
+// Ad path (1.3.0+):
+//   `SellwildBanner` runs a NATIVE Prebid Mobile auction and renders the
+//   winner into a NATIVE `AdManagerBannerView` (iOS) / `AdManagerAdView`
+//   (Android). There is no WebView in the banner ad path. The marketplace
+//   `SellwildWidget` still uses a WebView for listing rendering; that surface
+//   is intentional and unchanged.
 //
-//  Mode B — Prebid Server S2S.
-//    Routes all bids server-side through a Prebid Server instance.
-//    Solves cookie/IDFA limitations. Uncomment prebidServer below.
-//    See sdk/PREBID.md for full setup instructions.
-
-// Remote config (the first-class path, 1.2.0+).
-// `SellwildSDK.configure(partnerCode:, slug:)` fetches a JSON document from
-// https://widget.sellwild.com/app/{partnerCode}/{slug}.json and returns a
-// fully-built SellwildConfig — listings URL, ad zones, refresh intervals,
-// app identity, waterfall partners, compliance flags, all populated from the
-// CMS. Two strings = working SDK. On any network/timeout/404 failure the SDK
-// falls back to deterministic defaults so ads still render.
+// Remote config (the first-class path, 1.2.0+):
+//   `SellwildSDK.configure(partnerCode:, slug:)` fetches a JSON document from
+//   https://widget.sellwild.com/app/{partnerCode}/{slug}.json and returns a
+//   fully-built `SellwildConfig` — listings URL, ad zones, refresh intervals,
+//   app identity, waterfall partners, compliance flags, all populated from
+//   the CMS. Two strings = working SDK. On any network/timeout/404 failure
+//   the SDK falls back to deterministic defaults so ads still render.
 //
-// Usage:
-//   final config = await SellwildSDK.configure(
-//     partnerCode: 'YOUR_PARTNER_CODE',
-//     slug: 'your-partner-slug',
-//   );
+//   Usage:
+//     final config = await SellwildSDK.configure(
+//       partnerCode: 'YOUR_PARTNER_CODE',
+//       slug: 'your-partner-slug',
+//     );
 
 // Static fallback config (use this when you can't make a network call before
 // rendering ads). 1.2.0+ makes `listingsUrl` optional — if you leave it null,
@@ -72,10 +72,7 @@ class SellwildSampleApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Sellwild Demo',
-      theme: ThemeData(
-        colorSchemeSeed: Colors.blue,
-        useMaterial3: true,
-      ),
+      theme: ThemeData(colorSchemeSeed: Colors.blue, useMaterial3: true),
       home: const MainScreen(),
     );
   }
@@ -102,16 +99,16 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (i) => setState(() => _selectedIndex = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home), label: 'Widget'),
-          NavigationDestination(icon: Icon(Icons.rectangle_outlined), label: 'Banners'),
+          NavigationDestination(
+            icon: Icon(Icons.rectangle_outlined),
+            label: 'Banners',
+          ),
           NavigationDestination(icon: Icon(Icons.list), label: 'Listings'),
         ],
       ),
@@ -119,7 +116,10 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-// ─── Page 1: Full WebView Widget ─────────────────────────────────────────────
+// ─── Page 1: Marketplace Widget (WebView-rendered listings) ──────────────────
+// `SellwildWidget` renders the full marketplace listing surface inside a
+// WebView. This is intentional — only banner ads moved to native rendering in
+// 1.3.0; the marketplace listing UI is unchanged.
 
 class _WebViewWidgetPage extends StatefulWidget {
   const _WebViewWidgetPage();
@@ -147,7 +147,9 @@ class _WebViewWidgetPageState extends State<_WebViewWidgetPage> {
     );
     final rawKeys = config.remoteJson?.keys.toList() ?? const <String>[];
     final keys = List<String>.from(rawKeys)..sort();
-    debugPrint('[Sellwild] configure() resolved. remote passthrough keys: $keys');
+    debugPrint(
+      '[Sellwild] configure() resolved. remote passthrough keys: $keys',
+    );
     if (mounted) setState(() => _resolved = config);
   }
 
@@ -180,7 +182,9 @@ class _WebViewWidgetPageState extends State<_WebViewWidgetPage> {
   }
 }
 
-// ─── Page 2: Standalone Banner Ads ───────────────────────────────────────────
+// ─── Page 2: Standalone Banner Ads (native, 1.3.0+) ──────────────────────────
+// Each `SellwildBanner` runs a native Prebid Mobile auction and renders into a
+// native `AdManagerBannerView` / `AdManagerAdView`. No WebView in the ad path.
 
 class _BannerPage extends StatelessWidget {
   const _BannerPage();
@@ -193,7 +197,10 @@ class _BannerPage extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 24),
-            const Text('320×50 Banner', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text(
+              '320×50 Banner',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             SellwildBanner(
               config: _config,
@@ -203,7 +210,10 @@ class _BannerPage extends StatelessWidget {
               onError: (e) => debugPrint('[Sellwild] Banner error: $e'),
             ),
             const SizedBox(height: 32),
-            const Text('300×250 MREC', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text(
+              '300×250 MREC',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             SellwildBanner(
               config: _config,
@@ -299,9 +309,7 @@ class _NativeListingsPageState extends State<_NativeListingsPage> {
           ),
 
           // Listing grid or state indicators
-          Expanded(
-            child: _buildContent(),
-          ),
+          Expanded(child: _buildContent()),
         ],
       ),
     );
@@ -320,8 +328,10 @@ class _NativeListingsPageState extends State<_NativeListingsPage> {
             children: [
               const Icon(Icons.error_outline, color: Colors.red, size: 48),
               const SizedBox(height: 12),
-              Text('Failed to load listings',
-                  style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Failed to load listings',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
               Text(_error!, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 16),

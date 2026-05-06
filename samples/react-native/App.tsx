@@ -4,13 +4,20 @@
  * How to run:
  *   1. Create a new React Native project:
  *        npx react-native@latest init SellwildDemo --template react-native-template-typescript
- *   2. Install dependencies:
- *        npm install @sellwild/react-native-sdk react-native-webview
+ *   2. Install the SDK (1.3.0+):
+ *        npm install @sellwild/react-native-sdk@^1.3.0
  *        cd ios && pod install
+ *
+ *      As of 1.3.0 the RN SDK bridges to native iOS / Android `SellwildAdView`,
+ *      which transitively pull in PrebidMobile + Google Mobile Ads. iOS apps
+ *      need Xcode 16+ and a `GADApplicationIdentifier` in Info.plist; Android
+ *      apps need `minSdk 23` and a `com.google.android.gms.ads.APPLICATION_ID`
+ *      `<meta-data>` entry in AndroidManifest.xml. See the platform guides at
+ *      https://sdk.sellwild.com/guide/ios and /guide/android.
  *   3. Replace App.tsx with this file.
  *   4. Run: npx react-native run-ios  OR  npx react-native run-android
  *
- * Note: Replace 'YOUR_PARTNER_CODE' and 'YOUR_LISTINGS_URL' with real values
+ * Note: Replace 'YOUR_PARTNER_CODE' / 'your-partner-slug' with real values
  * from sdk@sellwild.com before running.
  */
 
@@ -39,27 +46,40 @@ import {
 import type { SellwildListing, SellwildConfig, PartialSellwildConfig } from '@sellwild/react-native-sdk'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-
-// ─── MODE A: Prebid.js client-side in WebView (default) ──────────────────────
-// Bidder adapters run inside the WebView. appBundleId is required so Prebid.js
-// declares in-app (ortb2.app) inventory instead of web (ortb2.site) traffic.
 //
-// In 1.2.0+ the first-class path is `configure(partnerCode, slug)` — see
-// NativeListingsScreen below. The static config below is the fallback shape
-// used when you can't make a network call before rendering ads.
+// Ad path (1.3.0+):
+//   `SellwildBanner` is a native component. The RN SDK bridges to the native
+//   iOS / Android `SellwildAdView`, which runs a NATIVE Prebid Mobile auction
+//   and renders the winner into a NATIVE `AdManagerBannerView` (iOS) or
+//   `AdManagerAdView` (Android). There is no WebView in the banner ad path.
+//   The marketplace `SellwildWidget` still renders listings inside a WebView;
+//   that surface is intentional and unchanged.
+//
+// Remote config (the first-class path, 1.2.0+):
+//   `configure(partnerCode, slug)` fetches every runtime field from the
+//   Sellwild CDN (https://widget.sellwild.com/app/{partnerCode}/{slug}.json)
+//   and returns a fully-built `SellwildConfig`. Bidders, refresh limits,
+//   geo-blocking, app identity, ad zones, and compliance flags are all
+//   toggled from the Sellwild CMS without an app update. On any
+//   network/timeout/404 failure the call falls back to deterministic defaults
+//   so ads still render. See `NativeListingsScreen` below for the canonical
+//   usage.
+
+// Static fallback config (used when you can't make a network call before
+// rendering ads). 1.2.0+ makes `listingsUrl` optional — leave it unset and
+// the SDK derives a default from `partnerCode`.
 const BASE_CONFIG: PartialSellwildConfig = {
   partnerCode: 'YOUR_PARTNER_CODE',
-  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=YOUR_PARTNER_CODE&count=20',
 
-  // Required: tells Prebid.js this is in-app traffic (ortb2.app), not web.
-  // Use your actual iOS bundle ID or Android package name.
+  // Use your actual iOS bundle ID or Android package name. Surfaces as
+  // `ortb2.app.bundle` in the Prebid Mobile auction.
   appBundleId: 'com.mycompany.myapp',
   appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
 
-  // Uncomment to enable Google Ad Manager banner:
+  // Uncomment to override the GAM ad unit served on the native banner:
   // gamTag: '/12345678/your-ad-unit',
 
-  // Uncomment to enable zone-based banner:
+  // Uncomment to pin specific zone IDs (otherwise the CDN config wins):
   // bannerZid: '98765',
   // mobileZids: ['11111', '22222'],
 
@@ -68,23 +88,10 @@ const BASE_CONFIG: PartialSellwildConfig = {
   debug: __DEV__,
 }
 
-// ─── MODE B: Prebid Server S2S (optional, solves cookie/IDFA limitations) ─────
-// Uncomment to route all Prebid bids server-side through your Prebid Server.
-// Replace BASE_CONFIG with S2S_CONFIG in the screens below to activate.
-//
-// const S2S_CONFIG: PartialSellwildConfig = {
-//   ...BASE_CONFIG,
-//   prebidServer: {
-//     accountId: 'YOUR_ACCOUNT_ID',
-//     endpoint: 'https://prebid-server.example.com/openrtb2/auction',
-//     // AppNexus hosted: 'https://prebid.adnxs.com/pbs/v1/openrtb2/auction'
-//     // Rubicon hosted:  'https://prebid-server.rubiconproject.com/openrtb2/auction'
-//     bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
-//     timeout: 1500,
-//   },
-// }
-
-// ─── Screen: Full WebView Widget ──────────────────────────────────────────────
+// ─── Screen: Marketplace Widget (WebView-rendered listings) ───────────────────
+// `SellwildWidget` renders the full marketplace listing surface inside a
+// WebView. This is intentional — only banner ads moved to native rendering in
+// 1.3.0; the marketplace listing UI is unchanged.
 
 function WebViewWidgetScreen() {
   const handleListingPress = useCallback((listing: SellwildListing) => {
