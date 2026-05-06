@@ -38,7 +38,7 @@ target 'SellwildDemo' do
   # paths (for pod trunk push from repo root); we've fixed it to
   # use podspec-local paths instead, and now invoke trunk pushes
   # from the ios/ directory.
-  pod 'SellwildSDK',    :path => '../../../ios',              :modular_headers => true
+  pod 'SellwildSDK',    :path => '../../../',                 :modular_headers => true
   pod 'SellwildSDK-RN', :path => '../../../react-native/ios', :modular_headers => true
 
   target 'SellwildDemoTests' do

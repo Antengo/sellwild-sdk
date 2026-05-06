@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '13.0'
   s.swift_version = '5.5'
 
-  s.source_files = 'Sources/SellwildSDK/**/*.swift'
+  s.source_files = 'ios/Sources/SellwildSDK/**/*.swift'
   s.frameworks = 'UIKit', 'WebKit', 'Foundation'
 
   # Native ad stack — required, not optional.
