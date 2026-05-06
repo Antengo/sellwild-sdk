@@ -23,6 +23,24 @@ target 'SellwildDemo' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+  # Pull the iOS SDK pod and the RN bridge pod from the worktree. We
+  # pin to local paths because (1) we want to link against whatever
+  # we're iterating on locally, not the published trunk version, and
+  # (2) demo-app's package.json doesn't declare @sellwild/react-native-sdk
+  # as an npm dep (Metro resolves it via metro.config.js for JS), so
+  # use_native_modules! has nothing to autolink.
+  # :modular_headers is required so the SDK builds as a Clang module and
+  # `import SellwildSDK` resolves from the Swift bridge target. Without
+  # this, pods are built as plain static libs with no module map.
+  # Both podspecs use paths relative to their own location, so :path
+  # points at the directory that contains the .podspec file. The
+  # SDK podspec was historically written with repo-root-relative
+  # paths (for pod trunk push from repo root); we've fixed it to
+  # use podspec-local paths instead, and now invoke trunk pushes
+  # from the ios/ directory.
+  pod 'SellwildSDK',    :path => '../../../ios',              :modular_headers => true
+  pod 'SellwildSDK-RN', :path => '../../../react-native/ios', :modular_headers => true
+
   target 'SellwildDemoTests' do
     inherit! :complete
     # Pods for testing

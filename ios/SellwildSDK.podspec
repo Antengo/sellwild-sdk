@@ -10,14 +10,14 @@ Pod::Spec.new do |s|
   DESC
 
   s.homepage         = 'https://github.com/Antengo/sellwild-sdk'
-  s.license          = { :type => 'MIT', :file => 'ios/LICENSE' }
+  s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'Sellwild' => 'sdk@sellwild.com' }
   s.source           = { :git => 'https://github.com/Antengo/sellwild-sdk.git', :tag => s.version.to_s }
 
   s.ios.deployment_target = '13.0'
   s.swift_version = '5.5'
 
-  s.source_files = 'ios/Sources/SellwildSDK/**/*.swift'
+  s.source_files = 'Sources/SellwildSDK/**/*.swift'
   s.frameworks = 'UIKit', 'WebKit', 'Foundation'
 
   # Native ad stack — required, not optional.
