@@ -1,3 +1,11 @@
+## 1.3.0
+
+- **Native banner path**: `SellwildAdView` now hosts a native Google Mobile Ads `AdManagerBannerView` (iOS) / `AdManagerAdView` (Android). Banner ads run a native Prebid Mobile auction and render natively — no WebView in the ad path.
+- React Native `SellwildBanner` bridges to the native iOS/Android `SellwildAdView` via `RCTViewManager` (no WebView).
+- Flutter `SellwildNativeBanner` bridges to the native iOS/Android `SellwildAdView` via platform channels.
+- `SellwildWidget` (marketplace listings) still uses WebView — that surface is intentional and unchanged.
+- iOS now requires Xcode 16+ (PrebidMobile 3.x dependency); Android `minSdk` raised to 23 (Prebid Mobile 3.x requirement).
+
 ## 1.2.0
 
 - **First-class remote config**: `SellwildSDK.configure(partnerCode:, slug:)` returns a fully-populated `SellwildConfig` from the Sellwild CDN at app launch. Partner code + slug = working SDK.
