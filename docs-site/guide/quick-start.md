@@ -14,7 +14,7 @@ For full integration guides with all ad formats, listing cards, GDPR, lifecycle 
 **CocoaPods** -- Add to your `Podfile`:
 
 ```ruby
-pod 'SellwildSDK', '~> 1.2'
+pod 'SellwildSDK', '~> 1.3'
 ```
 
 Then run `pod install` and open the `.xcworkspace` file.
@@ -107,7 +107,7 @@ Add the dependency to `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.2.0")
+    implementation("com.sellwild:sdk:1.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
 ```
@@ -256,7 +256,7 @@ Add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  sellwild_sdk: ^1.2.0
+  sellwild_sdk: ^1.3.0
 ```
 
 Then run:

@@ -8,16 +8,17 @@ Server-side header bidding for React Native applications, powered by Prebid Serv
 
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
-3. [iOS Configuration](#ios-configuration)
-4. [Android Configuration](#android-configuration)
-5. [Basic Integration](#basic-integration)
-6. [Native Listing Cards](#native-listing-cards)
-7. [Direct Prebid Server Auction](#direct-prebid-server-auction)
-8. [Prebid Server Configuration](#prebid-server-configuration)
-9. [Metro Configuration](#metro-configuration)
-10. [GDPR and Privacy](#gdpr-and-privacy)
-11. [TypeScript Reference](#typescript-reference)
-12. [Troubleshooting](#troubleshooting)
+3. [Native banner path (1.3.0+)](#native-banner-path-1-3-0)
+4. [iOS Configuration](#ios-configuration)
+5. [Android Configuration](#android-configuration)
+6. [Basic Integration](#basic-integration)
+7. [Native Listing Cards](#native-listing-cards)
+8. [Direct Prebid Server Auction](#direct-prebid-server-auction)
+9. [Prebid Server Configuration](#prebid-server-configuration)
+10. [Metro Configuration](#metro-configuration)
+11. [GDPR and Privacy](#gdpr-and-privacy)
+12. [TypeScript Reference](#typescript-reference)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -77,6 +78,47 @@ npx react-native config
 ```
 
 The output should list `react-native-webview` under `dependencies`.
+
+---
+
+## Native banner path (1.3.0+)
+
+As of 1.3.0, `<SellwildBanner>` is backed by a native iOS/Android view bridged through `RCTViewManager`. The ad-rendering path no longer uses `react-native-webview` — it runs a Prebid Mobile auction natively and renders the winning bid in `AdManagerBannerView` (iOS) or `AdManagerAdView` (Android).
+
+```tsx
+import { SellwildBanner } from '@sellwild/react-native-sdk';
+
+<SellwildBanner
+  config={config}
+  adSize="320x50"
+  zoneId="home_top_banner"
+  onAdLoaded={() => console.log('loaded')}
+  onAdImpression={() => console.log('impression')}
+  onAdClicked={() => console.log('click')}
+  onAdFailed={(e) => console.warn('failed', e.nativeEvent.message)}
+/>
+```
+
+**Props**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `config` | `SellwildConfig` | Resolved config (typically from `configure(partnerCode, slug)`). |
+| `adSize` | `string` | Banner size, e.g. `"320x50"`, `"300x250"`, `"728x90"`. |
+| `zoneId` | `string` | Ad zone / placement identifier, mapped to a GAM ad unit on the server. |
+
+**Events** (all are React Native synthetic events with a `nativeEvent` payload):
+
+| Event | Fires when |
+|-------|-----------|
+| `onAdLoaded` | The native `AdManagerBannerView` / `AdManagerAdView` finishes rendering. |
+| `onAdImpression` | GMA reports an impression. |
+| `onAdClicked` | The user taps the ad. |
+| `onAdFailed` | The Prebid auction or GMA load fails. `nativeEvent.message` contains a human-readable reason. |
+
+**Required platform setup.** GMA still needs `GADApplicationIdentifier` (iOS `Info.plist`) and `com.google.android.gms.ads.APPLICATION_ID` (Android `AndroidManifest.xml`) to initialize. See the [iOS Configuration](#ios-configuration) and [Android Configuration](#android-configuration) sections below.
+
+**Marketplace listings unchanged.** `<SellwildWidget>` continues to use `react-native-webview` for the marketplace listings surface — that's intentional. Only the ad-rendering surface changed in 1.3.0.
 
 ---
 

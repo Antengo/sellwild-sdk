@@ -8,18 +8,19 @@ Integration guide for the Sellwild native ad SDK. The SDK runs server-side heade
 
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
-3. [Info.plist Configuration](#infoplist-configuration)
-4. [UIKit Integration](#uikit-integration)
-5. [SwiftUI Integration](#swiftui-integration)
-6. [Native Listing Cards](#native-listing-cards)
-7. [App Tracking Transparency](#app-tracking-transparency)
-8. [Remote Config](#remote-config)
-9. [Prebid Server Configuration](#prebid-server-configuration)
-10. [GDPR and Privacy](#gdpr-and-privacy)
-11. [Ad Refresh](#ad-refresh)
-12. [Lifecycle Management](#lifecycle-management)
-13. [Troubleshooting](#troubleshooting)
-14. [API Reference](#api-reference)
+3. [Native banner path (1.3.0+)](#native-banner-path-1-3-0)
+4. [Info.plist Configuration](#infoplist-configuration)
+5. [UIKit Integration](#uikit-integration)
+6. [SwiftUI Integration](#swiftui-integration)
+7. [Native Listing Cards](#native-listing-cards)
+8. [App Tracking Transparency](#app-tracking-transparency)
+9. [Remote Config](#remote-config)
+10. [Prebid Server Configuration](#prebid-server-configuration)
+11. [GDPR and Privacy](#gdpr-and-privacy)
+12. [Ad Refresh](#ad-refresh)
+13. [Lifecycle Management](#lifecycle-management)
+14. [Troubleshooting](#troubleshooting)
+15. [API Reference](#api-reference)
 
 ---
 
@@ -27,12 +28,12 @@ Integration guide for the Sellwild native ad SDK. The SDK runs server-side heade
 
 | Requirement | Minimum Version |
 |-------------|-----------------|
-| Xcode | 14.0 or later |
+| Xcode | 16.0 or later (required for PrebidMobile 3.x) |
 | iOS deployment target | 13.0 |
 | Swift | 5.5 or later |
-| macOS (build host) | 11.0 (Big Sur) |
+| macOS (build host) | 14.0 (Sonoma) |
 
-The SDK is written in pure Swift and depends only on `UIKit` and `WebKit`, both of which ship with iOS. No third-party runtime dependencies are required.
+As of 1.3.0 the SDK depends on `PrebidMobile` (~> 3.3) and `Google-Mobile-Ads-SDK` (~> 13.0) for native banner rendering. Both are pulled in transitively by CocoaPods / SPM; no additional declaration is required. The marketplace `SellwildWidget` continues to use `WebKit`, which ships with iOS.
 
 ---
 
@@ -47,7 +48,7 @@ platform :ios, '13.0'
 
 target 'YourApp' do
   use_frameworks!
-  pod 'SellwildSDK', '~> 1.2'
+  pod 'SellwildSDK', '~> 1.3'
 end
 ```
 
@@ -68,7 +69,7 @@ Open the generated `.xcworkspace` file to continue development.
 https://github.com/Antengo/sellwild-sdk.git
 ```
 
-3. Set the dependency rule to **Up to Next Major Version** starting at `1.2.0`.
+3. Set the dependency rule to **Up to Next Major Version** starting at `1.3.0`.
 4. Select the **SellwildSDK** library product and add it to your app target.
 
 Alternatively, add the dependency directly in your `Package.swift`:
@@ -77,7 +78,7 @@ Alternatively, add the dependency directly in your `Package.swift`:
 dependencies: [
     .package(
         url: "https://github.com/Antengo/sellwild-sdk.git",
-        from: "1.2.0"
+        from: "1.3.0"
     )
 ],
 targets: [
@@ -92,7 +93,31 @@ targets: [
 
 ---
 
+## Native banner path (1.3.0+)
+
+As of 1.3.0, `SellwildAdView` no longer renders banner creatives in a WebView. It hosts a native `AdManagerBannerView` (Google Mobile Ads SDK) and runs a Prebid Mobile auction in-process before loading the GAM view.
+
+- **First-use bootstrap.** The first time a `SellwildAdView` is created, `SellwildPrebidMobile.bootstrap()` initializes Prebid Mobile (host, account ID, timeouts) using values from `SellwildConfig.prebidServer`. Subsequent ad views reuse the initialized stack.
+- **Auction flow.** `SellwildAdView.load()` builds an OpenRTB request with PrebidMobile, sends it to `prebid.sellwild.com`, applies the winning bid's keywords as targeting on a `GAMRequest`, then calls `AdManagerBannerView.load(_:)`. The GAM SDK selects between the Prebid line item and any direct-sold demand and renders natively.
+- **Required Info.plist key.** GMA will not initialize without `GADApplicationIdentifier`. See [Info.plist Configuration](#infoplist-configuration) below.
+- **Marketplace listings unchanged.** `SellwildWidget` still renders the marketplace listings surface in a `WKWebView`. Only the ad-rendering path changed in 1.3.0.
+
+If you want to bypass the native ad path entirely and consume bids yourself, see [Direct Prebid Server Auction](#prebid-server-configuration).
+
+---
+
 ## Info.plist Configuration
+
+### Google Mobile Ads Application Identifier (required, 1.3.0+)
+
+The Google Mobile Ads SDK refuses to initialize without `GADApplicationIdentifier`. Add your AdMob/Ad Manager app ID to `Info.plist`:
+
+```xml
+<key>GADApplicationIdentifier</key>
+<string>ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY</string>
+```
+
+Use the AdMob app ID issued by your Sellwild account manager. Apps submitted without this key will crash on first ad load.
 
 ### App Transport Security
 

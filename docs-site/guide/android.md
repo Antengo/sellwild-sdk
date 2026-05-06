@@ -10,19 +10,20 @@ All auctions run server-to-server via `prebid.sellwild.com`. The SDK renders ads
 
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
-3. [AndroidManifest Configuration](#androidmanifest-configuration)
-4. [Basic Integration](#basic-integration)
-5. [Jetpack Compose](#jetpack-compose)
-6. [Native Listing Cards](#native-listing-cards)
-7. [Coroutines API](#coroutines-api)
-8. [Remote Config](#remote-config)
-9. [Prebid Server Configuration](#prebid-server-configuration)
-10. [GDPR and Privacy](#gdpr-and-privacy)
-11. [Lifecycle Management](#lifecycle-management)
-12. [Multi-Process WebView](#multi-process-webview)
-13. [Ad Refresh](#ad-refresh)
-14. [ProGuard and R8](#proguard-and-r8)
-15. [Troubleshooting](#troubleshooting)
+3. [Native banner path (1.3.0+)](#native-banner-path-1-3-0)
+4. [AndroidManifest Configuration](#androidmanifest-configuration)
+5. [Basic Integration](#basic-integration)
+6. [Jetpack Compose](#jetpack-compose)
+7. [Native Listing Cards](#native-listing-cards)
+8. [Coroutines API](#coroutines-api)
+9. [Remote Config](#remote-config)
+10. [Prebid Server Configuration](#prebid-server-configuration)
+11. [GDPR and Privacy](#gdpr-and-privacy)
+12. [Lifecycle Management](#lifecycle-management)
+13. [Multi-Process WebView](#multi-process-webview)
+14. [Ad Refresh](#ad-refresh)
+15. [ProGuard and R8](#proguard-and-r8)
+16. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -32,13 +33,13 @@ All auctions run server-to-server via `prebid.sellwild.com`. The SDK renders ads
 |---|---|
 | Android Studio | Hedgehog (2023.1.1) or later |
 | Kotlin | 1.9.0+ |
-| `minSdk` | 21 (Android 5.0 Lollipop) |
+| `minSdk` | 23 (Android 6.0 Marshmallow) — raised from 21 in 1.3.0 for Prebid Mobile 3.x |
 | `compileSdk` | 35 |
 | `targetSdk` | 35 |
 | Gradle | 8.2+ |
 | AGP (Android Gradle Plugin) | 8.1+ |
 
-The SDK is written in pure Kotlin with no native (NDK) dependencies. It requires `kotlinx-coroutines-android` for the async listings API.
+The SDK is written in pure Kotlin with no native (NDK) dependencies. It requires `kotlinx-coroutines-android` for the async listings API. As of 1.3.0 it also depends on Prebid Mobile `3.3.0` and Google Mobile Ads `22.6.0` for the native banner rendering path; both are pulled in transitively.
 
 ---
 
@@ -72,7 +73,7 @@ In your app-level `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.2.0")
+    implementation("com.sellwild:sdk:1.3.0")
 
     // Required -- coroutines for async listings API
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -109,7 +110,34 @@ dependencyResolutionManagement {
 
 ---
 
+## Native banner path (1.3.0+)
+
+As of 1.3.0, `SellwildAdView` no longer renders banner creatives in a `WebView`. It hosts a native `AdManagerAdView` (Google Mobile Ads SDK) and runs a Prebid Mobile auction in-process before loading the GAM view.
+
+- **First-use bootstrap.** The first time a `SellwildAdView` is created, `SellwildPrebidMobile.bootstrap()` initializes Prebid Mobile (host, account ID, timeouts) using values from `SellwildConfig.prebidServer`. Subsequent ad views reuse the initialized stack.
+- **Auction flow.** `SellwildAdView.load()` builds an OpenRTB request with PrebidMobile, sends it to `prebid.sellwild.com`, applies the winning bid's keywords as targeting on an `AdManagerAdRequest`, then calls `AdManagerAdView.loadAd(...)`. The GAM SDK selects between the Prebid line item and any direct-sold demand and renders natively.
+- **Required manifest entry.** GMA will not initialize without the `com.google.android.gms.ads.APPLICATION_ID` `meta-data` entry. See [AndroidManifest Configuration](#androidmanifest-configuration) below.
+- **Marketplace listings unchanged.** `SellwildWidget` still renders the marketplace listings surface in a `WebView`. Only the ad-rendering path changed in 1.3.0.
+
+If you want to bypass the native ad path entirely and consume bids yourself, see [Prebid Server Configuration](#prebid-server-configuration).
+
+---
+
 ## AndroidManifest Configuration
+
+### Google Mobile Ads Application ID (required, 1.3.0+)
+
+The Google Mobile Ads SDK refuses to initialize without an `APPLICATION_ID` meta-data entry. Add it inside `<application>`:
+
+```xml
+<application ... >
+    <meta-data
+        android:name="com.google.android.gms.ads.APPLICATION_ID"
+        android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY" />
+</application>
+```
+
+Use the AdMob/Ad Manager app ID issued by your Sellwild account manager. Apps built without this meta-data will crash on first ad load.
 
 ### Required Permissions
 
