@@ -31,7 +31,7 @@ Server-side header bidding for React Native applications, powered by Prebid Serv
 | Xcode | 15.0+ | Required for iOS builds; macOS Sonoma or later |
 | Android Studio | Hedgehog (2023.1.1)+ | JDK 17 bundled |
 | CocoaPods | 1.14+ | `sudo gem install cocoapods` if not installed |
-| React Native WebView | 11.0+ | Peer dependency |
+| `react-native-webview` | 11.0+ | Peer dependency. Required only if you use `<SellwildWidget>` (the marketplace listings surface). The native banner path does not depend on it. |
 
 Verify your environment before proceeding:
 
@@ -46,13 +46,21 @@ npx react-native doctor
 ### 1. Install packages
 
 ```bash
-npm install @sellwild/react-native-sdk react-native-webview
+npm install @sellwild/react-native-sdk
 ```
 
 Or with Yarn:
 
 ```bash
-yarn add @sellwild/react-native-sdk react-native-webview
+yarn add @sellwild/react-native-sdk
+```
+
+`react-native-webview` is declared as a peer dependency. It is only required if your integration uses `<SellwildWidget>` (the marketplace listings surface). If you do, install it alongside the SDK:
+
+```bash
+npm install react-native-webview
+# or
+yarn add react-native-webview
 ```
 
 ### 2. iOS -- Install native dependencies
@@ -69,7 +77,7 @@ ENV['RCT_NEW_ARCH_ENABLED'] = '1'
 
 ### 3. Android -- Auto-linking
 
-No additional steps are required. React Native auto-linking resolves `react-native-webview` automatically during the Gradle build.
+No additional steps are required. React Native auto-linking resolves the Sellwild RN bridge automatically during the Gradle build.
 
 Confirm auto-linking registered the package:
 
@@ -77,7 +85,7 @@ Confirm auto-linking registered the package:
 npx react-native config
 ```
 
-The output should list `react-native-webview` under `dependencies`.
+The output should list `@sellwild/react-native-sdk` under `dependencies`.
 
 ---
 
@@ -118,7 +126,7 @@ import { SellwildBanner } from '@sellwild/react-native-sdk';
 
 **Required platform setup.** GMA still needs `GADApplicationIdentifier` (iOS `Info.plist`) and `com.google.android.gms.ads.APPLICATION_ID` (Android `AndroidManifest.xml`) to initialize. See the [iOS Configuration](#ios-configuration) and [Android Configuration](#android-configuration) sections below.
 
-**Marketplace listings unchanged.** `<SellwildWidget>` continues to use `react-native-webview` for the marketplace listings surface — that's intentional. Only the ad-rendering surface changed in 1.3.0.
+**Marketplace listings.** `<SellwildWidget>` is a separate component for the marketplace listings surface and is not part of the ad path. If your integration only requires banner ads, you do not need to install `react-native-webview` or use this component.
 
 ---
 
@@ -371,7 +379,7 @@ const styles = StyleSheet.create({
 
 ## Native Listing Cards
 
-For full control over layout and rendering, use the `useSellwildListings` hook with the `SellwildListingCard` component. This approach renders listings as native views rather than in a WebView.
+For full control over layout and rendering, use the `useSellwildListings` hook with the `SellwildListingCard` component. This approach renders listings as native React Native views.
 
 ### Basic FlatList integration
 
@@ -556,7 +564,7 @@ Calling `refresh()` clears the internal listing cache and re-fetches from the ne
 
 ## Direct Prebid Server Auction
 
-For advanced integrations where you need full control over the bidding process, you can call the Prebid Server auction endpoint directly using `fetch()`. This bypasses the WebView entirely and gives you raw bid responses to render however you choose.
+For advanced integrations where you need full control over the bidding process, you can call the Prebid Server auction endpoint directly using `fetch()`. This bypasses `<SellwildBanner>` entirely and gives you raw bid responses to render however you choose.
 
 ### OpenRTB Bid Request
 
@@ -726,7 +734,7 @@ function handleAuctionResponse(response: PrebidBidResponse): void {
     console.log(
       `[Prebid] Winner for ${impId}: ${winner.seat} at $${winner.price.toFixed(2)} CPM`,
     );
-    // Render winner.adm in a WebView (see below)
+    // Render winner.adm yourself (see "Rendering Winning Creatives" below).
   }
 
   // Log per-bidder latency for diagnostics
@@ -740,7 +748,9 @@ function handleAuctionResponse(response: PrebidBidResponse): void {
 
 ### Rendering Winning Creatives
 
-Render the winning `adm` (HTML creative) in a WebView:
+> **Note:** This is an advanced escape hatch for partners who want to render `adm` themselves instead of using `<SellwildBanner>`. It does not use Google Ad Manager or the SDK's native ad path -- you are responsible for impression tracking, viewability measurement, and click handling. The supported integration is `<SellwildBanner>`, which renders through `AdManagerBannerView` (iOS) or `AdManagerAdView` (Android) without a WebView.
+
+If you choose to render the winning `adm` yourself, the simplest approach is to wrap the HTML creative in a WebView. You will need to install `react-native-webview` for this path.
 
 ```tsx
 import React from 'react';
@@ -788,7 +798,7 @@ function WinningBidRenderer({ adMarkup, width, height }: WinningBidProps) {
 
 ## Prebid Server Configuration
 
-The `prebidServer` object on `SellwildConfig` controls server-side header bidding. When present, the SDK configures Prebid.js to route all bid requests through the specified Prebid Server instance.
+The `prebidServer` object on `SellwildConfig` controls server-side header bidding. When present, `<SellwildBanner>` bootstraps Prebid Mobile with these values and routes every auction through the specified Prebid Server instance.
 
 ### Configuration Object
 
@@ -841,22 +851,11 @@ prebidServer: {
 }
 ```
 
-When `prebidServer` is set, the SDK automatically injects the following Prebid.js configuration into the WebView before the auction runs:
+When `prebidServer` is set, `<SellwildBanner>`:
 
-```js
-pbjs.setConfig({
-  s2sConfig: {
-    accountId: 'weatherbug',
-    bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
-    timeout: 1500,
-    adapter: 'prebidServer',
-    endpoint: {
-      p1Consent: 'https://prebid.sellwild.com/openrtb2/auction',
-      noP1Consent: 'https://prebid.sellwild.com/openrtb2/auction',
-    },
-  },
-});
-```
+1. Bootstraps Prebid Mobile with `accountId`, `endpoint`, and `timeout` on first use.
+2. Builds an OpenRTB 2.6 banner ad unit on every `load()`, including any passthrough bidder parameters from `SellwildConfig.remote`.
+3. Posts the request to your Prebid Server endpoint and applies the winning bid's targeting keywords to the underlying GAM ad request.
 
 ---
 
@@ -915,7 +914,7 @@ module.exports = mergeConfig(getDefaultConfig(__dirname), config);
 
 ## GDPR and Privacy
 
-The Sellwild SDK supports GDPR consent signaling through the Prebid Server auction flow. When `prebidServer` is configured, the SDK injects `ortb2.regs.ext.gdpr` and `ortb2.user.ext.consent` into the Prebid.js configuration.
+The Sellwild SDK supports GDPR consent signaling through the Prebid Server auction flow. When `prebidServer` is configured, Prebid Mobile attaches `regs.ext.gdpr` and `user.ext.consent` to every OpenRTB request, and the Google Mobile Ads SDK consumes the same TCF values for its own EU User Consent enforcement.
 
 ### Configuration
 
@@ -947,21 +946,11 @@ const config: PartialSellwildConfig = {
 
 ### How Consent Flows Through the SDK
 
-1. The host app collects consent through its own CMP (OneTrust, Didomi, etc.).
-2. The app passes `gdprApplies` and `tcString` via `SellwildConfig`.
-3. The SDK injects these values into the Prebid.js pre-configuration script:
+1. The host app collects consent through its own CMP (OneTrust, Didomi, etc.). Per the IAB TCF v2.x specification, the CMP writes `IABTCF_TCString` and `IABTCF_gdprApplies` to `UserDefaults` (iOS) and `SharedPreferences` (Android).
+2. Prebid Mobile reads those keys directly when building each OpenRTB request and attaches them as `regs.ext.gdpr` and `user.ext.consent`.
+3. Prebid Server forwards the consent string to all bidders. Bidders that lack consent for required purposes are excluded from the auction.
 
-```js
-// Injected automatically by the SDK
-pbjs.setConfig({
-  ortb2: {
-    regs: { ext: { gdpr: 1 } },
-    user: { ext: { consent: 'CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA' } },
-  },
-});
-```
-
-4. Prebid Server forwards the consent string to all bidders.
+You can also pass `gdprApplies` and `tcString` explicitly through `SellwildConfig` if your app does not write the standard IAB keys.
 
 ### Direct Auction Requests
 
@@ -1155,7 +1144,7 @@ If developing against a local SDK checkout, ensure `extraNodeModules` is configu
 
 ### `pod install` fails on iOS
 
-**Symptom:** `[!] CocoaPods could not find compatible versions for pod "react-native-webview"`
+**Symptom:** `[!] CocoaPods could not find compatible versions for pod "SellwildSDK"` or `"react-native-webview"`.
 
 **Fix:**
 
@@ -1197,9 +1186,9 @@ Remove this before submitting to the App Store.
 
 ### No fill -- banner renders blank
 
-**Symptom:** The banner WebView loads but no ad creative appears.
+**Symptom:** `<SellwildBanner>` mounts but no ad creative appears, or `onAdFailed` fires with a "no fill" reason.
 
-**Cause:** No bidder returned a bid above floor price, or bidder configuration is incorrect.
+**Cause:** No bidder returned a bid above floor price, the configured GAM ad unit is empty, or the bidder configuration is incorrect.
 
 **Diagnostic steps:**
 
@@ -1213,7 +1202,7 @@ const config = buildConfig({
 });
 ```
 
-2. Inspect the WebView console output (enable remote debugging in Chrome for Android or Safari for iOS).
+2. Inspect Prebid Mobile and GMA logs natively. On iOS, run the app under Xcode and filter the console by `Sellwild`, `PrebidMobile`, and `Google`. On Android, run `adb logcat` and filter by the same tags.
 
 3. Verify the Prebid Server is responding:
 
@@ -1245,16 +1234,15 @@ curl -X POST https://prebid.sellwild.com/openrtb2/auction \
 
 ---
 
-### WebView reloads on every parent render
+### Banner re-mounts on every parent render
 
-**Symptom:** The ad widget flickers or resets when unrelated state changes in the parent component.
+**Symptom:** The banner resets or re-runs the auction when unrelated state changes in the parent component.
 
-**Cause:** A new `config` object reference is created on each render, causing `react-native-webview` to detect a changed `source.html` and reload.
+**Cause:** A new `config` object reference is created on each render, causing the native bridge to tear down and rebuild the underlying ad view.
 
-**Fix:** The `SellwildWidget` component handles memoization internally. For `SellwildBanner`, ensure the `config` object is stable:
+**Fix:** Memoize the `config` object so it has a stable identity across renders:
 
 ```tsx
-// Store config outside the component or in useMemo
 const sdkConfig = useMemo(
   () => buildConfig({ partnerCode: 'weatherbug', listingsUrl: '...' }),
   [],
@@ -1287,24 +1275,6 @@ npm install @sellwild/react-native-sdk@latest
 
 ---
 
-### Android WebView crash on multi-process apps
-
-**Symptom:** `java.lang.RuntimeException: Using WebView from more than one process`
-
-**Cause:** Android 9+ requires explicit multi-process WebView configuration when the app uses multiple processes.
-
-**Fix:** Call `SellwildWebViewCompat.configureForMultiProcess()` in your `Application.onCreate()`:
-
-```kotlin
-// MainApplication.kt
-override fun onCreate() {
-    super.onCreate()
-    SellwildWebViewCompat.configureForMultiProcess(this)
-}
-```
-
----
-
 ## Further Reading
 
 - [Prebid Server OpenRTB Auction Endpoint](https://docs.prebid.org/prebid-server/endpoints/openrtb2/pbs-endpoint-auction.html)
@@ -1312,4 +1282,3 @@ override fun onCreate() {
 - [OpenRTB 2.6 Specification](https://www.iab.com/wp-content/uploads/2022/04/OpenRTB-2-6_FINAL.pdf)
 - [IAB TCF v2.2](https://iabeurope.eu/tcf-2-0/)
 - [Prebid Server Configuration](/guide/prebid-server)
-- [Validation Report](/guide/validation)

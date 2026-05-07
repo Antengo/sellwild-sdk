@@ -53,7 +53,6 @@ export default defineConfig({
           text: 'Reference',
           items: [
             { text: 'API Reference', link: '/guide/api-reference' },
-            { text: 'Validation Report', link: '/guide/validation' },
           ],
         },
       ],

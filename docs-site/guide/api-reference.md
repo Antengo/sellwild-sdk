@@ -61,7 +61,7 @@ For the complete list of fields, see [Configuration Reference](/guide/configurat
 
 ### SellwildAdView (UIKit)
 
-A `UIView` subclass that renders a single ad unit in a managed WebView.
+A `UIView` subclass that renders a single banner ad. As of 1.3.0, it hosts a native `AdManagerBannerView` and runs a Prebid Mobile auction in-process. There is no `WKWebView` in the ad path.
 
 **Initializer:**
 
@@ -86,12 +86,12 @@ public init(config: SellwildConfig, adSize: AdSize, zoneId: String? = nil)
 | Method | Description |
 |--------|-------------|
 | `load()` | Start or reload the ad auction. Call after the view is in the view hierarchy. |
-| `pause()` | Stop the refresh timer and pause WebView JavaScript execution. Call in `viewDidDisappear`. |
+| `pause()` | Stop the refresh timer and pause the underlying `AdManagerBannerView`. Call in `viewDidDisappear`. |
+| `resume()` | Resume the underlying `AdManagerBannerView` and refresh timer. |
 
 **Lifecycle notes:**
-- The view manages its own `WKWebView` internally. Do not add subviews or modify its frame directly.
-- In `deinit`, the view invalidates its refresh timer and removes the `WKScriptMessageHandler` to break retain cycles.
-- Each instance uses a separate `WKProcessPool`. Ad sessions are isolated between instances.
+- The view hosts a single `AdManagerBannerView` internally. Do not add subviews or modify its frame directly.
+- In `deinit`, the view invalidates its refresh timer and tears down the GMA banner to break retain cycles.
 
 ---
 
@@ -110,7 +110,7 @@ public init(config: SellwildConfig, adSize: AdSize, zoneId: String? = nil)
 
 | Callback | When It Fires |
 |----------|---------------|
-| `sellwildAdViewDidLoad(_:)` | Creative markup has been rendered in the WebView. |
+| `sellwildAdViewDidLoad(_:)` | Creative has been loaded into the underlying `AdManagerBannerView`. |
 | `sellwildAdView(_:didReceiveImpressionForZoneId:)` | A viewable impression has been recorded (MRC standard). |
 | `sellwildAdViewDidRecordClick(_:)` | The user tapped the ad creative. |
 | `sellwildAdView(_:didFailWithError:)` | The auction returned no fill, or an error occurred during rendering. |
@@ -280,9 +280,9 @@ adView.setup(config: SellwildConfig, adSize: AdSize, zoneId: String? = null)
 |--------|-------------|
 | `setup(config, adSize, zoneId?)` | Configure the ad view. Must be called before `load()`. |
 | `load()` | Start or reload the ad auction. |
-| `pause()` | Pause WebView and stop refresh timer. Call in `onPause()`. |
-| `resume()` | Resume WebView rendering. Call in `onResume()`. |
-| `destroy()` | Release all WebView resources. Call in `onDestroy()`. The instance must not be used after this call. |
+| `pause()` | Pause the underlying `AdManagerAdView` and stop refresh timer. Call in `onPause()`. |
+| `resume()` | Resume the underlying `AdManagerAdView`. Call in `onResume()`. |
+| `destroy()` | Release the underlying `AdManagerAdView`. Call in `onDestroy()`. The instance must not be used after this call. |
 
 ---
 
@@ -299,7 +299,7 @@ interface Listener {
 
 | Callback | When It Fires |
 |----------|---------------|
-| `onAdLoaded(adView)` | Creative fetched and rendered in the WebView. |
+| `onAdLoaded(adView)` | Creative loaded into the underlying `AdManagerAdView`. |
 | `onAdImpression(adView, zoneId)` | Viewable impression recorded. |
 | `onAdClicked(adView)` | User tapped the ad. |
 | `onAdFailed(adView, message)` | No fill or render error. |
@@ -361,22 +361,11 @@ client.clearCache()
 
 ---
 
-### SellwildWebViewCompat
-
-Utility for multi-process WebView safety on Android 9+ (API 28+).
-
-```kotlin
-// Call in Application.onCreate(), before any WebView is created
-SellwildWebViewCompat.configureForMultiProcess(context)
-```
-
----
-
 ## React Native (TypeScript)
 
 ### SellwildBanner
 
-Standalone banner ad component. Renders a Prebid-powered ad in a WebView.
+Native banner component. Bridges to `SellwildAdView` on iOS and Android (Prebid Mobile + Google Mobile Ads). No WebView is involved in the ad path.
 
 ```tsx
 import { SellwildBanner, buildConfig } from '@sellwild/react-native-sdk';

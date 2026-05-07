@@ -2,7 +2,7 @@
 
 Sellwild SDK for Android -- native ad SDK powered by server-side header bidding through Prebid Server.
 
-All auctions run server-to-server via `prebid.sellwild.com`. The SDK renders ads in a lightweight managed WebView. No client-side JavaScript bidding, no individual SSP SDKs, no waterfall latency.
+As of 1.3.0, banner ads render natively through `AdManagerAdView` (Google Mobile Ads SDK). Header bidding runs in-process via Prebid Mobile, with the auction itself served server-to-server by `prebid.sellwild.com`. There is no WebView in the ad-rendering path -- no client-side JavaScript bidding, no individual SSP SDKs, no waterfall latency.
 
 ---
 
@@ -20,10 +20,9 @@ All auctions run server-to-server via `prebid.sellwild.com`. The SDK renders ads
 10. [Prebid Server Configuration](#prebid-server-configuration)
 11. [GDPR and Privacy](#gdpr-and-privacy)
 12. [Lifecycle Management](#lifecycle-management)
-13. [Multi-Process WebView](#multi-process-webview)
-14. [Ad Refresh](#ad-refresh)
-15. [ProGuard and R8](#proguard-and-r8)
-16. [Troubleshooting](#troubleshooting)
+13. [Ad Refresh](#ad-refresh)
+14. [ProGuard and R8](#proguard-and-r8)
+15. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -115,9 +114,9 @@ dependencyResolutionManagement {
 As of 1.3.0, `SellwildAdView` no longer renders banner creatives in a `WebView`. It hosts a native `AdManagerAdView` (Google Mobile Ads SDK) and runs a Prebid Mobile auction in-process before loading the GAM view.
 
 - **First-use bootstrap.** The first time a `SellwildAdView` is created, `SellwildPrebidMobile.bootstrap()` initializes Prebid Mobile (host, account ID, timeouts) using values from `SellwildConfig.prebidServer`. Subsequent ad views reuse the initialized stack.
-- **Auction flow.** `SellwildAdView.load()` builds an OpenRTB request with PrebidMobile, sends it to `prebid.sellwild.com`, applies the winning bid's keywords as targeting on an `AdManagerAdRequest`, then calls `AdManagerAdView.loadAd(...)`. The GAM SDK selects between the Prebid line item and any direct-sold demand and renders natively.
+- **Auction flow.** `SellwildAdView.load()` builds an OpenRTB request with Prebid Mobile, sends it to `prebid.sellwild.com`, applies the winning bid's keywords as targeting on an `AdManagerAdRequest`, then calls `AdManagerAdView.loadAd(...)`. The GAM SDK selects between the Prebid line item and any direct-sold demand and renders the creative natively.
 - **Required manifest entry.** GMA will not initialize without the `com.google.android.gms.ads.APPLICATION_ID` `meta-data` entry. See [AndroidManifest Configuration](#androidmanifest-configuration) below.
-- **Marketplace listings unchanged.** `SellwildWidget` still renders the marketplace listings surface in a `WebView`. Only the ad-rendering path changed in 1.3.0.
+- **Marketplace listings.** `SellwildWidgetView` is a separate surface for the marketplace listings widget and is unrelated to the ad path. If your integration only requires banner ads, you do not need to use it.
 
 If you want to bypass the native ad path entirely and consume bids yourself, see [Prebid Server Configuration](#prebid-server-configuration).
 
@@ -312,7 +311,7 @@ class AdActivity : AppCompatActivity() {
 
 | Callback | When It Fires |
 |---|---|
-| `onAdLoaded(adView)` | The ad creative has been fetched and rendered in the WebView. |
+| `onAdLoaded(adView)` | The auction has resolved and the creative has been rendered into the underlying `AdManagerAdView`. |
 | `onAdImpression(adView, zoneId)` | A viewable impression has been recorded. Use this for internal analytics. |
 | `onAdClicked(adView)` | The user tapped on the ad creative. |
 | `onAdFailed(adView, message)` | The auction returned no fill, or an error occurred during rendering. |
@@ -421,7 +420,7 @@ fun HomeScreen() {
 
 ## Native Listing Cards
 
-Use `SellwildAPIClient` to fetch marketplace listings and display them in a `RecyclerView`. Listing cards render natively -- no WebView involved.
+Use `SellwildAPIClient` to fetch marketplace listings and display them in a `RecyclerView`. Listing cards render with native Android views.
 
 ### Data Model
 
@@ -672,10 +671,10 @@ val prebidServer = PrebidServerConfig(
 
 ### How It Works
 
-1. The SDK renders a lightweight WebView containing a pre-configured Prebid.js instance.
-2. Prebid.js is configured in S2S mode -- instead of running client-side bidder adapters, it sends a single OpenRTB 2.6 request to `prebid.sellwild.com/openrtb2/auction`.
-3. Prebid Server fans out to all configured bidders in parallel, server-side.
-4. The winning bid is returned and rendered in the WebView.
+1. `SellwildAdView.load()` builds an OpenRTB 2.6 request with Prebid Mobile using the parameters from `PrebidServerConfig` plus any passthrough fields from `SellwildConfig.remote`.
+2. Prebid Mobile posts a single request to `prebid.sellwild.com/openrtb2/auction`. Prebid Server fans out to all configured bidders in parallel, server-side.
+3. The winning bid's keywords are attached to an `AdManagerAdRequest` as targeting.
+4. `AdManagerAdView.loadAd(...)` is called. Google Ad Manager selects between the Prebid line item and any direct-sold demand and renders the creative through the native GMA view.
 
 This architecture provides sub-200ms auction latency, eliminates client-side SDK bloat, and enables server-side bidder configuration changes without app updates.
 
@@ -740,13 +739,7 @@ Pass these values when constructing your config. Prebid Server enforces consent 
 
 ## Lifecycle Management
 
-`SellwildAdView` uses a WebView internally. Proper lifecycle management prevents memory leaks, background CPU usage, and ANR (Application Not Responding) errors.
-
-### Why It Matters
-
-- **WebView threads continue running when the Activity is paused.** JavaScript timers, network requests, and ad refresh cycles consume CPU and battery in the background.
-- **WebView holds a reference to the Activity context.** If `destroy()` is not called in `onDestroy()`, the entire Activity and its view hierarchy will leak.
-- **Orphaned WebViews can cause ANR.** On low-memory devices, a leaked WebView performing background work can starve the main thread.
+`SellwildAdView` wraps an `AdManagerAdView` and schedules ad-refresh timers. Forwarding the host Activity or Fragment lifecycle is required to release these resources, stop pending refreshes, and avoid leaking the host context.
 
 ### Required Lifecycle Calls
 
@@ -757,16 +750,16 @@ class AdActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        adView.resume()   // Resumes WebView rendering and JavaScript execution
+        adView.resume()   // Resumes the underlying AdManagerAdView.
     }
 
     override fun onPause() {
         super.onPause()
-        adView.pause()    // Pauses WebView, stops ad refresh timer
+        adView.pause()    // Pauses the underlying AdManagerAdView and cancels pending refresh timers.
     }
 
     override fun onDestroy() {
-        adView.destroy()  // Releases WebView resources, breaks context reference
+        adView.destroy()  // Releases the AdManagerAdView and detaches all listeners.
         super.onDestroy()
     }
 }
@@ -774,44 +767,9 @@ class AdActivity : AppCompatActivity() {
 
 | Method | What It Does |
 |---|---|
-| `resume()` | Calls `WebView.onResume()`. Resumes JavaScript execution and rendering. |
-| `pause()` | Calls `WebView.onPause()`. Suspends all JavaScript timers and ad refresh scheduling. |
-| `destroy()` | Calls `pause()` then `WebView.destroy()`. Releases all WebView resources. The `SellwildAdView` instance must not be used after this call. |
-
-For `SellwildWidgetView`, the same lifecycle pattern applies with identical `pause()`, `resume()`, and `destroy()` methods.
-
----
-
-## Multi-Process WebView
-
-On Android 9+ (API 28), creating a `WebView` from multiple processes that share the same data directory causes a crash (`android.webkit.WebViewFactory$MissingWebViewPackageException`). This affects apps that use multiple processes -- for example, a `:background` service process alongside the main UI process.
-
-Call `SellwildWebViewCompat.configureForMultiProcess()` in your `Application.onCreate()`, before any `WebView` is created:
-
-```kotlin
-import com.sellwild.sdk.SellwildWebViewCompat
-
-class MyApplication : Application() {
-
-    override fun onCreate() {
-        super.onCreate()
-
-        // Must be called before any WebView is instantiated.
-        // Sets a process-specific data directory suffix on API 28+.
-        SellwildWebViewCompat.configureForMultiProcess(this)
-    }
-}
-```
-
-Register your Application class in `AndroidManifest.xml`:
-
-```xml
-<application
-    android:name=".MyApplication"
-    ... >
-```
-
-If your app is single-process, this call is a safe no-op.
+| `resume()` | Calls `AdManagerAdView.resume()`. Refresh scheduling resumes on the next impression callback. |
+| `pause()` | Calls `AdManagerAdView.pause()` and cancels any pending refresh timer. Safe to call repeatedly. |
+| `destroy()` | Calls `pause()` then `AdManagerAdView.destroy()`. The `SellwildAdView` instance must not be used after this call. |
 
 ---
 
@@ -860,47 +818,28 @@ val config = SellwildConfig(
 If your app uses code shrinking (R8 or ProGuard), add the following keep rules to your `proguard-rules.pro` file:
 
 ```txt
-# Sellwild SDK -- preserve JS bridge interface methods
--keepclassmembers class com.sellwild.sdk.SellwildAdView$SellwildJSBridge {
-    @android.webkit.JavascriptInterface *;
-}
--keepclassmembers class com.sellwild.sdk.SellwildWidgetView$WidgetJSBridge {
-    @android.webkit.JavascriptInterface *;
-}
-
-# Preserve Listener interfaces for callback functionality
+# Sellwild SDK -- preserve listener interfaces used for ad callbacks.
 -keep interface com.sellwild.sdk.SellwildAdView$Listener { *; }
--keep interface com.sellwild.sdk.SellwildWidgetView$Listener { *; }
 
-# Preserve data classes used in JSON serialization
+# Preserve data classes used for JSON deserialization of remote config.
 -keepclassmembers class com.sellwild.sdk.SellwildConfig { *; }
 -keepclassmembers class com.sellwild.sdk.PrebidServerConfig { *; }
 -keepclassmembers class com.sellwild.sdk.SellwildListing { *; }
 -keepclassmembers class com.sellwild.sdk.SellwildPhoto { *; }
 -keepclassmembers class com.sellwild.sdk.SellwildUser { *; }
 
-# Keep enum values used by the SDK
+# Preserve AdSize enum values referenced from generated code.
 -keepclassmembers enum com.sellwild.sdk.AdSize {
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
 ```
 
-The `@JavascriptInterface` rules are critical. Without them, R8 strips the bridge methods and the WebView cannot communicate back to native code -- ad callbacks will silently stop working.
+Prebid Mobile and Google Mobile Ads ship their own consumer ProGuard rules, which are applied automatically when you depend on the Sellwild SDK.
 
 ---
 
 ## Troubleshooting
-
-### Cleartext Traffic Blocked
-
-**Symptom:** Ads fail to render. Logcat shows `ERR_CLEARTEXT_NOT_PERMITTED` or `java.io.IOException: Cleartext HTTP traffic not permitted`.
-
-**Cause:** Your app targets API 28+ and does not allow cleartext HTTP. Some ad creatives use HTTP URLs for tracking pixels.
-
-**Fix:** Add a Network Security Config with domain exceptions for `doubleclick.net` and `googlesyndication.com`. See [AndroidManifest Configuration](#androidmanifest-configuration).
-
----
 
 ### No Fill (Ad Not Loading)
 
@@ -916,11 +855,7 @@ The `@JavascriptInterface` rules are critical. Without them, R8 strips the bridg
 | Low traffic volume | Some SSPs suppress bids for new placements until they accumulate impression data. |
 | Geographic restrictions | Certain bidders only operate in specific regions. |
 
-**Debug mode:** Set `debug = true` in your `SellwildConfig` to enable verbose Prebid.js logging in the WebView console. Attach Chrome DevTools to inspect the WebView:
-
-```
-chrome://inspect/#devices
-```
+**Debug mode:** Set `debug = true` in your `SellwildConfig` to enable verbose Prebid Mobile and GMA logging in `logcat`. Filter by tag `Sellwild` for SDK lifecycle events, `PrebidMobile` for the auction request and response, and `Ads` for GMA load and render events.
 
 ---
 
@@ -934,35 +869,21 @@ chrome://inspect/#devices
 
 ---
 
-### ANR on Ad Load
+### App Crashes on Launch (Missing GMA Application ID)
 
-**Symptom:** The app shows "Application Not Responding" when navigating to a screen with ads.
+**Symptom:** The app crashes immediately on startup with a `java.lang.IllegalStateException` referencing `com.google.android.gms.ads.APPLICATION_ID`.
 
-**Possible causes:**
+**Cause:** The Google Mobile Ads SDK refuses to initialize without an `APPLICATION_ID` `meta-data` entry in `AndroidManifest.xml`.
 
-| Cause | Resolution |
-|---|---|
-| Missing lifecycle calls | Ensure `pause()` and `destroy()` are called in `onPause()` and `onDestroy()`. Leaked WebViews consume main-thread resources. |
-| WebView first init | The first `WebView` creation in an app session loads the WebView provider (Chrome/WebView APK). This can take 200-500ms on older devices. Avoid creating `SellwildAdView` during activity transitions. |
-| Multi-process crash | Call `SellwildWebViewCompat.configureForMultiProcess()` in `Application.onCreate()`. See [Multi-Process WebView](#multi-process-webview). |
-
----
-
-### WebView Crash on API 28+
-
-**Symptom:** `android.webkit.WebViewFactory$MissingWebViewPackageException` or similar crash on app launch.
-
-**Cause:** Multiple processes are sharing the same WebView data directory.
-
-**Fix:** Call `SellwildWebViewCompat.configureForMultiProcess(this)` in `Application.onCreate()` before any other code that might instantiate a WebView.
+**Fix:** Add the entry described in [AndroidManifest Configuration](#androidmanifest-configuration) and rebuild.
 
 ---
 
 ### Ad Callbacks Not Firing (R8/ProGuard)
 
-**Symptom:** Ads render visually but `onAdLoaded`, `onAdImpression`, and other callbacks never fire.
+**Symptom:** Ads render but `onAdLoaded`, `onAdImpression`, or `onAdFailed` never fire.
 
-**Cause:** R8 has stripped the `@JavascriptInterface`-annotated bridge methods.
+**Cause:** R8 has stripped the `SellwildAdView.Listener` interface or one of the data classes used to deserialize the remote config response.
 
 **Fix:** Add the ProGuard keep rules listed in [ProGuard and R8](#proguard-and-r8). Rebuild and verify.
 

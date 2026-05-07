@@ -100,7 +100,7 @@ As of 1.3.0, `SellwildAdView` no longer renders banner creatives in a WebView. I
 - **First-use bootstrap.** The first time a `SellwildAdView` is created, `SellwildPrebidMobile.bootstrap()` initializes Prebid Mobile (host, account ID, timeouts) using values from `SellwildConfig.prebidServer`. Subsequent ad views reuse the initialized stack.
 - **Auction flow.** `SellwildAdView.load()` builds an OpenRTB request with PrebidMobile, sends it to `prebid.sellwild.com`, applies the winning bid's keywords as targeting on a `GAMRequest`, then calls `AdManagerBannerView.load(_:)`. The GAM SDK selects between the Prebid line item and any direct-sold demand and renders natively.
 - **Required Info.plist key.** GMA will not initialize without `GADApplicationIdentifier`. See [Info.plist Configuration](#infoplist-configuration) below.
-- **Marketplace listings unchanged.** `SellwildWidget` still renders the marketplace listings surface in a `WKWebView`. Only the ad-rendering path changed in 1.3.0.
+- **Marketplace listings.** `SellwildWidgetView` (the marketplace listings surface) is a separate component and is not part of the ad path. If your integration only requires banner ads, you do not need to use it.
 
 If you want to bypass the native ad path entirely and consume bids yourself, see [Direct Prebid Server Auction](#prebid-server-configuration).
 
@@ -305,7 +305,7 @@ extension AdViewController: SellwildAdViewDelegate {
 
 - Call `load()` after the view has been added to the view hierarchy (in `viewDidAppear` or later).
 - Call `pause()` in `viewDidDisappear` to stop refresh timers and conserve resources.
-- The `SellwildAdView` manages its own internal `WKWebView`; do not add subviews or modify its frame directly.
+- `SellwildAdView` manages its own underlying `AdManagerBannerView`; do not add subviews or modify its frame directly.
 
 ---
 
@@ -571,7 +571,7 @@ See [Configuration → Remote Config](./configuration#remote-config) for the ful
 
 ## Prebid Server Configuration
 
-The SDK routes header bidding through Prebid Server, eliminating the cookie and IDFA limitations of client-side Prebid.js in a WebView environment. All auction logic runs server-side.
+The SDK routes header bidding through Prebid Server. The auction is initiated in-process by Prebid Mobile and resolved server-side, which eliminates the cookie and IDFA limitations of running header bidding inside a WebView.
 
 ```swift
 var config = SellwildConfig(
@@ -600,37 +600,14 @@ config.prebidServer = PrebidServerConfig(
 
 ### How It Works
 
-When `prebidServer` is set on `SellwildConfig`, the SDK automatically injects `s2sConfig` into the Prebid.js configuration within the ad WebView:
+When `prebidServer` is set on `SellwildConfig`, the first `SellwildAdView.load()` call bootstraps Prebid Mobile with the configured host, account ID, and timeout. Each subsequent `load()`:
 
-```javascript
-pbjs.setConfig({
-    ortb2: {
-        app: {
-            bundle: "com.example.myapp",
-            storeurl: "https://apps.apple.com/app/id1234567890",
-            publisher: { id: "weatherbug" }
-        }
-    },
-    userSync: {
-        filterSettings: {
-            iframe: { bidders: "*", filter: "exclude" }
-        },
-        syncDelay: 5000
-    },
-    s2sConfig: {
-        accountId: "weatherbug-prod",
-        bidders: ["appnexus", "rubicon", "ix", "openx"],
-        timeout: 1500,
-        adapter: "prebidServer",
-        endpoint: {
-            p1Consent: "https://prebid.sellwild.com/openrtb2/auction",
-            noP1Consent: "https://prebid.sellwild.com/openrtb2/auction"
-        }
-    }
-});
-```
+1. Builds an OpenRTB 2.6 banner ad unit with Prebid Mobile, including any passthrough bidder parameters from `SellwildConfig.remote`.
+2. Posts the request to `prebid.sellwild.com/openrtb2/auction`. Prebid Server fans out to all configured bidders in parallel, server-side.
+3. Attaches the winning bid's keywords to a `GAMRequest` as targeting.
+4. Calls `AdManagerBannerView.load(_:)`. Google Ad Manager picks between the Prebid line item and any direct-sold demand and renders the creative through the native GMA view.
 
-Iframe-based user syncs are automatically disabled because `WKWebView` does not support third-party cookies.
+Because the auction runs natively, the SDK can supply real device signals (IDFV, App Tracking Transparency status, SKAdNetwork attribution) to Prebid Server -- a level of demand fidelity that is not possible from a WebView.
 
 ---
 
@@ -638,7 +615,7 @@ Iframe-based user syncs are automatically disabled because `WKWebView` does not 
 
 ### TCF Consent String
 
-If your app uses a Consent Management Platform (CMP) that implements the IAB TCF v2.x standard, the consent string is stored in `UserDefaults` under the key `IABTCF_TCString`. Prebid.js reads this value automatically when running inside the WebView.
+If your app uses a Consent Management Platform (CMP) that implements the IAB TCF v2.x standard, the consent string is stored in `UserDefaults` under the key `IABTCF_TCString`. Prebid Mobile reads this value automatically and forwards it on the auction request, and the Google Mobile Ads SDK reads it for its own EU User Consent enforcement.
 
 To manually pass GDPR signals into the Prebid Server request, configure your CMP to write the following `UserDefaults` keys:
 
@@ -692,7 +669,7 @@ config.adRefreshInterval = 30.0
 |-----------|------|---------|-------------|
 | `adRefreshMaxMobile` | `Int` | `0` (disabled) | Maximum refresh cycles per ad view. Set to `0` to disable. |
 | `adRefreshInterval` | `TimeInterval` | `30.0` | Seconds between refresh cycles. IAB guidelines recommend a minimum of 30 seconds. |
-| `adRefreshMax` | `Int` | `0` | Maximum refresh cycles for desktop/tablet layouts (used by the widget WebView). |
+| `adRefreshMax` | `Int` | `0` | Maximum refresh cycles, applied when `adRefreshMaxMobile` is `0`. |
 | `maxFailedAuctions` | `Int` | `3` | Number of consecutive failed auctions before the SDK stops retrying. |
 
 ### Behavior
@@ -731,13 +708,11 @@ override func viewDidAppear(_ animated: Bool) {
 `SellwildAdView` automatically cleans up in its `deinit`:
 
 - Invalidates the refresh timer.
-- Removes the `WKUserContentController` script message handler to break the retain cycle.
-
-`SellwildWidgetView` does not require manual lifecycle management. The widget handles its own cleanup when deallocated.
+- Detaches its delegate from the underlying `AdManagerBannerView` to break the retain cycle.
 
 ### Memory Considerations
 
-- Each `SellwildAdView` and `SellwildWidgetView` maintains its own `WKWebView` instance.
+- Each `SellwildAdView` maintains its own `AdManagerBannerView` instance.
 - Avoid creating ad views in tight loops or reusable cells without proper reuse logic.
 - For table or collection views, create ad views outside of `cellForRowAt` and embed them in dedicated cells.
 
@@ -786,11 +761,11 @@ Enable verbose logging to diagnose integration issues:
 config.debug = true
 ```
 
-This enables Prebid.js debug output in the WebView console. To capture WebView console logs during development, attach Safari Web Inspector to your app:
+This enables verbose Prebid Mobile and Google Mobile Ads logging on the Xcode console. Filter by the following subsystems while running on a simulator or attached device:
 
-1. On your iOS device or simulator, enable **Settings > Safari > Advanced > Web Inspector**.
-2. In Safari on your Mac, select **Develop > [Device] > [Your App]**.
-3. Console output from the Prebid.js auction will appear in the Safari Web Inspector console.
+- `Sellwild` -- SDK lifecycle and bridge events.
+- `PrebidMobile` -- the OpenRTB request and bid response.
+- `Google` -- GMA load, render, and impression events.
 
 ---
 

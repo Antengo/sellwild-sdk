@@ -372,4 +372,3 @@ compliance flags, app identity — without an app update.
 - [Configuration Reference](/guide/configuration) -- every config field documented
 - [Privacy & Consent](/guide/privacy) -- GDPR, CCPA, ATT, app-ads.txt
 - [API Reference](/guide/api-reference) -- per-platform class and method reference
-- [Validation Report](/guide/validation) -- known issues, platform-specific fixes, testing checklist
