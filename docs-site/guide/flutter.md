@@ -26,9 +26,11 @@ This guide covers everything needed to integrate the Sellwild SDK into a Flutter
 | Flutter     | 3.10.0          |
 | Dart SDK    | 3.0.0           |
 | iOS         | 13.0+           |
-| Android     | API 21+ (minSdk 21) |
-| Xcode       | 14.0+           |
+| Android     | API 23+ (minSdk 23, required by Google Mobile Ads SDK) |
+| Xcode       | 16.0+ (required by Prebid Mobile 3.x) |
 | Android Studio / Gradle | AGP 7.0+ |
+
+The native banner path uses Prebid Mobile + Google Mobile Ads. Both are wired automatically by `sellwild_sdk` 1.3.0 — you do not add them to your `pubspec.yaml`.
 
 Verify your environment before proceeding:
 
@@ -48,12 +50,14 @@ dependencies:
   sellwild_sdk: ^1.3.0
 ```
 
-The SDK pulls in two transitive dependencies automatically:
+The SDK pulls in transitive dependencies automatically:
 
-| Dependency         | Version | Purpose                       |
-|--------------------|---------|-------------------------------|
-| `webview_flutter`  | ^4.4.0  | WebView rendering for widgets |
-| `http`             | ^1.1.0  | REST API calls for listings   |
+| Dependency         | Version | Purpose                                          |
+|--------------------|---------|--------------------------------------------------|
+| `webview_flutter`  | ^4.4.0  | WebView rendering for `SellwildWidget` (marketplace listings only) |
+| `http`             | ^1.1.0  | REST API calls for listings                      |
+
+On the native side, `sellwild_sdk` re-exports the iOS `SellwildSDK` pod (which depends on `PrebidMobile` and `Google-Mobile-Ads-SDK`) and the Android `com.sellwild:sdk` artifact (which depends on `org.prebid:prebid-mobile-sdk` and `com.google.android.gms:play-services-ads`). No extra `pubspec` entries are required for banner ads.
 
 Run the install:
 
@@ -73,7 +77,16 @@ import 'package:sellwild_sdk/sellwild_sdk.dart';
 
 ### iOS -- Info.plist
 
-The SDK loads ad content in a WebView. iOS requires the following entries in `ios/Runner/Info.plist`:
+Add the Google Mobile Ads application identifier to `ios/Runner/Info.plist`:
+
+```xml
+<key>GADApplicationIdentifier</key>
+<string>ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY</string>
+```
+
+Without this entry, the GMA SDK will crash at first banner load. Use Google's official sample app ID (`ca-app-pub-3940256099942544~1458002511`) only during development.
+
+`SellwildWidget` (marketplace listings) is rendered in `WKWebView` and may load ad creatives or tracking pixels served over HTTP. If you use it, add:
 
 ```xml
 <key>NSAppTransportSecurity</key>
@@ -83,7 +96,7 @@ The SDK loads ad content in a WebView. iOS requires the following entries in `io
 </dict>
 ```
 
-This permits the WebView to load ad creatives and tracking pixels served over HTTP. It does not affect your app's own network calls.
+This setting only affects WKWebView loads; it does not affect your app's own network calls.
 
 If your app requests IDFA for attribution or frequency capping, also add:
 
@@ -107,7 +120,7 @@ For SKAdNetwork support, add the relevant network identifiers provided by your S
 
 ### Android -- AndroidManifest.xml
 
-Add the `INTERNET` permission (usually present by default) and WebView configuration to `android/app/src/main/AndroidManifest.xml`:
+Add the `INTERNET` permission (usually present by default) and the Google Mobile Ads application ID to `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -118,10 +131,9 @@ Add the `INTERNET` permission (usually present by default) and WebView configura
         android:usesCleartextTraffic="false"
         ...>
 
-        <!-- Required for multi-process WebView safety on API 28+ -->
         <meta-data
-            android:name="android.webkit.WebView.MetricOptOut"
-            android:value="true" />
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY" />
 
         <activity ...>
             <!-- existing activity config -->
@@ -130,16 +142,16 @@ Add the `INTERNET` permission (usually present by default) and WebView configura
 </manifest>
 ```
 
-If your app targets API 28+ and uses multiple processes, call `WebView.setDataDirectorySuffix()` in your `Application` subclass to avoid multi-process crashes. See the [Android WebView multi-process documentation](https://developer.android.com/reference/android/webkit/WebView#setDataDirectorySuffix(java.lang.String)) for details.
+Without `com.google.android.gms.ads.APPLICATION_ID`, the GMA SDK throws on first banner load. Use Google's official sample app ID (`ca-app-pub-3940256099942544~3347511713`) only during development.
 
 ### Android -- Minimum SDK
 
-Ensure your `android/app/build.gradle` sets a minimum SDK of 21 or higher:
+The Google Mobile Ads SDK requires `minSdkVersion` 23 or higher. Ensure your `android/app/build.gradle` is updated:
 
 ```groovy
 android {
     defaultConfig {
-        minSdkVersion 21
+        minSdkVersion 23
     }
 }
 ```
@@ -185,7 +197,7 @@ class MarketplaceScreen extends StatelessWidget {
 }
 ```
 
-**Important:** Always set `appBundleId` and `appStoreUrl`. Without these fields, Prebid.js classifies bid requests as web traffic (`ortb2.site`) instead of in-app traffic (`ortb2.app`). DSPs that segment app and web inventory will not bid, and app-ads.txt enforcement is bypassed.
+**Important:** Always set `appBundleId` and `appStoreUrl`. Without these fields, Prebid Mobile classifies bid requests as web traffic (`ortb2.site`) instead of in-app traffic (`ortb2.app`). DSPs that segment app and web inventory will not bid, and app-ads.txt enforcement is bypassed.
 
 ---
 
@@ -193,7 +205,7 @@ class MarketplaceScreen extends StatelessWidget {
 
 ### SellwildWidget
 
-The primary widget. Renders the full Sellwild marketplace experience -- listing carousel, ad placements, and header bidding -- inside a WebView.
+The marketplace widget. Renders the full Sellwild listing carousel inside a `WKWebView` (iOS) or `WebView` (Android). This is the only Sellwild surface that uses a WebView; banner ads (`SellwildBanner`) render natively as of 1.3.0.
 
 ```dart
 SellwildWidget(
@@ -226,7 +238,7 @@ SellwildWidget(
 | `onListingTap`   | `void Function(SellwildListing)?` | No       | Called when the user taps a listing               |
 | `onAdImpression` | `void Function(String)?`          | No       | Called on ad impression with the zone ID          |
 | `onLoad`         | `void Function()?`                | No       | Called when the widget finishes loading           |
-| `onError`        | `void Function(Object)?`          | No       | Called on WebView or widget errors                |
+| `onError`        | `void Function(Object)?`          | No       | Called on widget load errors                      |
 
 **Layout considerations:** `SellwildWidget` expands to fill its parent. Wrap it in a `SizedBox`, `Expanded`, or `Flexible` to control its dimensions:
 
@@ -296,7 +308,7 @@ SellwildBanner(
 
 ### SellwildListingCard
 
-A native Flutter widget for rendering a single listing. Use this when building custom listing layouts outside the WebView widget, such as a grid or list backed by the `SellwildAPIClient`.
+A native Flutter widget for rendering a single listing. Use this when building custom listing layouts outside `SellwildWidget`, such as a grid or list backed by the `SellwildAPIClient`.
 
 ```dart
 SellwildListingCard(
@@ -414,7 +426,7 @@ See [Configuration → Remote Config](./configuration#remote-config) for the ful
 
 ## Prebid Server (S2S) Configuration
 
-By default, the SDK runs Prebid.js client-side inside the WebView. For higher fill rates and to bypass WebView cookie limitations, route header bidding through Prebid Server using the `prebidServer` field.
+As of 1.3.0, banner ads run a native Prebid Mobile auction against the configured Prebid Server endpoint. Set the `prebidServer` field on `SellwildConfig` to enable it.
 
 ```dart
 final config = SellwildConfig(
@@ -441,7 +453,7 @@ final config = SellwildConfig(
 | `timeout`      | `int`          | No       | 1500    | S2S auction timeout in milliseconds                |
 | `syncEndpoint` | `String?`      | No       | null    | Cookie sync endpoint (derived from endpoint if omitted) |
 
-When `prebidServer` is set, the SDK automatically injects the `s2sConfig` block into Prebid.js before the auction runs. No additional JavaScript configuration is needed.
+When `prebidServer` is set, the native Prebid Mobile SDK is bootstrapped on first banner load and the auction runs in-process. The bid response targeting keywords are attached to the GAM `AdManagerAdRequest` so the cached creative resolves through your line items. No additional JavaScript configuration is required.
 
 For a complete Prebid Server configuration reference, see the [Prebid Server Configuration Guide](./prebid-server.md).
 
@@ -449,7 +461,7 @@ For a complete Prebid Server configuration reference, see the [Prebid Server Con
 
 ## Native Listing Fetch with SellwildAPIClient
 
-`SellwildAPIClient` is a singleton HTTP client for fetching listing data directly, without the WebView. Use it when you need listing data for native UI components like `SellwildListingCard` or your own custom widgets.
+`SellwildAPIClient` is a singleton HTTP client for fetching listing data directly. Use it when you need listing data for native UI components like `SellwildListingCard` or your own custom widgets — it bypasses `SellwildWidget` entirely.
 
 ### Basic Usage
 
@@ -549,9 +561,9 @@ final config = SellwildConfig(
 
 ### Native CMP Integration
 
-If your app uses a native Consent Management Platform (OneTrust, Didomi, Usercentrics, etc.), the consent string stored in `SharedPreferences` (Android) or `UserDefaults` (iOS) is **not** automatically bridged to the WebView. Prebid.js looks for `window.__tcfapi`, which will not exist in the isolated WebView context.
+If your app uses a native Consent Management Platform (OneTrust, Didomi, Usercentrics, etc.), the CMP writes the IAB TCF v2 string to standard storage (`SharedPreferences` / `UserDefaults`) under the `IABTCF_*` keys. Prebid Mobile reads these keys natively and forwards them to Prebid Server in `regs.ext.gdpr` and `user.ext.consent` on the OpenRTB request.
 
-**Workaround:** After your CMP collects consent, inject the TC string into the WebView before the widget loads. This requires accessing the WebView controller, which is not currently exposed by the SDK. If your app requires native CMP bridging, consider using Prebid Server (S2S mode) where GDPR consent is passed server-side via `regs.ext.gdpr` in the OpenRTB request.
+The `SellwildWidget` (marketplace surface) loads `window.__tcfapi` from inside the WebView; if your CMP does not expose a JavaScript locator there, listings still render but Prebid.js inside the widget will be GDPR-suppressed. Banner ads (native path) are unaffected.
 
 ### Prebid Server GDPR Handling
 
@@ -573,15 +585,15 @@ final config = SellwildConfig(
 
 ## Troubleshooting
 
-### Widget shows a blank white screen
+### SellwildWidget shows a blank white screen
 
-**Cause:** The WebView failed to load `https://widget.sellwild.com/partner.js`.
+**Cause:** The marketplace WebView failed to load `https://widget.sellwild.com/partner.js`.
 
 **Steps:**
 1. Verify network connectivity. Open the URL in a device browser to confirm it loads.
 2. On iOS, confirm `NSAllowsArbitraryLoadsInWebContent` is set in `Info.plist`.
 3. Check `onError` callback output for specific error messages.
-4. Enable debug mode (`debug: true` in `SellwildConfig`) and inspect the WebView console output.
+4. Enable debug mode (`debug: true` in `SellwildConfig`) and inspect device logs (Xcode console / `adb logcat`).
 
 ### Listings do not appear
 
@@ -609,29 +621,16 @@ final config = SellwildConfig(
 1. Set `appBundleId` and `appStoreUrl` in `SellwildConfig`. Without these, bid requests are classified as web traffic and most SSPs will not bid.
 2. If using Prebid Server, verify the endpoint is reachable: `curl -I https://prebid.sellwild.com/openrtb2/auction`
 3. Check that the bidder codes in `PrebidServerConfig.bidders` match your server-side configuration.
-4. Enable `debug: true` and look for Prebid.js auction results in the console.
-
-### WebView crashes on Android API 28+
-
-**Cause:** Multiple processes sharing the same WebView data directory.
-
-**Fix:** Set a unique data directory suffix in your `Application.onCreate()`:
-
-```kotlin
-// In your Android Application class
-if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-    WebView.setDataDirectorySuffix("sellwild_webview")
-}
-```
+4. Enable `debug: true` and inspect Prebid Mobile / GMA logs in Xcode console or `adb logcat`.
 
 ### GDPR regions see no ads
 
-**Cause:** Prebid.js cannot find a TCF consent string and suppresses all bidder calls.
+**Cause:** Prebid Mobile reads TCF v2 consent from the standard `IABTCF_*` storage keys; if those keys are missing or signal "no consent", bidders are suppressed.
 
 **Steps:**
-1. If using a native CMP, verify the consent string is available before loading the widget.
-2. Consider switching to Prebid Server S2S mode, where GDPR enforcement is handled server-side.
-3. Check that `tcfVersion` is set to `2` in your config if you are passing TCF v2 consent.
+1. Verify your CMP writes `IABTCF_TCString` and related keys before the first banner loads.
+2. Confirm `tcfVersion: 2` is set in your `SellwildConfig` if you want to advertise TCF v2 support.
+3. Inspect `regs.ext.gdpr` and `user.ext.consent` in the OpenRTB request via Prebid Server logs.
 
 ### Price badge shows `$` for non-USD listings
 
@@ -649,7 +648,7 @@ platform :ios, '13.0'
 
 ### Hot reload does not update the widget
 
-**Expected behavior.** The WebView content is loaded in `initState()` and is not rebuilt on hot reload. Use hot restart (`flutter run --restart`) or navigate away and back to reload the widget.
+**Expected behavior.** `SellwildWidget` content is loaded in `initState()` and is not rebuilt on hot reload. Use hot restart (`flutter run --restart`) or navigate away and back to reload it.
 
 ---
 
@@ -692,7 +691,7 @@ platform :ios, '13.0'
 | `adRefreshMaxMobile` | `int`                  | `0`                  | Max ad refreshes on mobile (0 = use `adRefreshMax`)   |
 | `adRefreshInterval`  | `Duration`             | `30 seconds`         | Time between ad refreshes                             |
 | `maxFailedAuctions`  | `int`                  | `3`                  | Stop refreshing after N consecutive no-fills          |
-| `prebidSrc`          | `String?`              | null                 | Custom Prebid.js bundle URL                           |
+| `prebidSrc`          | `String?`              | null                 | Reserved for `SellwildWidget` (marketplace) only      |
 | `floorMultiplier`    | `double`               | `1.0`                | Bid floor multiplier                                  |
 | `gppEnabled`         | `bool`                 | `false`              | Enable IAB Global Privacy Platform                    |
 | `tcfVersion`         | `int`                  | `0`                  | TCF version (0 = disabled, 2 = TCF v2)                |

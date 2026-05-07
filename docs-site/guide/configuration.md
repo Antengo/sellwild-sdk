@@ -81,8 +81,8 @@ These fields ensure bid requests are classified as in-app traffic. Without them,
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `prebidServer` | `PrebidServerConfig?` | `null` | Server-side header bidding configuration. See [PrebidServerConfig](#prebidserverconfig). When `null`, Prebid.js runs client-side adapters in the WebView. |
-| `prebidSrc` | `String?` | `null` | Custom Prebid.js bundle URL. When `null`, the SDK uses the default CDN-hosted build. |
+| `prebidServer` | `PrebidServerConfig?` | `null` | Prebid Server configuration used by the native Prebid Mobile auction. See [PrebidServerConfig](#prebidserverconfig). When `null`, no programmatic auction runs and only `gamTag` / zone fallbacks are used. |
+| `prebidSrc` | `String?` | `null` | Reserved. Used only by `SellwildWidget` (marketplace listings) when it needs to load a custom Prebid.js bundle inside its WebView surface. Does not affect banner ads. |
 
 ### Display Customization
 
@@ -219,37 +219,17 @@ prebidServer: {
 }
 ```
 
-### What Gets Injected
+### How It's Used
 
-When `prebidServer` is set, the SDK injects the following into the WebView before Prebid.js loads:
+When `prebidServer` is set, the native Prebid Mobile SDK is bootstrapped on first banner load with the configured `accountId`, `endpoint`, and `timeout`. The SDK constructs an OpenRTB 2.6 bid request containing:
 
-```js
-pbjs.setConfig({
-    ortb2: {
-        app: {
-            bundle: "com.example.myapp",
-            storeurl: "https://play.google.com/store/apps/details?id=com.example.myapp",
-            publisher: { id: "weatherbug" }
-        }
-    },
-    userSync: {
-        filterSettings: {
-            iframe: { bidders: "*", filter: "exclude" }
-        },
-        syncDelay: 5000
-    },
-    s2sConfig: {
-        accountId: "weatherbug-prod",
-        bidders: ["appnexus", "rubicon", "ix", "openx"],
-        timeout: 1500,
-        adapter: "prebidServer",
-        endpoint: {
-            p1Consent: "https://prebid.sellwild.com/openrtb2/auction",
-            noP1Consent: "https://prebid.sellwild.com/openrtb2/auction"
-        }
-    }
-});
-```
+- `app.bundle` and `app.storeurl` from your config
+- `app.publisher.id` set to your `partnerCode`
+- Real device signals (IDFV / AAID, ATT status, OS version) supplied by Prebid Mobile
+- TCF v2 consent string when GDPR applies
+- The `bidders` list as enabled adapters on the server side
+
+The bid response is matched to the GAM ad request via Prebid Mobile's targeting keywords (`hb_pb`, `hb_cache_id`, `hb_size`, …) so the line item resolves the cached creative.
 
 ### Available Bidders
 
@@ -480,34 +460,21 @@ SellwildConfig(debug: true, ...)    // Flutter
 
 | Feature | Description |
 |---------|-------------|
-| Prebid.js debug output | Enables `pbjs.setConfig({ debug: true })` in the WebView. All auction events, bid values, and errors are logged to the WebView console. |
+| Prebid Mobile debug output | Enables verbose logging in Prebid Mobile (auction events, bid values, errors). |
+| GMA debug output | Enables verbose logging in the Google Mobile Ads SDK. |
 | SDK lifecycle logging | Prints ad load, impression, click, error, and refresh events to the platform logger (`print` on iOS, `Log.d` on Android, `console.log` on RN, `debugPrint` on Flutter). |
 | Response telemetry | Logs per-bidder response times from `ext.responsetimemillis` after each auction. |
 
-### Inspecting WebView Console Output
+### Inspecting Native Logs
 
-**iOS (Simulator or Device):**
+**iOS:** Use the Xcode console or `Console.app` filtered to your app's process. Prebid Mobile and GMA logs appear with `Prebid` / `Google` prefixes.
 
-1. On your iOS device or simulator, enable **Settings > Safari > Advanced > Web Inspector**.
-2. In Safari on your Mac, select **Develop > [Device Name] > [Your App]**.
-3. The Prebid.js auction output appears in the Safari Web Inspector console.
+**Android:** Use `adb logcat` filtered by tag. Prebid Mobile uses tags starting with `Prebid`; GMA uses `Ads`.
 
-**Android:**
+**React Native:** Native logs surface in Xcode (iOS) or `adb logcat` (Android). The `<SellwildBanner>` `onError` event also reports load failures back to JS.
 
-1. Open Chrome on your development machine.
-2. Navigate to `chrome://inspect/#devices`.
-3. Your app's WebView appears under the device. Click **Inspect** to open DevTools.
-
-**React Native:**
-
-1. Enable remote debugging in the RN developer menu.
-2. Use Chrome DevTools or Flipper to view console output from `react-native-webview`.
-
-**Flutter:**
-
-1. On Android, use `chrome://inspect/#devices`.
-2. On iOS, use Safari Web Inspector as described above.
+**Flutter:** Same as native -- inspect Xcode or `adb logcat` for the platform you're running on.
 
 ### Production Warning
 
-Do not ship with `debug: true`. Debug mode increases CPU usage, network logging, and exposes auction CPM values in the console. Always set `debug: false` (or omit the field) for production builds.
+Do not ship with `debug: true`. Debug mode increases CPU usage, network logging, and exposes auction CPM values in the device log. Always set `debug: false` (or omit the field) for production builds.

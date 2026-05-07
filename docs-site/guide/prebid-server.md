@@ -21,12 +21,12 @@ This document covers the Sellwild managed Prebid Server instance at `prebid.sell
 
 ## Overview
 
-`prebid.sellwild.com` is a managed Prebid Server instance that runs OpenRTB 2.6 server-side auctions on behalf of Sellwild SDK integrations. Instead of loading individual bidder adapters in the client-side WebView (where cookie sync, IDFA access, and third-party storage are all restricted), the SDK sends a single HTTP request to Prebid Server, which fans out to all configured SSPs server-side.
+`prebid.sellwild.com` is a managed Prebid Server instance that runs OpenRTB 2.6 server-side auctions on behalf of Sellwild SDK integrations. As of 1.3.0, the SDK runs banner auctions through the native Prebid Mobile SDK in-process; Prebid Mobile sends a single HTTP request to Prebid Server, which fans out to all configured SSPs server-side.
 
 **Key benefits:**
 
-- Eliminates client-side cookie sync failures inherent to native WebViews (WKWebView, Android WebView).
-- Reduces client-side JavaScript payload -- no individual bidder adapter scripts.
+- Native device signals (IDFV / AAID, ATT status, OS version) are passed to demand instead of being scrubbed by WebView restrictions.
+- Reduces client-side JavaScript payload -- no individual bidder adapter scripts run on the device.
 - Centralizes bidder timeout enforcement on the server.
 - Enables server-side GDPR and consent enforcement via `regs.ext.gdpr`.
 - Provides deterministic auction telemetry (response times, bid prices) via response extensions.
@@ -47,13 +47,13 @@ The following diagram illustrates the OpenRTB request flow when the SDK is confi
 
 **Step-by-step:**
 
-1. The SDK builds the WebView HTML with `s2sConfig` injected into `pbjs.setConfig()`. This tells Prebid.js to route all bidder calls through Prebid Server instead of loading client-side adapters.
+1. On first banner load, the SDK initializes the native Prebid Mobile SDK with the configured `accountId`, `endpoint`, and `timeout`.
 
-2. Prebid.js constructs an OpenRTB 2.6 bid request and POSTs it to `prebid.sellwild.com/openrtb2/auction`. The request includes:
+2. Prebid Mobile constructs an OpenRTB 2.6 bid request and POSTs it to `prebid.sellwild.com/openrtb2/auction`. The request includes:
    - `imp[]` -- impression objects with ad unit sizes and floor prices.
    - `app{}` -- in-app traffic declaration with bundle ID and store URL.
-   - `regs.ext.gdpr` -- GDPR consent signal.
-   - `source.ext.prebid.bidders` -- the list of SSPs to query.
+   - `device{}` -- IDFV / AAID, OS, ATT status, and other native device signals.
+   - `regs.ext.gdpr` and `user.ext.consent` -- GDPR signal and TCF v2 consent string read from `IABTCF_*` keys.
 
 3. Prebid Server parses the request and fans out parallel OpenRTB bid requests to each configured SSP endpoint.
 
@@ -63,7 +63,7 @@ The following diagram illustrates the OpenRTB request flow when the SDK is confi
 
 6. The consolidated response is returned to the client with `seatbid[]` containing winning bids and `ext.responsetimemillis` containing per-bidder latency data.
 
-7. Prebid.js in the WebView receives the response, sets targeting keys on the ad server (GAM or zone-based), and renders the winning creative.
+7. Prebid Mobile attaches targeting keywords (`hb_pb`, `hb_cache_id`, `hb_size`, …) to the GAM `AdManagerAdRequest`. GAM matches the line item and serves the cached creative into the native ad view.
 
 ---
 
@@ -193,7 +193,7 @@ To request a bidder not listed here, contact the Sellwild ad operations team wit
 
 ### How the SDK Passes Consent
 
-When Prebid.js in the WebView constructs the OpenRTB request for Prebid Server, it includes GDPR signals in two locations:
+The native Prebid Mobile SDK reads the standard IAB TCF v2 storage keys (`IABTCF_TCString`, `IABTCF_gdprApplies`, …) that your CMP writes to platform storage (`SharedPreferences` on Android, `NSUserDefaults` on iOS). It then injects them into the OpenRTB request before sending it to Prebid Server:
 
 ```json
 {
@@ -211,23 +211,19 @@ When Prebid.js in the WebView constructs the OpenRTB request for Prebid Server, 
 ```
 
 - `regs.ext.gdpr` -- integer flag (0 or 1) indicating whether GDPR applies.
-- `user.ext.consent` -- the IAB TCF v2 consent string. Prebid.js reads this from `window.__tcfapi` if a CMP is present in the WebView.
+- `user.ext.consent` -- the IAB TCF v2 consent string read from `IABTCF_TCString`.
 
 ### Implications for Mobile Apps
 
-In a native mobile WebView, there is typically no CMP running inside the WebView. This means:
+If your CMP has not collected consent before the first auction runs, Prebid Mobile sends the request **without** a consent string. Because `gdpr.default-value` is `1`, Prebid Server then treats the request as subject to GDPR and bidders that require TCF consent will not receive it.
 
-1. Prebid.js will not find `window.__tcfapi` and will send the request **without** a consent string.
-2. Because `gdpr.default-value` is `1`, Prebid Server treats the request as subject to GDPR.
-3. Without a valid consent string, bidders that require TCF consent will not receive the bid request.
-
-**Result:** In GDPR regions, auctions may return no bids unless consent is properly configured.
+**Result:** In GDPR regions, auctions may return no bids unless consent is collected and persisted before the banner loads.
 
 **Mitigation strategies:**
 
-- **Prebid Server S2S mode** -- Configure `tcfVersion: 2` and `gppEnabled: true` in `SellwildConfig`. The web widget may handle consent through its own in-widget CMP flow.
-- **Native CMP bridging** -- Inject the TC string from your native CMP into the WebView before Prebid.js loads (see the [Flutter Integration Guide](./flutter.md#gdpr-and-consent-management)).
-- **Non-GDPR regions** -- If your app serves only non-GDPR regions, you can verify that Prebid.js sends `regs.ext.gdpr: 0` by testing with the curl commands below.
+- **Use a TCF v2-compliant CMP** -- OneTrust, Didomi, Usercentrics, and similar SDKs all write the IABTCF_* keys natively. Prebid Mobile picks them up automatically.
+- **Delay banner mount until consent is collected** -- gate `<SellwildBanner>` (or its native equivalent) behind your CMP completion callback so the first auction includes the consent string.
+- **Non-GDPR regions** -- If your app serves only non-GDPR regions, set `gdprApplies = false` in your CMP or test with `"regs": { "ext": { "gdpr": 0 } }` using the curl commands below.
 
 ---
 
@@ -529,7 +525,7 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
 
 When no SSP returns a bid (a "no-fill"), the SDK falls back through the following chain:
 
-1. **Prebid Server auction** -- if configured via `PrebidServerConfig`, Prebid.js sends the S2S request. If `seatbid` is empty, Prebid.js reports no demand.
+1. **Prebid Server auction** -- if configured via `PrebidServerConfig`, Prebid Mobile sends the S2S request. If `seatbid` is empty, Prebid Mobile reports no demand.
 
 2. **GAM passback** -- if `gamTag` is set in `SellwildConfig`, GPT requests the GAM ad unit. GAM can be configured with house ad line items that fill at a $0.00 CPM floor.
 
@@ -569,7 +565,7 @@ SellwildConfig(
 
 **Resolution:**
 1. Verify your request includes `regs.ext.gdpr` and `user.ext.consent` by testing with curl (see [Testing](#testing)).
-2. If using a native CMP, bridge the consent string to the WebView before the auction runs.
+2. If using a native CMP, ensure consent is collected and the `IABTCF_*` keys are written before the first banner auction runs.
 3. For testing, send `"regs": { "ext": { "gdpr": 0 } }` to confirm bids return when GDPR is not enforced. Do not ship this override to production for EU traffic.
 
 ### DNS Errors on Rubicon or Index Exchange with Test IDs
@@ -627,8 +623,11 @@ SellwildConfig(
 2. Reduce the `timeout` value to cap auction duration (e.g., 1000ms instead of 1500ms). Bidders that do not respond within the timeout are excluded.
 3. Reduce the number of bidders. Each additional bidder adds marginal latency to the server-side fan-out.
 
-### WebView Console Shows "pbjs.setConfig is not a function"
+### Prebid Mobile reports "Bidder timeout" or "No bids"
 
-**Cause:** Prebid.js has not loaded yet when the pre-configuration script runs.
+**Cause:** The OpenRTB request reached Prebid Server but no SSP returned a usable bid before `timeout` elapsed.
 
-**Resolution:** This should not occur with the SDK's default HTML template, which uses `pbjs.que.push()` to defer configuration until Prebid.js is ready. If you are using a custom `prebidSrc`, verify the script URL is correct and loads successfully.
+**Resolution:**
+1. Inspect Prebid Mobile logs in Xcode console / `adb logcat` for the per-bidder response times.
+2. Increase `timeout` modestly (e.g., 1500 → 1800 ms) if upstream latency is high.
+3. Verify the bidder list in `PrebidServerConfig.bidders` matches what is enabled on the server side for your `accountId`.

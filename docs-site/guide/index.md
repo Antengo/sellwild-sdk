@@ -1,6 +1,6 @@
 # Introduction
 
-The Sellwild SDK delivers programmatic display and video ads into native mobile applications through a managed Prebid Server instance. All auctions run server-to-server — no client-side JavaScript, no WebView ad rendering, no SDK bloat.
+The Sellwild SDK delivers programmatic display and video ads into native mobile applications through a managed Prebid Server instance. Banner auctions run through native Prebid Mobile and render in `AdManagerBannerView` / `AdManagerAdView` — no WebView in the ad path, no on-device JavaScript waterfall, no SDK bloat.
 
 ::: tip What's new in 1.3.0
 - **Banner ads now render natively** through the Google Mobile Ads SDK + Prebid Mobile. The ad path no longer touches a WebView.

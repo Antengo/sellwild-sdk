@@ -18,7 +18,7 @@ This page describes how the Sellwild SDK works internally -- from the moment you
 
 ## System Overview
 
-The Sellwild SDK uses a server-to-server (S2S) architecture for programmatic ad auctions. No client-side bidder adapters run on the device. A single HTTP request to the managed Prebid Server instance replaces the traditional waterfall of sequential SDK calls.
+The Sellwild SDK uses a server-to-server (S2S) architecture for programmatic ad auctions. As of 1.3.0, banner auctions run through the native Prebid Mobile SDK in-process and the winning creative is rendered by a native `AdManagerBannerView` (iOS) or `AdManagerAdView` (Android). There is no Sellwild-managed WebView in the ad path.
 
 <SystemOverviewDiagram />
 
@@ -26,10 +26,10 @@ The Sellwild SDK uses a server-to-server (S2S) architecture for programmatic ad 
 
 | Decision | Rationale |
 |----------|-----------|
-| Server-side auctions | WebViews block third-party cookies; client-side adapters cannot sync user IDs reliably |
-| `ortb2.app` injection | Ensures DSPs classify traffic as in-app (not web), enabling app-ads.txt enforcement |
-| Iframe sync disabled | WKWebView and Android WebView reject third-party cookie writes; suppresses wasted HTTP requests |
-| Single WebView per ad view | Isolates ad sessions; prevents cross-contamination between ad units |
+| Server-side auctions | A single HTTP request to managed Prebid Server replaces the traditional waterfall of sequential SDK calls. |
+| Native Prebid Mobile + GAM | Real device signals (IDFV / AAID, ATT status, SKAdNetwork) are passed to demand. Avoids GAM mobile-ads-in-WebView policy issues. |
+| `ortb2.app` injection | Ensures DSPs classify traffic as in-app (not web), enabling app-ads.txt enforcement. |
+| Marketplace widget in WebView | `SellwildWidget` (listing carousel) is intentionally rendered in `WKWebView` / Android `WebView` so the storefront stays a single web surface across platforms. |
 
 ---
 
@@ -43,13 +43,13 @@ The following diagram traces a single ad request from the app through to creativ
 
 | Phase | Typical Duration |
 |-------|-----------------|
-| Steps 1-3: WebView + Prebid.js initialization | 100-300 ms |
+| Steps 1-3: Prebid Mobile + GMA initialization (one-time per process) | 50-200 ms |
 | Step 4: HTTP request to Prebid Server | 20-50 ms (network) |
 | Steps 5-6: Server-side SSP fan-out | 50-200 ms (bounded by `timeout`) |
 | Step 7: Auction logic | < 5 ms |
-| Steps 8-9: Response + creative render | 50-150 ms |
-| **Total (after WebView init)** | **< 500 ms typical** |
-| **First request (incl. WebView init)** | **600-1000 ms** |
+| Steps 8-9: GAM ad-server call + native render | 50-150 ms |
+| **Total (warm)** | **< 500 ms typical** |
+| **First request (incl. SDK init)** | **400-800 ms** |
 
 ---
 
@@ -182,48 +182,33 @@ Request                              Response
 
 ## Creative Rendering
 
-After the auction, the SDK renders the winning creative based on its type. The creative type is indicated by `seatbid[].bid[].ext.prebid.type`.
+After the auction, Prebid Mobile attaches the winning bid's targeting keywords to the GAM ad request. GAM then loads the creative into the native ad view.
 
 ### Display (HTML Banner)
 
-The most common format. The `adm` field contains an HTML snippet.
+The most common format. Prebid Mobile sets `hb_pb`, `hb_cache_id`, `hb_size`, and bidder-specific keywords on the `AdManagerAdRequest`. GAM's line-item targeting matches the bid and serves the cached creative.
 
 ```
-Winning bid
-  adm: "<div><a href='https://...'><img src='https://...'/></a></div>"
+Prebid Mobile bid response
+  targetingKeywords: { hb_pb: "2.50", hb_cache_id: "...", hb_size: "300x250" }
     |
     v
-WebView renders HTML directly in the ad slot
+AdManagerBannerView (iOS) / AdManagerAdView (Android)
+  loads ad with targeting keywords
     |
     v
-Impression pixel fires when creative is viewable (MRC standard: 50% of
+GAM matches Prebid line item, serves cached creative
+    |
+    v
+Impression fires when creative is viewable (MRC standard: 50% of
 pixels visible for 1 continuous second)
 ```
 
-The SDK sizes the WebView to match the ad dimensions (`w` x `h` from the bid). CSS within the WebView prevents scrolling and overflow.
+The native ad view sizes itself to the declared `AdSize` (e.g., 320x50, 300x250). GAM's own ad-creative WebView lives inside the GMA SDK and is not exposed by Sellwild.
 
 ### Video (VAST)
 
-When the winning bid is a video creative, `adm` contains VAST XML.
-
-```
-Winning bid
-  adm: "<VAST version='3.0'>...</VAST>"
-    |
-    v
-Prebid.js parses VAST XML
-    |
-    v
-Video player renders in the ad slot WebView
-    |
-    +-- Inline media playback enabled (allowsInlineMediaPlayback = true)
-    +-- No fullscreen takeover on iPhone
-    +-- Autoplay with muted audio (per platform policy)
-    |
-    v
-VAST tracking events fire at quartile milestones:
-  - start, firstQuartile, midpoint, thirdQuartile, complete
-```
+Prebid Mobile supports video bids through the same targeting-keyword path. GAM resolves the cached VAST and hands it to its video player. The Sellwild SDK does not parse VAST itself.
 
 ### Companion Images
 
@@ -310,7 +295,7 @@ The SDK tracks ad lifecycle events and reports them to the Sellwild analytics ba
 
 ```
 +------------------+     +-------------------+     +-------------------+
-| WebView          |     | Native SDK Layer  |     | Sellwild Backend  |
+| GMA Ad View      |     | Native SDK Layer  |     | Sellwild Backend  |
 |                  |     |                   |     |                   |
 | Ad creative      |     |                   |     |                   |
 | renders          |     |                   |     |                   |
@@ -349,7 +334,7 @@ The SDK tracks ad lifecycle events and reports them to the Sellwild analytics ba
 
 | Event | Trigger | Data Included |
 |-------|---------|---------------|
-| `AD_LOADED` | Creative markup rendered in WebView | Zone ID, ad size, bidder |
+| `AD_LOADED` | GMA loaded the creative into the native ad view | Zone ID, ad size, bidder |
 | `IMPRESSION` | MRC viewability threshold met | Zone ID, CPM, bidder, creative ID |
 | `AD_CLICK` | User tap on the creative | Zone ID, destination URL |
 | `AD_ERROR` | Auction failure or render error | Error message, zone ID |
@@ -371,6 +356,6 @@ In addition to SDK-level events, each winning creative fires its own tracking pi
 
 - **SSP impression pixels:** Embedded in the creative `adm` markup. Fire when the creative renders.
 - **VAST tracking events:** For video creatives, milestone events (start, quartiles, complete) fire per the VAST specification.
-- **Viewability vendors:** If the creative includes Moat, IAS, or DoubleVerify scripts, they execute within the WebView sandbox.
+- **Viewability vendors:** If the creative includes Moat, IAS, or DoubleVerify scripts, they execute inside GMA's own ad-creative surface.
 
 These third-party pixels operate independently of the SDK event pipeline. The SDK does not intercept or modify them.

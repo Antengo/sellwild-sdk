@@ -14,8 +14,8 @@ hero:
       link: https://github.com/Antengo/sellwild-sdk
 
 features:
-  - title: Server-Side Auctions
-    details: All Prebid auctions run through prebid.sellwild.com. No on-device waterfall, no JavaScript, no WebView ad rendering. Sub-200ms response times across all SSPs.
+  - title: Native Banner Ads
+    details: Banner auctions run through Prebid Mobile and render in AdManagerBannerView (iOS) / AdManagerAdView (Android). No WebView in the ad path, no on-device waterfall. Sub-200ms response times across all SSPs.
   - title: One Integration
     details: Replace 10-40 individual ad SDKs with a single lightweight package. iOS (Swift), Android (Kotlin), React Native, and Flutter. Under 2 MB added to your app.
   - title: 400+ SSP Adapters
