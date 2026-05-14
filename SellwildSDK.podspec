@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'SellwildSDK'
-  s.version          = '1.3.0'
+  s.version          = '1.3.1'
   s.summary          = 'Sellwild mobile advertising SDK for iOS'
   s.description      = <<-DESC
     SellwildSDK provides native iOS components for embedding
@@ -16,6 +16,11 @@ Pod::Spec.new do |s|
 
   s.ios.deployment_target = '13.0'
   s.swift_version = '5.5'
+
+  # Required because GMA + UMP ship as static binaries; consumers should add
+  # `use_frameworks! :linkage => :static` to their Podfile (or rely on this
+  # static_framework flag to satisfy the transitive constraint).
+  s.static_framework = true
 
   s.source_files = 'ios/Sources/SellwildSDK/**/*.swift'
   s.frameworks = 'UIKit', 'WebKit', 'Foundation'

@@ -26,12 +26,12 @@ let package = Package(
                 .product(name: "PrebidMobile", package: "prebid-mobile-ios"),
                 .product(name: "GoogleMobileAds", package: "swift-package-manager-google-mobile-ads"),
             ],
-            path: "Sources/SellwildSDK"
+            path: "ios/Sources/SellwildSDK"
         ),
         .testTarget(
             name: "SellwildSDKTests",
             dependencies: ["SellwildSDK"],
-            path: "Tests/SellwildSDKTests"
+            path: "ios/Tests/SellwildSDKTests"
         ),
     ]
 )

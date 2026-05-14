@@ -8,6 +8,8 @@ DerivedData/
 xcuserdata/
 Pods/
 *.xcworkspace/xcuserdata/
+Package.resolved
+.swiftpm/
 
 # Android / Gradle
 .gradle/
