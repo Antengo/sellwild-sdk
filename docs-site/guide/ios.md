@@ -39,28 +39,9 @@ As of 1.3.0 the SDK depends on `PrebidMobile` (~> 3.3) and `Google-Mobile-Ads-SD
 
 ## Installation
 
-### CocoaPods (recommended)
+The SDK is available through both Swift Package Manager and CocoaPods. SPM is the recommended path for new integrations. Pick one — don't mix them in the same project.
 
-Add the following to your `Podfile`:
-
-```ruby
-platform :ios, '13.0'
-
-target 'YourApp' do
-  use_frameworks!
-  pod 'SellwildSDK', '~> 1.3'
-end
-```
-
-Then run:
-
-```bash
-pod install
-```
-
-Open the generated `.xcworkspace` file to continue development.
-
-### Swift Package Manager
+### Swift Package Manager (recommended)
 
 1. In Xcode, select **File > Add Package Dependencies**.
 2. Enter the repository URL:
@@ -69,16 +50,18 @@ Open the generated `.xcworkspace` file to continue development.
 https://github.com/Antengo/sellwild-sdk.git
 ```
 
-3. Set the dependency rule to **Up to Next Major Version** starting at `1.3.0`.
+3. Set the dependency rule to **Up to Next Major Version** starting at `1.3.1`.
 4. Select the **SellwildSDK** library product and add it to your app target.
 
-Alternatively, add the dependency directly in your `Package.swift`:
+No credentials are required — the repository is public. Xcode will resolve `SellwildSDK`, `PrebidMobile`, `GoogleMobileAds`, and `GoogleUserMessagingPlatform` automatically.
+
+If you prefer to declare the dependency in a `Package.swift` manifest:
 
 ```swift
 dependencies: [
     .package(
         url: "https://github.com/Antengo/sellwild-sdk.git",
-        from: "1.3.0"
+        from: "1.3.1"
     )
 ],
 targets: [
@@ -90,6 +73,29 @@ targets: [
     )
 ]
 ```
+
+### CocoaPods
+
+Add the following to your `Podfile`:
+
+```ruby
+platform :ios, '13.0'
+
+target 'YourApp' do
+  use_frameworks! :linkage => :static
+  pod 'SellwildSDK', '~> 1.3'
+end
+```
+
+`:linkage => :static` is required because `Google-Mobile-Ads-SDK` and `GoogleUserMessagingPlatform` are distributed as static binaries.
+
+Then run:
+
+```bash
+pod install
+```
+
+Open the generated `.xcworkspace` file to continue development.
 
 ---
 

@@ -11,10 +11,21 @@ For full integration guides with all ad formats, listing cards, GDPR, lifecycle 
 
 ### 1. Install
 
+**Swift Package Manager (recommended)** -- In Xcode, **File > Add Package Dependencies** and enter:
+
+```
+https://github.com/Antengo/sellwild-sdk.git
+```
+
+Pick the **SellwildSDK** library product, rule **Up to Next Major Version** from `1.3.1`. No credentials are required — the repository is public.
+
 **CocoaPods** -- Add to your `Podfile`:
 
 ```ruby
-pod 'SellwildSDK', '~> 1.3'
+target 'YourApp' do
+  use_frameworks! :linkage => :static
+  pod 'SellwildSDK', '~> 1.3'
+end
 ```
 
 Then run `pod install` and open the `.xcworkspace` file.
