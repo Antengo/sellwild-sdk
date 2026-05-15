@@ -14,10 +14,11 @@ let package = Package(
         ),
     ],
     dependencies: [
-        // Prebid Mobile SDK (native auction).
-        .package(url: "https://github.com/prebid/prebid-mobile-ios.git", from: "3.3.0"),
-        // Google Mobile Ads SDK (native render).
-        .package(url: "https://github.com/googleads/swift-package-manager-google-mobile-ads.git", from: "13.0.0"),
+        // Prebid Mobile SDK (native auction). Supports 3.0.1 through 3.x.
+        // (3.0.0 has an upstream mixed-language source file issue; bump to 3.0.1+.)
+        .package(url: "https://github.com/prebid/prebid-mobile-ios.git", "3.0.1"..<"4.0.0"),
+        // Google Mobile Ads SDK (native render). Supports 12.0 through 13.x.
+        .package(url: "https://github.com/googleads/swift-package-manager-google-mobile-ads.git", "12.0.0"..<"14.0.0"),
     ],
     targets: [
         .target(
