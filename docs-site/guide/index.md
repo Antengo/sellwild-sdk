@@ -2,6 +2,10 @@
 
 The Sellwild SDK delivers programmatic display and video ads into native mobile applications through a managed Prebid Server instance. Banner auctions run through native Prebid Mobile and render in `AdManagerBannerView` / `AdManagerAdView` — no WebView in the ad path, no on-device JavaScript waterfall, no SDK bloat.
 
+::: tip What's new in 1.3.2 (iOS)
+- **Widened GMA + Prebid Mobile version ranges.** SellwildSDK iOS 1.3.2 supports `Google-Mobile-Ads-SDK` `>= 12.0, < 14.0` and `PrebidMobile` `>= 3.0.1, < 4.0`. If your app pins to GMA 12.x, you can now adopt SellwildSDK without forcing a 13.x jump. See the [iOS guide](/guide/ios#installation) for details.
+:::
+
 ::: tip What's new in 1.3.0
 - **Banner ads now render natively** through the Google Mobile Ads SDK + Prebid Mobile. The ad path no longer touches a WebView.
 - **`SellwildWidget` (marketplace listings) still uses a WebView** for listing rendering — that's intentional and unchanged.

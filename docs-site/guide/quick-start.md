@@ -17,7 +17,7 @@ For full integration guides with all ad formats, listing cards, GDPR, lifecycle 
 https://github.com/Antengo/sellwild-sdk.git
 ```
 
-Pick the **SellwildSDK** library product, rule **Up to Next Major Version** from `1.3.1`. No credentials are required — the repository is public.
+Pick the **SellwildSDK** library product, rule **Up to Next Major Version** from `1.3.2`. No credentials are required — the repository is public.
 
 **CocoaPods** -- Add to your `Podfile`:
 

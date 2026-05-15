@@ -33,7 +33,11 @@ Integration guide for the Sellwild native ad SDK. The SDK runs server-side heade
 | Swift | 5.5 or later |
 | macOS (build host) | 14.0 (Sonoma) |
 
-As of 1.3.0 the SDK depends on `PrebidMobile` (~> 3.3) and `Google-Mobile-Ads-SDK` (~> 13.0) for native banner rendering. Both are pulled in transitively by CocoaPods / SPM; no additional declaration is required. The marketplace `SellwildWidget` continues to use `WebKit`, which ships with iOS.
+As of 1.3.2 the SDK supports `PrebidMobile` `>= 3.0.1, < 4.0` and `Google-Mobile-Ads-SDK` `>= 12.0, < 14.0` for native banner rendering. Both are pulled in transitively by CocoaPods / SPM; no additional declaration is required. If your app already pins to a specific version of GMA (12.x or 13.x) or Prebid Mobile (3.x), the SDK will resolve against it. The marketplace `SellwildWidget` continues to use `WebKit`, which ships with iOS.
+
+::: tip Upgrading from GMA 11.x
+SellwildSDK requires `Google-Mobile-Ads-SDK` 12.0 or newer. If your project is still on GMA 11.x, see Google's [11.x → 12.x migration guide](https://developers.google.com/admob/ios/migration). You do not need to jump to GMA 13.x — 12.x is fully supported.
+:::
 
 ---
 
@@ -50,7 +54,7 @@ The SDK is available through both Swift Package Manager and CocoaPods. SPM is th
 https://github.com/Antengo/sellwild-sdk.git
 ```
 
-3. Set the dependency rule to **Up to Next Major Version** starting at `1.3.1`.
+3. Set the dependency rule to **Up to Next Major Version** starting at `1.3.2`.
 4. Select the **SellwildSDK** library product and add it to your app target.
 
 No credentials are required — the repository is public. Xcode will resolve `SellwildSDK`, `PrebidMobile`, `GoogleMobileAds`, and `GoogleUserMessagingPlatform` automatically.
@@ -61,7 +65,7 @@ If you prefer to declare the dependency in a `Package.swift` manifest:
 dependencies: [
     .package(
         url: "https://github.com/Antengo/sellwild-sdk.git",
-        from: "1.3.1"
+        from: "1.3.2"
     )
 ],
 targets: [
