@@ -136,7 +136,13 @@ The Google Mobile Ads SDK refuses to initialize without an `APPLICATION_ID` meta
 </application>
 ```
 
-Use the AdMob/Ad Manager app ID issued by your Sellwild account manager. Apps built without this meta-data will crash on first ad load.
+Use **your own** AdMob / Ad Manager app ID — the one you already use for your Android app. Google Mobile Ads is initialized once per process, so the SDK reuses your host app's `APPLICATION_ID`; Sellwild does not issue or override it. Ad unit / zone IDs come from your Sellwild CDN config (`widget.sellwild.com/app/{partnerCode}/{slug}.json`) and map to GAM ad units on our side.
+
+- **Self-managed inventory (most common):** Register your app at [admanager.google.com](https://admanager.google.com) or [apps.admob.com](https://apps.admob.com); Google issues a `ca-app-pub-...~...` ID.
+- **Managed inventory:** If Sellwild operates your GAM network, your account manager will provision the app ID for you.
+- **Development only:** Google's sample ID `ca-app-pub-3940256099942544~1458002511` works for local builds but **must not** ship to Google Play.
+
+Apps built without this meta-data will crash on first ad load.
 
 ### Required Permissions
 
