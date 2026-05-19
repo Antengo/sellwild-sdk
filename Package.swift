@@ -30,6 +30,11 @@ let package = Package(
             path: "ios/Sources/SellwildSDK"
         ),
         .testTarget(
+            name: "DocsVerifyTests",
+            dependencies: ["SellwildSDK"],
+            path: "ios/Tests/DocsVerifyTests"
+        ),
+        .testTarget(
             name: "SellwildSDKTests",
             dependencies: ["SellwildSDK"],
             path: "ios/Tests/SellwildSDKTests"
