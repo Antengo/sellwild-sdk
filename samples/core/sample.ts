@@ -136,7 +136,7 @@ async function runListingsFetch() {
     }
   } catch (err) {
     console.error('Fetch failed:', (err as Error).message)
-    console.log('(This is expected if running without network access to api.sellwild.com)')
+    console.log('(This is expected if running without network access to the listings URL)')
   }
 
   console.log()

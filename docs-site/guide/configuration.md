@@ -65,7 +65,7 @@ The primary configuration object passed to all SDK components. Every ad view, wi
 | Field | Type | Description |
 |-------|------|-------------|
 | `partnerCode` | `String` | Your Sellwild partner identifier. Used as `ortb2.app.publisher.id` in bid requests. **Required.** |
-| `listingsUrl` | `String?` | Full URL to the Sellwild listings API endpoint. Optional in 1.2.0+ — when unset, the SDK derives `${apiBaseUrl}/widget/listings?partner=${partnerCode}`. CDN key: `LISTINGS`. |
+| `listingsUrl` | `String?` | Full URL to the listings JSON endpoint that the marketplace widget renders from. Populated automatically by `configure(partnerCode, slug)` from the CDN config (`LISTINGS` key). Set explicitly only if you are self-hosting the listings JSON. |
 
 ### App Identity
 
@@ -75,7 +75,6 @@ These fields ensure bid requests are classified as in-app traffic. Without them,
 |-------|------|---------|-------------|
 | `appBundleId` | `String?` | `null` | App bundle identifier (e.g., `"com.example.myapp"`). Sent as `ortb2.app.bundle`. |
 | `appStoreUrl` | `String?` | `null` | App store listing URL. Sent as `ortb2.app.storeurl`. Required for app-ads.txt verification. |
-| `apiBaseUrl` | `String` | `"https://api.sellwild.com"` | Base URL for Sellwild API calls. Override for staging environments. |
 
 ### Prebid Server
 

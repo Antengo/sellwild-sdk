@@ -27,7 +27,6 @@ public struct SellwildConfig: Codable {
     public var listingsUrl: String
 
     // App identity
-    public var apiBaseUrl: String               // default: "https://api.sellwild.com"
     public var appBundleId: String?
     public var appStoreUrl: String?
 

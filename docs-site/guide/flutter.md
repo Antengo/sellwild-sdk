@@ -676,7 +676,6 @@ platform :ios, '13.0'
 | `listingsUrl`        | `String`               | (required)           | API endpoint for listing data                         |
 | `slug`               | `String`               | `''`                 | Partner slug for URL construction                     |
 | `name`               | `String`               | `''`                 | Partner display name                                  |
-| `apiBaseUrl`         | `String`               | `https://api.sellwild.com` | Base URL for API calls                          |
 | `title`              | `String?`              | null                 | Widget header title                                   |
 | `linkText`           | `String?`              | `'View all'`         | Text for the "view all" link                          |
 | `buyNowText`         | `String?`              | `'Buy now'`          | Text for the buy button                               |

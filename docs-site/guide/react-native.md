@@ -210,7 +210,7 @@ For production, use a network security configuration instead:
   <domain-config cleartextTrafficPermitted="false">
     <domain includeSubdomains="true">prebid.sellwild.com</domain>
     <domain includeSubdomains="true">widget.sellwild.com</domain>
-    <domain includeSubdomains="true">api.sellwild.com</domain>
+    <domain includeSubdomains="true">cache.sellwild.com</domain>
   </domain-config>
 </network-security-config>
 ```

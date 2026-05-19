@@ -808,7 +808,6 @@ Primary configuration object. All ad views and widgets read from this struct.
 public struct SellwildConfig: Codable {
     public var partnerCode: String
     public var listingsUrl: String?              // populated from CDN by configure(); set explicitly only for the static-config path
-    public var apiBaseUrl: String                // default: "https://api.sellwild.com" (internal; do not set)
     public var appBundleId: String?
     public var appStoreUrl: String?
     public var prebidServer: PrebidServerConfig?
