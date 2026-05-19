@@ -47,7 +47,7 @@ import { SellwildWidget } from '@sellwild/react-native-sdk'
 <SellwildWidget
   config={{
     partnerCode: 'mysite',
-    listingsUrl: 'https://api.sellwild.com/widget/listings?partner=mysite',
+    listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
     gamTag: '/12345/my-ad-unit',
   }}
   style={{ flex: 1 }}
@@ -110,7 +110,7 @@ import SellwildSDK
 
 var config = SellwildConfig(
     partnerCode: "mysite",
-    listingsUrl: "https://api.sellwild.com/widget/listings?partner=mysite"
+    listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
 )
 config.gamTag = "/12345/my-ad-unit"
 
@@ -134,7 +134,7 @@ import SellwildSDK
 struct ContentView: View {
     let config = SellwildConfig(
         partnerCode: "mysite",
-        listingsUrl: "https://api.sellwild.com/widget/listings?partner=mysite"
+        listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
     )
 
     var body: some View {
@@ -166,7 +166,7 @@ import com.sellwild.sdk.*
 
 val config = SellwildConfig(
     partnerCode = "mysite",
-    listingsUrl = "https://api.sellwild.com/widget/listings?partner=mysite",
+    listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
     gamTag = "/12345/my-ad-unit",
 )
 
@@ -216,7 +216,7 @@ import 'package:sellwild_sdk/sellwild_sdk.dart';
 
 const config = SellwildConfig(
   partnerCode: 'mysite',
-  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=mysite',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
 );
 
 // Full widget

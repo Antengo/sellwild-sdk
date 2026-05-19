@@ -196,6 +196,14 @@ If you intend to collect the IDFA for ad targeting (see [App Tracking Transparen
 
 The following example demonstrates a complete `UIViewController` that displays a 300x250 MREC ad and a 320x50 banner ad using server-side header bidding through Prebid Server.
 
+::: tip Recommended: use `configure()`
+For most integrations, call `SellwildSDK.configure(partnerCode:, slug:)` instead
+of building `SellwildConfig` by hand. It fetches your partner config from
+`https://widget.sellwild.com/app/{partnerCode}/{slug}.json` and populates every
+field below — `listingsUrl`, `prebidServer`, ad zones, refresh intervals —
+automatically. The static example below is shown only to document each field.
+:::
+
 ```swift
 import UIKit
 import SellwildSDK
@@ -204,10 +212,15 @@ final class AdViewController: UIViewController {
 
     // MARK: - Configuration
 
+    // Static example. In production prefer:
+    //   let config = await SellwildSDK.configure(
+    //       partnerCode: "weatherbug",
+    //       slug: "weatherbug-weatherbug"
+    //   )
     private lazy var config: SellwildConfig = {
         var c = SellwildConfig(
             partnerCode: "weatherbug",
-            listingsUrl: "https://api.sellwild.com/widget/listings?partner=weatherbug"
+            listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
         )
 
         // App identity for OpenRTB ortb2.app signals
@@ -338,7 +351,7 @@ struct AdContentView: View {
     private let config: SellwildConfig = {
         var c = SellwildConfig(
             partnerCode: "weatherbug",
-            listingsUrl: "https://api.sellwild.com/widget/listings?partner=weatherbug"
+            listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
         )
         c.appBundleId = Bundle.main.bundleIdentifier ?? "com.example.myapp"
         c.appStoreUrl = "https://apps.apple.com/app/id1234567890"
@@ -420,7 +433,7 @@ final class ListingsViewController: UIViewController {
 
     private let config = SellwildConfig(
         partnerCode: "weatherbug",
-        listingsUrl: "https://api.sellwild.com/widget/listings?partner=weatherbug"
+        listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
     )
 
     private var listings: [SellwildListing] = []
@@ -568,7 +581,7 @@ import SellwildSDK
 Task {
     let config = await SellwildSDK.configure(
         partnerCode: "weatherbug",
-        slug: "weatherbug-main"
+        slug: "weatherbug-weatherbug"
     ) { c in
         // Optional: override CDN values with app-controlled ones.
         c.appBundleId = Bundle.main.bundleIdentifier
@@ -592,7 +605,7 @@ The SDK routes header bidding through Prebid Server. The auction is initiated in
 ```swift
 var config = SellwildConfig(
     partnerCode: "weatherbug",
-    listingsUrl: "https://api.sellwild.com/widget/listings?partner=weatherbug"
+    listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
 )
 
 config.prebidServer = PrebidServerConfig(
@@ -794,8 +807,8 @@ Primary configuration object. All ad views and widgets read from this struct.
 ```swift
 public struct SellwildConfig: Codable {
     public var partnerCode: String
-    public var listingsUrl: String
-    public var apiBaseUrl: String               // default: "https://api.sellwild.com"
+    public var listingsUrl: String?              // populated from CDN by configure(); set explicitly only for the static-config path
+    public var apiBaseUrl: String                // default: "https://api.sellwild.com" (internal; do not set)
     public var appBundleId: String?
     public var appStoreUrl: String?
     public var prebidServer: PrebidServerConfig?
@@ -877,8 +890,11 @@ SellwildAPIClient.shared
 // Callback-based
 SellwildAPIClient.shared.fetchListings(config: config) { result in
     switch result {
-    case .success(let response): // response.listings: [SellwildListing]
-    case .failure(let error):    // handle error
+    case .success(let response):
+        // response.listings: [SellwildListing]
+        print("Loaded \(response.listings.count) listings")
+    case .failure(let error):
+        print("Listings error: \(error.localizedDescription)")
     }
 }
 

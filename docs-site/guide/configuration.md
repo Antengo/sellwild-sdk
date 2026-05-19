@@ -10,27 +10,27 @@ In 1.2.0+, partners integrate the SDK with two strings:
 
 ```ts
 // React Native / TypeScript
-const config = await configure('weatherbug', 'weatherbug-main')
+const config = await configure('weatherbug', 'weatherbug-weatherbug')
 ```
 
 ```swift
 // iOS
 let config = await SellwildSDK.configure(
-    partnerCode: "weatherbug", slug: "weatherbug-main"
+    partnerCode: "weatherbug", slug: "weatherbug-weatherbug"
 )
 ```
 
 ```kotlin
 // Android
 val config = SellwildSDK.configure(
-    partnerCode = "weatherbug", slug = "weatherbug-main"
+    partnerCode = "weatherbug", slug = "weatherbug-weatherbug"
 )
 ```
 
 ```dart
 // Flutter
 final config = await SellwildSDK.configure(
-  partnerCode: 'weatherbug', slug: 'weatherbug-main',
+  partnerCode: 'weatherbug', slug: 'weatherbug-weatherbug',
 );
 ```
 
@@ -374,13 +374,13 @@ If the fetch fails (network error, timeout, 404), the SDK falls back silently to
 ```ts [React Native / TypeScript]
 import { configure } from '@sellwild/react-native-sdk';
 
-const config = await configure('weatherbug', 'weatherbug-main');
+const config = await configure('weatherbug', 'weatherbug-weatherbug');
 ```
 
 ```swift [iOS]
 let config = await SellwildSDK.configure(
     partnerCode: "weatherbug",
-    slug: "weatherbug-main"
+    slug: "weatherbug-weatherbug"
 ) { c in
     c.appBundleId = Bundle.main.bundleIdentifier
 }
@@ -389,14 +389,14 @@ let config = await SellwildSDK.configure(
 ```kotlin [Android]
 val config = SellwildSDK.configure(
     partnerCode = "weatherbug",
-    slug = "weatherbug-main",
+    slug = "weatherbug-weatherbug",
 ) { c -> c.copy(appBundleId = packageName) }
 ```
 
 ```dart [Flutter]
 final config = await SellwildSDK.configure(
   partnerCode: 'weatherbug',
-  slug: 'weatherbug-main',
+  slug: 'weatherbug-weatherbug',
 );
 ```
 

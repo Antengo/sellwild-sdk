@@ -479,7 +479,7 @@ import { buildConfig, type SellwildConfig, type PartialSellwildConfig } from '@s
 
 const config: SellwildConfig = buildConfig({
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://api.sellwild.com/listings/weatherbug',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
 });
 ```
 
@@ -494,7 +494,7 @@ const config: SellwildConfig = buildConfig({
 ```ts
 import { configure } from '@sellwild/react-native-sdk';
 
-const config = await configure('weatherbug', 'weatherbug-main');
+const config = await configure('weatherbug', 'weatherbug-weatherbug');
 ```
 
 The remote config is fetched from `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Merge order:
@@ -515,7 +515,7 @@ The remote config is fetched from `https://widget.sellwild.com/app/{partnerCode}
 | `overrides` | `PartialSellwildConfig` | — | App-controlled values that win over CDN values. |
 
 ```ts
-const config = await configure('weatherbug', 'weatherbug-main', {
+const config = await configure('weatherbug', 'weatherbug-weatherbug', {
   timeout: 1500,
   overrides: { debug: __DEV__ },
 });
@@ -535,8 +535,8 @@ Async helper that merges remote config onto a static base config. Superseded by 
 import { buildConfigWithRemote } from '@sellwild/react-native-sdk';
 
 const config = await buildConfigWithRemote(
-  { partnerCode: 'weatherbug', listingsUrl: 'https://api.sellwild.com/listings/weatherbug' },
-  'weatherbug-main',
+  { partnerCode: 'weatherbug', listingsUrl: 'https://your-cms-or-cache.example.com/listings.json' },
+  'weatherbug-weatherbug',
 );
 ```
 
@@ -563,7 +563,7 @@ Immutable configuration class. All fields are `final`.
 ```dart
 final config = SellwildConfig(
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   appBundleId: 'com.aws.android',
   appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
   prebidServer: PrebidServerConfig(

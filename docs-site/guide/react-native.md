@@ -98,12 +98,11 @@ import { SellwildBanner } from '@sellwild/react-native-sdk';
 
 <SellwildBanner
   config={config}
-  adSize="320x50"
+  size="320x50"
   zoneId="home_top_banner"
-  onAdLoaded={() => console.log('loaded')}
-  onAdImpression={() => console.log('impression')}
-  onAdClicked={() => console.log('click')}
-  onAdFailed={(e) => console.warn('failed', e.nativeEvent.message)}
+  onImpression={() => console.log('impression')}
+  onClick={() => console.log('click')}
+  onError={(err) => console.warn('failed', err.message)}
 />
 ```
 
@@ -112,17 +111,17 @@ import { SellwildBanner } from '@sellwild/react-native-sdk';
 | Prop | Type | Description |
 |------|------|-------------|
 | `config` | `SellwildConfig` | Resolved config (typically from `configure(partnerCode, slug)`). |
-| `adSize` | `string` | Banner size, e.g. `"320x50"`, `"300x250"`, `"728x90"`. |
-| `zoneId` | `string` | Ad zone / placement identifier, mapped to a GAM ad unit on the server. |
+| `size` | `AdSize` | Banner size — one of `'320x50'`, `'300x250'`, `'728x90'`, `'160x600'`, `'300x600'`, `'1x1'`. |
+| `zoneId` | `number \| string` | Ad zone / placement identifier, mapped to a GAM ad unit on the server. |
+| `style` | `ViewStyle?` | Optional override for the host `View` style. The component already locks width/height to the chosen `size`. |
 
-**Events** (all are React Native synthetic events with a `nativeEvent` payload):
+**Events**
 
-| Event | Fires when |
-|-------|-----------|
-| `onAdLoaded` | The native `AdManagerBannerView` / `AdManagerAdView` finishes rendering. |
-| `onAdImpression` | GMA reports an impression. |
-| `onAdClicked` | The user taps the ad. |
-| `onAdFailed` | The Prebid auction or GMA load fails. `nativeEvent.message` contains a human-readable reason. |
+| Event | Signature | Fires when |
+|-------|-----------|-----------|
+| `onImpression` | `() => void` | GMA reports an impression on the rendered creative. |
+| `onClick` | `() => void` | The user taps the ad. |
+| `onError` | `(err: Error) => void` | The Prebid auction or GMA load fails. `err.message` contains a human-readable reason. |
 
 **Required platform setup.** GMA still needs `GADApplicationIdentifier` (iOS `Info.plist`) and `com.google.android.gms.ads.APPLICATION_ID` (Android `AndroidManifest.xml`) to initialize. See the [iOS Configuration](#ios-configuration) and [Android Configuration](#android-configuration) sections below.
 
@@ -230,6 +229,21 @@ Reference it in your manifest:
 
 The following `App.tsx` demonstrates a complete integration with banner ads and the full listing widget.
 
+::: tip Recommended: use `configure()`
+For most integrations, call `configure(partnerCode, slug)` instead of building
+a config object by hand. It fetches your partner config from
+`https://widget.sellwild.com/app/{partnerCode}/{slug}.json` and populates every
+field below automatically:
+
+```tsx
+import { configure } from '@sellwild/react-native-sdk';
+
+const config = await configure('weatherbug', 'weatherbug-weatherbug');
+```
+
+The static example below is shown only to document each field.
+:::
+
 ```tsx
 // App.tsx
 import React, { useCallback } from 'react';
@@ -248,7 +262,7 @@ import {
 // ---------------------------------------------------------------------------
 const partialConfig: PartialSellwildConfig = {
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://api.sellwild.com/listings/weatherbug',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
 
   // Mobile app identity -- required for proper in-app bid classification.
   appBundleId: 'com.aws.android',
@@ -274,7 +288,7 @@ const partialConfig: PartialSellwildConfig = {
 const sdkConfig: SellwildConfig = buildConfig(partialConfig);
 
 // Tip: in 1.2.0+ the first-class integration path is
-// `await configure('weatherbug', 'weatherbug-main')`, which fetches every
+// `await configure('weatherbug', 'weatherbug-weatherbug')`, which fetches every
 // runtime field — listings URL, ad zones, refresh intervals, waterfall
 // partners — from the Sellwild CDN. See `Configuration > Remote Config`.
 
@@ -405,7 +419,7 @@ import {
 
 const sdkConfig: SellwildConfig = buildConfig({
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://api.sellwild.com/listings/weatherbug',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   appBundleId: 'com.aws.android',
   prebidServer: {
     accountId: 'weatherbug',
@@ -923,7 +937,7 @@ Pass GDPR parameters through the `SellwildConfig`:
 ```ts
 const config: PartialSellwildConfig = {
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://api.sellwild.com/listings/weatherbug',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
 
   // GDPR consent signals
   gdprApplies: true,
@@ -1098,15 +1112,35 @@ interface SellwildPhoto {
 }
 ```
 
+#### SellwildUser
+
+```ts
+interface SellwildUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  membershipType: string;
+  trustLevel: string;
+  has_photo: string;
+  photos: SellwildPhoto[];
+  isPhoneVerified: boolean;
+}
+```
+
 ### Utility Functions
 
 ```ts
-import { buildConfig, currencyToSymbol } from '@sellwild/react-native-sdk';
+import {
+  buildConfig,
+  currencyToSymbol,
+  type SellwildConfig,
+} from '@sellwild/react-native-sdk';
 
 // Build a full SellwildConfig from partial input with defaults applied
 const config: SellwildConfig = buildConfig({
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://api.sellwild.com/listings/weatherbug',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
 });
 
 // Convert ISO currency code to symbol

@@ -40,7 +40,7 @@ import {
 // Provide appBundleId so Prebid.js declares in-app (ortb2.app) inventory.
 const config = buildConfig({
   partnerCode: 'demo',
-  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=demo&count=10',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
 
   // Required: declares in-app inventory for Prebid.js (ortb2.app).
   appBundleId: 'com.mycompany.myapp',

@@ -30,7 +30,7 @@ class AdScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final config = SellwildConfig(
       partnerCode: 'your-partner',
-      listingsUrl: 'https://api.sellwild.com/widget/listings?partner=your-partner',
+      listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
       appBundleId: 'com.yourcompany.yourapp',
       appStoreUrl: 'https://play.google.com/store/apps/details?id=com.yourcompany.yourapp',
       prebidServer: PrebidServerConfig(

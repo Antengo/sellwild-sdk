@@ -160,7 +160,23 @@ android {
 
 ## Quick Start
 
-A minimal integration requires two values: your partner code and your listings API URL.
+A minimal integration requires two values: your partner code and your slug.
+
+::: tip Recommended: use `configure()`
+For most integrations, call `SellwildSDK.configure(partnerCode:, slug:)` instead
+of building `SellwildConfig` by hand. It fetches your partner config from
+`https://widget.sellwild.com/app/{partnerCode}/{slug}.json` and populates every
+field below automatically:
+
+```dart
+final config = await SellwildSDK.configure(
+  partnerCode: 'weatherbug',
+  slug: 'weatherbug-weatherbug',
+);
+```
+
+The static example below is shown only to document each field.
+:::
 
 ```dart
 import 'package:flutter/material.dart';
@@ -173,7 +189,7 @@ class MarketplaceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final config = SellwildConfig(
       partnerCode: 'weatherbug',
-      listingsUrl: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+      listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
       appBundleId: 'com.aws.android',
       appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
     );
@@ -296,7 +312,7 @@ SellwildBanner(
 ```dart
 final config = SellwildConfig(
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   gamTag: '/12345678/weatherbug_mobile_banner',
 );
 
@@ -411,7 +427,7 @@ import 'package:sellwild_sdk/sellwild_sdk.dart';
 
 final config = await SellwildSDK.configure(
   partnerCode: 'weatherbug',
-  slug: 'weatherbug-main',
+  slug: 'weatherbug-weatherbug',
 );
 // Hand `config` to your SellwildWidget / SellwildBanner.
 ```
@@ -431,7 +447,7 @@ As of 1.3.0, banner ads run a native Prebid Mobile auction against the configure
 ```dart
 final config = SellwildConfig(
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   appBundleId: 'com.aws.android',
   appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
   prebidServer: PrebidServerConfig(
@@ -600,9 +616,9 @@ final config = SellwildConfig(
 **Cause:** The `listingsUrl` returned no results or an unexpected response format.
 
 **Steps:**
-1. Test the URL directly: `curl -s "https://api.sellwild.com/widget/listings?partner=weatherbug" | python3 -m json.tool`
+1. Look up your effective `listingsUrl` from the CDN config — `curl -s "https://widget.sellwild.com/app/{partnerCode}/{slug}.json" | python3 -m json.tool | grep LISTINGS` — then `curl` that URL directly to inspect the response.
 2. Verify the response contains a `result.rs` array with listing objects.
-3. Check that `partnerCode` matches an active partner account.
+3. Check that `partnerCode` and `slug` match an active partner account.
 
 ### `onListingTap` is never called
 

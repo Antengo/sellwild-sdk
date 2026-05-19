@@ -210,6 +210,14 @@ Reference it in your `AndroidManifest.xml`:
 
 The following example shows a complete Activity with two ad placements: a 300x250 MREC and a 320x50 banner. Both run server-side header bidding through Prebid Server at `prebid.sellwild.com`.
 
+::: tip Recommended: use `configure()`
+For most integrations, call `SellwildSDK.configure(partnerCode, slug)` from a
+coroutine instead of building `SellwildConfig` by hand. It fetches your partner
+config from `https://widget.sellwild.com/app/{partnerCode}/{slug}.json` and
+populates every field below automatically. The static example below is shown
+only to document each field.
+:::
+
 ```kotlin
 package com.example.myapp
 
@@ -224,9 +232,16 @@ class AdActivity : AppCompatActivity() {
     private lateinit var mrecAdView: SellwildAdView
     private lateinit var bannerAdView: SellwildAdView
 
+    // Static example. In production prefer:
+    //   lifecycleScope.launch {
+    //       val config = SellwildSDK.configure(
+    //           partnerCode = "weatherbug",
+    //           slug = "weatherbug-weatherbug",
+    //       )
+    //   }
     private val config = SellwildConfig(
         partnerCode = "weatherbug",
-        listingsUrl = "https://api.sellwild.com/widget/listings?partner=weatherbug",
+        listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
         appBundleId = "com.aws.android",
         appStoreUrl = "https://play.google.com/store/apps/details?id=com.aws.android",
         prebidServer = PrebidServerConfig(
@@ -391,7 +406,7 @@ fun HomeScreen() {
     val config = remember {
         SellwildConfig(
             partnerCode = "weatherbug",
-            listingsUrl = "https://api.sellwild.com/widget/listings?partner=weatherbug",
+            listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
             appBundleId = "com.aws.android",
             prebidServer = PrebidServerConfig(
                 accountId = "sellwild",
@@ -572,7 +587,7 @@ class ListingsViewModel(
 
     private val config = SellwildConfig(
         partnerCode = "weatherbug",
-        listingsUrl = "https://api.sellwild.com/widget/listings?partner=weatherbug",
+        listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
         appBundleId = "com.aws.android",
         prebidServer = PrebidServerConfig(
             accountId = "sellwild",
@@ -632,7 +647,7 @@ import com.sellwild.sdk.SellwildSDK
 lifecycleScope.launch {
     val config = SellwildSDK.configure(
         partnerCode = "weatherbug",
-        slug = "weatherbug-main",
+        slug = "weatherbug-weatherbug",
     ) { c ->
         // Optional: override CDN values with app-controlled ones.
         c.copy(appBundleId = packageName)
@@ -703,7 +718,7 @@ The SDK supports IAB TCF v2 consent management. For users in GDPR regions, you m
 ```kotlin
 val config = SellwildConfig(
     partnerCode = "weatherbug",
-    listingsUrl = "https://api.sellwild.com/widget/listings?partner=weatherbug",
+    listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
     appBundleId = "com.aws.android",
 
     // Privacy
@@ -788,7 +803,7 @@ The SDK supports automatic ad refresh to maximize revenue from long-lived screen
 ```kotlin
 val config = SellwildConfig(
     partnerCode = "weatherbug",
-    listingsUrl = "https://api.sellwild.com/widget/listings?partner=weatherbug",
+    listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
     appBundleId = "com.aws.android",
 
     // Refresh settings

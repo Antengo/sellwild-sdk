@@ -18,7 +18,7 @@ import { SellwildBanner, buildConfig } from '@sellwild/react-native-sdk';
 
 const config = buildConfig({
   partnerCode: 'your-partner',
-  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=your-partner',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   appBundleId: 'com.yourcompany.yourapp',
   appStoreUrl: 'https://play.google.com/store/apps/details?id=com.yourcompany.yourapp',
   prebidServer: {

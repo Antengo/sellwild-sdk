@@ -10,7 +10,7 @@ You need a **partner code** and a **listings URL** from Sellwild. Contact sdk@se
 
 ```
 partnerCode: "mysite"
-listingsUrl: "https://api.sellwild.com/widget/listings?partner=mysite&count=20"
+listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
 ```
 
 Optionally, you may also receive:
@@ -65,7 +65,7 @@ import { SellwildWidget, SellwildBanner } from '@sellwild/react-native-sdk'
 <SellwildWidget
   config={{
     partnerCode: 'mysite',
-    listingsUrl: 'https://api.sellwild.com/widget/listings?partner=mysite',
+    listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
     gamTag: '/12345678/mysite-mobile',
     bannerZid: '98765',
     mobileZids: ['11111', '22222'],
@@ -159,7 +159,7 @@ class MyViewController: UIViewController {
 
         var config = SellwildConfig(
             partnerCode: "mysite",
-            listingsUrl: "https://api.sellwild.com/widget/listings?partner=mysite"
+            listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
         )
         config.gamTag = "/12345678/mysite-mobile"
         config.bannerZid = "98765"
@@ -200,7 +200,7 @@ struct ContentView: View {
     let config: SellwildConfig = {
         var c = SellwildConfig(
             partnerCode: "mysite",
-            listingsUrl: "https://api.sellwild.com/widget/listings?partner=mysite"
+            listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
         )
         c.gamTag = "/12345678/mysite-mobile"
         return c
@@ -292,7 +292,7 @@ class MainActivity : AppCompatActivity() {
 
         val config = SellwildConfig(
             partnerCode = "mysite",
-            listingsUrl = "https://api.sellwild.com/widget/listings?partner=mysite",
+            listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
             gamTag = "/12345678/mysite-mobile",
             bannerZid = "98765",
             adRefreshMaxMobile = 5,
@@ -376,7 +376,7 @@ import 'package:sellwild_sdk/sellwild_sdk.dart';
 
 const config = SellwildConfig(
   partnerCode: 'mysite',
-  listingsUrl: 'https://api.sellwild.com/widget/listings?partner=mysite',
+  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   gamTag: '/12345678/mysite-mobile',
   bannerZid: '98765',
   adRefreshMaxMobile: 5,
