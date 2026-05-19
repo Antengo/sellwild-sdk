@@ -24,7 +24,6 @@ Primary configuration struct. All ad views and widgets read from this object.
 public struct SellwildConfig: Codable {
     // Required
     public var partnerCode: String
-    public var listingsUrl: String
 
     // App identity
     public var appBundleId: String?
@@ -51,7 +50,7 @@ public struct SellwildConfig: Codable {
 **Initializer:**
 
 ```swift
-public init(partnerCode: String, listingsUrl: String)
+public init(partnerCode: String)
 ```
 
 For the complete list of fields, see [Configuration Reference](/guide/configuration).
@@ -219,7 +218,7 @@ SellwildAPIClient.shared.clearCache()
 | `fetchListings(config:)` (async) | `SellwildListingsResponse` | Fetch listings with async/await. Throws on error. |
 | `clearCache()` | `Void` | Clear the internal response cache. |
 
-Responses are cached by URL. Subsequent calls with the same `listingsUrl` return the cached result. Call `clearCache()` before re-fetching for fresh data.
+Responses are cached by URL. Subsequent calls with the same config return the cached result. Call `clearCache()` before re-fetching for fresh data.
 
 ---
 
@@ -232,7 +231,6 @@ Data class for SDK configuration.
 ```kotlin
 data class SellwildConfig(
     val partnerCode: String,
-    val listingsUrl: String,
     val appBundleId: String? = null,
     val appStoreUrl: String? = null,
     val prebidServer: PrebidServerConfig? = null,
@@ -370,7 +368,7 @@ Native banner component. Bridges to `SellwildAdView` on iOS and Android (Prebid 
 import { SellwildBanner, buildConfig } from '@sellwild/react-native-sdk';
 
 <SellwildBanner
-  config={buildConfig({ partnerCode: 'weatherbug', listingsUrl: '...' })}
+  config={buildConfig({ partnerCode: 'weatherbug' })}
   size="300x250"
   zoneId={12345}
   onImpression={() => {}}
@@ -478,7 +476,6 @@ import { buildConfig, type SellwildConfig, type PartialSellwildConfig } from '@s
 
 const config: SellwildConfig = buildConfig({
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
 });
 ```
 
@@ -502,7 +499,7 @@ The remote config is fetched from `https://widget.sellwild.com/app/{partnerCode}
 2. Remote CDN config (overrides defaults)
 3. Optional `overrides` callback (overrides everything)
 
-**Failure handling.** If the fetch fails (network error, timeout, 404), `configure()` returns a `SellwildConfig` with `partnerCode` set and deterministic defaults. The `listingsUrl` is derived from `partnerCode`. Your app always renders.
+**Failure handling.** If the fetch fails (network error, timeout, 404), `configure()` returns a `SellwildConfig` with `partnerCode` set and deterministic defaults. Your app always renders.
 
 **Options:**
 
@@ -534,7 +531,7 @@ Async helper that merges remote config onto a static base config. Superseded by 
 import { buildConfigWithRemote } from '@sellwild/react-native-sdk';
 
 const config = await buildConfigWithRemote(
-  { partnerCode: 'weatherbug', listingsUrl: 'https://your-cms-or-cache.example.com/listings.json' },
+  { partnerCode: 'weatherbug' },
   'weatherbug-weatherbug',
 );
 ```
@@ -562,7 +559,6 @@ Immutable configuration class. All fields are `final`.
 ```dart
 final config = SellwildConfig(
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   appBundleId: 'com.aws.android',
   appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
   prebidServer: PrebidServerConfig(

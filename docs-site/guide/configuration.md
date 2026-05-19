@@ -36,7 +36,7 @@ final config = await SellwildSDK.configure(
 
 `configure()` fetches `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`,
 applies it onto SDK defaults, and returns a fully-built `SellwildConfig`. Every
-field below — listings URL, ad zones, refresh intervals, waterfall partners,
+field below — ad zones, refresh intervals, waterfall partners,
 compliance flags, app identity — is populated from the CMS without an app
 update. On any network failure, timeout, or 404 the SDK falls back to
 deterministic defaults so ads still render.
@@ -65,7 +65,6 @@ The primary configuration object passed to all SDK components. Every ad view, wi
 | Field | Type | Description |
 |-------|------|-------------|
 | `partnerCode` | `String` | Your Sellwild partner identifier. Used as `ortb2.app.publisher.id` in bid requests. **Required.** |
-| `listingsUrl` | `String?` | Full URL to the listings JSON endpoint that the marketplace widget renders from. Populated automatically by `configure(partnerCode, slug)` from the CDN config (`LISTINGS` key). Set explicitly only if you are self-hosting the listings JSON. |
 
 ### App Identity
 
@@ -334,7 +333,6 @@ config.maxFailedAuctions = 5
 // Android -- refresh every 30 seconds, up to 10 times
 config = SellwildConfig(
     partnerCode = "weatherbug",
-    listingsUrl = "...",
     adRefreshMaxMobile = 10,
     adRefreshIntervalMs = 30_000L,
     maxFailedAuctions = 3,
@@ -364,7 +362,7 @@ Your Sellwild contact provisions the `slug` in the CMS. The JSON uses CONSTANT_C
 
 ### Failure handling
 
-If the fetch fails (network error, timeout, 404), the SDK falls back silently to a `SellwildConfig(partnerCode:)` with deterministic defaults. The `listingsUrl` is derived from `partnerCode`, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
+If the fetch fails (network error, timeout, 404), the SDK falls back silently to a `SellwildConfig(partnerCode:)` with deterministic defaults, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
 
 ### Usage
 
@@ -412,7 +410,6 @@ The CDN may carry any subset of these keys. Unknown keys are ignored, so the CMS
 | `CODE` | `partnerCode` | string |
 | `SLUG` | `slug` | string |
 | `NAME` | `name` | string |
-| `LISTINGS` | `listingsUrl` | string |
 | `TITLE`, `LINK_TEXT`, `BUY_NOW_TEXT` | `title`, `linkText`, `buyNowText` | string |
 | `TITLE_COLOR`, `LINK_COLOR`, `FONT_COLOR`, `PRICE_COLOR`, `PRICE_FONT_COLOR` | matching camelCase | string |
 | `MARGIN_BOTTOM` | `marginBottom` | int |

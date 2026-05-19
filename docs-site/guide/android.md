@@ -241,7 +241,6 @@ class AdActivity : AppCompatActivity() {
     //   }
     private val config = SellwildConfig(
         partnerCode = "weatherbug",
-        listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
         appBundleId = "com.aws.android",
         appStoreUrl = "https://play.google.com/store/apps/details?id=com.aws.android",
         prebidServer = PrebidServerConfig(
@@ -406,7 +405,6 @@ fun HomeScreen() {
     val config = remember {
         SellwildConfig(
             partnerCode = "weatherbug",
-            listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
             appBundleId = "com.aws.android",
             prebidServer = PrebidServerConfig(
                 accountId = "sellwild",
@@ -587,7 +585,6 @@ class ListingsViewModel(
 
     private val config = SellwildConfig(
         partnerCode = "weatherbug",
-        listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
         appBundleId = "com.aws.android",
         prebidServer = PrebidServerConfig(
             accountId = "sellwild",
@@ -639,7 +636,7 @@ sealed interface ListingsUiState {
 
 ## Remote Config (the first-class path)
 
-`SellwildSDK.configure(partnerCode, slug)` is the recommended way to integrate the SDK. It fetches a JSON document from the Sellwild CDN at app launch and returns a fully-built `SellwildConfig` — listings URL, ad zones, refresh intervals, app identity, waterfall partners, compliance flags, and more — so you can change everything without an app update.
+`SellwildSDK.configure(partnerCode, slug)` is the recommended way to integrate the SDK. It fetches a JSON document from the Sellwild CDN at app launch and returns a fully-built `SellwildConfig` — ad zones, refresh intervals, app identity, waterfall partners, compliance flags, and more — so you can change everything without an app update.
 
 ```kotlin
 import com.sellwild.sdk.SellwildSDK
@@ -658,7 +655,7 @@ lifecycleScope.launch {
 
 The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your Sellwild contact provisions the `slug` in the CMS.
 
-**Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode = ...)` with deterministic defaults. The `listingsUrl` derives from `partnerCode`, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
+**Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode = ...)` with deterministic defaults, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
 
 > The CDN's `AD_REFRESH_INTERVAL` is in **seconds**, while Android's `adRefreshIntervalMs` is in **milliseconds**. `SellwildSDK.configure()` handles the conversion.
 
@@ -718,7 +715,6 @@ The SDK supports IAB TCF v2 consent management. For users in GDPR regions, you m
 ```kotlin
 val config = SellwildConfig(
     partnerCode = "weatherbug",
-    listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
     appBundleId = "com.aws.android",
 
     // Privacy
@@ -803,7 +799,6 @@ The SDK supports automatic ad refresh to maximize revenue from long-lived screen
 ```kotlin
 val config = SellwildConfig(
     partnerCode = "weatherbug",
-    listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
     appBundleId = "com.aws.android",
 
     // Refresh settings

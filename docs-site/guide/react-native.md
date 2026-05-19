@@ -262,7 +262,6 @@ import {
 // ---------------------------------------------------------------------------
 const partialConfig: PartialSellwildConfig = {
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
 
   // Mobile app identity -- required for proper in-app bid classification.
   appBundleId: 'com.aws.android',
@@ -289,7 +288,7 @@ const sdkConfig: SellwildConfig = buildConfig(partialConfig);
 
 // Tip: in 1.2.0+ the first-class integration path is
 // `await configure('weatherbug', 'weatherbug-weatherbug')`, which fetches every
-// runtime field — listings URL, ad zones, refresh intervals, waterfall
+// runtime field — ad zones, refresh intervals, waterfall
 // partners — from the Sellwild CDN. See `Configuration > Remote Config`.
 
 // ---------------------------------------------------------------------------
@@ -419,7 +418,6 @@ import {
 
 const sdkConfig: SellwildConfig = buildConfig({
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   appBundleId: 'com.aws.android',
   prebidServer: {
     accountId: 'weatherbug',
@@ -937,7 +935,6 @@ Pass GDPR parameters through the `SellwildConfig`:
 ```ts
 const config: PartialSellwildConfig = {
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
 
   // GDPR consent signals
   gdprApplies: true,
@@ -1039,7 +1036,6 @@ import type {
 interface SellwildConfig {
   // Required
   partnerCode: string;
-  listingsUrl: string;
 
   // App identity
   appBundleId?: string;
@@ -1140,7 +1136,6 @@ import {
 // Build a full SellwildConfig from partial input with defaults applied
 const config: SellwildConfig = buildConfig({
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
 });
 
 // Convert ISO currency code to symbol
@@ -1231,7 +1226,6 @@ Remove this before submitting to the App Store.
 ```ts
 const config = buildConfig({
   partnerCode: 'weatherbug',
-  listingsUrl: '...',
   debug: true,
 });
 ```
@@ -1278,7 +1272,7 @@ curl -X POST https://prebid.sellwild.com/openrtb2/auction \
 
 ```tsx
 const sdkConfig = useMemo(
-  () => buildConfig({ partnerCode: 'weatherbug', listingsUrl: '...' }),
+  () => buildConfig({ partnerCode: 'weatherbug' }),
   [],
 );
 ```

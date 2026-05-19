@@ -35,7 +35,7 @@ Then run `pod install` and open the `.xcworkspace` file.
 ```swift
 import SellwildSDK
 
-// Partner code + slug. Everything else — listings URL, ad zones, app
+// Partner code + slug. Everything else — ad zones, app
 // identity, refresh intervals, waterfall partners, compliance flags — is
 // fetched from the Sellwild CDN at app launch. On any network/timeout/404
 // failure the SDK falls back to deterministic defaults so ads still render.
@@ -47,21 +47,6 @@ let config = await SellwildSDK.configure(
     c.appBundleId = Bundle.main.bundleIdentifier ?? "com.example.myapp"
 }
 ```
-
-::: details Static config (no network at startup)
-If you can't make a network call before rendering ads (e.g. an offline-first
-app), build a `SellwildConfig` directly. You must supply your own `listingsUrl`
-— there is no public default endpoint. Fetch your partner's CDN document once
-(`https://widget.sellwild.com/app/{partnerCode}/{slug}.json`) and copy the
-`LISTINGS` value into your build:
-
-```swift
-var config = SellwildConfig(partnerCode: "weatherbug")
-config.appBundleId = Bundle.main.bundleIdentifier
-config.listingsUrl = "https://your-cms-or-cache.example.com/listings.json"
-// Set prebidServer, mobileZids, etc. from the same CDN doc.
-```
-:::
 
 ### 3. Render (SwiftUI)
 
@@ -151,7 +136,7 @@ class AdActivity : AppCompatActivity() {
         adView = SellwildAdView(this)
         setContentView(adView)
 
-        // Partner code + slug. Everything else — listings URL, ad zones, app
+        // Partner code + slug. Everything else — ad zones, app
         // identity, refresh intervals, waterfall partners, compliance flags —
         // is fetched from the Sellwild CDN at app launch. On any network or
         // 404 failure the SDK falls back to deterministic defaults so ads
@@ -184,22 +169,6 @@ class AdActivity : AppCompatActivity() {
 }
 ```
 
-::: details Static config (no network at startup)
-If you can't make a network call before rendering ads, build a `SellwildConfig`
-directly. You must supply your own `listingsUrl` — there is no public default
-endpoint. Fetch your partner's CDN document once
-(`https://widget.sellwild.com/app/{partnerCode}/{slug}.json`) and copy the
-`LISTINGS` value into your build:
-
-```kotlin
-val config = SellwildConfig(
-    partnerCode = "weatherbug",
-    listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
-    appBundleId = packageName,
-)
-```
-:::
-
 **Next:** [Full Android Guide](/guide/android) -- Jetpack Compose, ProGuard rules, multi-process WebView, GDPR, listing cards.
 
 ---
@@ -228,10 +197,10 @@ export default function App() {
   const [config, setConfig] = useState<SellwildConfig | null>(null);
 
   useEffect(() => {
-    // Partner code + slug. Everything else — listings URL, ad zones, app
-    // identity, refresh intervals, waterfall partners, compliance flags — is
-    // fetched from the Sellwild CDN at app launch. On any network/timeout/
-    // 404 failure the SDK falls back to deterministic defaults so ads still
+    // Partner code + slug. Everything else — ad zones, app identity,
+    // refresh intervals, waterfall partners, compliance flags — is fetched
+    // from the Sellwild CDN at app launch. On any network/timeout/404
+    // failure the SDK falls back to deterministic defaults so ads still
     // render.
     configure('weatherbug', 'weatherbug-weatherbug').then(setConfig);
   }, []);
@@ -251,21 +220,6 @@ export default function App() {
   );
 }
 ```
-
-::: details Static config (no network at startup)
-You must supply your own `listingsUrl` — there is no public default endpoint.
-Fetch your partner's CDN document once
-(`https://widget.sellwild.com/app/{partnerCode}/{slug}.json`) and copy the
-`LISTINGS` value into your build:
-
-```tsx
-import { buildConfig } from '@sellwild/react-native-sdk';
-const config = buildConfig({
-  partnerCode: 'weatherbug',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
-});
-```
-:::
 
 **Next:** [Full React Native Guide](/guide/react-native) -- listing cards, `useSellwildListings` hook, direct auction API, Metro config, GDPR.
 
@@ -320,9 +274,9 @@ class _AdScreenState extends State<AdScreen> {
   @override
   void initState() {
     super.initState();
-    // Partner code + slug. Everything else — listings URL, ad zones, app
-    // identity, refresh intervals, waterfall partners, compliance flags — is
-    // fetched from the Sellwild CDN at app launch.
+    // Partner code + slug. Everything else — ad zones, app identity,
+    // refresh intervals, waterfall partners, compliance flags — is fetched
+    // from the Sellwild CDN at app launch.
     SellwildSDK.configure(
       partnerCode: 'weatherbug',
       slug: 'weatherbug-weatherbug',
@@ -347,20 +301,6 @@ class _AdScreenState extends State<AdScreen> {
 }
 ```
 
-::: details Static config (no network at startup)
-You must supply your own `listingsUrl` — there is no public default endpoint.
-Fetch your partner's CDN document once
-(`https://widget.sellwild.com/app/{partnerCode}/{slug}.json`) and copy the
-`LISTINGS` value into your build:
-
-```dart
-final config = SellwildConfig(
-  partnerCode: 'weatherbug',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
-);
-```
-:::
-
 **Next:** [Full Flutter Guide](/guide/flutter) -- widget reference, `SellwildAPIClient`, listing cards, GDPR, troubleshooting.
 
 ---
@@ -382,14 +322,13 @@ No client-side bidder SDKs. No waterfall. No cookies. Total auction time: under 
 In 1.2.0+, `configure(partnerCode, slug)` is the first-class integration path.
 The SDK fetches a JSON document from the Sellwild CDN at
 `https://widget.sellwild.com/app/{partnerCode}/{slug}.json` and populates every
-runtime field — listings URL, ad zones, refresh intervals, waterfall partners,
+runtime field — ad zones, refresh intervals, waterfall partners,
 compliance flags, app identity — without an app update.
 
 | Field | Source |
 |-------|--------|
 | `partnerCode` | You provide it (CMS-provisioned). |
 | `slug` | You provide it (CMS-provisioned). |
-| `listingsUrl` | CDN (`LISTINGS` field). No public default — partners using `configure()` get this from the CDN automatically. |
 | `mobileZids`, ad zones, refresh intervals | CDN. |
 | `appBundleId`, `appStoreUrl` | CDN, or override in your `configure()` callback. |
 | `prebidServer` | Native SDKs (iOS/Android) default to `https://prebid.sellwild.com/openrtb2/auction`. In the TS core / RN, set it explicitly on `SellwildConfig` if you need server-side header bidding from a non-default Prebid Server. |

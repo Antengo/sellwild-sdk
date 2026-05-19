@@ -547,7 +547,6 @@ The SDK respects `maxFailedAuctions` in `SellwildConfig` (default: 3). After thr
 ```dart
 SellwildConfig(
   partnerCode: 'weatherbug',
-  listingsUrl: '...',
   maxFailedAuctions: 5,          // Allow more retries before stopping
   adRefreshInterval: Duration(seconds: 45),  // Slow down refresh rate
 )

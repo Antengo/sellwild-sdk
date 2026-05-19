@@ -200,7 +200,7 @@ The following example demonstrates a complete `UIViewController` that displays a
 For most integrations, call `SellwildSDK.configure(partnerCode:, slug:)` instead
 of building `SellwildConfig` by hand. It fetches your partner config from
 `https://widget.sellwild.com/app/{partnerCode}/{slug}.json` and populates every
-field below — `listingsUrl`, `prebidServer`, ad zones, refresh intervals —
+field below — `prebidServer`, ad zones, refresh intervals —
 automatically. The static example below is shown only to document each field.
 :::
 
@@ -218,10 +218,7 @@ final class AdViewController: UIViewController {
     //       slug: "weatherbug-weatherbug"
     //   )
     private lazy var config: SellwildConfig = {
-        var c = SellwildConfig(
-            partnerCode: "weatherbug",
-            listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
-        )
+        var c = SellwildConfig(partnerCode: "weatherbug")
 
         // App identity for OpenRTB ortb2.app signals
         c.appBundleId = Bundle.main.bundleIdentifier ?? "com.example.myapp"
@@ -349,10 +346,7 @@ import SellwildSDK
 struct AdContentView: View {
 
     private let config: SellwildConfig = {
-        var c = SellwildConfig(
-            partnerCode: "weatherbug",
-            listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
-        )
+        var c = SellwildConfig(partnerCode: "weatherbug")
         c.appBundleId = Bundle.main.bundleIdentifier ?? "com.example.myapp"
         c.appStoreUrl = "https://apps.apple.com/app/id1234567890"
         c.prebidServer = PrebidServerConfig(
@@ -431,10 +425,7 @@ import SellwildSDK
 
 final class ListingsViewController: UIViewController {
 
-    private let config = SellwildConfig(
-        partnerCode: "weatherbug",
-        listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
-    )
+    private let config = SellwildConfig(partnerCode: "weatherbug")
 
     private var listings: [SellwildListing] = []
     private let tableView = UITableView()
@@ -573,7 +564,7 @@ Call `requestTrackingAuthorization()` after your app has loaded its initial UI. 
 
 ## Remote Config (the first-class path)
 
-`SellwildSDK.configure(partnerCode:slug:)` is the recommended way to integrate the SDK. It fetches a JSON document from the Sellwild CDN at app launch and returns a fully-built `SellwildConfig` — listings URL, ad zones, refresh intervals, app identity, waterfall partners, compliance flags, and more — so you can change everything without an app update.
+`SellwildSDK.configure(partnerCode:slug:)` is the recommended way to integrate the SDK. It fetches a JSON document from the Sellwild CDN at app launch and returns a fully-built `SellwildConfig` — ad zones, refresh intervals, app identity, waterfall partners, compliance flags, and more — so you can change everything without an app update.
 
 ```swift
 import SellwildSDK
@@ -592,7 +583,7 @@ Task {
 
 The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your Sellwild contact provisions the `slug` in the CMS.
 
-**Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode:)` with deterministic defaults. The `listingsUrl` derives from `partnerCode`, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
+**Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode:)` with deterministic defaults, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
 
 See [Configuration → Remote Config](./configuration#remote-config) for the full CDN field reference.
 
@@ -603,10 +594,7 @@ See [Configuration → Remote Config](./configuration#remote-config) for the ful
 The SDK routes header bidding through Prebid Server. The auction is initiated in-process by Prebid Mobile and resolved server-side, which eliminates the cookie and IDFA limitations of running header bidding inside a WebView.
 
 ```swift
-var config = SellwildConfig(
-    partnerCode: "weatherbug",
-    listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
-)
+var config = SellwildConfig(partnerCode: "weatherbug")
 
 config.prebidServer = PrebidServerConfig(
     accountId: "weatherbug-prod",
@@ -807,7 +795,6 @@ Primary configuration object. All ad views and widgets read from this struct.
 ```swift
 public struct SellwildConfig: Codable {
     public var partnerCode: String
-    public var listingsUrl: String?              // populated from CDN by configure(); set explicitly only for the static-config path
     public var appBundleId: String?
     public var appStoreUrl: String?
     public var prebidServer: PrebidServerConfig?

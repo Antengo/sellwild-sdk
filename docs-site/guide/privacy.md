@@ -78,7 +78,6 @@ Pass the consent values directly through `SellwildConfig`:
 ```ts
 const config = buildConfig({
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   gdprApplies: true,
   tcString: 'CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA',
   tcfVersion: 2,

@@ -189,7 +189,6 @@ class MarketplaceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final config = SellwildConfig(
       partnerCode: 'weatherbug',
-      listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
       appBundleId: 'com.aws.android',
       appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
     );
@@ -312,7 +311,6 @@ SellwildBanner(
 ```dart
 final config = SellwildConfig(
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   gamTag: '/12345678/weatherbug_mobile_banner',
 );
 
@@ -349,7 +347,6 @@ The card renders at a fixed width of 160px with an image, price badge, and title
 ```dart
 final config = SellwildConfig(
   partnerCode: 'weatherbug',
-  listingsUrl: '...',
   priceColor: '#FF5722',       // Price badge background
   priceFontColor: '#FFFFFF',   // Price badge text
   fontSize: 14,                // Title font size
@@ -420,7 +417,7 @@ class _ListingGridState extends State<ListingGrid> {
 
 ## Remote Config (the first-class path)
 
-`SellwildSDK.configure(partnerCode:, slug:)` is the recommended way to integrate the SDK. It fetches a JSON document from the Sellwild CDN at app launch and returns a fully-built `SellwildConfig` — listings URL, ad zones, refresh intervals, app identity, waterfall partners, compliance flags, and more — so you can change everything without an app update.
+`SellwildSDK.configure(partnerCode:, slug:)` is the recommended way to integrate the SDK. It fetches a JSON document from the Sellwild CDN at app launch and returns a fully-built `SellwildConfig` — ad zones, refresh intervals, app identity, waterfall partners, compliance flags, and more — so you can change everything without an app update.
 
 ```dart
 import 'package:sellwild_sdk/sellwild_sdk.dart';
@@ -434,7 +431,7 @@ final config = await SellwildSDK.configure(
 
 The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your Sellwild contact provisions the `slug` in the CMS.
 
-**Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode: ...)` with deterministic defaults. The `listingsUrl` derives from `partnerCode`, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
+**Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode: ...)` with deterministic defaults, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
 
 See [Configuration → Remote Config](./configuration#remote-config) for the full CDN field reference.
 
@@ -447,7 +444,6 @@ As of 1.3.0, banner ads run a native Prebid Mobile auction against the configure
 ```dart
 final config = SellwildConfig(
   partnerCode: 'weatherbug',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   appBundleId: 'com.aws.android',
   appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
   prebidServer: PrebidServerConfig(
@@ -528,7 +524,7 @@ for (final listing in response.listings) {
 
 ### Caching
 
-`fetchListings` caches responses by URL. Subsequent calls with the same `listingsUrl` return the cached result without a network request. To force a refresh:
+`fetchListings` caches responses by URL. Subsequent calls with the same config return the cached result without a network request. To force a refresh:
 
 ```dart
 SellwildAPIClient.instance.clearCache();
@@ -569,7 +565,6 @@ The SDK supports IAB Transparency and Consent Framework (TCF) v2. Enable it in y
 ```dart
 final config = SellwildConfig(
   partnerCode: 'weatherbug',
-  listingsUrl: '...',
   tcfVersion: 2,
   gppEnabled: true,
 );
@@ -592,7 +587,6 @@ Declare IAB content categories for your app to improve ad relevance and brand sa
 ```dart
 final config = SellwildConfig(
   partnerCode: 'weatherbug',
-  listingsUrl: '...',
   iabCats: ['IAB15', 'IAB15-10'],  // Technology > Weather
 );
 ```
@@ -613,10 +607,10 @@ final config = SellwildConfig(
 
 ### Listings do not appear
 
-**Cause:** The `listingsUrl` returned no results or an unexpected response format.
+**Cause:** The listings endpoint returned no results or an unexpected response format.
 
 **Steps:**
-1. Look up your effective `listingsUrl` from the CDN config — `curl -s "https://widget.sellwild.com/app/{partnerCode}/{slug}.json" | python3 -m json.tool | grep LISTINGS` — then `curl` that URL directly to inspect the response.
+1. Look up the CDN-resolved listings endpoint — `curl -s "https://widget.sellwild.com/app/{partnerCode}/{slug}.json" | python3 -m json.tool | grep LISTINGS` — then `curl` that URL directly to inspect the response.
 2. Verify the response contains a `result.rs` array with listing objects.
 3. Check that `partnerCode` and `slug` match an active partner account.
 
@@ -673,7 +667,6 @@ platform :ios, '13.0'
 | Field                | Type                   | Default              | Description                                           |
 |----------------------|------------------------|----------------------|-------------------------------------------------------|
 | `partnerCode`        | `String`               | (required)           | Your Sellwild partner identifier                      |
-| `listingsUrl`        | `String`               | (required)           | API endpoint for listing data                         |
 | `slug`               | `String`               | `''`                 | Partner slug for URL construction                     |
 | `name`               | `String`               | `''`                 | Partner display name                                  |
 | `title`              | `String?`              | null                 | Widget header title                                   |

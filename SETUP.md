@@ -6,12 +6,14 @@ Per-platform instructions for integrating the Sellwild SDK into a host app.
 
 ## Prerequisites (all platforms)
 
-You need a **partner code** and a **listings URL** from Sellwild. Contact sdk@sellwild.com to get these. They look like:
+You need a **partner code** and a **slug** from Sellwild. Contact sdk@sellwild.com to get these. They look like:
 
 ```
 partnerCode: "mysite"
-listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
+slug: "mysite-main"
 ```
+
+At runtime, call `SellwildSDK.configure(partnerCode, slug)` and the SDK fetches everything else from the Sellwild CDN at `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`.
 
 Optionally, you may also receive:
 - A **GAM ad unit path** (`/12345678/my-ad-unit`) for Google Ad Manager
@@ -65,7 +67,6 @@ import { SellwildWidget, SellwildBanner } from '@sellwild/react-native-sdk'
 <SellwildWidget
   config={{
     partnerCode: 'mysite',
-    listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
     gamTag: '/12345678/mysite-mobile',
     bannerZid: '98765',
     mobileZids: ['11111', '22222'],
@@ -159,7 +160,6 @@ class MyViewController: UIViewController {
 
         var config = SellwildConfig(
             partnerCode: "mysite",
-            listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
         )
         config.gamTag = "/12345678/mysite-mobile"
         config.bannerZid = "98765"
@@ -200,7 +200,6 @@ struct ContentView: View {
     let config: SellwildConfig = {
         var c = SellwildConfig(
             partnerCode: "mysite",
-            listingsUrl: "https://your-cms-or-cache.example.com/listings.json"
         )
         c.gamTag = "/12345678/mysite-mobile"
         return c
@@ -292,7 +291,6 @@ class MainActivity : AppCompatActivity() {
 
         val config = SellwildConfig(
             partnerCode = "mysite",
-            listingsUrl = "https://your-cms-or-cache.example.com/listings.json",
             gamTag = "/12345678/mysite-mobile",
             bannerZid = "98765",
             adRefreshMaxMobile = 5,
@@ -376,7 +374,6 @@ import 'package:sellwild_sdk/sellwild_sdk.dart';
 
 const config = SellwildConfig(
   partnerCode: 'mysite',
-  listingsUrl: 'https://your-cms-or-cache.example.com/listings.json',
   gamTag: '/12345678/mysite-mobile',
   bannerZid: '98765',
   adRefreshMaxMobile: 5,
