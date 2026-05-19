@@ -10,7 +10,8 @@ pluginManagement {
     // without "plugin already on classpath with unknown version" conflicts.
     plugins {
         id("com.android.library") version "8.7.3"
-        id("org.jetbrains.kotlin.android") version "2.1.20"
+        // Kotlin 2.3.21 supports Java 25 (required for local build)
+        id("org.jetbrains.kotlin.android") version "2.3.21"
     }
 }
 

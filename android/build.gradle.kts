@@ -16,7 +16,6 @@ android {
         // Prebid Mobile 3.x requires API 23. Native auction is the default
         // ad path; falling back to API 21 is no longer supported.
         minSdk = 23
-        targetSdk = 35
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
@@ -36,18 +35,25 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
 
-    kotlinOptions {
-        jvmTarget = "17"
-        // Compile with Kotlin 2.1.20 (required by GMA 24.x + Prebid 3.x)
-        // but emit class metadata that older Kotlin compilers can still
-        // read. RN 0.74 ships a Kotlin 1.9 gradle plugin, and we want a
-        // single AAR that works for both 1.9 and 2.x consumers.
-        languageVersion = "1.9"
-        apiVersion = "1.9"
-        freeCompilerArgs = freeCompilerArgs + listOf(
-            "-Xskip-metadata-version-check",
-        )
+// Use new compilerOptions DSL (Kotlin 2.0+)
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        // Emit class metadata that older Kotlin compilers can still read.
+        // RN 0.74 ships a Kotlin 1.9 gradle plugin, and we want a single
+        // AAR that works for both 1.9 and 2.x consumers.
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
+        freeCompilerArgs.add("-Xskip-metadata-version-check")
+    }
+}
+
+android {
+
+    lint {
+        targetSdk = 35
     }
 
     publishing {
@@ -59,6 +65,7 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.isReturnDefaultValues = true
+        targetSdk = 35
     }
 }
 
@@ -67,8 +74,10 @@ dependencies {
 
     // Native ad path (1.3.0+): Prebid Mobile runs the auction, GMA renders.
     // Both are required dependencies — there is no WebView fallback.
+    // GMA pinned to 23.6.0 for compatibility with partners on 22.x/23.x (WeatherBug).
+    // Prebid Mobile 3.3.0 supports GMA 23.x.
     implementation("org.prebid:prebid-mobile-sdk:3.3.0")
-    implementation("com.google.android.gms:play-services-ads:24.7.0")
+    implementation("com.google.android.gms:play-services-ads:23.6.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
@@ -82,7 +91,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "com.sellwild"
             artifactId = "sdk"
-            version = "1.3.0"
+            version = "1.3.2"
 
             afterEvaluate {
                 from(components["release"])
