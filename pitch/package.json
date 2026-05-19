@@ -1,0 +1,22 @@
+{
+  "name": "pitch",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "remotion studio",
+    "build": "remotion render SellwildPitch out/pitch.mp4",
+    "preview": "remotion preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@remotion/cli": "^4.0.454",
+    "@remotion/google-fonts": "^4.0.454",
+    "@remotion/transitions": "^4.0.454",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "remotion": "^4.0.454"
+  }
+}

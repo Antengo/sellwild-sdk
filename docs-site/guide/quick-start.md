@@ -30,55 +30,80 @@ end
 
 Then run `pod install` and open the `.xcworkspace` file.
 
-### 2. Configure
+### 2. Render (SwiftUI)
 
-```swift
-import SellwildSDK
-
-// Partner code + slug. Everything else — ad zones, app
-// identity, refresh intervals, waterfall partners, compliance flags — is
-// fetched from the Sellwild CDN at app launch. On any network/timeout/404
-// failure the SDK falls back to deterministic defaults so ads still render.
-let config = await SellwildSDK.configure(
-    partnerCode: "weatherbug",
-    slug: "weatherbug-weatherbug"
-) { c in
-    // Override CDN with app-controlled values.
-    c.appBundleId = Bundle.main.bundleIdentifier ?? "com.example.myapp"
-}
-```
-
-### 3. Render (SwiftUI)
+Copy this entire file:
 
 ```swift
 import SwiftUI
 import SellwildSDK
 
+@main
+struct MyApp: App {
+    @State private var config: SellwildConfig?
+
+    var body: some Scene {
+        WindowGroup {
+            if let config {
+                ContentView(config: config)
+            } else {
+                ProgressView("Loading...")
+            }
+        }
+        .task {
+            config = await SellwildSDK.configure(
+                partnerCode: "weatherbug",
+                slug: "weatherbug-weatherbug"
+            )
+        }
+    }
+}
+
 struct ContentView: View {
+    let config: SellwildConfig
+
     var body: some View {
         SellwildAdBanner(
             config: config,
             adSize: .mrec300x250,
-            onImpression: {
-                print("Ad impression recorded")
-            },
-            onError: { error in
-                print("Ad error: \(error.localizedDescription)")
-            }
+            onImpression: { print("Ad impression") },
+            onError: { error in print("Error: \(error)") }
         )
         .frame(width: 300, height: 250)
     }
 }
 ```
 
-### 3b. Render (UIKit)
+### 2b. Render (UIKit)
 
 ```swift
-let adView = SellwildAdView(config: config, adSize: .mrec300x250)
-adView.delegate = self
-view.addSubview(adView)
-// Add constraints: 300pt wide, 250pt tall
-adView.load()
+import UIKit
+import SellwildSDK
+
+class ViewController: UIViewController {
+    private var adView: SellwildAdView?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        Task {
+            let config = await SellwildSDK.configure(
+                partnerCode: "weatherbug",
+                slug: "weatherbug-weatherbug"
+            )
+            let ad = SellwildAdView(config: config, adSize: .mrec300x250)
+            ad.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(ad)
+            NSLayoutConstraint.activate([
+                ad.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                ad.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                ad.widthAnchor.constraint(equalToConstant: 300),
+                ad.heightAnchor.constraint(equalToConstant: 250),
+            ])
+            ad.load()
+            self.adView = ad
+        }
+    }
+}
 ```
 
 That is it. The SDK handles the Prebid Server auction, creative rendering, impression tracking, and ad refresh.

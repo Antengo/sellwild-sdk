@@ -196,13 +196,41 @@ If you intend to collect the IDFA for ad targeting (see [App Tracking Transparen
 
 The following example demonstrates a complete `UIViewController` that displays a 300x250 MREC ad and a 320x50 banner ad using server-side header bidding through Prebid Server.
 
-::: tip Recommended: use `configure()`
-For most integrations, call `SellwildSDK.configure(partnerCode:, slug:)` instead
-of building `SellwildConfig` by hand. It fetches your partner config from
-`https://widget.sellwild.com/app/{partnerCode}/{slug}.json` and populates every
-field below — `prebidServer`, ad zones, refresh intervals —
-automatically. The static example below is shown only to document each field.
-:::
+### Quick Start (copy-paste this)
+
+```swift
+import UIKit
+import SellwildSDK
+
+class AdViewController: UIViewController {
+    private var adView: SellwildAdView?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        Task {
+            let config = await SellwildSDK.configure(
+                partnerCode: "weatherbug",
+                slug: "weatherbug-weatherbug"
+            )
+            let ad = SellwildAdView(config: config, adSize: .mrec300x250)
+            ad.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(ad)
+            NSLayoutConstraint.activate([
+                ad.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                ad.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                ad.widthAnchor.constraint(equalToConstant: 300),
+                ad.heightAnchor.constraint(equalToConstant: 250),
+            ])
+            ad.load()
+            self.adView = ad
+        }
+    }
+}
+```
+
+### Full Example (static config, for reference)
+
+The example below shows every configurable field. Most integrations don't need this — just use `configure()` above.
 
 ```swift
 import UIKit
@@ -338,6 +366,52 @@ extension AdViewController: SellwildAdViewDelegate {
 ## SwiftUI Integration
 
 The SDK provides `SellwildAdBanner` and `SellwildWidget` as native SwiftUI views. Both require iOS 14 or later.
+
+### Quick Start (copy-paste this)
+
+```swift
+import SwiftUI
+import SellwildSDK
+
+@main
+struct MyApp: App {
+    @State private var config: SellwildConfig?
+
+    var body: some Scene {
+        WindowGroup {
+            if let config {
+                AdContentView(config: config)
+            } else {
+                ProgressView("Loading...")
+            }
+        }
+        .task {
+            config = await SellwildSDK.configure(
+                partnerCode: "weatherbug",
+                slug: "weatherbug-weatherbug"
+            )
+        }
+    }
+}
+
+struct AdContentView: View {
+    let config: SellwildConfig
+
+    var body: some View {
+        SellwildAdBanner(
+            config: config,
+            adSize: .mrec300x250,
+            onImpression: { print("Ad impression") },
+            onError: { error in print("Error: \(error)") }
+        )
+        .frame(width: 300, height: 250)
+    }
+}
+```
+
+### Full Example (static config, for reference)
+
+The example below shows every configurable field. Most integrations don't need this — just use `configure()` above.
 
 ```swift
 import SwiftUI
