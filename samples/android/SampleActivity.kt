@@ -4,7 +4,7 @@
  * How to run:
  *   1. Create a new Android project in Android Studio (API 23+ / Kotlin).
  *   2. Add the SDK dependency to app/build.gradle.kts:
- *        implementation("com.sellwild:sdk:1.3.0")
+ *        implementation("com.sellwild:sdk:1.3.2")
  *        — OR for local Maven during development:
  *        implementation(files("../../android/build/outputs/aar/sdk-release.aar"))
  *      The SDK transitively pulls in Prebid Mobile 3.x and Google Mobile Ads

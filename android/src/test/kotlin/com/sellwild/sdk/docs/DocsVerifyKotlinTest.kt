@@ -18,7 +18,7 @@ class DocsVerifyKotlinTest {
     // [Block 6] android.md:L448 — SellwildListing reference (data class is on classpath; we just touch known accessors)
     @Test
     fun `android_md L448 SellwildListing reference`() {
-        val photo = SellwildPhoto(id = "p1", url = "https://example.com/p.jpg")
+        val photo = SellwildPhoto(url = "https://example.com/p.jpg", thumbUrl = "https://example.com/p_thumb.jpg")
         val listing = SellwildListing(
             id = "1",
             status = "active",

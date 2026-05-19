@@ -95,4 +95,60 @@ class SellwildSDKTest {
         assertEquals("weatherbug", config.partnerCode)
         assertNull(config.listingsUrl)
     }
+
+    /**
+     * Validates that when the remote config provides LISTINGS pointing to
+     * cache.sellwild.com, the SDK uses that URL instead of the api.sellwild.com
+     * fallback. This is the WeatherBug production scenario.
+     */
+    @Test
+    fun `apply uses cache_sellwild_com LISTINGS from remote config`() {
+        val base = SellwildConfig(partnerCode = "weatherbug")
+        val raw = JSONObject(
+            mapOf(
+                "CODE" to "weatherbug",
+                "SLUG" to "weatherbug-weatherbug",
+                "LISTINGS" to "https://cache.sellwild.com/listings-img-data-sm-ferrarichat",
+                "APP_BUNDLE_ID" to "com.aws.weatherbug.pro",
+            )
+        )
+
+        val merged = SellwildSDK.apply(raw, base)
+
+        // CRITICAL: listingsUrl must be the CDN URL, not the fallback
+        assertEquals(
+            "https://cache.sellwild.com/listings-img-data-sm-ferrarichat",
+            merged.listingsUrl,
+        )
+        // And effectiveListingsUrl must return the same since listingsUrl is set
+        assertEquals(
+            "https://cache.sellwild.com/listings-img-data-sm-ferrarichat",
+            merged.effectiveListingsUrl,
+        )
+        // Verify other fields populated correctly
+        assertEquals("weatherbug-weatherbug", merged.slug)
+        assertEquals("com.aws.weatherbug.pro", merged.appBundleId)
+    }
+
+    /**
+     * Validates the failure case: when a developer uses SellwildConfig directly
+     * without calling configure(), listingsUrl is null and effectiveListingsUrl
+     * falls back to api.sellwild.com — which returns 404.
+     */
+    @Test
+    fun `static config without remote fetch uses api_sellwild_com fallback`() {
+        // This is the WRONG pattern that caused WeatherBug's 404 issue
+        val config = SellwildConfig(
+            partnerCode = "weatherbug",
+            slug = "weatherbug-weatherbug",
+        )
+
+        // listingsUrl is null because remote config was never fetched
+        assertNull(config.listingsUrl)
+        // effectiveListingsUrl falls back to the deprecated endpoint
+        assertEquals(
+            "https://api.sellwild.com/widget/listings?partner=weatherbug",
+            config.effectiveListingsUrl,
+        )
+    }
 }
