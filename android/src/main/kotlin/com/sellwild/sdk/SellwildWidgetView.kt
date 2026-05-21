@@ -379,10 +379,12 @@ class SellwildWidgetView @JvmOverloads constructor(
           SellwildWidgetBridge.postMessage(JSON.stringify(Object.assign({ type: type }, payload || {})));
         } catch(e) {}
       }
-      // partner/index.tsx calls window.open() on listing tap — intercept it
+      // partner/index.tsx calls window.open() on listing tap — intercept ALL
+      // calls. Listings link to external sites (eBay, Amazon, dealer sites, etc.)
+      // so we can't filter by domain. The widget only uses window.open for listings.
       var _open = window.open;
       window.open = function(url) {
-        if (url && (url.indexOf('itemDetail') !== -1 || url.indexOf('sellwild.com') !== -1)) {
+        if (url) {
           send('LISTING_CLICK', { url: url });
           return null;
         }
