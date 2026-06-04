@@ -35,22 +35,19 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-}
 
-// Use new compilerOptions DSL (Kotlin 2.0+)
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-        // Emit class metadata that older Kotlin compilers can still read.
-        // RN 0.74 ships a Kotlin 1.9 gradle plugin, and we want a single
-        // AAR that works for both 1.9 and 2.x consumers.
-        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
-        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_9)
-        freeCompilerArgs.add("-Xskip-metadata-version-check")
+    kotlinOptions {
+        jvmTarget = "17"
+        // Compile with Kotlin 2.1.20 but emit class metadata that older
+        // Kotlin compilers can still read. RN 0.74 ships a Kotlin 1.9
+        // gradle plugin, and we want a single AAR that works for both
+        // 1.9 and 2.x consumers.
+        languageVersion = "1.9"
+        apiVersion = "1.9"
+        freeCompilerArgs = freeCompilerArgs + listOf(
+            "-Xskip-metadata-version-check",
+        )
     }
-}
-
-android {
 
     lint {
         targetSdk = 35
@@ -91,7 +88,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "com.sellwild"
             artifactId = "sdk"
-            version = "1.3.3"
+            version = "1.3.4"
 
             afterEvaluate {
                 from(components["release"])
