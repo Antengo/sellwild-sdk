@@ -4,6 +4,9 @@ export type { SellwildWidgetProps } from './SellwildWidget'
 export { SellwildBanner } from './SellwildBanner'
 export type { SellwildBannerProps } from './SellwildBanner'
 
+export { SellwildFeed } from './SellwildFeed'
+export type { SellwildFeedProps } from './SellwildFeed'
+
 export { SellwildListingCard } from './SellwildListingCard'
 export type { SellwildListingCardProps } from './SellwildListingCard'
 

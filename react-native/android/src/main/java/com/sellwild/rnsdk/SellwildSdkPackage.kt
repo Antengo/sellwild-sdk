@@ -14,5 +14,6 @@ class SellwildSdkPackage : ReactPackage {
         reactContext: ReactApplicationContext,
     ): List<ViewManager<out View, out ReactShadowNode<*>>> = listOf(
         SellwildBannerViewManager(),
+        SellwildFeedViewManager(),
     )
 }
