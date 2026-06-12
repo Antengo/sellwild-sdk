@@ -115,6 +115,74 @@ public struct SellwildAdBanner: UIViewRepresentable {
     }
 }
 
+// MARK: - SwiftUI Feed View
+
+/// SwiftUI wrapper for `SellwildFeedView` — the all-in-one native feed
+/// (listings + interleaved ads driven by the CDN `COL1` token string).
+/// One line of SwiftUI gets you a fully monetized native experience.
+///
+/// All layout, theming, and row scheduling come from `config` — there
+/// are no per-call layout knobs. Publish them in the CMS instead.
+@available(iOS 14, *)
+public struct SellwildFeed: UIViewRepresentable {
+    public let config: SellwildConfig
+    public var onListingTap: ((SellwildListing) -> Bool)?
+    public var onAdImpression: ((String) -> Void)?
+    public var onAdClicked: ((String) -> Void)?
+    public var onLoad: (() -> Void)?
+    public var onError: ((String) -> Void)?
+
+    public init(
+        config: SellwildConfig,
+        onListingTap: ((SellwildListing) -> Bool)? = nil,
+        onAdImpression: ((String) -> Void)? = nil,
+        onAdClicked: ((String) -> Void)? = nil,
+        onLoad: (() -> Void)? = nil,
+        onError: ((String) -> Void)? = nil
+    ) {
+        self.config = config
+        self.onListingTap = onListingTap
+        self.onAdImpression = onAdImpression
+        self.onAdClicked = onAdClicked
+        self.onLoad = onLoad
+        self.onError = onError
+    }
+
+    public func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    public func makeUIView(context: Context) -> SellwildFeedView {
+        let feed = SellwildFeedView(config: config)
+        feed.delegate = context.coordinator
+        feed.load()
+        return feed
+    }
+
+    public func updateUIView(_ uiView: SellwildFeedView, context: Context) {
+        context.coordinator.parent = self
+    }
+
+    public final class Coordinator: NSObject, SellwildFeedViewDelegate {
+        var parent: SellwildFeed
+        init(_ parent: SellwildFeed) { self.parent = parent }
+
+        public func sellwildFeed(_ feed: SellwildFeedView, didTapListing listing: SellwildListing) -> Bool {
+            parent.onListingTap?(listing) ?? false
+        }
+        public func sellwildFeed(_ feed: SellwildFeedView, didRecordAdImpressionForZoneId zoneId: String) {
+            parent.onAdImpression?(zoneId)
+        }
+        public func sellwildFeed(_ feed: SellwildFeedView, didRecordAdClickForZoneId zoneId: String) {
+            parent.onAdClicked?(zoneId)
+        }
+        public func sellwildFeedDidLoad(_ feed: SellwildFeedView) {
+            parent.onLoad?()
+        }
+        public func sellwildFeed(_ feed: SellwildFeedView, didFailWithError message: String) {
+            parent.onError?(message)
+        }
+    }
+}
+
 // MARK: - Preview
 
 @available(iOS 14, *)

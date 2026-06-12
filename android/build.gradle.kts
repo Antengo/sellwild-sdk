@@ -4,6 +4,7 @@ plugins {
     // the host build's plugin classpath supplies the versions.
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("maven-publish")
 }
 
@@ -29,6 +30,17 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+
+    buildFeatures {
+        // SellwildFeed ships an optional Compose wrapper (SellwildFeed.kt).
+        // Compose deps are compileOnly — consumers that already pull Compose
+        // (which is most modern apps) get the wrapper for free; consumers
+        // that don't pull Compose still get a working AAR with the View-based
+        // SellwildFeedView surface.
+        // The Kotlin 2.x Compose Compiler plugin (applied above) replaces
+        // the legacy composeOptions block.
+        compose = true
     }
 
     compileOptions {
@@ -75,6 +87,27 @@ dependencies {
     // Prebid Mobile 3.3.0 supports GMA 23.x.
     implementation("org.prebid:prebid-mobile-sdk:3.3.0")
     implementation("com.google.android.gms:play-services-ads:23.6.0")
+
+    // SellwildFeed (1.4.0+) — all-in-one native feed surface.
+    // RecyclerView + SwipeRefreshLayout for the list itself; Browser for the
+    // Chrome Custom Tabs fallback when the partner doesn't handle onListingTap.
+    // No image-loading dep — the SDK uses a small built-in URL-image loader.
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("androidx.browser:browser:1.8.0")
+
+    // SellwildFeed Compose wrapper — compileOnly so non-Compose consumers
+    // are not forced to pull Compose into their app. Apps that want the
+    // wrapper already depend on these themselves.
+    compileOnly("androidx.compose.ui:ui:1.6.8")
+    compileOnly("androidx.compose.foundation:foundation:1.6.8")
+    compileOnly("androidx.compose.runtime:runtime:1.6.8")
+    // Tests don't reach the Compose wrapper, but the Compose Compiler plugin
+    // still verifies the whole compilation unit, so the runtime has to be
+    // on the test classpath for compilation to succeed.
+    testImplementation("androidx.compose.runtime:runtime:1.6.8")
+    testImplementation("androidx.compose.ui:ui:1.6.8")
+    testImplementation("androidx.compose.foundation:foundation:1.6.8")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")

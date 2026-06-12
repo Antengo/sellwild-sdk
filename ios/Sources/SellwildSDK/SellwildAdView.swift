@@ -127,11 +127,18 @@ public final class SellwildAdView: UIView {
         }
     }
 
+    // Google-provided test ad units. /6499/example/banner only fills 320x50;
+    // mrec / leaderboard / etc. need their own test units or they no-fill.
+    private static let gamTestAdUnitBanner   = "/6499/example/banner"
+    private static let gamTestAdUnitAdaptive = "/21775744923/example/adaptive-banner"
+
     /// Resolve the GAM ad unit ID. Order of preference:
     /// 1. `config.gamTag` (the real GAM ad unit path provisioned by the CMS).
     /// 2. `config.remoteValues["GAM"]` raw passthrough, if set.
-    /// 3. GMA test ad unit (`/6499/example/banner`) — surfaces a clear log so
-    ///    partners notice their CMS is missing a `GAM` field in production.
+    /// 3. A size-appropriate Google test ad unit (320x50 → banner test unit,
+    ///    everything else → adaptive-banner test unit which fills 300x250,
+    ///    728x90, 300x600, 160x600). Mirrors Android's size-aware fallback so
+    ///    demos render an ad even when the CMS hasn't provisioned `GAM`.
     private func resolveGAMAdUnitID() -> String {
         if let tag = config.gamTag, !tag.isEmpty {
             return tag
@@ -140,12 +147,16 @@ public final class SellwildAdView: UIView {
            !remoteGAM.isEmpty {
             return remoteGAM
         }
+        let size = adSize.cgSize
+        let testUnit = (size.width == 320 && size.height == 50)
+            ? Self.gamTestAdUnitBanner
+            : Self.gamTestAdUnitAdaptive
         #if DEBUG
         print("[SellwildAdView] No GAM ad unit configured. Falling back to "
-            + "Google's test ad unit `/6499/example/banner`. Set `GAM` in your "
-            + "CMS config to enable production fill.")
+            + "Google's test ad unit `\(testUnit)`. Set `GAM` in your CMS "
+            + "config to enable production fill.")
         #endif
-        return "/6499/example/banner"
+        return testUnit
     }
 
     /// Forward bidder configs from the raw CDN payload as ext data on the

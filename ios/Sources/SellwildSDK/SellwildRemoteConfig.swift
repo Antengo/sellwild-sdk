@@ -87,6 +87,8 @@ public enum SellwildSDK {
 
         // Display
         if let v = raw["TITLE"]            as? String   { c.title = v }
+        if let v = raw["PARTNER_URL"]      as? String   { c.partnerUrl = v }
+        if let v = raw["COL1"]             as? String   { c.col1 = v }
         if let v = raw["LINK_TEXT"]        as? String   { c.linkText = v }
         if let v = raw["BUY_NOW_TEXT"]     as? String   { c.buyNowText = v }
         if let v = raw["TITLE_COLOR"]      as? String   { c.titleColor = v }
@@ -94,6 +96,7 @@ public enum SellwildSDK {
         if let v = raw["FONT_COLOR"]       as? String   { c.fontColor = v }
         if let v = raw["PRICE_COLOR"]      as? String   { c.priceColor = v }
         if let v = raw["PRICE_FONT_COLOR"] as? String   { c.priceFontColor = v }
+        if let v = (raw["BG_COLOR"] ?? raw["BACKGROUND"]) as? String { c.bgColor = v }
         if let v = raw["MARGIN_BOTTOM"]    as? Int      { c.marginBottom = v }
         if let v = raw["COLORS"]           as? [String] { c.colors = v }
         if let v = raw["OVERLAY_TITLE"]    as? Bool     { c.overlayTitle = v }

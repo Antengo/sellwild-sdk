@@ -27,6 +27,20 @@ public struct SellwildConfig: Codable {
 
     // MARK: Display
     public var title: String?
+    /// Optional URL the feed header title links to. Tapping the title in
+    /// `SellwildFeedView` opens this URL in `SFSafariViewController`. When
+    /// `nil`, the title is non-tappable.
+    public var partnerUrl: String?
+    /// COL1 — single-column row schedule for `SellwildFeedView`.
+    /// Each character is one row, top to bottom:
+    ///   `L` = listing card
+    ///   `G` = GAM 300x250 ad (zone ID drawn from `mobileZids` in order)
+    ///   `D` = direct ad unit (300x250, currently rendered identically to `G`)
+    ///   `B` = 320x50 banner (zone ID = `mobileBannerZid`)
+    /// The renderer iterates the string left-to-right and stops when the
+    /// string is exhausted. When `nil` or empty, the feed falls back to a
+    /// default of `"LLGLLGLLG"`.
+    public var col1: String?
     public var linkText: String?
     public var buyNowText: String?
     public var titleColor: String
@@ -36,6 +50,10 @@ public struct SellwildConfig: Codable {
     public var fontColor: String
     public var priceColor: String
     public var priceFontColor: String
+    /// Feed background color (hex). Maps to CDN `BG_COLOR` / `BACKGROUND`.
+    /// When nil, the feed uses a light neutral so white listing cards have
+    /// gentle contrast instead of floating on a near-black surface.
+    public var bgColor: String?
     public var marginBottom: Int
     public var colors: [String]
     public var overlayTitle: Bool
@@ -168,6 +186,7 @@ public struct SellwildConfig: Codable {
         self.fontColor = "#ffffff"
         self.priceColor = "#333333"
         self.priceFontColor = "#ffffff"
+        self.bgColor = nil
         self.marginBottom = 10
         self.colors = ["#333333"]
         self.overlayTitle = false

@@ -4,12 +4,8 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    // Pin plugin versions here so the module's build.gradle.kts can use
-    // `id("...") apply true` without `version` — that lets the same module
-    // be included as a subproject of another build (e.g. the RN demo-app)
-    // without "plugin already on classpath with unknown version" conflicts.
     plugins {
-        id("com.android.library") version "8.7.3"
+        id("com.android.application") version "8.7.3"
         id("org.jetbrains.kotlin.android") version "2.1.20"
         id("org.jetbrains.kotlin.plugin.compose") version "2.1.20"
     }
@@ -20,7 +16,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Prebid Mobile is mirrored on Maven Central, but the canonical release
+        // bucket lives here too. Either resolves; mavenCentral first wins.
+        maven { url = uri("https://jitpack.io") }
     }
 }
 
-rootProject.name = "sellwild-sdk"
+rootProject.name = "feed-demo-android"
+include(":app")

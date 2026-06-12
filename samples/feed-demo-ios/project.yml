@@ -1,0 +1,43 @@
+name: FeedDemo
+options:
+  bundleIdPrefix: com.sellwild.feeddemo
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    CODE_SIGN_IDENTITY: ""
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGNING_ALLOWED: NO
+packages:
+  SellwildSDK:
+    path: ../../
+targets:
+  FeedDemo:
+    type: application
+    platform: iOS
+    sources:
+      - path: FeedDemo
+    dependencies:
+      - package: SellwildSDK
+        product: SellwildSDK
+    info:
+      path: FeedDemo/Info.plist
+      properties:
+        CFBundleDisplayName: FeedDemo
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        GADApplicationIdentifier: ca-app-pub-3940256099942544~1458002511
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        SKAdNetworkItems: []
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sellwild.feeddemo
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: NO

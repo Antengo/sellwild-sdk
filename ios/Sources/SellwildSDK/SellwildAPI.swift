@@ -3,18 +3,24 @@ import Foundation
 // MARK: - Data Models
 
 public struct SellwildPhoto: Codable {
+    // Only `url` is guaranteed by the static cache; `thumbUrl` is only
+    // populated by the legacy RPC endpoint. Keep both optional so a single
+    // missing field doesn't drop the whole listing during decode.
     public let url: String
-    public let thumbUrl: String
+    public let thumbUrl: String?
     public let background: String?
 }
 
 public struct SellwildUser: Codable {
+    // The cache trims this down to {id, firstName, lastName, trustLevel}.
+    // The legacy RPC adds {username, membershipType}. Everything except `id`
+    // is optional so a partial payload still decodes.
     public let id: String
-    public let firstName: String
-    public let lastName: String
-    public let username: String
-    public let membershipType: String
-    public let trustLevel: String
+    public let firstName: String?
+    public let lastName: String?
+    public let username: String?
+    public let membershipType: String?
+    public let trustLevel: String?
 }
 
 public struct SellwildListing: Codable, Identifiable {
@@ -30,10 +36,61 @@ public struct SellwildListing: Codable, Identifiable {
     public let has_photo: Bool?
     public let photos: [SellwildPhoto]?
     public let createdDate: String?
-    public let shippable: String?
+    /// `shippable` arrives as `Bool` on the cache endpoint and `String`
+    /// ("0"/"1") on the legacy RPC endpoint. We surface it as `Bool?` and
+    /// coerce both shapes in the custom decoder below.
+    public let shippable: Bool?
     public let dataSourceId: String?
     public let user: SellwildUser?
     public let distance: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status, title, text, url, categoryId, currency, price,
+             strikePrice, has_photo, photos, createdDate, shippable,
+             dataSourceId, user, distance
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        // `id` and `status` ship as strings on RPC but sometimes as ints on
+        // the cache — accept either to avoid silent drops.
+        self.id        = try Self.decodeFlexibleString(c, key: .id) ?? ""
+        self.status    = try Self.decodeFlexibleString(c, key: .status) ?? ""
+        self.title     = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+        self.text      = try c.decodeIfPresent(String.self, forKey: .text)
+        self.url       = try c.decodeIfPresent(String.self, forKey: .url)
+        self.categoryId   = try Self.decodeFlexibleString(c, key: .categoryId)
+        self.currency     = try c.decodeIfPresent(String.self, forKey: .currency)
+        self.price        = try Self.decodeFlexibleString(c, key: .price)
+        self.strikePrice  = try Self.decodeFlexibleString(c, key: .strikePrice)
+        self.has_photo    = try c.decodeIfPresent(Bool.self, forKey: .has_photo)
+        self.photos       = try c.decodeIfPresent([SellwildPhoto].self, forKey: .photos)
+        self.createdDate  = try c.decodeIfPresent(String.self, forKey: .createdDate)
+        self.shippable    = try Self.decodeFlexibleBool(c, key: .shippable)
+        self.dataSourceId = try Self.decodeFlexibleString(c, key: .dataSourceId)
+        self.user         = try c.decodeIfPresent(SellwildUser.self, forKey: .user)
+        self.distance     = try c.decodeIfPresent(Double.self, forKey: .distance)
+    }
+
+    private static func decodeFlexibleString(
+        _ c: KeyedDecodingContainer<CodingKeys>, key: CodingKeys
+    ) throws -> String? {
+        if let s = try? c.decodeIfPresent(String.self, forKey: key) { return s }
+        if let n = try? c.decodeIfPresent(Int.self,    forKey: key) { return String(n) }
+        if let n = try? c.decodeIfPresent(Double.self, forKey: key) { return String(n) }
+        return nil
+    }
+
+    private static func decodeFlexibleBool(
+        _ c: KeyedDecodingContainer<CodingKeys>, key: CodingKeys
+    ) throws -> Bool? {
+        if let b = try? c.decodeIfPresent(Bool.self, forKey: key)  { return b }
+        if let s = try? c.decodeIfPresent(String.self, forKey: key) {
+            return s == "1" || s.lowercased() == "true"
+        }
+        if let n = try? c.decodeIfPresent(Int.self, forKey: key)   { return n != 0 }
+        return nil
+    }
 
     public var displayPrice: String? {
         guard let priceStr = price,
@@ -84,24 +141,40 @@ public final class SellwildAPIClient {
             return
         }
 
-        // Sellwild's listings endpoint is a Zend\Json\Server JSON-RPC endpoint
-        // (POST /supplyListing/rpc). The SDK targets that contract directly —
-        // this couples it to Sellwild's RPC surface. Other publishers hosting
-        // their own GET JSON endpoint won't be served by this client.
+        // Two endpoint shapes are supported:
+        //
+        //   1. CDN cache (`cache.sellwild.com/listings-*` and any other URL
+        //      that returns the cached `{ result: { rs: [...] } }` payload as
+        //      static JSON). These are GETs and may come back gzip-encoded —
+        //      `URLSession` handles `Accept-Encoding` and decompression for us
+        //      when we don't override the header.
+        //
+        //   2. Legacy Zend\Json\Server JSON-RPC endpoint (`supplyListing/rpc`)
+        //      which requires a POST with a JSON-RPC envelope.
+        //
+        // We pick by host: anything pointed at `cache.sellwild.com` is treated
+        // as a static cache URL; everything else falls back to the RPC POST.
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let envelope: [String: Any] = [
-            "jsonrpc": "2.0",
-            "method": "getFeaturedListingsForPartnerWidget",
-            "params": [config.partnerCode, "regular"],
-            "id": 1,
-        ]
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: envelope)
-        } catch {
-            completion(.failure(error))
-            return
+        let isStaticCache = (url.host ?? "").contains("cache.sellwild.com")
+
+        if isStaticCache {
+            request.httpMethod = "GET"
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+        } else {
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let envelope: [String: Any] = [
+                "jsonrpc": "2.0",
+                "method": "getFeaturedListingsForPartnerWidget",
+                "params": [config.partnerCode, "regular"],
+                "id": 1,
+            ]
+            do {
+                request.httpBody = try JSONSerialization.data(withJSONObject: envelope)
+            } catch {
+                completion(.failure(error))
+                return
+            }
         }
 
         let task = session.dataTask(with: request) { [weak self] data, response, error in

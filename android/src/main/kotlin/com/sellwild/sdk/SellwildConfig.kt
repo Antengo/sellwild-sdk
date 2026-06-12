@@ -21,6 +21,24 @@ data class SellwildConfig(
 
     // Display
     val title: String? = null,
+    /**
+     * Optional URL the feed header title links to. Tapping the title in
+     * `SellwildFeedView` opens this URL in Custom Tabs. When null, the title
+     * is non-tappable.
+     */
+    val partnerUrl: String? = null,
+    /**
+     * COL1 — single-column row schedule for `SellwildFeedView`.
+     * Each character is one row, top to bottom:
+     *   `L` = listing card
+     *   `G` = GAM 300x250 ad (zone ID drawn from `mobileZids` in order)
+     *   `D` = direct ad unit (300x250, currently rendered identically to `G`)
+     *   `B` = 320x50 banner (zone ID = `mobileBannerZid`)
+     * The renderer iterates the string left-to-right and stops when the
+     * string is exhausted. When null or empty, the feed falls back to a
+     * default of "LLGLLGLLG".
+     */
+    val col1: String? = null,
     val linkText: String? = "View all",
     val buyNowText: String? = "Buy now",
     val titleColor: String = "#000000",

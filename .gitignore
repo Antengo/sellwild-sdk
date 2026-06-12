@@ -51,3 +51,9 @@ yarn-error.log*
 docs-site/node_modules
 docs-site/.vitepress/cache
 docs-site/.vitepress/dist
+
+# Agent scratch
+.kotlin/
+.mastracode/
+android/.kotlin/
+samples/feed-demo-android/app/libs/
