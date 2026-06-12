@@ -72,8 +72,11 @@ public enum SellwildSDK {
         return config
     }
 
-    /// Maps CONSTANT_CASE CDN keys onto the corresponding `SellwildConfig` fields.
-    static func apply(
+    /// Maps CONSTANT_CASE CDN keys onto the corresponding `SellwildConfig`
+    /// fields. Public so the React Native bridge (separate Swift module
+    /// via cocoapods) can rebuild a feed-ready config from the JS-resolved
+    /// `remote` payload without re-fetching the CDN.
+    public static func apply(
         _ raw: [String: Any],
         to base: SellwildConfig
     ) -> SellwildConfig {

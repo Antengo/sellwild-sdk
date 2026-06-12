@@ -68,9 +68,12 @@ object SellwildSDK {
     }
 
     /**
-     * Maps CONSTANT_CASE CDN keys onto the corresponding [SellwildConfig] fields.
+     * Maps CONSTANT_CASE CDN keys onto the corresponding [SellwildConfig]
+     * fields. Public so the React Native bridge (separate Gradle module)
+     * can rebuild a feed-ready config from the JS-resolved `remote` JSON
+     * without re-fetching the CDN payload.
      */
-    internal fun apply(raw: JSONObject, base: SellwildConfig): SellwildConfig {
+    fun apply(raw: JSONObject, base: SellwildConfig): SellwildConfig {
         return base.copy(
             // Identity
             partnerCode = raw.optStringOrNull("CODE") ?: base.partnerCode,

@@ -121,7 +121,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "com.sellwild"
             artifactId = "sdk"
-            version = "1.3.4"
+            version = "1.3.5"
 
             afterEvaluate {
                 from(components["release"])
