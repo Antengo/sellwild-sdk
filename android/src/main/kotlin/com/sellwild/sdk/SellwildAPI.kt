@@ -45,6 +45,8 @@ data class SellwildListing(
     val dataSourceId: String? = null,
     val user: SellwildUser? = null,
     val distance: Double? = null,
+    /** Off-platform destination ("remote_url" on the cache payload). */
+    val remoteUrl: String? = null,
 ) {
     val displayPrice: String?
         get() {
@@ -54,6 +56,19 @@ data class SellwildListing(
 
     val primaryPhotoUrl: String?
         get() = photos.firstOrNull()?.url
+
+    /**
+     * The URL a listing card should open when tapped. Prefers [remoteUrl]
+     * (off-platform partner URL), then [url], then a Sellwild deep link
+     * derived from [id].
+     */
+    val tapUrl: String?
+        get() = when {
+            !remoteUrl.isNullOrEmpty() -> remoteUrl
+            !url.isNullOrEmpty()       -> url
+            id.isNotEmpty()            -> "https://sellwild.com/itemDetail/$id"
+            else                       -> null
+        }
 }
 
 data class SellwildListingsResponse(
@@ -146,6 +161,7 @@ class SellwildAPIClient(private val context: Context) {
             shippable = json.optString("shippable").ifEmpty { null },
             dataSourceId = json.optString("dataSourceId").ifEmpty { null },
             user = user,
+            remoteUrl = json.optString("remote_url").ifEmpty { null },
         )
     }
 

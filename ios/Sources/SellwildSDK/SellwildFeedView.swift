@@ -214,7 +214,7 @@ public final class SellwildFeedView: UIView {
 
     fileprivate func handleListingTap(_ listing: SellwildListing) {
         let handled = delegate?.sellwildFeed(self, didTapListing: listing) ?? false
-        if !handled { openURL(listing.url) }
+        if !handled { openURL(listing.tapURL) }
     }
 
     fileprivate func handleAdImpression(_ zoneId: String) {

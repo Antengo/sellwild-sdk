@@ -43,11 +43,16 @@ public struct SellwildListing: Codable, Identifiable {
     public let dataSourceId: String?
     public let user: SellwildUser?
     public let distance: Double?
+    /// Off-platform destination ("remote_url" on the cache payload). When set
+    /// this is the URL the listing card should open. Falls back to `url`, then
+    /// to a Sellwild item-detail link built from `id`.
+    public let remoteUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case id, status, title, text, url, categoryId, currency, price,
              strikePrice, has_photo, photos, createdDate, shippable,
              dataSourceId, user, distance
+        case remoteUrl = "remote_url"
     }
 
     public init(from decoder: Decoder) throws {
@@ -70,6 +75,16 @@ public struct SellwildListing: Codable, Identifiable {
         self.dataSourceId = try Self.decodeFlexibleString(c, key: .dataSourceId)
         self.user         = try c.decodeIfPresent(SellwildUser.self, forKey: .user)
         self.distance     = try c.decodeIfPresent(Double.self, forKey: .distance)
+        self.remoteUrl    = try c.decodeIfPresent(String.self, forKey: .remoteUrl)
+    }
+
+    /// The URL a listing card should open when tapped. Prefers `remoteUrl`
+    /// (off-platform partner URL), then `url`, then a Sellwild deep link
+    /// derived from `id`.
+    public var tapURL: String? {
+        if let s = remoteUrl, !s.isEmpty { return s }
+        if let s = url, !s.isEmpty { return s }
+        return id.isEmpty ? nil : "https://sellwild.com/itemDetail/\(id)"
     }
 
     private static func decodeFlexibleString(
