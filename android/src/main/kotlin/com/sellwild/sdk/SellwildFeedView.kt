@@ -252,7 +252,7 @@ class SellwildFeedView @JvmOverloads constructor(
                 is Row.Header -> (holder as HeaderHolder).view.bind(cfg, ::openUrl)
                 is Row.Listing -> (holder as ListingHolder).view.bind(cfg, row.listing) { listing ->
                     val handled = listener?.onListingTap(listing) ?: false
-                    if (!handled) openUrl(listing.tapUrl)
+                    if (!handled) openUrl(listing.tapUrl(cfg.partnerCode, cfg.bhTag))
                 }
                 is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onAdClick)
                 is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onAdClick)

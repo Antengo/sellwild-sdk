@@ -82,6 +82,7 @@ object SellwildSDK {
             title = raw.optStringOrNull("TITLE") ?: base.title,
             partnerUrl = raw.optStringOrNull("PARTNER_URL") ?: base.partnerUrl,
             col1 = raw.optStringOrNull("COL1") ?: base.col1,
+            bhTag = raw.optStringOrNull("BH_TAG") ?: base.bhTag,
             linkText = raw.optStringOrNull("LINK_TEXT") ?: base.linkText,
             buyNowText = raw.optStringOrNull("BUY_NOW_TEXT") ?: base.buyNowText,
             titleColor = raw.optStringOrNull("TITLE_COLOR") ?: base.titleColor,

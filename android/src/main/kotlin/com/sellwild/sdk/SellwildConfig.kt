@@ -39,6 +39,12 @@ data class SellwildConfig(
      * default of "LLGLLGLLG".
      */
     val col1: String? = null,
+    /**
+     * Bargain Hunter affiliate tag. When set, listing tap URLs that already
+     * carry a `listing.url` get a `?tag={bhTag}` query param appended, matching
+     * the web widget's `getListingUrl()` behavior.
+     */
+    val bhTag: String? = null,
     val linkText: String? = "View all",
     val buyNowText: String? = "Buy now",
     val titleColor: String = "#000000",

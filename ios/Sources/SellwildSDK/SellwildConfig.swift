@@ -41,6 +41,10 @@ public struct SellwildConfig: Codable {
     /// string is exhausted. When `nil` or empty, the feed falls back to a
     /// default of `"LLGLLGLLG"`.
     public var col1: String?
+    /// Bargain Hunter affiliate tag. When set, listing tap URLs that already
+    /// carry a `listing.url` get a `?tag={bhTag}` query param appended, matching
+    /// the web widget's `getListingUrl()` behavior.
+    public var bhTag: String?
     public var linkText: String?
     public var buyNowText: String?
     public var titleColor: String

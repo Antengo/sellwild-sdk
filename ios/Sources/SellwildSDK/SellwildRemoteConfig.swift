@@ -89,6 +89,7 @@ public enum SellwildSDK {
         if let v = raw["TITLE"]            as? String   { c.title = v }
         if let v = raw["PARTNER_URL"]      as? String   { c.partnerUrl = v }
         if let v = raw["COL1"]             as? String   { c.col1 = v }
+        if let v = raw["BH_TAG"]           as? String   { c.bhTag = v }
         if let v = raw["LINK_TEXT"]        as? String   { c.linkText = v }
         if let v = raw["BUY_NOW_TEXT"]     as? String   { c.buyNowText = v }
         if let v = raw["TITLE_COLOR"]      as? String   { c.titleColor = v }

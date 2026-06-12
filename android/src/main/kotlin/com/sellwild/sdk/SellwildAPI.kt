@@ -58,17 +58,38 @@ data class SellwildListing(
         get() = photos.firstOrNull()?.url
 
     /**
-     * The URL a listing card should open when tapped. Prefers [remoteUrl]
-     * (off-platform partner URL), then [url], then a Sellwild deep link
-     * derived from [id].
+     * The URL a listing card should open when tapped. Mirrors the web widget's
+     * `getListingUrl()` from `widget.sellwild.com/partner.js` so native feeds
+     * route to the same destination:
+     *
+     * 1. [url] (optionally rewritten with `?tag={bhTag}` for Bargain Hunter)
+     * 2. [remoteUrl] when `dataSourceId == "31"` (off-platform partner link)
+     * 3. `https://sellwild.com/product/{id}?p={partner}&utm_source={partner}` fallback
      */
-    val tapUrl: String?
-        get() = when {
-            !remoteUrl.isNullOrEmpty() -> remoteUrl
-            !url.isNullOrEmpty()       -> url
-            id.isNotEmpty()            -> "https://sellwild.com/itemDetail/$id"
-            else                       -> null
+    fun tapUrl(partnerCode: String?, bhTag: String? = null): String? {
+        // 1. Direct URL on the listing.
+        url?.takeIf { it.isNotEmpty() }?.let { direct ->
+            if (!bhTag.isNullOrEmpty()) {
+                val u = android.net.Uri.parse(direct)
+                val builder = u.buildUpon().clearQuery()
+                u.queryParameterNames.filter { it != "tag" }.forEach { k ->
+                    builder.appendQueryParameter(k, u.getQueryParameter(k))
+                }
+                builder.appendQueryParameter("tag", bhTag)
+                return builder.build().toString()
+            }
+            return direct
         }
+        // 2. Off-platform remote_url only when dataSourceId == "31".
+        if (dataSourceId == "31" && !remoteUrl.isNullOrEmpty()) {
+            return remoteUrl
+        }
+        // 3. Canonical Sellwild product URL.
+        if (id.isEmpty()) return null
+        val partner = (if (!partnerCode.isNullOrEmpty()) partnerCode else "sellwild")
+        val encoded = android.net.Uri.encode(partner)
+        return "https://sellwild.com/product/$id?p=$encoded&utm_source=$encoded"
+    }
 }
 
 data class SellwildListingsResponse(
