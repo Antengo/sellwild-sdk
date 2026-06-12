@@ -17,6 +17,7 @@ import {
 import {
   SellwildWidget,
   SellwildBanner,
+  SellwildFeed,
   useSellwildListings,
   buildConfig,
   configure,
@@ -721,18 +722,61 @@ function BannerScreen() {
   )
 }
 
+// ─── Feed Screen — exercises the native <SellwildFeed> bridge ───────────────
+//
+// Drop-in native replacement for the WebView widget. Renders listings + ads
+// inline via Prebid Mobile + GAM (no WebView in the pipeline). The CDN config
+// COL1 schedule (L=listing, G=GAM, D=direct, B=banner) drives row layout.
+
+function FeedScreen() {
+  const [config, setConfig] = useState<SellwildConfig | null>(null)
+
+  useEffect(() => {
+    configure(STATIC_CONFIG.partnerCode!, REMOTE_SLUG, { timeout: 5000, overrides: STATIC_CONFIG })
+      .then((cfg) => {
+        console.log('[Sellwild] FeedScreen configure() resolved')
+        setConfig(cfg)
+      })
+  }, [])
+
+  if (!config) {
+    return (
+      <View style={s.center}>
+        <ActivityIndicator color={ACCENT} />
+        <Text style={s.bannerWaiting}>Loading config…</Text>
+      </View>
+    )
+  }
+
+  return (
+    <SellwildFeed
+      config={config}
+      style={s.flex}
+      onListingTap={(listing) => {
+        console.log('[Sellwild] feed listing tap:', listing.title)
+        if (listing.url) Linking.openURL(listing.url)
+      }}
+      onAdImpression={(zoneId) => console.log('[Sellwild] feed ad impression', zoneId)}
+      onAdClicked={(zoneId) => console.log('[Sellwild] feed ad click', zoneId)}
+      onLoad={() => console.log('[Sellwild] feed loaded')}
+      onError={(err) => console.warn('[Sellwild] feed error:', err.message)}
+    />
+  )
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'banner' | 'native' | 'widget'
+type Tab = 'feed' | 'banner' | 'native' | 'widget'
 
 const TAB_LABELS: Record<Tab, string> = {
+  feed: 'Feed',
   banner: 'Native Banner',
   native: 'Auction Demo',
   widget: 'Widget',
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('banner')
+  const [tab, setTab] = useState<Tab>('feed')
   return (
     <View style={s.root}>
       <StatusBar barStyle="light-content" />
@@ -746,7 +790,7 @@ export default function App() {
         </View>
       </SafeAreaView>
       <View style={s.tabBar}>
-        {(['banner', 'native', 'widget'] as Tab[]).map(t => (
+        {(['feed', 'banner', 'native', 'widget'] as Tab[]).map(t => (
           <TouchableOpacity key={t} style={[s.tab, tab === t && s.tabActive]} onPress={() => setTab(t)}>
             <Text style={[s.tabLabel, tab === t && s.tabLabelActive]}>
               {TAB_LABELS[t]}
@@ -755,7 +799,7 @@ export default function App() {
         ))}
       </View>
       <View style={s.flex}>
-        {tab === 'banner' ? <BannerScreen /> : tab === 'native' ? <NativeScreen /> : <WidgetScreen />}
+        {tab === 'feed' ? <FeedScreen /> : tab === 'banner' ? <BannerScreen /> : tab === 'native' ? <NativeScreen /> : <WidgetScreen />}
       </View>
     </View>
   )

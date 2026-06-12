@@ -27,6 +27,7 @@ apply plugin: "com.facebook.react.rootproject"
 allprojects {
     repositories {
         mavenLocal()
+        maven { url "https://maven.sellwild.com/releases" }
     }
     configurations.all {
         resolutionStrategy.eachDependency { details ->

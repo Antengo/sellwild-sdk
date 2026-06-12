@@ -4,7 +4,7 @@ PODS:
   - FBLazyVector (0.74.6)
   - fmt (9.1.0)
   - glog (0.3.5)
-  - Google-Mobile-Ads-SDK (13.3.0):
+  - Google-Mobile-Ads-SDK (13.4.0):
     - GoogleUserMessagingPlatform (>= 1.1)
   - GoogleUserMessagingPlatform (3.1.0)
   - hermes-engine (0.74.6):
@@ -1193,10 +1193,10 @@ PODS:
     - React-utils (= 0.74.6)
   - RNCClipboard (1.16.3):
     - React-Core
-  - SellwildSDK (1.3.0):
-    - Google-Mobile-Ads-SDK (~> 13.0)
-    - PrebidMobile (~> 3.3)
-  - SellwildSDK-RN (1.2.0):
+  - SellwildSDK (1.3.3):
+    - Google-Mobile-Ads-SDK (< 14.0, >= 12.0)
+    - PrebidMobile (< 4.0, >= 3.0.1)
+  - SellwildSDK-RN (1.3.3):
     - React-Core
     - SellwildSDK (>= 1.3.0)
   - SocketRocket (0.7.0)
@@ -1260,7 +1260,7 @@ DEPENDENCIES:
   - React-utils (from `../node_modules/react-native/ReactCommon/react/utils`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCClipboard (from `../node_modules/@react-native-clipboard/clipboard`)"
-  - SellwildSDK (from `../../../ios`)
+  - SellwildSDK (from `../../../`)
   - SellwildSDK-RN (from `../../../react-native/ios`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -1384,7 +1384,7 @@ EXTERNAL SOURCES:
   RNCClipboard:
     :path: "../node_modules/@react-native-clipboard/clipboard"
   SellwildSDK:
-    :path: "../../../ios"
+    :path: "../../../"
   SellwildSDK-RN:
     :path: "../../../react-native/ios"
   Yoga:
@@ -1396,7 +1396,7 @@ SPEC CHECKSUMS:
   FBLazyVector: 4b1589d37c9ff4dba11a63083fe7515fad3ac111
   fmt: 4c2741a687cc09f0634a2e2c72a838b99f1ff120
   glog: fdfdfe5479092de0c4bdbebedd9056951f092c4f
-  Google-Mobile-Ads-SDK: 7692126a35ed859f20635af281c50a2162be8bea
+  Google-Mobile-Ads-SDK: 5aa7af5189af2c75d1c32868062cf3692f1376f9
   GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
   hermes-engine: 2102c92e54a031a270fd1fe84169ec8a0901b7bd
   PrebidMobile: ee7a59963c71e08baae66d8934df228ccf3648c7
@@ -1449,11 +1449,11 @@ SPEC CHECKSUMS:
   React-utils: 61a4c1ae313725ae97f72aeca2b7f73c316ee5e7
   ReactCommon: 2d6cc4daa19b1ec85b9ae72bfa7958cdd50a60ea
   RNCClipboard: f6679d470d0da2bce2a37b0af7b9e0bf369ecda5
-  SellwildSDK: 44ada619210d809c787ddd90b4ccd3b6193e285c
-  SellwildSDK-RN: 5bd3bbaeed1cfddd22040a61963e0e504de950d0
+  SellwildSDK: 4817691704e45b20a6b8358a81390d0397239934
+  SellwildSDK-RN: 48bd17851b4ae6ada9cb244f5d2bb9862c55c26d
   SocketRocket: abac6f5de4d4d62d24e11868d7a2f427e0ef940d
   Yoga: 4f4f07a17818e76d1b04edc01b68b6d49a682100
 
-PODFILE CHECKSUM: 93b2daf51b534633b1706dd423587333fcfbdf31
+PODFILE CHECKSUM: a6d2e4258fe3cf36f1ab2029e40469096ab24da2
 
 COCOAPODS: 1.16.2
