@@ -191,6 +191,18 @@ export interface SellwildConfig {
   safeFrame: boolean
   adDisableDisplay: boolean
 
+  /**
+   * Global ad-stack override (CDN `AD_STACK`). When set, forces EVERY placement
+   * to this stack regardless of per-zone settings — an operational kill-switch.
+   * When unset, per-zone (`adStackByZone`) applies, falling back to `both`.
+   */
+  adStack?: AdStack
+  /**
+   * Per-placement ad-stack settings (CDN `AD_STACK_BY_ZONE`), keyed by zone id.
+   * Applies only when the global `adStack` is unset. e.g. `{ "43": "prebidOnly" }`.
+   */
+  adStackByZone?: Record<string, AdStack>
+
   // Ads - refresh
   adRefreshMax: number
   adRefreshMaxMobile: number
@@ -340,6 +352,19 @@ export interface SdkEvent {
   amount?: number
   attributes?: Record<string, string | number | boolean>
 }
+
+/**
+ * Which ad SDK stack a placement runs. Toggled remotely so revenue/measurement
+ * can segment GAM (Google Ad Manager / Google Ads) and Prebid independently
+ * without an SDK release.
+ *
+ *  - `both`       — Prebid auction fetches demand, then GAM renders (default;
+ *                   the winning Prebid creative or GAM's own line items serve).
+ *  - `gamOnly`    — plain GAM request, no Prebid auction.
+ *  - `prebidOnly` — Prebid's own rendering path; NO GAM ad request is made, so
+ *                   no GAM request/serving fees are incurred.
+ */
+export type AdStack = 'both' | 'gamOnly' | 'prebidOnly'
 
 // Ad placement size
 export type AdSize = '300x250' | '320x50' | '728x90' | '160x600' | '300x600' | '1x1'

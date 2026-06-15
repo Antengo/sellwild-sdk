@@ -1,4 +1,4 @@
-import { SellwildConfig } from './types'
+import { SellwildConfig, AdStack } from './types'
 import { WIDGET_BASE_URL } from './config'
 
 /**
@@ -52,6 +52,10 @@ const KEY_MAP: Record<string, keyof SellwildConfig> = {
   AD_UNITS: 'adUnits',
   SAFE_FRAME: 'safeFrame',
   AD_DISABLE_DISPLAY: 'adDisableDisplay',
+
+  // Ad-stack segmentation (GAM vs Prebid)
+  AD_STACK: 'adStack',
+  AD_STACK_BY_ZONE: 'adStackByZone',
 
   // Ad refresh
   AD_REFRESH_MAX: 'adRefreshMax',
@@ -146,7 +150,68 @@ function coerceConfigValue(configKey: string, value: unknown): unknown {
     }
     return []
   }
+  if (configKey === 'adStack') {
+    return parseAdStack(value)
+  }
+  if (configKey === 'adStackByZone') {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const out: Record<string, AdStack> = {}
+      for (const [zone, mode] of Object.entries(value as Record<string, unknown>)) {
+        const parsed = parseAdStack(mode)
+        if (parsed) out[String(zone)] = parsed
+      }
+      return out
+    }
+    return undefined
+  }
   return value
+}
+
+/**
+ * Normalize a CDN ad-stack string into the typed {@link AdStack} union.
+ * Tolerant of casing and common aliases. Returns `undefined` for unknown
+ * values so callers can fall back to their default.
+ */
+export function parseAdStack(value: unknown): AdStack | undefined {
+  if (typeof value !== 'string') return undefined
+  switch (value.trim().toLowerCase().replace(/[\s_-]/g, '')) {
+    case 'both':
+    case 'all':
+    case 'default':
+      return 'both'
+    case 'gam':
+    case 'gamonly':
+    case 'google':
+    case 'gads':
+    case 'googleads':
+      return 'gamOnly'
+    case 'prebid':
+    case 'prebidonly':
+    case 'prebidsdk':
+      return 'prebidOnly'
+    default:
+      return undefined
+  }
+}
+
+/**
+ * Resolve the effective ad stack for a placement.
+ *
+ * Precedence (matches all native platforms):
+ *   1. Global `adStack` (CDN `AD_STACK`) — hard-wins for every placement.
+ *   2. Per-zone `adStackByZone[zoneId]` (CDN `AD_STACK_BY_ZONE`).
+ *   3. `both` (today's default behavior).
+ */
+export function resolveAdStack(
+  config: Pick<SellwildConfig, 'adStack' | 'adStackByZone'>,
+  zoneId?: number | string | null,
+): AdStack {
+  if (config.adStack) return config.adStack
+  if (zoneId !== undefined && zoneId !== null) {
+    const perZone = config.adStackByZone?.[String(zoneId)]
+    if (perZone) return perZone
+  }
+  return 'both'
 }
 
 // ── Fetch ────────────��──────────────────────────────────────────────────────

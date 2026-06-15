@@ -24,7 +24,7 @@ import {
   clearRemoteConfigCache,
 } from '@sellwild/react-native-sdk'
 import type { SellwildListing, SellwildConfig, PartialSellwildConfig } from '@sellwild/react-native-sdk'
-import { currencyToSymbol } from '@sellwild/sdk-core'
+import { currencyToSymbol, type AdStack } from '@sellwild/sdk-core'
 import { WebView } from 'react-native-webview'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -657,8 +657,31 @@ function WidgetScreen() {
 // Mobile auction + AdManagerAdView). On iOS it renders a placeholder until
 // the iOS RN bridge lands.
 
+// Ad-stack segmentation options. Selecting one mirrors setting the CDN global
+// `AD_STACK` key — it hard-wins over per-zone config and forces every placement.
+const AD_STACK_OPTIONS: { key: AdStack; label: string; note: string }[] = [
+  {
+    key: 'both',
+    label: 'Both',
+    note: 'Prebid auction fetches demand, then GAM renders the winner (or its own line items on no-bid). Default.',
+  },
+  {
+    key: 'gamOnly',
+    label: 'GAM only',
+    note: 'Plain GAM request, no Prebid auction. Google Ads / Ad Manager demand only.',
+  },
+  {
+    key: 'prebidOnly',
+    label: 'Prebid only',
+    note: 'Prebid renders natively — NO GAM ad request is made, so no GAM request/serving fees.',
+  },
+]
+
 function BannerScreen() {
   const [config, setConfig] = useState<SellwildConfig | null>(null)
+  // Forces the ad stack for both placements below. Maps onto `config.adStack`,
+  // the same field the CDN `AD_STACK` global override populates.
+  const [adStack, setAdStack] = useState<AdStack>('both')
 
   useEffect(() => {
     configure(STATIC_CONFIG.partnerCode!, REMOTE_SLUG, { timeout: 5000, overrides: STATIC_CONFIG })
@@ -678,18 +701,46 @@ function BannerScreen() {
   }
 
   const bannerZone = config.bannerZid || '43'
+  // Setting adStack here drives <SellwildBanner>'s resolved stack (global
+  // hard-win), which flows to native as the override prop.
+  const stackedConfig: SellwildConfig = { ...config, adStack }
+  const activeNote = AD_STACK_OPTIONS.find(o => o.key === adStack)?.note ?? ''
 
   return (
     <ScrollView style={s.flex} contentContainerStyle={s.bannerContent}>
+      {/* Ad-stack toggle — segment GAM/GAds SDK vs Prebid SDK */}
+      <View style={s.stackToggleWrap}>
+        <Text style={s.stackToggleTitle}>Ad stack</Text>
+        <View style={s.stackToggle}>
+          {AD_STACK_OPTIONS.map(opt => {
+            const active = opt.key === adStack
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                style={[s.stackBtn, active && s.stackBtnActive]}
+                onPress={() => setAdStack(opt.key)}
+                activeOpacity={0.85}
+              >
+                <Text style={[s.stackBtnText, active && s.stackBtnTextActive]}>{opt.label}</Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+        <Text style={s.stackNote}>{activeNote}</Text>
+      </View>
+
       <View style={s.bannerSection}>
         <Text style={s.bannerHeader}>320×50 banner</Text>
-        <Text style={s.bannerSub}>zone {bannerZone}</Text>
+        <Text style={s.bannerSub}>zone {bannerZone} · {adStack}</Text>
         <View style={s.bannerHost}>
           <SellwildBanner
-            config={config}
+            // Re-mount on stack change so the native view rebuilds its child
+            // (GAM AdManagerAdView vs Prebid rendering BannerView).
+            key={`banner-${adStack}`}
+            config={stackedConfig}
             size="320x50"
             zoneId={bannerZone}
-            onImpression={() => console.log('[Sellwild] banner impression')}
+            onImpression={() => console.log('[Sellwild] banner impression', adStack)}
             onClick={() => console.log('[Sellwild] banner click')}
             onError={(err) => console.warn('[Sellwild] banner error:', err.message)}
           />
@@ -698,13 +749,14 @@ function BannerScreen() {
 
       <View style={s.bannerSection}>
         <Text style={s.bannerHeader}>300×250 MREC</Text>
-        <Text style={s.bannerSub}>zone {bannerZone}</Text>
+        <Text style={s.bannerSub}>zone {bannerZone} · {adStack}</Text>
         <View style={s.bannerHost}>
           <SellwildBanner
-            config={config}
+            key={`mrec-${adStack}`}
+            config={stackedConfig}
             size="300x250"
             zoneId={bannerZone}
-            onImpression={() => console.log('[Sellwild] mrec impression')}
+            onImpression={() => console.log('[Sellwild] mrec impression', adStack)}
             onClick={() => console.log('[Sellwild] mrec click')}
             onError={(err) => console.warn('[Sellwild] mrec error:', err.message)}
           />
@@ -713,9 +765,10 @@ function BannerScreen() {
 
       <View style={s.bannerSection}>
         <Text style={s.bannerNote}>
-          Native banner path — Prebid Mobile auction → AdManagerAdView. No WebView
-          in the ad pipeline. Verify with{'\n'}
-          <Text style={s.bannerCode}>adb shell dumpsys activity top</Text>
+          Native banner path — no WebView in the ad pipeline. In{' '}
+          <Text style={s.bannerCode}>prebidOnly</Text> the SDK uses Prebid's own
+          renderer and makes no GAM request. Verify there's no GAM call with{'\n'}
+          <Text style={s.bannerCode}>adb logcat | grep -iE "Ads|GAM|prebid"</Text>
         </Text>
       </View>
     </ScrollView>
@@ -850,6 +903,15 @@ const s = StyleSheet.create({
   bannerHost: { backgroundColor: '#fff', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#E2E8F0' },
   bannerNote: { color: '#475569', fontSize: 12, textAlign: 'center' as const, lineHeight: 18 },
   bannerCode: { fontFamily: 'Menlo', fontSize: 11, color: '#0F172A' },
+  // Ad-stack toggle
+  stackToggleWrap: { marginBottom: 20 },
+  stackToggleTitle: { fontSize: 13, fontWeight: '700' as const, color: '#0F172A', textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8 },
+  stackToggle: { flexDirection: 'row', backgroundColor: '#E2E8F0', borderRadius: 10, padding: 3 },
+  stackBtn: { flex: 1, paddingVertical: 9, alignItems: 'center' as const, borderRadius: 8 },
+  stackBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 3, elevation: 2 },
+  stackBtnText: { fontSize: 13, fontWeight: '600' as const, color: '#64748B' },
+  stackBtnTextActive: { color: ACCENT, fontWeight: '700' as const },
+  stackNote: { fontSize: 12, color: '#64748B', lineHeight: 17, marginTop: 8 },
 })
 
 // ─── Auction + Ad Styles ─────────────────────────────────────────────────────

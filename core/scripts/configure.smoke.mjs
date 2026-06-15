@@ -3,7 +3,7 @@
 // Run with: `node core/scripts/configure.smoke.mjs` from the repo root.
 // Requires `core/dist` to exist — run `npm run build` in core first.
 
-import { configure, clearRemoteConfigCache, fetchRemoteConfig, resolveListingsUrl } from '../dist/index.js'
+import { configure, clearRemoteConfigCache, fetchRemoteConfig, resolveListingsUrl, resolveAdStack, parseAdStack } from '../dist/index.js'
 
 let pass = 0
 let fail = 0
@@ -149,6 +149,54 @@ const origFetch = globalThis.fetch
       config2.iabCats[1] === 'IAB15-10' &&
       config2.iabCats[2] === 'IAB7',
   )
+}
+
+// Test 7 — ad-stack parse tolerance
+{
+  check('parseAdStack BOTH', parseAdStack('BOTH') === 'both')
+  check('parseAdStack alias google → gamOnly', parseAdStack('google') === 'gamOnly')
+  check('parseAdStack PREBID_ONLY → prebidOnly', parseAdStack('PREBID_ONLY') === 'prebidOnly')
+  check('parseAdStack gam-only (hyphen) → gamOnly', parseAdStack('gam-only') === 'gamOnly')
+  check('parseAdStack unknown → undefined', parseAdStack('xyz') === undefined)
+}
+
+// Test 8 — ad-stack mapping from CDN + resolution precedence
+{
+  clearRemoteConfigCache()
+  globalThis.fetch = makeFetch({
+    CODE: 'weatherbug',
+    AD_STACK: 'PREBID',
+    AD_STACK_BY_ZONE: { '43': 'GAM', '44': 'BOTH' },
+  })
+  const config = await configure('weatherbug', 'weatherbug-adstack')
+  check('AD_STACK mapped to adStack', config.adStack === 'prebidOnly')
+  check('AD_STACK_BY_ZONE mapped', config.adStackByZone?.['43'] === 'gamOnly')
+  // Global hard-wins over per-zone.
+  check('global hard-wins over per-zone', resolveAdStack(config, '43') === 'prebidOnly')
+  check('global hard-wins (no zone)', resolveAdStack(config) === 'prebidOnly')
+}
+
+// Test 9 — per-zone applies when no global; default both
+{
+  clearRemoteConfigCache()
+  globalThis.fetch = makeFetch({
+    CODE: 'weatherbug',
+    AD_STACK_BY_ZONE: { '43': 'gamOnly', '99': 'prebidOnly' },
+  })
+  const config = await configure('weatherbug', 'weatherbug-perzone')
+  check('per-zone 43 → gamOnly', resolveAdStack(config, '43') === 'gamOnly')
+  check('per-zone 99 → prebidOnly', resolveAdStack(config, 99) === 'prebidOnly')
+  check('unlisted zone → both', resolveAdStack(config, '7') === 'both')
+  check('no zone, no global → both', resolveAdStack(config) === 'both')
+}
+
+// Test 10 — absent keys preserve today's default behavior
+{
+  clearRemoteConfigCache()
+  globalThis.fetch = makeFetch({ CODE: 'weatherbug' })
+  const config = await configure('weatherbug', 'weatherbug-default')
+  check('no AD_STACK keys → adStack undefined', config.adStack === undefined)
+  check('no AD_STACK keys → resolves both', resolveAdStack(config, '43') === 'both')
 }
 
 globalThis.fetch = origFetch

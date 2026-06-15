@@ -14,6 +14,7 @@
 RCT_EXPORT_VIEW_PROPERTY(config, NSDictionary)
 RCT_EXPORT_VIEW_PROPERTY(size, NSString)
 RCT_EXPORT_VIEW_PROPERTY(zoneId, NSString)
+RCT_EXPORT_VIEW_PROPERTY(adStack, NSString)
 
 // Direct events emitted to JS callbacks.
 RCT_EXPORT_VIEW_PROPERTY(onAdLoaded, RCTDirectEventBlock)

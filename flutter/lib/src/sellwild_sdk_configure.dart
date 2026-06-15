@@ -117,6 +117,19 @@ class SellwildSDK {
       disableGpt: boolean('DISABLE_GPT') ?? base.disableGpt,
       adDisableDisplay: boolean('AD_DISABLE_DISPLAY') ?? base.adDisableDisplay,
 
+      // Ad-stack segmentation (GAM vs Prebid)
+      adStack: SellwildAdStack.parse(raw['AD_STACK']) ?? base.adStack,
+      adStackByZone: () {
+        final v = raw['AD_STACK_BY_ZONE'];
+        if (v is! Map) return base.adStackByZone;
+        final out = <String, SellwildAdStack>{};
+        v.forEach((zone, mode) {
+          final parsed = SellwildAdStack.parse(mode);
+          if (parsed != null) out['$zone'] = parsed;
+        });
+        return out;
+      }(),
+
       // Refresh
       adRefreshMax: integer('AD_REFRESH_MAX') ?? base.adRefreshMax,
       adRefreshMaxMobile:

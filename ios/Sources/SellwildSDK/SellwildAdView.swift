@@ -7,6 +7,13 @@ import PrebidMobile
 // Native banner ad view. As of 1.3.0 this view runs a Prebid Mobile auction
 // and renders into a GAMBannerView. There is **no WKWebView** in the ad path.
 //
+// As of 1.4.0 the view can be segmented by ad stack (see `SellwildAdStack`),
+// toggled remotely via `AD_STACK` / `AD_STACK_BY_ZONE`:
+//   - .both       — Prebid auction → GAM renders (default; unchanged).
+//   - .gamOnly    — plain GAM request, no Prebid auction.
+//   - .prebidOnly — Prebid's own rendering BannerView, NO GAM request (and so
+//                   no GAM request/serving fees).
+//
 // The widget surface (SellwildWidget / SellwildWidgetView) still uses a
 // WebView for marketplace listings — that surface is intentionally a WebView.
 // Banners and other monetizing ad units render natively.
@@ -31,18 +38,27 @@ public final class SellwildAdView: UIView {
     /// CMS maps this tag to a stored impression.
     public var zoneId: String?
 
+    /// Optional code-level ad-stack override. When set, wins over the remote
+    /// `AD_STACK` / `AD_STACK_BY_ZONE` config — intended for QA / testing.
+    public var adStackOverride: SellwildAdStack?
+
     public weak var delegate: SellwildAdViewDelegate?
+
+    /// The ad stack this view resolves to, given the current config + override.
+    public var resolvedAdStack: SellwildAdStack {
+        SellwildAdStack.resolve(
+            remoteValues: config.remoteValues,
+            zoneId: zoneId,
+            override: adStackOverride
+        )
+    }
 
     // MARK: Private
 
-    private lazy var bannerView: AdManagerBannerView = {
-        let v = AdManagerBannerView(adSize: adSizeFor(cgSize: adSize.cgSize))
-        v.translatesAutoresizingMaskIntoConstraints = false
-        v.delegate = self
-        v.adUnitID = resolveGAMAdUnitID()
-        v.rootViewController = nearestViewController()
-        return v
-    }()
+    // GAM render path (.both / .gamOnly). Created lazily on first GAM load.
+    private var gamBanner: AdManagerBannerView?
+    // Prebid render path (.prebidOnly). Created lazily on first Prebid load.
+    private var prebidBanner: PrebidMobile.BannerView?
 
     private var refreshTimer: Timer?
     private var refreshCount = 0
@@ -54,7 +70,6 @@ public final class SellwildAdView: UIView {
         self.adSize = adSize
         self.zoneId = zoneId
         super.init(frame: CGRect(origin: .zero, size: adSize.cgSize))
-        setup()
     }
 
     required init?(coder: NSCoder) {
@@ -63,29 +78,51 @@ public final class SellwildAdView: UIView {
 
     deinit {
         refreshTimer?.invalidate()
+        prebidBanner?.stopRefresh()
     }
 
     // MARK: Public
 
-    /// Run the Prebid auction and load the winning ad. Safe to call multiple
-    /// times; each call triggers a fresh auction + GAM request.
+    /// Run the appropriate ad path for the resolved stack and load an ad. Safe
+    /// to call multiple times; each call triggers a fresh load.
     public func load() {
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(with: config)
 
-        // Re-resolve the GAM ad unit each load() in case `config` was swapped.
-        bannerView.adUnitID = resolveGAMAdUnitID()
-        bannerView.rootViewController = nearestViewController()
+        switch resolvedAdStack {
+        case .prebidOnly:
+            loadPrebidOnly()
+        case .gamOnly:
+            loadGAM(runAuction: false)
+        case .both:
+            loadGAM(runAuction: true)
+        }
+    }
 
-        guard let configId = zoneId, !configId.isEmpty else {
-            // No zoneId means we cannot run a Prebid auction. Fall through to
-            // a plain GAM request so the GAM line items still serve.
-            bannerView.load(AdManagerRequest())
+    /// Stop refresh. The currently displayed ad (if any) stays.
+    public func pause() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+        prebidBanner?.stopRefresh()
+    }
+
+    // MARK: GAM path (.both / .gamOnly)
+
+    private func loadGAM(runAuction: Bool) {
+        let banner = ensureGAMBanner()
+        // Re-resolve the GAM ad unit each load() in case `config` was swapped.
+        banner.adUnitID = resolveGAMAdUnitID()
+        banner.rootViewController = nearestViewController()
+
+        guard runAuction, let configId = zoneId, !configId.isEmpty else {
+            // No auction (.gamOnly), or no zoneId to bid against. Either way,
+            // a plain GAM request so GAM line items still serve.
+            banner.load(AdManagerRequest())
             return
         }
 
         SellwildPrebidMobile.runBannerAuction(
-            on: bannerView,
+            on: banner,
             configId: configId,
             adSize: adSize.cgSize,
             bidderParams: bidderParamsFromRemote()
@@ -97,23 +134,85 @@ public final class SellwildAdView: UIView {
         }
     }
 
-    /// Stop the refresh timer. The currently displayed ad (if any) stays.
-    public func pause() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
+    private func ensureGAMBanner() -> AdManagerBannerView {
+        // Tear down a Prebid-only banner if we previously rendered one (e.g.
+        // the resolved stack changed between loads).
+        if let pb = prebidBanner {
+            pb.stopRefresh()
+            pb.removeFromSuperview()
+            prebidBanner = nil
+        }
+        if let existing = gamBanner { return existing }
+
+        let v = AdManagerBannerView(adSize: adSizeFor(cgSize: adSize.cgSize))
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.delegate = self
+        v.adUnitID = resolveGAMAdUnitID()
+        v.rootViewController = nearestViewController()
+        gamBanner = v
+        addPinned(v)
+        return v
     }
 
-    // MARK: Private
+    // MARK: Prebid-only path (.prebidOnly)
 
-    private func setup() {
-        addSubview(bannerView)
+    private func loadPrebidOnly() {
+        guard let configId = zoneId, !configId.isEmpty else {
+            // Prebid rendering needs a configId (the stored-impression zone).
+            // We deliberately do NOT fall back to a GAM request here — that
+            // would incur the GAM request fees that .prebidOnly exists to avoid.
+            #if DEBUG
+            print("[SellwildAdView] .prebidOnly requires a zoneId. No ad loaded.")
+            #endif
+            delegate?.sellwildAdView?(self, didFailWithError: SellwildAdError.missingZoneIdForPrebidOnly)
+            return
+        }
+
+        let banner = ensurePrebidBanner(configId: configId)
+        // Prebid's rendering banner owns its own auto-refresh; mirror the GAM
+        // refresh cadence when one is configured.
+        if config.adRefreshMaxMobile > 0 {
+            banner.refreshInterval = config.adRefreshInterval
+        }
+        banner.loadAd()
+    }
+
+    private func ensurePrebidBanner(configId: String) -> PrebidMobile.BannerView {
+        // Tear down a GAM banner if we previously rendered one.
+        if let gb = gamBanner {
+            gb.removeFromSuperview()
+            gamBanner = nil
+        }
+        if let existing = prebidBanner { return existing }
+
+        // The (frame:configID:adSize:) convenience initializer uses Prebid's
+        // standalone event handler — it makes a Prebid Server bid request and
+        // renders the winning creative itself, with no ad-server (GAM) call.
+        let v = PrebidMobile.BannerView(
+            frame: CGRect(origin: .zero, size: adSize.cgSize),
+            configID: configId,
+            adSize: adSize.cgSize
+        )
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.delegate = self
+        prebidBanner = v
+        addPinned(v)
+        return v
+    }
+
+    // MARK: Layout
+
+    private func addPinned(_ child: UIView) {
+        addSubview(child)
         NSLayoutConstraint.activate([
-            bannerView.topAnchor.constraint(equalTo: topAnchor),
-            bannerView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            bannerView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            bannerView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            child.topAnchor.constraint(equalTo: topAnchor),
+            child.bottomAnchor.constraint(equalTo: bottomAnchor),
+            child.leadingAnchor.constraint(equalTo: leadingAnchor),
+            child.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
     }
+
+    // MARK: Refresh (GAM path only — Prebid path self-refreshes)
 
     private func scheduleRefresh() {
         guard config.adRefreshMaxMobile > 0 else { return }
@@ -186,7 +285,23 @@ public final class SellwildAdView: UIView {
     }
 }
 
-// MARK: - BannerViewDelegate
+// MARK: - Errors
+
+public enum SellwildAdError: Error, LocalizedError {
+    /// `.prebidOnly` was resolved for a placement with no `zoneId`, so no
+    /// Prebid configId is available and no ad can be requested.
+    case missingZoneIdForPrebidOnly
+
+    public var errorDescription: String? {
+        switch self {
+        case .missingZoneIdForPrebidOnly:
+            return "SellwildAdView resolved to .prebidOnly but has no zoneId; "
+                + "Prebid rendering requires a configId."
+        }
+    }
+}
+
+// MARK: - GAM BannerViewDelegate (.both / .gamOnly)
 
 extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
 
@@ -204,6 +319,26 @@ extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
 
     public func bannerViewDidRecordClick(_ bannerView: GoogleMobileAds.BannerView) {
         delegate?.sellwildAdViewDidRecordClick?(self)
+    }
+}
+
+// MARK: - Prebid BannerViewDelegate (.prebidOnly)
+
+extension SellwildAdView: PrebidMobile.BannerViewDelegate {
+
+    public func bannerViewPresentationController() -> UIViewController? {
+        nearestViewController()
+    }
+
+    public func bannerView(_ bannerView: PrebidMobile.BannerView,
+                           didReceiveAdWithAdSize adSize: CGSize) {
+        delegate?.sellwildAdViewDidLoad?(self)
+        delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
+    }
+
+    public func bannerView(_ bannerView: PrebidMobile.BannerView,
+                           didFailToReceiveAdWith error: Error) {
+        delegate?.sellwildAdView?(self, didFailWithError: error)
     }
 }
 
@@ -230,11 +365,12 @@ private let nonBidderRemoteKeys: Set<String> = [
     "WATERMARK", "WATERMARK_TITLE", "BANNER_ZID", "BOTTOM_BANNER_ZID",
     "MOBILE_BANNER_ZID", "MOBILE_ZID", "DISPLAY_ZID", "HIDE_BANNER_TOP",
     "HIDE_BANNER_BOTTOM", "GAM", "DISABLE_GPT", "AD_UNITS", "SAFE_FRAME",
-    "AD_DISABLE_DISPLAY", "AD_REFRESH_MAX", "AD_REFRESH_MAX_MOBILE",
-    "AD_REFRESH_INTERVAL", "MAX_FAILED_AUCTIONS", "PREBID_DEFER", "PREBID_SRC",
-    "AD_GEO_BLOCK", "AD_GEO_BLOCK_REFRESH", "GPP_ENABLED", "TCF_VERSION",
-    "CONSENT_MANAGEMENT", "SCHAIN_SID", "S2S_CONFIG", "IAB_CATS",
-    "APP_BUNDLE_ID", "APP_STORE_URL", "ENABLE_INTERSTITIAL",
-    "ENABLE_FULLSCREEN_VIDEO", "INTERSTITIALS_PER_SESSION",
-    "VIDEO_TAKEOVERS_PER_SESSION", "DEBUG", "MEMBERSHIP_TYPE",
+    "AD_DISABLE_DISPLAY", "AD_STACK", "AD_STACK_BY_ZONE", "AD_REFRESH_MAX",
+    "AD_REFRESH_MAX_MOBILE", "AD_REFRESH_INTERVAL", "MAX_FAILED_AUCTIONS",
+    "PREBID_DEFER", "PREBID_SRC", "AD_GEO_BLOCK", "AD_GEO_BLOCK_REFRESH",
+    "GPP_ENABLED", "TCF_VERSION", "CONSENT_MANAGEMENT", "SCHAIN_SID",
+    "S2S_CONFIG", "IAB_CATS", "APP_BUNDLE_ID", "APP_STORE_URL",
+    "ENABLE_INTERSTITIAL", "ENABLE_FULLSCREEN_VIDEO",
+    "INTERSTITIALS_PER_SESSION", "VIDEO_TAKEOVERS_PER_SESSION", "DEBUG",
+    "MEMBERSHIP_TYPE",
 ]
