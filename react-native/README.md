@@ -9,6 +9,27 @@ npm install @sellwild/react-native-sdk react-native-webview
 cd ios && pod install && cd ..
 ```
 
+### Android: Kotlin stdlib fix (RN 0.74)
+
+If your Android build fails with "incompatible version of Kotlin" errors, add this to your `android/build.gradle`:
+
+```groovy
+subprojects {
+    afterEvaluate {
+        configurations.all {
+            resolutionStrategy {
+                force "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+                force "org.jetbrains.kotlin:kotlin-stdlib-common:$kotlinVersion"
+                force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
+                force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
+            }
+        }
+    }
+}
+```
+
+This forces transitive dependencies (Prebid Mobile, GMA) to use your app's Kotlin version instead of pulling in incompatible newer versions.
+
 ## Quick Start
 
 ```tsx

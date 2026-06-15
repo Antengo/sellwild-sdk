@@ -1,0 +1,17 @@
+# Gradle build artifacts — produced when the host RN app or our own
+# CI compiles the bridge AAR. Never ship these inside the npm package;
+# downstream consumers run their own Android build.
+android/build/
+android/.gradle/
+android/local.properties
+
+# iOS Pods / build artifacts — same reasoning.
+ios/Pods/
+ios/build/
+ios/*.xcworkspace/
+ios/DerivedData/
+
+# Node / editor noise
+node_modules/
+*.log
+.DS_Store

@@ -121,7 +121,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "com.sellwild"
             artifactId = "sdk"
-            version = "1.3.5"
+            version = "1.3.6"
 
             afterEvaluate {
                 from(components["release"])
@@ -131,6 +131,35 @@ publishing {
                 name.set("Sellwild SDK")
                 description.set("Sellwild mobile advertising SDK for Android")
                 url.set("https://github.com/sellwild/sdk-android")
+            }
+        }
+    }
+}
+
+// Exclude kotlin-stdlib from the published POM. The SDK is compiled with
+// Kotlin 2.1.20 but emits 1.9-compatible metadata (apiVersion + languageVersion
+// pinned to 1.9). If we ship kotlin-stdlib:2.1.20 in the POM, Gradle's "highest
+// version wins" conflict resolution upgrades the entire consumer classpath to
+// 2.1.20 stdlib — which breaks RN 0.74 apps that compile with Kotlin 1.9 (the
+// compiler can't read 2.1 metadata). The stdlib is provided by the host app's
+// Kotlin toolchain anyway.
+configurations.all {
+    if (name.contains("RuntimeClasspath") || name.contains("CompileClasspath")) {
+        // Don't exclude from compile/runtime — we need it to build. Only from publishing.
+        return@all
+    }
+}
+
+afterEvaluate {
+    publishing.publications.withType<MavenPublication>().configureEach {
+        pom.withXml {
+            val deps = asNode()["dependencies"] as? groovy.util.NodeList ?: return@withXml
+            val depsNode = deps.firstOrNull() as? groovy.util.Node ?: return@withXml
+            depsNode.children().toList().filterIsInstance<groovy.util.Node>().forEach { dep ->
+                val groupId = (dep["groupId"] as? groovy.util.NodeList)?.text()
+                if (groupId == "org.jetbrains.kotlin") {
+                    depsNode.remove(dep)
+                }
             }
         }
     }
