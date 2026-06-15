@@ -39,6 +39,9 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
     @objc var config: NSDictionary? { didSet { needsApply = true } }
     @objc var size: NSString? { didSet { needsApply = true } }
     @objc var zoneId: NSString? { didSet { needsApply = true } }
+    /// Resolved ad stack ('both' | 'gamOnly' | 'prebidOnly'), computed in JS.
+    /// Applied as the native override so RN is driven deterministically by JS.
+    @objc var adStack: NSString? { didSet { needsApply = true } }
 
     // MARK: RN events
 
@@ -79,7 +82,8 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
         // Skip if the props identity hasn't changed since last apply —
         // refresh of the rendered ad is driven by the SDK's internal
         // timer, not by JS re-renders.
-        let key = "\(sizeStr)|\(zid)|\(cfgMap.hash)"
+        let stackStr = (adStack as String?) ?? ""
+        let key = "\(sizeStr)|\(zid)|\(stackStr)|\(cfgMap.hash)"
         if lastAppliedKey == key { return }
         lastAppliedKey = key
 
@@ -90,6 +94,7 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
         adView?.removeFromSuperview()
 
         let view = SellwildAdView(config: sellwildConfig, adSize: adSize, zoneId: zid)
+        view.adStackOverride = (adStack as String?).flatMap { SellwildAdStack(rawValue: $0) }
         view.delegate = self
         view.translatesAutoresizingMaskIntoConstraints = false
         addSubview(view)

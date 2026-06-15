@@ -44,6 +44,15 @@ class SellwildConfig {
   final bool disableGpt;
   final bool adDisableDisplay;
 
+  /// Global ad-stack override (CDN `AD_STACK`). When set, forces EVERY
+  /// placement to this stack regardless of [adStackByZone]. When null, per-zone
+  /// applies, falling back to [SellwildAdStack.both]. See [SellwildAdStack].
+  final SellwildAdStack? adStack;
+
+  /// Per-placement ad-stack settings (CDN `AD_STACK_BY_ZONE`), keyed by zone id.
+  /// Applies only when the global [adStack] is null.
+  final Map<String, SellwildAdStack> adStackByZone;
+
   // Ads - Refresh
   final int adRefreshMax;
   final int adRefreshMaxMobile;
@@ -123,6 +132,8 @@ class SellwildConfig {
     this.gptProxyUrl,
     this.disableGpt = false,
     this.adDisableDisplay = false,
+    this.adStack,
+    this.adStackByZone = const {},
     this.adRefreshMax = 0,
     this.adRefreshMaxMobile = 0,
     this.adRefreshInterval = const Duration(seconds: 30),
@@ -219,6 +230,60 @@ class PrebidServerConfig {
     this.timeout = 1500,
     this.syncEndpoint,
   });
+}
+
+/// Which ad SDK stack a placement runs. Toggled remotely via the CDN keys
+/// `AD_STACK` (global) and `AD_STACK_BY_ZONE` (per-zone) so GAM (Google Ad
+/// Manager / Google Ads) and Prebid can be segmented without an SDK release.
+///
+///  - [both]       Prebid auction fetches demand, then GAM renders (default).
+///  - [gamOnly]    Plain GAM request, no Prebid auction.
+///  - [prebidOnly] Prebid's own rendering path; NO GAM ad request is made, so
+///                 no GAM request/serving fees are incurred.
+enum SellwildAdStack {
+  both,
+  gamOnly,
+  prebidOnly;
+
+  /// Parse a CDN string (case/alias tolerant). Returns null if unknown.
+  static SellwildAdStack? parse(Object? raw) {
+    if (raw is! String) return null;
+    final k = raw.toLowerCase().replaceAll(RegExp(r'[\s_-]'), '');
+    switch (k) {
+      case 'both':
+      case 'all':
+      case 'default':
+        return SellwildAdStack.both;
+      case 'gam':
+      case 'gamonly':
+      case 'google':
+      case 'gads':
+      case 'googleads':
+        return SellwildAdStack.gamOnly;
+      case 'prebid':
+      case 'prebidonly':
+      case 'prebidsdk':
+        return SellwildAdStack.prebidOnly;
+      default:
+        return null;
+    }
+  }
+
+  /// Resolve the effective stack for a placement.
+  ///
+  /// Precedence (matches all platforms):
+  ///   1. Global [config.adStack] — hard-wins for every placement.
+  ///   2. Per-zone [config.adStackByZone] for [zoneId].
+  ///   3. [both] (today's default behavior).
+  static SellwildAdStack resolve(SellwildConfig config, [String? zoneId]) {
+    final global = config.adStack;
+    if (global != null) return global;
+    if (zoneId != null) {
+      final perZone = config.adStackByZone[zoneId];
+      if (perZone != null) return perZone;
+    }
+    return SellwildAdStack.both;
+  }
 }
 
 enum SellwildAdSize {

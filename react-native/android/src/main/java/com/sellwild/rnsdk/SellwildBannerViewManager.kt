@@ -8,6 +8,7 @@ import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.annotations.ReactProp
 import com.facebook.react.uimanager.events.RCTEventEmitter
 import com.sellwild.sdk.AdSize
+import com.sellwild.sdk.SellwildAdStack
 import com.sellwild.sdk.SellwildAdView
 import com.sellwild.sdk.SellwildConfig
 import org.json.JSONObject
@@ -52,6 +53,9 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
         var config: ReadableMap? = null,
         var size: String? = null,
         var zoneId: String? = null,
+        // Resolved ad stack ('both' | 'gamOnly' | 'prebidOnly'), computed in JS
+        // and applied as the native override.
+        var adStack: String? = null,
         // Guards against running fresh auctions on every JS re-render. We
         // only call setup() + load() once per identity tuple. Refresh of
         // the rendered ad is driven by the SDK's internal timer.
@@ -102,6 +106,11 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
         pendingFor(view).zoneId = value
     }
 
+    @ReactProp(name = "adStack")
+    fun setAdStack(view: SellwildAdView, value: String?) {
+        pendingFor(view).adStack = value
+    }
+
     override fun onAfterUpdateTransaction(view: SellwildAdView) {
         super.onAfterUpdateTransaction(view)
 
@@ -113,11 +122,14 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
         val adSize = adSizeFromLabel(sizeLabel) ?: return
 
         // Skip if the props identity hasn't changed since last apply.
-        val key = "$sizeLabel|$zoneId|${configMap.hashCode()}"
+        val key = "$sizeLabel|$zoneId|${p.adStack}|${configMap.hashCode()}"
         if (p.lastAppliedKey == key) return
         p.lastAppliedKey = key
 
         val config = configFromMap(configMap)
+        // JS resolves the stack from config and passes it as the override so
+        // RN is deterministic; native still reads the raw `remote` for the rest.
+        view.adStackOverride = p.adStack?.let { SellwildAdStack.parse(it) }
         view.setup(config, adSize, zoneId)
         view.load()
     }

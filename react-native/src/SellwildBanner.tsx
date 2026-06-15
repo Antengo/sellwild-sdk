@@ -1,6 +1,6 @@
 import React from 'react'
 import { Platform, requireNativeComponent, UIManager, ViewStyle, View, Text, StyleSheet, NativeSyntheticEvent } from 'react-native'
-import type { SellwildConfig, AdSize } from '@sellwild/sdk-core'
+import { resolveAdStack, type SellwildConfig, type AdSize } from '@sellwild/sdk-core'
 
 // Standard IAB mobile ad sizes — used to lock the host View dimensions.
 // The actual ad size is also propagated to native as the `size` prop label.
@@ -29,6 +29,13 @@ interface NativeBannerProps {
   config: object
   size: string
   zoneId: string
+  /**
+   * Resolved ad stack ('both' | 'gamOnly' | 'prebidOnly'). Computed in JS from
+   * the config so RN is deterministic; native treats it as the highest-priority
+   * override. The raw `remote` payload still flows through `config` for
+   * everything else (bidders, GAM tag, etc.).
+   */
+  adStack: string
   style?: ViewStyle
   onAdLoaded?: (e: NativeSyntheticEvent<{}>) => void
   onAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
@@ -110,6 +117,7 @@ export function SellwildBanner({
       config={nativeConfig}
       size={size}
       zoneId={String(zoneId)}
+      adStack={resolveAdStack(config, zoneId)}
       onAdLoaded={() => {
         // No-op event hook today; surfaced for future fill metrics.
       }}
