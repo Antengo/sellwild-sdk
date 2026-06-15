@@ -1193,12 +1193,12 @@ PODS:
     - React-utils (= 0.74.6)
   - RNCClipboard (1.16.3):
     - React-Core
-  - SellwildSDK (1.3.3):
+  - SellwildSDK (1.3.5):
     - Google-Mobile-Ads-SDK (< 14.0, >= 12.0)
     - PrebidMobile (< 4.0, >= 3.0.1)
-  - SellwildSDK-RN (1.3.3):
+  - SellwildSDK-RN (1.3.7):
     - React-Core
-    - SellwildSDK (>= 1.3.0)
+    - SellwildSDK (>= 1.3.5)
   - SocketRocket (0.7.0)
   - Yoga (0.0.0)
 
@@ -1261,7 +1261,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCClipboard (from `../node_modules/@react-native-clipboard/clipboard`)"
   - SellwildSDK (from `../../../`)
-  - SellwildSDK-RN (from `../../../react-native/ios`)
+  - SellwildSDK-RN (from `../../../react-native`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -1386,7 +1386,7 @@ EXTERNAL SOURCES:
   SellwildSDK:
     :path: "../../../"
   SellwildSDK-RN:
-    :path: "../../../react-native/ios"
+    :path: "../../../react-native"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -1449,11 +1449,11 @@ SPEC CHECKSUMS:
   React-utils: 61a4c1ae313725ae97f72aeca2b7f73c316ee5e7
   ReactCommon: 2d6cc4daa19b1ec85b9ae72bfa7958cdd50a60ea
   RNCClipboard: f6679d470d0da2bce2a37b0af7b9e0bf369ecda5
-  SellwildSDK: 4817691704e45b20a6b8358a81390d0397239934
-  SellwildSDK-RN: 48bd17851b4ae6ada9cb244f5d2bb9862c55c26d
+  SellwildSDK: 1936503682c5137ae7ae7316955c6b2c60ca0086
+  SellwildSDK-RN: e4707e74cd24ffeaeeccd81b3bfaf81f3931a7c2
   SocketRocket: abac6f5de4d4d62d24e11868d7a2f427e0ef940d
   Yoga: 4f4f07a17818e76d1b04edc01b68b6d49a682100
 
-PODFILE CHECKSUM: a6d2e4258fe3cf36f1ab2029e40469096ab24da2
+PODFILE CHECKSUM: 93bc3c8a33c3e818aef5f59892ad4a4869676781
 
 COCOAPODS: 1.16.2

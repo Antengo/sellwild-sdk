@@ -28,6 +28,6 @@ Pod::Spec.new do |s|
   # The host app must already pull in SellwildSDK (the iOS SDK pod). We
   # depend on it explicitly so `pod install` resolves both with one
   # declaration in the host Podfile.
-  s.dependency 'SellwildSDK', '>= 1.3.5'
+  s.dependency 'SellwildSDK', '>= 1.4.0'
   s.dependency 'React-Core'
 end

@@ -39,7 +39,7 @@ target 'SellwildDemo' do
   # use podspec-local paths instead, and now invoke trunk pushes
   # from the ios/ directory.
   pod 'SellwildSDK',    :path => '../../../',                 :modular_headers => true
-  pod 'SellwildSDK-RN', :path => '../../../react-native/ios', :modular_headers => true
+  pod 'SellwildSDK-RN', :path => '../../../react-native', :modular_headers => true
 
   target 'SellwildDemoTests' do
     inherit! :complete

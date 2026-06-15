@@ -508,6 +508,8 @@ class SellwildFeedView @JvmOverloads constructor(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     Gravity.CENTER_HORIZONTAL,
                 )
+                // Inherit ad-stack from CDN config so feed ads respect AD_STACK / AD_STACK_BY_ZONE
+                adStackOverride = SellwildAdStack.resolve(config.remoteJson, zoneId, null)
                 listener = object : SellwildAdView.Listener {
                     override fun onAdLoaded(adView: SellwildAdView) {}
                     override fun onAdImpression(adView: SellwildAdView, zoneId: String) {

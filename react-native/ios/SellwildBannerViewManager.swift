@@ -94,7 +94,7 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
         adView?.removeFromSuperview()
 
         let view = SellwildAdView(config: sellwildConfig, adSize: adSize, zoneId: zid)
-        view.adStackOverride = (adStack as String?).flatMap { SellwildAdStack(rawValue: $0) }
+        view.adStackOverride = (adStack as String?).flatMap { SellwildAdStack.parse($0) }
         view.delegate = self
         view.translatesAutoresizingMaskIntoConstraints = false
         addSubview(view)

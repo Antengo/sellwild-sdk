@@ -550,6 +550,12 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
         adView?.removeFromSuperview()
 
         let ad = SellwildAdView(config: config, adSize: adSize, zoneId: zoneId)
+        // Inherit ad-stack from CDN config so feed ads respect AD_STACK / AD_STACK_BY_ZONE
+        ad.adStackOverride = SellwildAdStack.resolve(
+            remoteValues: config.remoteValues,
+            zoneId: zoneId,
+            override: nil
+        )
         ad.translatesAutoresizingMaskIntoConstraints = false
         ad.delegate = self
         contentView.addSubview(ad)
