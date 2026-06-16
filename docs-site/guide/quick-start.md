@@ -1,8 +1,8 @@
 # Quick Start
 
-Get a 300x250 MREC ad rendering with server-side header bidding in under 5 minutes. Choose your platform below.
+Get a native marketplace feed or banner ad rendering with server-side header bidding in under 5 minutes. Choose your platform below.
 
-For full integration guides with all ad formats, listing cards, GDPR, lifecycle management, and troubleshooting, see the dedicated platform pages:
+For full integration guides with all ad formats, GDPR, lifecycle management, and troubleshooting, see the dedicated platform pages:
 [iOS](/guide/ios) | [Android](/guide/android) | [React Native](/guide/react-native) | [Flutter](/guide/flutter)
 
 ---
@@ -30,9 +30,11 @@ end
 
 Then run `pod install` and open the `.xcworkspace` file.
 
-### 2. Render (SwiftUI)
+### 2. Marketplace Feed ⭐ Recommended
 
-Copy this entire file:
+Drop in a full native marketplace feed with listings and interleaved ads — one component, native scrolling, higher CPMs:
+
+**SwiftUI:**
 
 ```swift
 import SwiftUI
@@ -45,7 +47,16 @@ struct MyApp: App {
     var body: some Scene {
         WindowGroup {
             if let config {
-                ContentView(config: config)
+                SellwildFeed(
+                    config: config,
+                    onLoad: { print("Feed loaded") },
+                    onListingTap: { listing in
+                        print("Tapped: \(listing.title)")
+                        return false // false = SDK opens in-app browser
+                    },
+                    onAdImpression: { zoneId in print("Ad impression: \(zoneId)") },
+                    onError: { error in print("Error: \(error)") }
+                )
             } else {
                 ProgressView("Loading...")
             }
@@ -56,82 +67,6 @@ struct MyApp: App {
                 slug: "weatherbug-weatherbug"
             )
         }
-    }
-}
-
-struct ContentView: View {
-    let config: SellwildConfig
-
-    var body: some View {
-        SellwildAdBanner(
-            config: config,
-            adSize: .mrec300x250,
-            onImpression: { print("Ad impression") },
-            onError: { error in print("Error: \(error)") }
-        )
-        .frame(width: 300, height: 250)
-    }
-}
-```
-
-### 2b. Render (UIKit)
-
-```swift
-import UIKit
-import SellwildSDK
-
-class ViewController: UIViewController {
-    private var adView: SellwildAdView?
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        Task {
-            let config = await SellwildSDK.configure(
-                partnerCode: "weatherbug",
-                slug: "weatherbug-weatherbug"
-            )
-            let ad = SellwildAdView(config: config, adSize: .mrec300x250)
-            ad.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview(ad)
-            NSLayoutConstraint.activate([
-                ad.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                ad.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-                ad.widthAnchor.constraint(equalToConstant: 300),
-                ad.heightAnchor.constraint(equalToConstant: 250),
-            ])
-            ad.load()
-            self.adView = ad
-        }
-    }
-}
-```
-
-That is it. The SDK handles the Prebid Server auction, creative rendering, impression tracking, and ad refresh.
-
-### 3. Marketplace Feed (1.3.5+)
-
-Drop in a full native marketplace feed with listings and interleaved ads:
-
-**SwiftUI:**
-
-```swift
-import SwiftUI
-import SellwildSDK
-
-struct MarketplaceView: View {
-    let config: SellwildConfig
-
-    var body: some View {
-        SellwildFeed(
-            config: config,
-            onLoad: { print("Feed loaded") },
-            onListingTap: { listing in
-                print("Tapped: \(listing.title)")
-                return false // false = SDK opens in-app browser
-            },
-            onAdImpression: { zoneId in print("Ad impression: \(zoneId)") },
-            onError: { error in print("Error: \(error)") }
-        )
     }
 }
 ```
@@ -178,7 +113,64 @@ class FeedViewController: UIViewController, SellwildFeedViewDelegate {
 }
 ```
 
-**Next:** [Full iOS Guide](/guide/ios) -- ATT, GDPR, lifecycle management, native listing cards, troubleshooting.
+### 3. Banner Ads
+
+For standalone banner placements (320×50, 300×250, etc.):
+
+**SwiftUI:**
+
+```swift
+import SwiftUI
+import SellwildSDK
+
+struct BannerView: View {
+    let config: SellwildConfig
+
+    var body: some View {
+        SellwildAdBanner(
+            config: config,
+            adSize: .mrec300x250,
+            onImpression: { print("Ad impression") },
+            onError: { error in print("Error: \(error)") }
+        )
+        .frame(width: 300, height: 250)
+    }
+}
+```
+
+**UIKit:**
+
+```swift
+import UIKit
+import SellwildSDK
+
+class BannerViewController: UIViewController {
+    private var adView: SellwildAdView?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        Task {
+            let config = await SellwildSDK.configure(
+                partnerCode: "weatherbug",
+                slug: "weatherbug-weatherbug"
+            )
+            let ad = SellwildAdView(config: config, adSize: .mrec300x250)
+            ad.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(ad)
+            NSLayoutConstraint.activate([
+                ad.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                ad.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                ad.widthAnchor.constraint(equalToConstant: 300),
+                ad.heightAnchor.constraint(equalToConstant: 250),
+            ])
+            ad.load()
+            self.adView = ad
+        }
+    }
+}
+```
+
+**Next:** [Full iOS Guide](/guide/ios) -- ATT, GDPR, lifecycle management, troubleshooting.
 
 ---
 
@@ -215,77 +207,41 @@ In `AndroidManifest.xml`:
 <uses-permission android:name="android.permission.INTERNET" />
 ```
 
-### 3. Render
+### 3. Marketplace Feed ⭐ Recommended
 
-```kotlin
-import com.sellwild.sdk.*
-import kotlinx.coroutines.launch
-
-class AdActivity : AppCompatActivity() {
-
-    private lateinit var adView: SellwildAdView
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        adView = SellwildAdView(this)
-        setContentView(adView)
-
-        // Partner code + slug. Everything else — ad zones, app
-        // identity, refresh intervals, waterfall partners, compliance flags —
-        // is fetched from the Sellwild CDN at app launch. On any network or
-        // 404 failure the SDK falls back to deterministic defaults so ads
-        // still render.
-        adView.listener = object : SellwildAdView.Listener {
-            override fun onAdLoaded(adView: SellwildAdView) {
-                Log.d("Sellwild", "Ad loaded")
-            }
-            override fun onAdImpression(adView: SellwildAdView, zoneId: String) {
-                Log.d("Sellwild", "Impression: zone=$zoneId")
-            }
-            override fun onAdFailed(adView: SellwildAdView, message: String) {
-                Log.e("Sellwild", "Ad failed: $message")
-            }
-        }
-
-        lifecycleScope.launch {
-            val config = SellwildSDK.configure(
-                partnerCode = "weatherbug",
-                slug = "weatherbug-weatherbug",
-            ) { c -> c.copy(appBundleId = packageName) }
-            adView.setup(config, AdSize.MREC_300x250)
-            adView.load()
-        }
-    }
-
-    override fun onPause() { super.onPause(); adView.pause() }
-    override fun onResume() { super.onResume(); adView.resume() }
-    override fun onDestroy() { adView.destroy(); super.onDestroy() }
-}
-```
-
-### 4. Marketplace Feed (1.3.5+)
-
-Drop in a full native marketplace feed with listings and interleaved ads:
+Drop in a full native marketplace feed with listings and interleaved ads — one component, native scrolling, higher CPMs:
 
 **Jetpack Compose:**
 
 ```kotlin
 import androidx.compose.runtime.*
+import androidx.lifecycle.lifecycleScope
 import com.sellwild.sdk.*
+import kotlinx.coroutines.launch
 
-@Composable
-fun MarketplaceScreen(config: SellwildConfig) {
-    SellwildFeed(
-        config = config,
-        onLoad = { Log.d("Sellwild", "Feed loaded") },
-        onListingTap = { listing ->
-            Log.d("Sellwild", "Tapped: ${listing.title}")
-            false // false = SDK opens in Custom Tabs
-        },
-        onAdImpression = { zoneId -> Log.d("Sellwild", "Ad impression: $zoneId") },
-        onError = { error -> Log.e("Sellwild", "Error: $error") }
-    )
+class FeedActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        lifecycleScope.launch {
+            val config = SellwildSDK.configure(
+                partnerCode = "weatherbug",
+                slug = "weatherbug-weatherbug"
+            )
+            setContent {
+                SellwildFeed(
+                    config = config,
+                    onLoad = { Log.d("Sellwild", "Feed loaded") },
+                    onListingTap = { listing ->
+                        Log.d("Sellwild", "Tapped: ${listing.title}")
+                        false // false = SDK opens in Custom Tabs
+                    },
+                    onAdImpression = { zoneId -> Log.d("Sellwild", "Ad impression: $zoneId") },
+                    onError = { error -> Log.e("Sellwild", "Error: $error") }
+                )
+            }
+        }
+    }
 }
 ```
 
@@ -329,7 +285,53 @@ class FeedActivity : AppCompatActivity() {
 }
 ```
 
-**Next:** [Full Android Guide](/guide/android) -- Jetpack Compose, ProGuard rules, multi-process WebView, GDPR, listing cards.
+### 4. Banner Ads
+
+For standalone banner placements (320×50, 300×250, etc.):
+
+```kotlin
+import com.sellwild.sdk.*
+import kotlinx.coroutines.launch
+
+class BannerActivity : AppCompatActivity() {
+
+    private lateinit var adView: SellwildAdView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        adView = SellwildAdView(this)
+        setContentView(adView)
+
+        adView.listener = object : SellwildAdView.Listener {
+            override fun onAdLoaded(adView: SellwildAdView) {
+                Log.d("Sellwild", "Ad loaded")
+            }
+            override fun onAdImpression(adView: SellwildAdView, zoneId: String) {
+                Log.d("Sellwild", "Impression: zone=$zoneId")
+            }
+            override fun onAdFailed(adView: SellwildAdView, message: String) {
+                Log.e("Sellwild", "Ad failed: $message")
+            }
+        }
+
+        lifecycleScope.launch {
+            val config = SellwildSDK.configure(
+                partnerCode = "weatherbug",
+                slug = "weatherbug-weatherbug",
+            ) { c -> c.copy(appBundleId = packageName) }
+            adView.setup(config, AdSize.MREC_300x250)
+            adView.load()
+        }
+    }
+
+    override fun onPause() { super.onPause(); adView.pause() }
+    override fun onResume() { super.onResume(); adView.resume() }
+    override fun onDestroy() { adView.destroy(); super.onDestroy() }
+}
+```
+
+**Next:** [Full Android Guide](/guide/android) -- Jetpack Compose, ProGuard, GDPR, troubleshooting.
 
 ---
 
@@ -338,52 +340,13 @@ class FeedActivity : AppCompatActivity() {
 ### 1. Install
 
 ```bash
-npm install @sellwild/react-native-sdk react-native-webview
+npm install @sellwild/react-native-sdk
 cd ios && pod install && cd ..
 ```
 
-### 2. Render
+### 2. Marketplace Feed ⭐ Recommended
 
-```tsx
-import React, { useEffect, useState } from 'react';
-import { SafeAreaView } from 'react-native';
-import {
-  SellwildBanner,
-  configure,
-  type SellwildConfig,
-} from '@sellwild/react-native-sdk';
-
-export default function App() {
-  const [config, setConfig] = useState<SellwildConfig | null>(null);
-
-  useEffect(() => {
-    // Partner code + slug. Everything else — ad zones, app identity,
-    // refresh intervals, waterfall partners, compliance flags — is fetched
-    // from the Sellwild CDN at app launch. On any network/timeout/404
-    // failure the SDK falls back to deterministic defaults so ads still
-    // render.
-    configure('weatherbug', 'weatherbug-weatherbug').then(setConfig);
-  }, []);
-
-  if (!config) return null;
-
-  return (
-    <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <SellwildBanner
-        config={config}
-        size="300x250"
-        zoneId="your-zone-id"
-        onImpression={() => console.log('Ad impression')}
-        onError={(err) => console.warn('Ad error:', err.message)}
-      />
-    </SafeAreaView>
-  );
-}
-```
-
-### 3. Marketplace Feed (1.3.5+)
-
-Drop in a full native marketplace feed with listings and interleaved ads — no WebView:
+Drop in a full native marketplace feed — no WebView, native scrolling on both platforms:
 
 ```tsx
 import React, { useEffect, useState } from 'react';
@@ -404,17 +367,15 @@ export default function App() {
 
   if (!config) return null;
 
-  const handleListingTap = (listing: SellwildListing): boolean => {
-    console.log('Tapped:', listing.title);
-    return false; // false = SDK opens in in-app browser
-  };
-
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <SellwildFeed
         config={config}
         onLoad={() => console.log('Feed loaded')}
-        onListingTap={handleListingTap}
+        onListingTap={(listing: SellwildListing) => {
+          console.log('Tapped:', listing.title);
+          return false; // false = SDK opens in in-app browser
+        }}
         onAdImpression={(zoneId) => console.log('Ad impression:', zoneId)}
         onError={(err) => console.warn('Feed error:', err.message)}
       />
@@ -423,9 +384,22 @@ export default function App() {
 }
 ```
 
-The native feed renders on iOS via `UITableView` and Android via `RecyclerView` — no WebView in the rendering path. Listing taps open in `SFSafariViewController` (iOS) or Custom Tabs (Android) unless your callback returns `true` to handle navigation yourself.
+### 3. Banner Ads
 
-**Next:** [Full React Native Guide](/guide/react-native) -- listing cards, `useSellwildListings` hook, direct auction API, Metro config, GDPR.
+For standalone banner placements:
+
+```tsx
+import { SellwildBanner } from '@sellwild/react-native-sdk';
+
+<SellwildBanner
+  config={config}
+  size="300x250"
+  onImpression={() => console.log('Ad impression')}
+  onError={(err) => console.warn('Ad error:', err.message)}
+/>
+```
+
+**Next:** [Full React Native Guide](/guide/react-native) -- TypeScript, Metro config, GDPR, troubleshooting.
 
 ---
 
@@ -437,7 +411,7 @@ Add to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  sellwild_sdk: ^1.3.0
+  sellwild_sdk: ^1.4.0
 ```
 
 Then run:
@@ -458,7 +432,11 @@ flutter pub get
 </dict>
 ```
 
-**Android:** Ensure `android/app/build.gradle` has `minSdkVersion 21`.
+**Android:** Add to `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+```
 
 ### 3. Render
 
@@ -466,46 +444,45 @@ flutter pub get
 import 'package:flutter/material.dart';
 import 'package:sellwild_sdk/sellwild_sdk.dart';
 
-class AdScreen extends StatefulWidget {
-  const AdScreen({super.key});
+class MyApp extends StatefulWidget {
   @override
-  State<AdScreen> createState() => _AdScreenState();
+  _MyAppState createState() => _MyAppState();
 }
 
-class _AdScreenState extends State<AdScreen> {
-  SellwildConfig? config;
+class _MyAppState extends State<MyApp> {
+  SellwildConfig? _config;
 
   @override
   void initState() {
     super.initState();
-    // Partner code + slug. Everything else — ad zones, app identity,
-    // refresh intervals, waterfall partners, compliance flags — is fetched
-    // from the Sellwild CDN at app launch.
-    SellwildSDK.configure(
+    _initSellwild();
+  }
+
+  Future<void> _initSellwild() async {
+    final config = await SellwildSDK.configure(
       partnerCode: 'weatherbug',
       slug: 'weatherbug-weatherbug',
-    ).then((c) => setState(() => config = c));
+    );
+    setState(() => _config = config);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (config == null) return const SizedBox.shrink();
-    return Scaffold(
-      appBar: AppBar(title: const Text('Ad Demo')),
-      body: Center(
-        child: SellwildBanner(
-          config: config!,
-          adSize: SellwildAdSize.mrec300x250,
-          onImpression: () => debugPrint('Ad impression'),
-          onError: (error) => debugPrint('Ad error: $error'),
-        ),
-      ),
+    if (_config == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return SellwildBanner(
+      config: _config!,
+      size: AdSize.mrec300x250,
+      onImpression: () => print('Ad impression'),
+      onError: (error) => print('Error: $error'),
     );
   }
 }
 ```
 
-**Next:** [Full Flutter Guide](/guide/flutter) -- widget reference, `SellwildAPIClient`, listing cards, GDPR, troubleshooting.
+**Next:** [Full Flutter Guide](/guide/flutter) -- Platform setup, GDPR, troubleshooting.
 
 ---
 
