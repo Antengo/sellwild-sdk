@@ -8,17 +8,19 @@ Server-side header bidding for React Native applications, powered by Prebid Serv
 
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
-3. [Native banner path (1.3.0+)](#native-banner-path-1-3-0)
-4. [iOS Configuration](#ios-configuration)
-5. [Android Configuration](#android-configuration)
-6. [Basic Integration](#basic-integration)
-7. [Native Listing Cards](#native-listing-cards)
-8. [Direct Prebid Server Auction](#direct-prebid-server-auction)
-9. [Prebid Server Configuration](#prebid-server-configuration)
-10. [Metro Configuration](#metro-configuration)
-11. [GDPR and Privacy](#gdpr-and-privacy)
-12. [TypeScript Reference](#typescript-reference)
-13. [Troubleshooting](#troubleshooting)
+3. [Native Feed (1.3.5+)](#native-feed-1-3-5) ⭐ **Recommended**
+4. [Native Banner (1.3.0+)](#native-banner-path-1-3-0)
+5. [iOS Configuration](#ios-configuration)
+6. [Android Configuration](#android-configuration)
+7. [Basic Integration](#basic-integration)
+8. [Native Listing Cards](#native-listing-cards)
+9. [Direct Prebid Server Auction](#direct-prebid-server-auction)
+10. [Prebid Server Configuration](#prebid-server-configuration)
+11. [Metro Configuration](#metro-configuration)
+12. [GDPR and Privacy](#gdpr-and-privacy)
+13. [TypeScript Reference](#typescript-reference)
+14. [Troubleshooting](#troubleshooting)
+15. [Migration Guide: Widget → Feed](#migration-guide)
 
 ---
 
@@ -86,6 +88,67 @@ npx react-native config
 ```
 
 The output should list `@sellwild/react-native-sdk` under `dependencies`.
+
+---
+
+## Native Feed (1.3.5+)
+
+> ⭐ **Recommended for marketplace listings.** Higher CPMs than the WebView widget, native scrolling performance, and reliable tap handling.
+
+`<SellwildFeed>` is an all-in-one native surface: a single-column scroll of native listing cards interleaved with native Prebid + GAM ads. There is **no WebView** — every row is native on both iOS (UITableView) and Android (RecyclerView).
+
+```tsx
+import React, { useEffect, useState } from 'react';
+import { SafeAreaView, ActivityIndicator } from 'react-native';
+import { SellwildFeed, configure } from '@sellwild/react-native-sdk';
+
+export default function MarketplaceScreen() {
+  const [config, setConfig] = useState(null);
+
+  useEffect(() => {
+    configure('weatherbug', 'weatherbug-weatherbug').then(setConfig);
+  }, []);
+
+  if (!config) return <ActivityIndicator />;
+
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <SellwildFeed
+        config={config}
+        style={{ flex: 1 }}
+        onLoad={() => console.log('Feed loaded')}
+        onListingTap={(listing) => {
+          console.log('Tapped:', listing.title);
+          return false; // Let SDK open in browser
+        }}
+        onAdImpression={(zoneId) => console.log('Ad impression:', zoneId)}
+        onError={(err) => console.warn('Feed error:', err.message)}
+      />
+    </SafeAreaView>
+  );
+}
+```
+
+### Props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `config` | `SellwildConfig` | Resolved config from `configure(partnerCode, slug)`. |
+| `style` | `ViewStyle?` | Optional style override. Feed expands to fill container by default. |
+
+### Events
+
+| Event | Signature | Fires when |
+|-------|-----------|------------|
+| `onLoad` | `() => void` | Initial listings fetch completes successfully. |
+| `onListingTap` | `(listing: SellwildListing) => boolean \| void` | User taps a listing card. Return `true` to consume (handle yourself); return `false`/omit to let SDK open the URL in-app browser. |
+| `onAdImpression` | `(zoneId: string) => void` | A native ad row records an impression. |
+| `onAdClicked` | `(zoneId: string) => void` | A native ad row is clicked. |
+| `onError` | `(error: Error) => void` | Listings fetch fails or a row fails to render. |
+
+### Migrating from SellwildWidget
+
+If you're currently using `<SellwildWidget>` (the WebView-based component), see the [Migration Guide](./migration-widget-to-feed.md) for step-by-step instructions.
 
 ---
 
