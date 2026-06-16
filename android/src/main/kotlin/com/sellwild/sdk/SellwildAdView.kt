@@ -132,16 +132,18 @@ class SellwildAdView @JvmOverloads constructor(
         }
         bannerView?.let { return it }
 
+        // Capture lateinit property to satisfy Kotlin's null-safety in lambdas.
+        val size = adSize
         val banner = AdManagerAdView(context).apply {
-            setAdSizes(GmaAdSize(adSize.width, adSize.height))
+            setAdSizes(GmaAdSize(size.width, size.height))
             adUnitId = resolveGAMAdUnitID()
             adListener = bannerAdListener()
         }
         bannerView = banner
 
         val dp = context.resources.displayMetrics.density
-        val widthPx = (adSize.width * dp).toInt()
-        val heightPx = (adSize.height * dp).toInt()
+        val widthPx = (size.width * dp).toInt()
+        val heightPx = (size.height * dp).toInt()
         addView(banner, LayoutParams(widthPx, heightPx))
         return banner
     }
@@ -163,11 +165,12 @@ class SellwildAdView @JvmOverloads constructor(
             return
         }
 
+        val size = adSize
         SellwildPrebidMobile.runBannerAuction(
             adView = banner,
             configId = configId,
-            widthDp = adSize.width,
-            heightDp = adSize.height,
+            widthDp = size.width,
+            heightDp = size.height,
             bidderParams = bidderParamsFromRemote(config),
         )
     }
@@ -191,13 +194,16 @@ class SellwildAdView @JvmOverloads constructor(
         }
         prebidBanner?.let { return it }
 
+        // Capture lateinit property to satisfy Kotlin's null-safety in lambdas.
+        val size = adSize
+
         // BannerView(context, configId, adSize) uses Prebid's standalone
         // rendering — it makes a Prebid Server bid request and renders the
         // winning creative itself, with no ad-server (GAM) call.
         val prebid = PrebidBannerView(
             context,
             configId,
-            PrebidAdSize(adSize.width, adSize.height),
+            PrebidAdSize(size.width, size.height),
         ).apply {
             setBannerListener(prebidBannerListener())
             // Prebid's rendering banner owns its own auto-refresh.
@@ -208,8 +214,8 @@ class SellwildAdView @JvmOverloads constructor(
         prebidBanner = prebid
 
         val dp = context.resources.displayMetrics.density
-        val widthPx = (adSize.width * dp).toInt()
-        val heightPx = (adSize.height * dp).toInt()
+        val widthPx = (size.width * dp).toInt()
+        val heightPx = (size.height * dp).toInt()
         addView(prebid, LayoutParams(widthPx, heightPx))
         return prebid
     }
