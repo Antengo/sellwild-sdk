@@ -9,18 +9,19 @@ Integration guide for the Sellwild native ad SDK. The SDK runs server-side heade
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
 3. [Native banner path (1.3.0+)](#native-banner-path-1-3-0)
-4. [Info.plist Configuration](#infoplist-configuration)
-5. [UIKit Integration](#uikit-integration)
-6. [SwiftUI Integration](#swiftui-integration)
-7. [Native Listing Cards](#native-listing-cards)
-8. [App Tracking Transparency](#app-tracking-transparency)
-9. [Remote Config](#remote-config)
-10. [Prebid Server Configuration](#prebid-server-configuration)
-11. [GDPR and Privacy](#gdpr-and-privacy)
-12. [Ad Refresh](#ad-refresh)
-13. [Lifecycle Management](#lifecycle-management)
-14. [Troubleshooting](#troubleshooting)
-15. [API Reference](#api-reference)
+4. [Native Marketplace Feed (1.3.5+)](#native-marketplace-feed-1-3-5)
+5. [Info.plist Configuration](#infoplist-configuration)
+6. [UIKit Integration](#uikit-integration)
+7. [SwiftUI Integration](#swiftui-integration)
+8. [Native Listing Cards](#native-listing-cards)
+9. [App Tracking Transparency](#app-tracking-transparency)
+10. [Remote Config](#remote-config)
+11. [Prebid Server Configuration](#prebid-server-configuration)
+12. [GDPR and Privacy](#gdpr-and-privacy)
+13. [Ad Refresh](#ad-refresh)
+14. [Lifecycle Management](#lifecycle-management)
+15. [Troubleshooting](#troubleshooting)
+16. [API Reference](#api-reference)
 
 ---
 
@@ -54,7 +55,7 @@ The SDK is available through both Swift Package Manager and CocoaPods. SPM is th
 https://github.com/Antengo/sellwild-sdk.git
 ```
 
-3. Set the dependency rule to **Up to Next Major Version** starting at `1.3.2`.
+3. Set the dependency rule to **Up to Next Major Version** starting at `1.4.0`.
 4. Select the **SellwildSDK** library product and add it to your app target.
 
 No credentials are required — the repository is public. Xcode will resolve `SellwildSDK`, `PrebidMobile`, `GoogleMobileAds`, and `GoogleUserMessagingPlatform` automatically.
@@ -65,7 +66,7 @@ If you prefer to declare the dependency in a `Package.swift` manifest:
 dependencies: [
     .package(
         url: "https://github.com/Antengo/sellwild-sdk.git",
-        from: "1.3.2"
+        from: "1.4.0"
     )
 ],
 targets: [
@@ -87,7 +88,7 @@ platform :ios, '13.0'
 
 target 'YourApp' do
   use_frameworks! :linkage => :static
-  pod 'SellwildSDK', '~> 1.3'
+  pod 'SellwildSDK', '~> 1.4'
 end
 ```
 
@@ -113,6 +114,114 @@ As of 1.3.0, `SellwildAdView` no longer renders banner creatives in a WebView. I
 - **Marketplace listings.** `SellwildWidgetView` (the marketplace listings surface) is a separate component and is not part of the ad path. If your integration only requires banner ads, you do not need to use it.
 
 If you want to bypass the native ad path entirely and consume bids yourself, see [Direct Prebid Server Auction](#prebid-server-configuration).
+
+---
+
+## Native Marketplace Feed (1.3.5+)
+
+`SellwildFeedView` renders a full-screen native marketplace feed with listings and interleaved Prebid + GAM ads. It uses `UITableView` internally — no WebView in the rendering path.
+
+The feed layout is driven by your CDN config's `COL1` schedule (e.g., `"LLGLLGLLG"` = listing, listing, GAM ad, repeat). Listings are fetched from your configured listings endpoint; ads run the same Prebid → GAM auction as `SellwildAdView`.
+
+### SwiftUI
+
+```swift
+import SwiftUI
+import SellwildSDK
+
+struct MarketplaceView: View {
+    let config: SellwildConfig
+
+    var body: some View {
+        SellwildFeed(
+            config: config,
+            onLoad: { print("Feed loaded") },
+            onListingTap: { listing in
+                print("Tapped: \(listing.title)")
+                return false // false = SDK opens in SFSafariViewController
+            },
+            onAdImpression: { zoneId in print("Ad impression: \(zoneId)") },
+            onAdClicked: { zoneId in print("Ad clicked: \(zoneId)") },
+            onError: { error in print("Feed error: \(error)") }
+        )
+    }
+}
+```
+
+### UIKit
+
+```swift
+import UIKit
+import SellwildSDK
+
+class FeedViewController: UIViewController, SellwildFeedViewDelegate {
+    private var feedView: SellwildFeedView?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        Task {
+            let config = await SellwildSDK.configure(
+                partnerCode: "weatherbug",
+                slug: "weatherbug-weatherbug"
+            )
+            let feed = SellwildFeedView(config: config)
+            feed.delegate = self
+            feed.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(feed)
+            NSLayoutConstraint.activate([
+                feed.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+                feed.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                feed.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                feed.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            ])
+            feed.load()
+            self.feedView = feed
+        }
+    }
+
+    // MARK: - SellwildFeedViewDelegate
+
+    func sellwildFeedDidLoad(_ feedView: SellwildFeedView) {
+        print("Feed loaded with \(feedView.listingCount) listings")
+    }
+
+    func sellwildFeed(_ feedView: SellwildFeedView, didTapListing listing: SellwildListing) -> Bool {
+        print("Tapped: \(listing.title) - \(listing.formattedPrice)")
+        return false // false = SDK opens in SFSafariViewController
+    }
+
+    func sellwildFeed(_ feedView: SellwildFeedView, didRecordAdImpressionForZoneId zoneId: String) {
+        print("Ad impression: \(zoneId)")
+    }
+
+    func sellwildFeed(_ feedView: SellwildFeedView, didRecordAdClickForZoneId zoneId: String) {
+        print("Ad clicked: \(zoneId)")
+    }
+
+    func sellwildFeed(_ feedView: SellwildFeedView, didFailWithError error: Error) {
+        print("Feed error: \(error.localizedDescription)")
+    }
+}
+```
+
+### Listing Tap Handling
+
+The `didTapListing` delegate method returns a `Bool`:
+
+- **Return `false`** (recommended): The SDK opens the listing URL in `SFSafariViewController`. This matches the WebView widget behavior.
+- **Return `true`**: You handle navigation yourself. The SDK does nothing.
+
+### Feed Configuration
+
+The feed respects these CDN config keys:
+
+| Key | Description |
+|-----|-------------|
+| `COL1` | Row schedule string (e.g., `"LLGLLGLLG"` — L=listing, G=GAM ad) |
+| `LISTINGS` | URL to fetch listing JSON |
+| `TITLE` | Header title (default: "Marketplace") |
+| `BG_COLOR` | Background color (hex, e.g., `"#F5F5F5"`) |
+| `MOBILE_ZIDS` | Array of zone IDs for interleaved ads |
 
 ---
 

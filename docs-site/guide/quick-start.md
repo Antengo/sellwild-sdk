@@ -17,14 +17,14 @@ For full integration guides with all ad formats, listing cards, GDPR, lifecycle 
 https://github.com/Antengo/sellwild-sdk.git
 ```
 
-Pick the **SellwildSDK** library product, rule **Up to Next Major Version** from `1.3.2`. No credentials are required — the repository is public.
+Pick the **SellwildSDK** library product, rule **Up to Next Major Version** from `1.4.0`. No credentials are required — the repository is public.
 
 **CocoaPods** -- Add to your `Podfile`:
 
 ```ruby
 target 'YourApp' do
   use_frameworks! :linkage => :static
-  pod 'SellwildSDK', '~> 1.3'
+  pod 'SellwildSDK', '~> 1.4'
 end
 ```
 
@@ -108,6 +108,76 @@ class ViewController: UIViewController {
 
 That is it. The SDK handles the Prebid Server auction, creative rendering, impression tracking, and ad refresh.
 
+### 3. Marketplace Feed (1.3.5+)
+
+Drop in a full native marketplace feed with listings and interleaved ads:
+
+**SwiftUI:**
+
+```swift
+import SwiftUI
+import SellwildSDK
+
+struct MarketplaceView: View {
+    let config: SellwildConfig
+
+    var body: some View {
+        SellwildFeed(
+            config: config,
+            onLoad: { print("Feed loaded") },
+            onListingTap: { listing in
+                print("Tapped: \(listing.title)")
+                return false // false = SDK opens in-app browser
+            },
+            onAdImpression: { zoneId in print("Ad impression: \(zoneId)") },
+            onError: { error in print("Error: \(error)") }
+        )
+    }
+}
+```
+
+**UIKit:**
+
+```swift
+import UIKit
+import SellwildSDK
+
+class FeedViewController: UIViewController, SellwildFeedViewDelegate {
+    private var feedView: SellwildFeedView?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        Task {
+            let config = await SellwildSDK.configure(
+                partnerCode: "weatherbug",
+                slug: "weatherbug-weatherbug"
+            )
+            let feed = SellwildFeedView(config: config)
+            feed.delegate = self
+            feed.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(feed)
+            NSLayoutConstraint.activate([
+                feed.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+                feed.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                feed.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                feed.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            ])
+            feed.load()
+            self.feedView = feed
+        }
+    }
+
+    func sellwildFeedDidLoad(_ feedView: SellwildFeedView) {
+        print("Feed loaded")
+    }
+
+    func sellwildFeed(_ feedView: SellwildFeedView, didTapListing listing: SellwildListing) -> Bool {
+        print("Tapped: \(listing.title)")
+        return false // false = SDK opens in SFSafariViewController
+    }
+}
+```
+
 **Next:** [Full iOS Guide](/guide/ios) -- ATT, GDPR, lifecycle management, native listing cards, troubleshooting.
 
 ---
@@ -132,7 +202,7 @@ Add the dependency to `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.3.2")
+    implementation("com.sellwild:sdk:1.4.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
 ```
@@ -194,6 +264,71 @@ class AdActivity : AppCompatActivity() {
 }
 ```
 
+### 4. Marketplace Feed (1.3.5+)
+
+Drop in a full native marketplace feed with listings and interleaved ads:
+
+**Jetpack Compose:**
+
+```kotlin
+import androidx.compose.runtime.*
+import com.sellwild.sdk.*
+
+@Composable
+fun MarketplaceScreen(config: SellwildConfig) {
+    SellwildFeed(
+        config = config,
+        onLoad = { Log.d("Sellwild", "Feed loaded") },
+        onListingTap = { listing ->
+            Log.d("Sellwild", "Tapped: ${listing.title}")
+            false // false = SDK opens in Custom Tabs
+        },
+        onAdImpression = { zoneId -> Log.d("Sellwild", "Ad impression: $zoneId") },
+        onError = { error -> Log.e("Sellwild", "Error: $error") }
+    )
+}
+```
+
+**XML Views:**
+
+```kotlin
+import com.sellwild.sdk.*
+
+class FeedActivity : AppCompatActivity() {
+    private lateinit var feedView: SellwildFeedView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        feedView = SellwildFeedView(this)
+        setContentView(feedView)
+
+        feedView.listener = object : SellwildFeedView.Listener {
+            override fun onLoad() { Log.d("Sellwild", "Feed loaded") }
+            override fun onListingTap(listing: SellwildListing): Boolean {
+                Log.d("Sellwild", "Tapped: ${listing.title}")
+                return false // false = SDK opens in Custom Tabs
+            }
+            override fun onAdImpression(zoneId: String) {
+                Log.d("Sellwild", "Ad impression: $zoneId")
+            }
+            override fun onError(message: String) {
+                Log.e("Sellwild", "Error: $message")
+            }
+        }
+
+        lifecycleScope.launch {
+            val config = SellwildSDK.configure(
+                partnerCode = "weatherbug",
+                slug = "weatherbug-weatherbug"
+            )
+            feedView.setup(config)
+            feedView.load()
+        }
+    }
+}
+```
+
 **Next:** [Full Android Guide](/guide/android) -- Jetpack Compose, ProGuard rules, multi-process WebView, GDPR, listing cards.
 
 ---
@@ -245,6 +380,50 @@ export default function App() {
   );
 }
 ```
+
+### 3. Marketplace Feed (1.3.5+)
+
+Drop in a full native marketplace feed with listings and interleaved ads — no WebView:
+
+```tsx
+import React, { useEffect, useState } from 'react';
+import { SafeAreaView } from 'react-native';
+import {
+  SellwildFeed,
+  configure,
+  type SellwildConfig,
+  type SellwildListing,
+} from '@sellwild/react-native-sdk';
+
+export default function App() {
+  const [config, setConfig] = useState<SellwildConfig | null>(null);
+
+  useEffect(() => {
+    configure('weatherbug', 'weatherbug-weatherbug').then(setConfig);
+  }, []);
+
+  if (!config) return null;
+
+  const handleListingTap = (listing: SellwildListing): boolean => {
+    console.log('Tapped:', listing.title);
+    return false; // false = SDK opens in in-app browser
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <SellwildFeed
+        config={config}
+        onLoad={() => console.log('Feed loaded')}
+        onListingTap={handleListingTap}
+        onAdImpression={(zoneId) => console.log('Ad impression:', zoneId)}
+        onError={(err) => console.warn('Feed error:', err.message)}
+      />
+    </SafeAreaView>
+  );
+}
+```
+
+The native feed renders on iOS via `UITableView` and Android via `RecyclerView` — no WebView in the rendering path. Listing taps open in `SFSafariViewController` (iOS) or Custom Tabs (Android) unless your callback returns `true` to handle navigation yourself.
 
 **Next:** [Full React Native Guide](/guide/react-native) -- listing cards, `useSellwildListings` hook, direct auction API, Metro config, GDPR.
 

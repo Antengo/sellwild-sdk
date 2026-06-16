@@ -11,18 +11,19 @@ As of 1.3.0, banner ads render natively through `AdManagerAdView` (Google Mobile
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
 3. [Native banner path (1.3.0+)](#native-banner-path-1-3-0)
-4. [AndroidManifest Configuration](#androidmanifest-configuration)
-5. [Basic Integration](#basic-integration)
-6. [Jetpack Compose](#jetpack-compose)
-7. [Native Listing Cards](#native-listing-cards)
-8. [Coroutines API](#coroutines-api)
-9. [Remote Config](#remote-config)
-10. [Prebid Server Configuration](#prebid-server-configuration)
-11. [GDPR and Privacy](#gdpr-and-privacy)
-12. [Lifecycle Management](#lifecycle-management)
-13. [Ad Refresh](#ad-refresh)
-14. [ProGuard and R8](#proguard-and-r8)
-15. [Troubleshooting](#troubleshooting)
+4. [Native Marketplace Feed (1.3.5+)](#native-marketplace-feed-1-3-5)
+5. [AndroidManifest Configuration](#androidmanifest-configuration)
+6. [Basic Integration](#basic-integration)
+7. [Jetpack Compose](#jetpack-compose)
+8. [Native Listing Cards](#native-listing-cards)
+9. [Coroutines API](#coroutines-api)
+10. [Remote Config](#remote-config)
+11. [Prebid Server Configuration](#prebid-server-configuration)
+12. [GDPR and Privacy](#gdpr-and-privacy)
+13. [Lifecycle Management](#lifecycle-management)
+14. [Ad Refresh](#ad-refresh)
+15. [ProGuard and R8](#proguard-and-r8)
+16. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -72,7 +73,7 @@ In your app-level `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.3.2")
+    implementation("com.sellwild:sdk:1.4.0")
 
     // Required -- coroutines for async listings API
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -119,6 +120,114 @@ As of 1.3.0, `SellwildAdView` no longer renders banner creatives in a `WebView`.
 - **Marketplace listings.** `SellwildWidgetView` is a separate surface for the marketplace listings widget and is unrelated to the ad path. If your integration only requires banner ads, you do not need to use it.
 
 If you want to bypass the native ad path entirely and consume bids yourself, see [Prebid Server Configuration](#prebid-server-configuration).
+
+---
+
+## Native Marketplace Feed (1.3.5+)
+
+`SellwildFeedView` renders a full-screen native marketplace feed with listings and interleaved Prebid + GAM ads. It uses `RecyclerView` internally — no WebView in the rendering path.
+
+The feed layout is driven by your CDN config's `COL1` schedule (e.g., `"LLGLLGLLG"` = listing, listing, GAM ad, repeat). Listings are fetched from your configured listings endpoint; ads run the same Prebid → GAM auction as `SellwildAdView`.
+
+### Jetpack Compose
+
+```kotlin
+import androidx.compose.runtime.*
+import com.sellwild.sdk.*
+
+@Composable
+fun MarketplaceScreen(config: SellwildConfig) {
+    SellwildFeed(
+        config = config,
+        onLoad = { Log.d("Sellwild", "Feed loaded") },
+        onListingTap = { listing ->
+            Log.d("Sellwild", "Tapped: ${listing.title}")
+            false // false = SDK opens in Custom Tabs
+        },
+        onAdImpression = { zoneId -> Log.d("Sellwild", "Ad impression: $zoneId") },
+        onAdClicked = { zoneId -> Log.d("Sellwild", "Ad clicked: $zoneId") },
+        onError = { error -> Log.e("Sellwild", "Feed error: $error") }
+    )
+}
+```
+
+### XML Views
+
+```kotlin
+import android.os.Bundle
+import android.util.Log
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.sellwild.sdk.*
+import kotlinx.coroutines.launch
+
+class FeedActivity : AppCompatActivity() {
+    private lateinit var feedView: SellwildFeedView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        feedView = SellwildFeedView(this)
+        setContentView(feedView)
+
+        feedView.listener = object : SellwildFeedView.Listener {
+            override fun onLoad() {
+                Log.d("Sellwild", "Feed loaded")
+            }
+
+            override fun onListingTap(listing: SellwildListing): Boolean {
+                Log.d("Sellwild", "Tapped: ${listing.title} - ${listing.formattedPrice}")
+                return false // false = SDK opens in Custom Tabs
+            }
+
+            override fun onAdImpression(zoneId: String) {
+                Log.d("Sellwild", "Ad impression: $zoneId")
+            }
+
+            override fun onAdClicked(zoneId: String) {
+                Log.d("Sellwild", "Ad clicked: $zoneId")
+            }
+
+            override fun onError(message: String) {
+                Log.e("Sellwild", "Feed error: $message")
+            }
+        }
+
+        lifecycleScope.launch {
+            val config = SellwildSDK.configure(
+                partnerCode = "weatherbug",
+                slug = "weatherbug-weatherbug"
+            )
+            feedView.setup(config)
+            feedView.load()
+        }
+    }
+
+    override fun onDestroy() {
+        feedView.destroy()
+        super.onDestroy()
+    }
+}
+```
+
+### Listing Tap Handling
+
+The `onListingTap` listener method returns a `Boolean`:
+
+- **Return `false`** (recommended): The SDK opens the listing URL in Chrome Custom Tabs. This matches the WebView widget behavior.
+- **Return `true`**: You handle navigation yourself. The SDK does nothing.
+
+### Feed Configuration
+
+The feed respects these CDN config keys:
+
+| Key | Description |
+|-----|-------------|
+| `COL1` | Row schedule string (e.g., `"LLGLLGLLG"` — L=listing, G=GAM ad) |
+| `LISTINGS` | URL to fetch listing JSON |
+| `TITLE` | Header title (default: "Marketplace") |
+| `BG_COLOR` | Background color (hex, e.g., `"#F5F5F5"`) |
+| `MOBILE_ZIDS` | Array of zone IDs for interleaved ads |
 
 ---
 
