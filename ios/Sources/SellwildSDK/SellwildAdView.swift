@@ -121,11 +121,13 @@ public final class SellwildAdView: UIView {
             return
         }
 
+        // Bidder params are configured server-side in the stored imp. Don't send
+        // CMS config inline — it includes non-bidder keys that PBS rejects.
         SellwildPrebidMobile.runBannerAuction(
             on: banner,
             configId: configId,
             adSize: adSize.cgSize,
-            bidderParams: bidderParamsFromRemote()
+            bidderParams: [:]
         ) { [weak self] result in
             guard let self else { return }
             #if DEBUG
@@ -258,23 +260,6 @@ public final class SellwildAdView: UIView {
         return testUnit
     }
 
-    /// Forward bidder configs from the raw CDN payload as ext data on the
-    /// Prebid auction. The CMS adds new bidders → partners use them
-    /// immediately, no SDK release.
-    private func bidderParamsFromRemote() -> [String: Any] {
-        guard let raw = config.remoteValues else { return [:] }
-        // Skip first-class fields that are not bidder params. The widget's
-        // skip list is exhaustive; here we keep it lean and forward everything
-        // that *looks* like a bidder block (CONSTANT_CASE name, dict value).
-        var params: [String: Any] = [:]
-        for (key, value) in raw {
-            guard key == key.uppercased() else { continue }
-            guard !nonBidderRemoteKeys.contains(key) else { continue }
-            params[key] = value
-        }
-        return params
-    }
-
     private func nearestViewController() -> UIViewController? {
         var responder: UIResponder? = self
         while let r = responder {
@@ -353,24 +338,3 @@ public protocol SellwildAdViewDelegate: AnyObject {
     @objc optional func sellwildAdView(_ adView: SellwildAdView,
                                        didFailWithError error: Error)
 }
-
-// MARK: - Static config
-
-/// CDN keys that are first-class typed config (handled elsewhere) and should
-/// not be forwarded as Prebid bidder ext data.
-private let nonBidderRemoteKeys: Set<String> = [
-    "CODE", "LISTINGS", "SLUG", "NAME", "TITLE", "COLORS", "LINK_TEXT",
-    "BUY_NOW_TEXT", "FONT_FAMILY", "FONT_URL", "FONT_COLOR", "PRICE_COLOR",
-    "PRICE_FONT_COLOR", "MARGIN_BOTTOM", "CARD_WIDTH", "OVERLAY_TITLE", "CSS",
-    "WATERMARK", "WATERMARK_TITLE", "BANNER_ZID", "BOTTOM_BANNER_ZID",
-    "MOBILE_BANNER_ZID", "MOBILE_ZID", "DISPLAY_ZID", "HIDE_BANNER_TOP",
-    "HIDE_BANNER_BOTTOM", "GAM", "DISABLE_GPT", "AD_UNITS", "SAFE_FRAME",
-    "AD_DISABLE_DISPLAY", "AD_STACK", "AD_STACK_BY_ZONE", "AD_REFRESH_MAX",
-    "AD_REFRESH_MAX_MOBILE", "AD_REFRESH_INTERVAL", "MAX_FAILED_AUCTIONS",
-    "PREBID_DEFER", "PREBID_SRC", "AD_GEO_BLOCK", "AD_GEO_BLOCK_REFRESH",
-    "GPP_ENABLED", "TCF_VERSION", "CONSENT_MANAGEMENT", "SCHAIN_SID",
-    "S2S_CONFIG", "IAB_CATS", "APP_BUNDLE_ID", "APP_STORE_URL",
-    "ENABLE_INTERSTITIAL", "ENABLE_FULLSCREEN_VIDEO",
-    "INTERSTITIALS_PER_SESSION", "VIDEO_TAKEOVERS_PER_SESSION", "DEBUG",
-    "MEMBERSHIP_TYPE",
-]
