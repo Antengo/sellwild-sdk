@@ -84,8 +84,14 @@ dependencies {
     // Native ad path (1.3.0+): Prebid Mobile runs the auction, GMA renders.
     // Both are required dependencies — there is no WebView fallback.
     // GMA pinned to 23.6.0 for compatibility with partners on 22.x/23.x (WeatherBug).
-    // Prebid Mobile 3.3.0 supports GMA 23.x.
-    implementation("org.prebid:prebid-mobile-sdk:3.3.0")
+    //
+    // SDK 1.4.1+: Uses namespace-shaded Prebid Mobile fork to avoid singleton
+    // conflicts with host apps that have their own Prebid implementation.
+    // Package: com.sellwild.prebid (instead of org.prebid.mobile)
+    // Main class: SellwildPrebid (instead of PrebidMobile)
+    // Published to local Maven during development; JitPack for releases.
+    implementation("com.sellwild:PrebidMobile-core:3.3.2")
+    implementation("com.sellwild:PrebidMobile-gamEventHandlers:3.3.2")
     implementation("com.google.android.gms:play-services-ads:23.6.0")
 
     // SellwildFeed (1.4.0+) — all-in-one native feed surface.

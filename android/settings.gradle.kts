@@ -20,6 +20,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // JitPack for namespace-shaded Prebid Mobile fork
+        maven { url = uri("https://jitpack.io") }
+        // Local Maven repo for namespace-shaded Prebid Mobile (dev only)
+        mavenLocal()
     }
 }
 

@@ -11,10 +11,10 @@ import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.admanager.AdManagerAdRequest
 import com.google.android.gms.ads.admanager.AdManagerAdView
 import org.json.JSONObject
-import org.prebid.mobile.AdSize as PrebidAdSize
-import org.prebid.mobile.api.exceptions.AdException
-import org.prebid.mobile.api.rendering.BannerView as PrebidBannerView
-import org.prebid.mobile.api.rendering.listeners.BannerViewListener
+import com.sellwild.prebid.AdSize as PrebidAdSize
+import com.sellwild.prebid.api.exceptions.AdException
+import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView
+import com.sellwild.prebid.api.rendering.listeners.BannerViewListener
 
 /**
  * Native banner ad view. As of 1.3.0 this view runs a Prebid Mobile auction

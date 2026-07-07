@@ -18,13 +18,13 @@ import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.admanager.AdManagerAdRequest
 import com.google.android.gms.ads.admanager.AdManagerAdView
 import org.json.JSONObject
-import org.prebid.mobile.BannerAdUnit
-import org.prebid.mobile.BannerParameters
-import org.prebid.mobile.OnCompleteListener
-import org.prebid.mobile.PrebidMobile
-import org.prebid.mobile.ResultCode
-import org.prebid.mobile.Signals
-import org.prebid.mobile.TargetingParams
+import com.sellwild.prebid.BannerAdUnit
+import com.sellwild.prebid.BannerParameters
+import com.sellwild.prebid.OnCompleteListener
+import com.sellwild.prebid.SellwildPrebid
+import com.sellwild.prebid.ResultCode
+import com.sellwild.prebid.Signals
+import com.sellwild.prebid.TargetingParams
 
 /**
  * Bootstrap + auction bridge for Prebid Mobile + GMA.
@@ -78,11 +78,11 @@ object SellwildPrebidMobile {
 
             val resolved = resolvePrebidServer(config)
 
-            PrebidMobile.setPrebidServerAccountId(resolved.accountId)
-            PrebidMobile.setTimeoutMillis(config.prebidServer?.timeout ?: 1500)
-            PrebidMobile.setShareGeoLocation(true)
+            SellwildPrebid.setPrebidServerAccountId(resolved.accountId)
+            SellwildPrebid.setTimeoutMillis(config.prebidServer?.timeout ?: 1500)
+            SellwildPrebid.setShareGeoLocation(true)
             if (config.debug) {
-                PrebidMobile.setLogLevel(PrebidMobile.LogLevel.DEBUG)
+                SellwildPrebid.setLogLevel(SellwildPrebid.LogLevel.DEBUG)
             }
 
             // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
@@ -90,13 +90,13 @@ object SellwildPrebidMobile {
             config.appStoreUrl?.let { TargetingParams.setStoreUrl(it) }
 
             try {
-                PrebidMobile.initializeSdk(context.applicationContext, resolved.url) { status ->
-                    Log.d(TAG, "PrebidMobile.initializeSdk status: $status")
+                SellwildPrebid.initializeSdk(context.applicationContext, resolved.url) { status ->
+                    Log.d(TAG, "SellwildPrebid.initializeSdk status: $status")
                     // Status enum values are SUCCEEDED / FAILED in Prebid 3.x.
                     prebidReady = status.toString().equals("SUCCEEDED", ignoreCase = true)
                 }
             } catch (e: Throwable) {
-                Log.e(TAG, "PrebidMobile.initializeSdk threw", e)
+                Log.e(TAG, "SellwildPrebid.initializeSdk threw", e)
             }
 
             didBootstrap = true

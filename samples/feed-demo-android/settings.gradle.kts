@@ -16,9 +16,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // Prebid Mobile is mirrored on Maven Central, but the canonical release
-        // bucket lives here too. Either resolves; mavenCentral first wins.
         maven { url = uri("https://jitpack.io") }
+        // Local Maven for namespace-shaded Prebid Mobile fork (dev only)
+        mavenLocal()
     }
 }
 
