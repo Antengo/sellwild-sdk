@@ -10,7 +10,7 @@
 // by hand.
 
 import Foundation
-import PrebidMobile
+import SellwildPrebidSDK
 import GoogleMobileAds
 
 /// Public surface for bootstrapping Prebid Mobile + GMA from a `SellwildConfig`.
@@ -41,11 +41,11 @@ public enum SellwildPrebidMobile {
         // to raw CDN passthrough; final fallback is Sellwild's hosted Prebid
         // Server so the SDK still does *something* on partial CMS config.
         let resolved = resolvePrebidServer(from: config)
-        Prebid.shared.prebidServerAccountId = resolved.accountId
-        Prebid.shared.timeoutMillis = config.prebidServer?.timeout ?? 1500
-        Prebid.shared.shareGeoLocation = true
+        SellwildPrebid.shared.prebidServerAccountId = resolved.accountId
+        SellwildPrebid.shared.timeoutMillis = config.prebidServer?.timeout ?? 1500
+        SellwildPrebid.shared.shareGeoLocation = true
         if config.debug {
-            Prebid.shared.logLevel = .debug
+            SellwildPrebid.shared.logLevel = .debug
         }
 
         // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
@@ -61,18 +61,18 @@ public enum SellwildPrebidMobile {
             // checked for compatibility.
             let v = MobileAds.shared.versionNumber
             let gmaVersion = "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
-            try Prebid.initializeSDK(
+            try SellwildPrebid.initializeSDK(
                 serverURL: resolved.url,
                 gadMobileAdsVersion: gmaVersion
             ) { status, error in
                 if let error {
-                    log("Prebid.initializeSDK error: \(error.localizedDescription)")
+                    log("SellwildPrebid SDK init error: \(error.localizedDescription)")
                 } else {
-                    log("Prebid.initializeSDK status: \(status)")
+                    log("SellwildPrebid SDK init status: \(status)")
                 }
             }
         } catch {
-            log("Prebid.initializeSDK threw: \(error.localizedDescription)")
+            log("SellwildPrebid SDK init threw: \(error.localizedDescription)")
         }
 
         didBootstrap = true

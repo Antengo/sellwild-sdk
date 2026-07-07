@@ -1,6 +1,10 @@
 import UIKit
 import GoogleMobileAds
-import PrebidMobile
+import SellwildPrebidSDK
+
+// Disambiguate types that exist in both SellwildPrebidSDK and GoogleMobileAds
+public typealias PrebidBannerView = SellwildPrebidSDK.BannerView
+public typealias PrebidBannerViewDelegate = SellwildPrebidSDK.BannerViewDelegate
 
 // MARK: - SellwildAdView
 //
@@ -58,7 +62,7 @@ public final class SellwildAdView: UIView {
     // GAM render path (.both / .gamOnly). Created lazily on first GAM load.
     private var gamBanner: AdManagerBannerView?
     // Prebid render path (.prebidOnly). Created lazily on first Prebid load.
-    private var prebidBanner: PrebidMobile.BannerView?
+    private var prebidBanner: PrebidBannerView?
 
     private var refreshTimer: Timer?
     private var refreshCount = 0
@@ -179,7 +183,7 @@ public final class SellwildAdView: UIView {
         banner.loadAd()
     }
 
-    private func ensurePrebidBanner(configId: String) -> PrebidMobile.BannerView {
+    private func ensurePrebidBanner(configId: String) -> PrebidBannerView {
         // Tear down a GAM banner if we previously rendered one.
         if let gb = gamBanner {
             gb.removeFromSuperview()
@@ -190,7 +194,7 @@ public final class SellwildAdView: UIView {
         // The (frame:configID:adSize:) convenience initializer uses Prebid's
         // standalone event handler — it makes a Prebid Server bid request and
         // renders the winning creative itself, with no ad-server (GAM) call.
-        let v = PrebidMobile.BannerView(
+        let v = PrebidBannerView(
             frame: CGRect(origin: .zero, size: adSize.cgSize),
             configID: configId,
             adSize: adSize.cgSize
@@ -309,19 +313,19 @@ extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
 
 // MARK: - Prebid BannerViewDelegate (.prebidOnly)
 
-extension SellwildAdView: PrebidMobile.BannerViewDelegate {
+extension SellwildAdView: PrebidBannerViewDelegate {
 
     public func bannerViewPresentationController() -> UIViewController? {
         nearestViewController()
     }
 
-    public func bannerView(_ bannerView: PrebidMobile.BannerView,
+    public func bannerView(_ bannerView: PrebidBannerView,
                            didReceiveAdWithAdSize adSize: CGSize) {
         delegate?.sellwildAdViewDidLoad?(self)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
     }
 
-    public func bannerView(_ bannerView: PrebidMobile.BannerView,
+    public func bannerView(_ bannerView: PrebidBannerView,
                            didFailToReceiveAdWith error: Error) {
         delegate?.sellwildAdView?(self, didFailWithError: error)
     }
