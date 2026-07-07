@@ -51,7 +51,8 @@ final class ConfigLoader: ObservableObject {
             // Google's public 300x250 test ad unit (same behavior the
             // Android demo uses to prove the native auction path).
             if cfg.mobileZids.isEmpty {
-                cfg.mobileZids = ["demo-mrec-1", "demo-mrec-2", "demo-mrec-3"]
+                // Use the actual stored imp on Prebid Server
+                cfg.mobileZids = ["weatherbug-mobile-300x250"]
             }
             if (cfg.mobileBannerZid ?? "").isEmpty {
                 cfg.mobileBannerZid = "demo-banner"
