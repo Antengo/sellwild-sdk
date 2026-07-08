@@ -16,7 +16,7 @@ let package = Package(
     dependencies: [
         // SellwildPrebidSDK: Namespace-shaded fork of Prebid Mobile SDK.
         // Allows Sellwild ads to coexist with host app's own Prebid implementation.
-        .package(url: "git@github.com:Antengo/sellwild-prebid-mobile-ios.git", branch: "master"),
+        .package(url: "https://github.com/Antengo/sellwild-prebid-mobile-ios.git", exact: "1.4.1"),
         // Google Mobile Ads SDK (native render). Supports 12.0 through 13.x.
         .package(url: "https://github.com/googleads/swift-package-manager-google-mobile-ads.git", "12.0.0"..<"14.0.0"),
     ],
