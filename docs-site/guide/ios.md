@@ -88,11 +88,19 @@ platform :ios, '13.0'
 
 target 'YourApp' do
   use_frameworks! :linkage => :static
-  pod 'SellwildSDK', '~> 1.4'
+
+  # SellwildSDK and its namespace-shaded Prebid dependency (direct git refs)
+  pod 'SellwildPrebid', :git => 'https://github.com/Antengo/sellwild-prebid-mobile-ios.git', :tag => '1.4.1'
+  pod 'SellwildPrebidGAMEventHandlers', :git => 'https://github.com/Antengo/sellwild-prebid-mobile-ios.git', :tag => '1.4.1'
+  pod 'SellwildSDK', :git => 'https://github.com/Antengo/sellwild-sdk.git', :tag => '1.4.1'
 end
 ```
 
 `:linkage => :static` is required because `Google-Mobile-Ads-SDK` and `GoogleUserMessagingPlatform` are distributed as static binaries.
+
+::: tip Why the git references?
+Starting in 1.4.1, SellwildSDK uses a namespace-shaded fork of Prebid Mobile (`SellwildPrebid`) so Sellwild ads can coexist with your own Prebid integration without singleton conflicts. The shaded pods aren't on the public CocoaPods trunk, so you need to reference them directly from our GitHub repo.
+:::
 
 Then run:
 

@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'SellwildSDK'
-  s.version          = '1.4.0'
+  s.version          = '1.4.1'
   s.summary          = 'Sellwild mobile advertising SDK for iOS'
   s.description      = <<-DESC
     SellwildSDK provides native iOS components for embedding
@@ -29,8 +29,11 @@ Pod::Spec.new do |s|
   # SellwildAdView runs a Prebid Mobile auction and renders in a GAMBannerView.
   # The widget surface (SellwildWidgetView / SellwildWidget) still uses WKWebView
   # for marketplace listings; that is intentional.
-  # Prebid Mobile 3.0.1+ (3.0.0 has an upstream mixed-language build issue).
-  # GMA 12.0+ (12.x already exposes the modern Swift API names we use).
-  s.dependency 'PrebidMobile', '>= 3.0.1', '< 4.0'
+  #
+  # SellwildPrebid is our namespace-shaded fork of Prebid Mobile SDK. This
+  # allows Sellwild ads to coexist with a partner's own Prebid implementation
+  # without singleton conflicts (SellwildPrebid.shared vs Prebid.shared).
+  s.dependency 'SellwildPrebid', '1.4.1'
+  s.dependency 'SellwildPrebidGAMEventHandlers', '1.4.1'
   s.dependency 'Google-Mobile-Ads-SDK', '>= 12.0', '< 14.0'
 end
