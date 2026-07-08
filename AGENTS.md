@@ -6,6 +6,8 @@ The WebView widget (`SellwildWidgetView` — Prebid.js inside a WebView) WILL NO
 
 ## Release Checklist — iOS SDK
 
+**Full release procedure lives in [RELEASING.md](./RELEASING.md) — follow it step by step. A release is not done until a partner can install it from a clean machine.**
+
 When releasing a new iOS SDK version, you MUST update BOTH distribution paths:
 
 1. **Package.swift** — SPM users
