@@ -25,12 +25,23 @@ pod spec lint SellwildSDK.podspec --allow-warnings
 
 ### Namespace-Shaded Prebid (1.4.2+)
 
-The SDK depends on `SellwildPrebid` and `SellwildPrebidGAMEventHandlers` from `Antengo/sellwild-prebid-mobile-ios`. These are NOT on the public CocoaPods trunk. Partners must use direct git references in their Podfile:
+The SDK depends on `SellwildPrebid` and `SellwildPrebidGAMEventHandlers` from `Antengo/sellwild-prebid-mobile-ios`. As of 1.4.2 all three pods ARE on the public CocoaPods trunk, so partners just need:
 
 ```ruby
-pod 'SellwildPrebid', :git => 'https://github.com/Antengo/sellwild-prebid-mobile-ios.git', :tag => '1.4.2'
-pod 'SellwildPrebidGAMEventHandlers', :git => 'https://github.com/Antengo/sellwild-prebid-mobile-ios.git', :tag => '1.4.2'
-pod 'SellwildSDK', :git => 'https://github.com/Antengo/sellwild-sdk.git', :tag => '1.4.2'
+pod 'SellwildSDK', '~> 1.4.2'
 ```
 
-When bumping SDK version, also bump the tag in the fork's podspecs and create a matching tag there.
+**Publishing a new version to trunk** (dependency order matters):
+
+```bash
+# 1. In the fork repo: bump all 4 podspec versions, tag, push
+pod trunk push SellwildPrebid.podspec --allow-warnings
+pod trunk push SellwildPrebidGAMEventHandlers.podspec --allow-warnings --synchronous
+# 2. In this repo: bump podspec + Package.swift pins, tag, push
+pod trunk push SellwildSDK.podspec --allow-warnings --synchronous
+```
+
+Gotchas learned the hard way:
+- Trunk publishes go to the Specs git repo immediately, but `cdn.cocoapods.org` (jsDelivr) shard files can stay stale for 30+ min if the purge webhook fails. Manually purge: `curl https://purge.jsdelivr.net/cocoa/all_pods_versions_X_Y_Z.txt` (shard = first 3 hex chars of `md5(podname)`).
+- Verify with a real `pod install --repo-update` in a scratch project before telling partners it's live.
+- Never move an existing tag — cut a new version.
