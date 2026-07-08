@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'SellwildSDK'
-  s.version          = '1.4.2'
+  s.version          = '1.4.3'
   s.summary          = 'Sellwild mobile advertising SDK for iOS'
   s.description      = <<-DESC
     SellwildSDK provides native iOS components for embedding
@@ -33,7 +33,7 @@ Pod::Spec.new do |s|
   # SellwildPrebid is our namespace-shaded fork of Prebid Mobile SDK. This
   # allows Sellwild ads to coexist with a partner's own Prebid implementation
   # without singleton conflicts (SellwildPrebid.shared vs Prebid.shared).
-  s.dependency 'SellwildPrebid', '1.4.2'
-  s.dependency 'SellwildPrebidGAMEventHandlers', '1.4.2'
+  s.dependency 'SellwildPrebid', '1.4.3'
+  s.dependency 'SellwildPrebidGAMEventHandlers', '1.4.3'
   s.dependency 'Google-Mobile-Ads-SDK', '>= 12.0', '< 14.0'
 end
