@@ -12,6 +12,7 @@ A release is complete only when ALL of these pass:
 - [ ] iOS CocoaPods: `pod install --repo-update` in a **scratch project** (not this repo) installs the new version from the **public trunk**
 - [ ] Android: new AAR resolves from `https://maven.sellwild.com` (not Maven Local)
 - [ ] Coexistence smoke test: scratch Podfile with `pod 'PrebidMobile', '~> 3.0'` + `pod 'SellwildSDK'` builds with 0 errors
+- [ ] ObjC dual-import test: an **Objective-C** file with `@import PrebidMobile; @import SellwildPrebidSDK;` that *uses* types from both compiles clean (Swift-only tests miss "different definitions in different modules" errors — this is what broke 1.4.2 for WeatherBug)
 - [ ] Only after all of the above: notify partners
 
 ## Past Misfires (why each rule exists)
@@ -21,6 +22,7 @@ A release is complete only when ALL of these pass:
 | 1.4.1 | Updated Package.swift but not SellwildSDK.podspec — CocoaPods users (WeatherBug) couldn't install | Always update BOTH distribution files |
 | 1.4.2 | Tagged on GitHub but never ran `pod trunk push` — version didn't exist on the public trunk. Then the jsDelivr CDN purge webhook failed, hiding the fix for 30+ more minutes | Trunk-publish is a mandatory step; verify via scratch-project install, not `pod spec lint` |
 | 1.4.1 (tag) | Re-pointed an existing tag, poisoning partner caches | Never move a tag — cut a new version |
+| 1.4.2 | Public @objc types (AdUnit, ResultCode, etc.) kept upstream ObjC names — WeatherBug's ObjC code importing both modules got "different definitions in different modules". Our coexistence test was Swift-only and never caught it | ObjC dual-import compile test is part of the Definition of Done; fixed in 1.4.3 via `@objc(SWPB*)` names |
 
 ## iOS Release Steps
 
