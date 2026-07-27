@@ -49,11 +49,33 @@ public enum SellwildPrebidMobile {
         }
 
         // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
-        if let bundleId = config.appBundleId {
-            Targeting.shared.sourceapp = bundleId
-            if let store = config.appStoreUrl {
-                Targeting.shared.storeURL = store
-            }
+        // OpenRTB app identity. In Prebid Mobile, Targeting.itunesID maps to
+        // app.bundle; Targeting.sourceapp maps to app.NAME (not the bundle).
+        // On iOS app.bundle must be the NUMERIC App Store ID — buyers key on it
+        // (app-ads.txt / DSP allow-lists); reverse-DNS breaks matching. Derive
+        // the numeric id from the store URL's `/idNNNNN` segment and set it via
+        // itunesID. If we can't parse one, leave app.bundle to Prebid's default
+        // (reverse-DNS Bundle id) and let the edge Lambda backstop it.
+        //
+        // NOTE: we deliberately no longer assign the bundle id to `sourceapp` —
+        // that was polluting app.name with the reverse-DNS bundle. app.name is
+        // left to Prebid's auto-detected display name.
+        if let numericId = appStoreId(from: config.appStoreUrl) {
+            Targeting.shared.itunesID = numericId
+        }
+        // storeURL is independent of the bundle id — set it whenever configured
+        // so a valid appStoreUrl is never dropped just because appBundleId is nil.
+        if let store = config.appStoreUrl {
+            Targeting.shared.storeURL = store
+        }
+
+        // app.publisher.id must equal the sellers.json seller id (== schain sid)
+        // for supply-chain coherence. No Targeting property maps to
+        // app.publisher.id, so inject it via the global ORTB config. Sourced
+        // from the CDN S2S_CONFIG blob (publisherId / sellerId).
+        if let publisherId = resolvePublisherId(from: config),
+           let ortb = globalPublisherORTB(publisherId) {
+            Targeting.shared.setGlobalORTBConfig(ortb)
         }
 
         do {
@@ -100,9 +122,24 @@ public enum SellwildPrebidMobile {
         configId: String,
         adSize: CGSize,
         bidderParams: [String: Any] = [:],
+        video: Bool = false,
         completion: @escaping (ResultCode) -> Void
     ) {
         let unit = BannerAdUnit(configId: configId, size: adSize)
+
+        // Declare MRAID + Open Measurement (OMID) so buyers can serve rich-media
+        // and measure viewability — mirrors the Android banner path.
+        let bannerParams = BannerParameters()
+        bannerParams.api = [Signals.Api.MRAID_3, Signals.Api.OMID_1]
+        unit.bannerParameters = bannerParams
+
+        // Multiformat: also request outstream video when enabled for this
+        // placement. GAM renders the winning creative (video fill needs a GAM
+        // outstream line item / renderer).
+        if video {
+            unit.adFormats = [.banner, .video]
+            unit.videoParameters = SellwildVideo.outstreamParameters()
+        }
 
         // Forward raw CDN bidder params as ORTB imp.ext config. Prebid Server
         // resolves stored requests against this on its side.
@@ -168,6 +205,37 @@ public enum SellwildPrebidMobile {
               let s = String(data: data, encoding: .utf8) else {
             return nil
         }
+        return s
+    }
+
+    /// Extract the numeric Apple App Store ID from a store URL, e.g.
+    /// `https://apps.apple.com/us/app/weatherbug/id281940292` -> `"281940292"`.
+    /// Anchored on `/id` so a slug that merely contains "id" can't false-match.
+    /// Returns nil when the URL has no `/idNNNNN` segment.
+    static func appStoreId(from storeURL: String?) -> String? {
+        guard let storeURL,
+              let range = storeURL.range(of: #"/id\d+"#, options: .regularExpression)
+        else { return nil }
+        return String(storeURL[range].dropFirst(3))  // drop "/id"
+    }
+
+    /// Pull the OpenRTB app.publisher.id (== sellers.json seller id / schain sid)
+    /// from the CDN S2S_CONFIG blob, accepting either a string or a JSON number.
+    private static func resolvePublisherId(from config: SellwildConfig) -> String? {
+        guard let s2s = config.remoteValues?["S2S_CONFIG"] as? [String: Any] else { return nil }
+        switch s2s["publisherId"] ?? s2s["sellerId"] {
+        case let s as String where !s.isEmpty: return s
+        case let n as NSNumber: return n.stringValue
+        default: return nil
+        }
+    }
+
+    /// Build a minimal global ORTB JSON string that sets app.publisher.id.
+    private static func globalPublisherORTB(_ publisherId: String) -> String? {
+        let obj: [String: Any] = ["app": ["publisher": ["id": publisherId]]]
+        guard JSONSerialization.isValidJSONObject(obj),
+              let data = try? JSONSerialization.data(withJSONObject: obj),
+              let s = String(data: data, encoding: .utf8) else { return nil }
         return s
     }
 

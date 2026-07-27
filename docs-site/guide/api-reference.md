@@ -222,6 +222,16 @@ Responses are cached by URL. Subsequent calls with the same config return the ca
 
 ---
 
+### SellwildPrebidMobile.setExternalUserIds(_:) — External User IDs (eids)
+
+```swift
+static func setExternalUserIds(_ eids: [SellwildEid])
+```
+
+Sets authenticated universal IDs (UID2, ID5, LiveRamp RampID, …) as OpenRTB `user.ext.eids`. Build `SellwildEid(source:uids:)` from `SellwildEidUID(id:atype:ext:)`. Set once per session; not persisted across app restarts; pass `[]` to clear.
+
+See **[External User IDs (eids)](./prebid-server.md#external-user-ids-eids)** for full wiring and server-side eid permissions.
+
 ## Android (Kotlin)
 
 ### SellwildConfig
@@ -357,6 +367,16 @@ client.clearCache()
 | `clearCache()` | `Unit` | Clear the response cache. |
 
 ---
+
+### SellwildPrebidMobile.setExternalUserIds — External User IDs (eids)
+
+```kotlin
+fun setExternalUserIds(eids: List<SellwildEid>)
+```
+
+Sets authenticated universal IDs (UID2, ID5, LiveRamp RampID, …) as OpenRTB `user.ext.eids`. Build `SellwildEid(source, uids)` from `SellwildEidUid(id, atype, ext?)`. Set once per session; not persisted across app restarts; pass `emptyList()` to clear.
+
+See **[External User IDs (eids)](./prebid-server.md#external-user-ids-eids)** for full wiring and server-side eid permissions.
 
 ## React Native (TypeScript)
 

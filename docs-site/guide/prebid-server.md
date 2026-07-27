@@ -12,10 +12,12 @@ This document covers the Sellwild managed Prebid Server instance at `prebid.sell
 4. [SSP Onboarding](#ssp-onboarding)
 5. [Supported Bidders](#supported-bidders)
 6. [GDPR Enforcement](#gdpr-enforcement)
-7. [Auction Telemetry](#auction-telemetry)
-8. [Testing](#testing)
-9. [House Ads and No-Fill Handling](#house-ads-and-no-fill-handling)
-10. [Troubleshooting](#troubleshooting)
+7. [External User IDs (eids)](#external-user-ids-eids)
+8. [Outstream Video](#outstream-video)
+9. [Auction Telemetry](#auction-telemetry)
+10. [Testing](#testing)
+11. [House Ads and No-Fill Handling](#house-ads-and-no-fill-handling)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -224,6 +226,116 @@ If your CMP has not collected consent before the first auction runs, Prebid Mobi
 - **Use a TCF v2-compliant CMP** -- OneTrust, Didomi, Usercentrics, and similar SDKs all write the IABTCF_* keys natively. Prebid Mobile picks them up automatically.
 - **Delay banner mount until consent is collected** -- gate `<SellwildBanner>` (or its native equivalent) behind your CMP completion callback so the first auction includes the consent string.
 - **Non-GDPR regions** -- If your app serves only non-GDPR regions, set `gdprApplies = false` in your CMP or test with `"regs": { "ext": { "gdpr": 0 } }` using the curl commands below.
+
+---
+
+## External User IDs (eids)
+
+Authenticated universal IDs (UID2, ID5, LiveRamp RampID, …) restore addressability lost to IDFA deprecation and materially lift CPMs. They are minted from the user's email / login / consent — which only your app holds — so **the SDK cannot generate them. You supply the ID(s); the SDK emits them as OpenRTB `user.ext.eids`.** This is required partner wiring: Sellwild provides the rail, you provide the IDs.
+
+### How the SDK Passes eids
+
+Set the IDs **once per user session** via the native SDK, after configuration and before the first ad load. Prebid Mobile does **not** persist eids across app restarts — re-set them each launch after you resolve the user's identity.
+
+**iOS**
+
+```swift
+import SellwildSDK
+
+SellwildPrebidMobile.setExternalUserIds([
+    SellwildEid(source: "uidapi.com",   uids: [SellwildEidUID(id: uid2Token, atype: 3)]),
+    SellwildEid(source: "id5-sync.com", uids: [SellwildEidUID(id: id5Id, atype: 1, ext: ["linkType": 2])]),
+])
+```
+
+**Android**
+
+```kotlin
+import com.sellwild.sdk.SellwildPrebidMobile
+import com.sellwild.sdk.SellwildEid
+import com.sellwild.sdk.SellwildEidUid
+
+SellwildPrebidMobile.setExternalUserIds(listOf(
+    SellwildEid("uidapi.com",   listOf(SellwildEidUid(uid2Token, atype = 3))),
+    SellwildEid("id5-sync.com", listOf(SellwildEidUid(id5Id, atype = 1, ext = mapOf("linkType" to 2)))),
+))
+```
+
+The SDK serializes these into the bid request:
+
+```json
+{
+  "user": {
+    "ext": {
+      "eids": [
+        { "source": "uidapi.com",   "uids": [{ "id": "…", "atype": 3 }] },
+        { "source": "id5-sync.com", "uids": [{ "id": "…", "atype": 1, "ext": { "linkType": 2 } }] }
+      ]
+    }
+  }
+}
+```
+
+Pass an empty array/list to clear the IDs (e.g. on logout). React Native and Flutter bridges are pending — these APIs are native iOS/Android today.
+
+### `atype` (OpenRTB agent type)
+
+| Value | Meaning |
+|-------|---------|
+| 1     | Cookie / web |
+| 2     | In-app device ID (IFA/DPID) |
+| 3     | Person-based (authenticated — most universal IDs) |
+
+Use the value your ID provider specifies; for an authenticated login-based ID, `3` is typical.
+
+### Server-Side eid Permissions
+
+`prebid.sellwild.com` forwards eids to all bidders by default. If a bidder must be explicitly granted (or restricted) access to a given eid source, the Sellwild ad operations team configures `ext.prebid.data.eidpermissions` in the account config — analogous to [SSP Onboarding](#ssp-onboarding). Verify eids reach bidders by inspecting a debug auction's resolved request for `user.ext.eids`.
+
+### Who Supplies What
+
+- **You (partner):** authenticated IDs (UID2 / ID5 / RampID) — the SDK cannot mint them.
+- **Sellwild (planned):** device-graph IDs (e.g. Lotame Panorama) resolved server-side; until then, pass any resolved ID through `setExternalUserIds`.
+
+---
+
+## Outstream Video
+
+The SDK supports **outstream (in-banner) video** in the standard banner slot (e.g. 300×250) — autoplay muted, plays when in view. It is **off by default** and toggled entirely from remote config, so you enable or disable it per zone from the CDN with **no app release**.
+
+### Enabling
+
+Set in the remote config the SDK reads:
+
+```json
+{ "VIDEO_ENABLED": true }
+```
+
+or per placement:
+
+```json
+{ "VIDEO_ENABLED_BY_ZONE": { "43": true } }
+```
+
+When enabled, the SDK requests a multiformat (banner + video) impression; when off, the impression is banner-only (unchanged). Precedence mirrors `AD_STACK`: global flag, then per-zone.
+
+### Rendering depends on the ad stack
+
+| `AD_STACK` | Renders via | Extra setup |
+|---|---|---|
+| `prebidOnly` | Prebid's own renderer | **None** — Prebid plays the outstream video itself, no GAM |
+| `both` (default) | GAM | **A GAM outstream line item / renderer is required** |
+
+On `both` zones, provision the GAM outstream creative **before** flipping `VIDEO_ENABLED` — otherwise a winning video bid can win the auction but fail to render (a lost impression). On `prebidOnly` zones, no GAM setup is needed.
+
+### SDK video parameters (defaults)
+
+mp4 · VAST 2.0–4.0 · autoplay sound-off · OMID + MRAID (no VPAID) · in-banner placement · standalone plcmt · 5–30s duration.
+
+### Requirements
+
+- An SDK version that ships outstream video.
+- SSPs in the auction must have **active video seats** (same demand-activation reality as banner).
 
 ---
 

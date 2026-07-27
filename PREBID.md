@@ -223,6 +223,108 @@ bannerUnit.fetchDemand(gamBannerView) {
 
 ---
 
+## External User IDs (eids) — partner-supplied
+
+Authenticated universal IDs (UID2, ID5, LiveRamp RampID, …) restore addressability and
+materially lift CPMs — but they are minted from the user's **email / login / consent**,
+which only your app holds. **The SDK cannot generate them.** You obtain the ID(s) from
+your identity provider and hand them to the SDK, which emits them as OpenRTB
+`user.ext.eids` on every native Prebid auction (Mode C).
+
+> This is **required partner wiring** — Sellwild provides the rail; you supply the IDs.
+
+### Wiring
+
+Set the IDs **once per user session**, after the SDK is configured/bootstrapped and
+before (or at) your first ad load. Prebid Mobile does **not** persist eids across app
+restarts — re-set them each launch after you resolve the user's identity.
+
+**iOS**
+```swift
+import SellwildSDK
+
+SellwildPrebidMobile.setExternalUserIds([
+    SellwildEid(source: "uidapi.com", uids: [
+        SellwildEidUID(id: uid2Token, atype: 3)                    // person-based
+    ]),
+    SellwildEid(source: "id5-sync.com", uids: [
+        SellwildEidUID(id: id5Id, atype: 1, ext: ["linkType": 2])
+    ]),
+])
+```
+
+**Android**
+```kotlin
+import com.sellwild.sdk.SellwildPrebidMobile
+import com.sellwild.sdk.SellwildEid
+import com.sellwild.sdk.SellwildEidUid
+
+SellwildPrebidMobile.setExternalUserIds(listOf(
+    SellwildEid("uidapi.com", listOf(
+        SellwildEidUid(uid2Token, atype = 3)
+    )),
+    SellwildEid("id5-sync.com", listOf(
+        SellwildEidUid(id5Id, atype = 1, ext = mapOf("linkType" to 2))
+    )),
+))
+```
+
+Pass an empty array/list to clear previously set IDs (e.g. on logout).
+
+### `atype` (OpenRTB agent type)
+
+| Value | Meaning |
+|---|---|
+| 1 | Cookie / web |
+| 2 | In-app device ID (IFA/DPID) |
+| 3 | Person-based (authenticated — most universal IDs) |
+
+Use the value your ID provider specifies; for an authenticated login-based ID, `3` is typical.
+
+### Server-side permission
+
+Emitting eids is necessary but not always sufficient: which bidders receive which eids is
+governed by **eid permissions** in the Prebid Server stored request. By default Prebid
+Server forwards eids to all bidders; if a bidder requires an explicit grant, coordinate
+with your Prebid Server owner. Confirm delivery by inspecting a debug auction's resolved
+request for `user.ext.eids`.
+
+### What the SDK sources vs. what you supply
+
+- **You (partner) supply** authenticated IDs (UID2/ID5/RampID) — the SDK cannot mint them.
+- **Device-graph IDs** (e.g. Lotame Panorama) that Sellwild can resolve are a planned SDK
+  enhancement; until then, pass any resolved ID through the same `setExternalUserIds` API.
+
+---
+
+## Outstream Video
+
+The SDK supports **outstream (in-banner) video** in the standard banner slot (e.g. 300×250) — autoplay muted, plays when in view. It's **off by default** and toggled entirely from remote config, so you enable/disable it per zone from the CDN with **no app release**.
+
+**Enable (remote config / CDN):**
+```json
+{ "VIDEO_ENABLED": true }
+```
+```json
+{ "VIDEO_ENABLED_BY_ZONE": { "43": true } }
+```
+When on, the SDK requests a multiformat (banner + video) impression; when off, it's banner-only (unchanged). Precedence mirrors `AD_STACK`: global flag, then per-zone.
+
+**Rendering depends on the ad stack (`AD_STACK`):**
+
+| Stack | Renders via | Extra setup |
+|-------|-------------|-------------|
+| `prebidOnly` | Prebid's own renderer | none — Prebid plays the outstream video itself |
+| `both` (default) | GAM | **GAM outstream line item / renderer required** |
+
+On `both` zones, provision the GAM outstream creative **before** enabling video, or a winning video bid can win-but-not-render (lost impression). On `prebidOnly` zones, just flip the flag.
+
+**SDK video defaults:** mp4; VAST 2.0–4.0; autoplay sound-off; OMID + MRAID (no VPAID); in-banner / standalone; 5–30s.
+
+**Requirements:** an SDK version that ships outstream video; SSPs with active video seats.
+
+---
+
 ## Choosing Between Modes
 
 | Scenario | Recommended Mode |

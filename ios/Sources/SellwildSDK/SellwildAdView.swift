@@ -131,7 +131,8 @@ public final class SellwildAdView: UIView {
             on: banner,
             configId: configId,
             adSize: adSize.cgSize,
-            bidderParams: [:]
+            bidderParams: [:],
+            video: SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId)
         ) { [weak self] result in
             guard let self else { return }
             #if DEBUG
@@ -199,6 +200,11 @@ public final class SellwildAdView: UIView {
             configID: configId,
             adSize: adSize.cgSize
         )
+        // Prebid-rendered outstream video (no GAM). Verify `videoParameters`
+        // exists on the rendering BannerView in the shaded fork.
+        if SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId) {
+            v.videoParameters = SellwildVideo.outstreamParameters()
+        }
         v.translatesAutoresizingMaskIntoConstraints = false
         v.delegate = self
         prebidBanner = v
@@ -316,17 +322,33 @@ extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
 extension SellwildAdView: PrebidBannerViewDelegate {
 
     public func bannerViewPresentationController() -> UIViewController? {
-        nearestViewController()
+        let vc = nearestViewController()
+        #if DEBUG
+        if vc == nil {
+            print("[SellwildAdView][prebidOnly] ⚠️ no presentation view controller — "
+                + "the view isn't in a VC hierarchy yet; Prebid rendering may fail. "
+                + "Ensure the ad view is added to a live view controller before load().")
+        }
+        #endif
+        return vc
     }
 
     public func bannerView(_ bannerView: PrebidBannerView,
                            didReceiveAdWithAdSize adSize: CGSize) {
+        #if DEBUG
+        print("[SellwildAdView][prebidOnly] ✅ rendered — size \(adSize), zone \(zoneId ?? "?")")
+        #endif
         delegate?.sellwildAdViewDidLoad?(self)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
     }
 
     public func bannerView(_ bannerView: PrebidBannerView,
                            didFailToReceiveAdWith error: Error) {
+        // Loud on purpose: this is how we diagnose why .prebidOnly renders blank.
+        #if DEBUG
+        print("[SellwildAdView][prebidOnly] ❌ failed to render — zone \(zoneId ?? "?"): "
+            + "\(error.localizedDescription)")
+        #endif
         delegate?.sellwildAdView?(self, didFailWithError: error)
     }
 }

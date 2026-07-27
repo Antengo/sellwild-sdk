@@ -72,6 +72,14 @@ class SellwildAdView @JvmOverloads constructor(
     private var refreshHandler: Handler? = null
     private var refreshCount = 0
 
+    // Cold-start guard: Prebid Mobile init is async and races the first load().
+    // Wait up to ~1.2s (8 × 150ms) for init before falling back to GAM-only, so
+    // the first impression isn't silently downgraded and loses Prebid demand.
+    private var prebidWaitHandler: Handler? = null
+    private var prebidWaitAttempts = 0
+    private val maxPrebidWaitAttempts = 8
+    private val prebidWaitIntervalMs = 150L
+
     /** The ad stack this view resolves to, given the current config + override. */
     val resolvedAdStack: SellwildAdStack
         get() = SellwildAdStack.resolve(config.remoteJson, zoneId, adStackOverride)
@@ -105,6 +113,9 @@ class SellwildAdView @JvmOverloads constructor(
     fun pause() {
         refreshHandler?.removeCallbacksAndMessages(null)
         refreshHandler = null
+        prebidWaitHandler?.removeCallbacksAndMessages(null)
+        prebidWaitHandler = null
+        prebidWaitAttempts = 0
         bannerView?.pause()
         prebidBanner?.stopRefresh()
     }
@@ -157,14 +168,33 @@ class SellwildAdView @JvmOverloads constructor(
         // SellwildAdView. We just leave the unit alone here.
 
         val configId = zoneId
-        if (!runAuction || configId.isNullOrEmpty() || !SellwildPrebidMobile.isReady()) {
-            // No auction (.gamOnly), no zoneId to bid against, or Prebid Mobile
-            // hasn't initialized yet. In every case, fall through to a plain
-            // GAM request so GAM line items still serve.
+        // Plain GAM: .gamOnly, or no zone to bid against — no auction, no waiting.
+        if (!runAuction || configId.isNullOrEmpty()) {
+            prebidWaitAttempts = 0
             banner.loadAd(AdManagerAdRequest.Builder().build())
             return
         }
 
+        // .both with a zone to bid against, but Prebid Mobile's async init may
+        // not have finished on a cold start (it races the first load()). Wait
+        // briefly so the first impression isn't silently downgraded to GAM-only
+        // and loses Prebid demand; fall back to plain GAM only if init is too
+        // slow or has failed.
+        if (!SellwildPrebidMobile.isReady()) {
+            if (prebidWaitAttempts < maxPrebidWaitAttempts) {
+                prebidWaitAttempts++
+                val h = prebidWaitHandler
+                    ?: Handler(Looper.getMainLooper()).also { prebidWaitHandler = it }
+                h.postDelayed({ loadGam(runAuction) }, prebidWaitIntervalMs)
+                return
+            }
+            // Init never came up in time — serve GAM so fill is still attempted.
+            prebidWaitAttempts = 0
+            banner.loadAd(AdManagerAdRequest.Builder().build())
+            return
+        }
+
+        prebidWaitAttempts = 0
         val size = adSize
         SellwildPrebidMobile.runBannerAuction(
             adView = banner,
@@ -172,6 +202,7 @@ class SellwildAdView @JvmOverloads constructor(
             widthDp = size.width,
             heightDp = size.height,
             bidderParams = bidderParamsFromRemote(config),
+            video = SellwildVideo.isEnabled(config.remoteJson, zoneId),
         )
     }
 
@@ -209,6 +240,11 @@ class SellwildAdView @JvmOverloads constructor(
             // Prebid's rendering banner owns its own auto-refresh.
             if (config.adRefreshMaxMobile > 0) {
                 setAutoRefreshDelay((config.adRefreshIntervalMs / 1000L).toInt())
+            }
+            // Prebid-rendered outstream video (no GAM). Verify `videoParameters`
+            // exists on the rendering BannerView in the shaded fork.
+            if (SellwildVideo.isEnabled(config.remoteJson, zoneId)) {
+                videoParameters = SellwildVideo.outstreamParameters()
             }
         }
         prebidBanner = prebid
@@ -258,6 +294,7 @@ class SellwildAdView @JvmOverloads constructor(
     private fun prebidBannerListener() = object : BannerViewListener {
         override fun onAdLoaded(bannerView: PrebidBannerView?) {
             val self = this@SellwildAdView
+            android.util.Log.d("SellwildAdView", "[prebidOnly] rendered — zone ${self.zoneId.orEmpty()}")
             self.listener?.onAdLoaded(self)
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
         }
@@ -266,6 +303,8 @@ class SellwildAdView @JvmOverloads constructor(
 
         override fun onAdFailed(bannerView: PrebidBannerView?, exception: AdException?) {
             val self = this@SellwildAdView
+            // Loud on purpose: this is how we diagnose why .prebidOnly renders blank.
+            android.util.Log.w("SellwildAdView", "[prebidOnly] failed to render — zone ${self.zoneId.orEmpty()}: ${exception?.message}")
             self.listener?.onAdFailed(self, exception?.message ?: "Prebid ad failed")
         }
 

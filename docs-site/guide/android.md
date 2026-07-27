@@ -815,6 +815,18 @@ Contact sdk@sellwild.com to enable additional bidders for your account.
 
 ---
 
+### External User IDs (eids)
+
+Pass authenticated universal IDs (UID2, ID5, LiveRamp RampID, …) as `user.ext.eids` by calling `SellwildPrebidMobile.setExternalUserIds(...)` once per session with `SellwildEid` / `SellwildEidUid`. You supply the IDs — the SDK can't mint them.
+
+See **[External User IDs (eids)](./prebid-server.md#external-user-ids-eids)** for full wiring, `atype` values, and server-side eid permissions.
+
+### Outstream Video
+
+Outstream (in-banner) video is supported and **toggled from remote config** (`VIDEO_ENABLED` / `VIDEO_ENABLED_BY_ZONE`) — no app release to turn it on/off. On `both` (GAM) zones it needs a GAM outstream line item; on `prebidOnly` zones Prebid renders it directly.
+
+See **[Outstream Video](./prebid-server.md#outstream-video)** for enabling, rendering paths, and parameters.
+
 ## GDPR and Privacy
 
 The SDK supports IAB TCF v2 consent management. For users in GDPR regions, you must pass consent information obtained from your Consent Management Platform (CMP).

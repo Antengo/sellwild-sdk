@@ -25,6 +25,7 @@ import com.sellwild.prebid.SellwildPrebid
 import com.sellwild.prebid.ResultCode
 import com.sellwild.prebid.Signals
 import com.sellwild.prebid.TargetingParams
+import com.sellwild.prebid.ExternalUserId
 
 /**
  * Bootstrap + auction bridge for Prebid Mobile + GMA.
@@ -89,6 +90,19 @@ object SellwildPrebidMobile {
             config.appBundleId?.let { TargetingParams.setBundleName(it) }
             config.appStoreUrl?.let { TargetingParams.setStoreUrl(it) }
 
+            // app.publisher.id must equal the sellers.json seller id (== schain
+            // sid) for supply-chain coherence. No dedicated setter maps to
+            // app.publisher.id, so inject it via the global ORTB config, sourced
+            // from the CDN S2S_CONFIG blob (publisherId / sellerId).
+            resolvePublisherId(config)?.let { pubId ->
+                val ortb = JSONObject().apply {
+                    put("app", JSONObject().apply {
+                        put("publisher", JSONObject().apply { put("id", pubId) })
+                    })
+                }
+                TargetingParams.setGlobalOrtbConfig(ortb.toString())
+            }
+
             try {
                 SellwildPrebid.initializeSdk(context.applicationContext, resolved.url) { status ->
                     Log.d(TAG, "SellwildPrebid.initializeSdk status: $status")
@@ -127,9 +141,18 @@ object SellwildPrebidMobile {
         widthDp: Int,
         heightDp: Int,
         bidderParams: Map<String, Any?> = emptyMap(),
+        video: Boolean = false,
         completion: ((ResultCode) -> Unit)? = null,
     ) {
-        val unit = BannerAdUnit(configId, widthDp, heightDp)
+        val unit = if (video) {
+            // Multiformat: request banner AND outstream video. GAM renders the
+            // winning creative (video fill needs a GAM outstream line item).
+            BannerAdUnit(configId, widthDp, heightDp, SellwildVideo.bannerVideoFormats()).apply {
+                videoParameters = SellwildVideo.outstreamParameters()
+            }
+        } else {
+            BannerAdUnit(configId, widthDp, heightDp)
+        }
         unit.bannerParameters = BannerParameters().apply {
             api = listOf(Signals.Api.MRAID_3, Signals.Api.OMID_1)
         }
@@ -145,9 +168,44 @@ object SellwildPrebidMobile {
         })
     }
 
+    /**
+     * Set partner-supplied external/extended user IDs, emitted as OpenRTB
+     * `user.ext.eids` on every native Prebid auction.
+     *
+     * - Call once per user session, after [bootstrap] and before/at the first
+     *   [SellwildAdView] load.
+     * - Prebid Mobile does NOT persist eids across app restarts — re-set on launch.
+     * - Delivery to each bidder is additionally governed by eid permissions in the
+     *   Prebid Server stored request; by default Prebid Server forwards eids.
+     * - Pass an empty list to clear previously set eids (e.g. on logout).
+     */
+    @JvmStatic
+    fun setExternalUserIds(eids: List<SellwildEid>) {
+        val mapped = eids.map { eid ->
+            val uids = eid.uids.map { u ->
+                ExternalUserId.UniqueId(u.id, u.atype).apply {
+                    u.ext?.let { setExt(HashMap<String, Any>(it)) }
+                }
+            }
+            ExternalUserId(eid.source, uids)
+        }
+        TargetingParams.setExternalUserIds(mapped)
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     internal data class PrebidServerResolution(val url: String, val accountId: String)
+
+    /**
+     * Pull the OpenRTB app.publisher.id (== sellers.json seller id / schain sid)
+     * from the CDN S2S_CONFIG blob. Accepts `publisherId` or `sellerId`.
+     */
+    internal fun resolvePublisherId(config: SellwildConfig): String? {
+        val raw = config.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() }
+        val s2s = raw?.optJSONObject("S2S_CONFIG") ?: return null
+        val id = s2s.optString("publisherId", "").ifEmpty { s2s.optString("sellerId", "") }
+        return id.ifEmpty { null }
+    }
 
     internal fun resolvePrebidServer(config: SellwildConfig): PrebidServerResolution {
         // 1. Typed config.
@@ -202,3 +260,19 @@ object SellwildPrebidMobile {
         synchronized(lock) { didBootstrap = false }
     }
 }
+
+/** One id value within a [SellwildEid] source. */
+data class SellwildEidUid(
+    /** The raw ID token from the provider. */
+    val id: String,
+    /** OpenRTB agent type: 1 = cookie/web, 2 = in-app device id, 3 = person-based. */
+    val atype: Int,
+    /** Optional provider-specific extension, e.g. mapOf("rtiPartner" to "TDID"). */
+    val ext: Map<String, Any>? = null,
+)
+
+/** One identity source for user.ext.eids (e.g. "uidapi.com", "id5-sync.com"). */
+data class SellwildEid(
+    val source: String,
+    val uids: List<SellwildEidUid>,
+)
