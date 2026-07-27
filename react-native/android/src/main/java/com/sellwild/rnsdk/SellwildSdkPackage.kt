@@ -8,7 +8,8 @@ import com.facebook.react.uimanager.ReactShadowNode
 import com.facebook.react.uimanager.ViewManager
 
 class SellwildSdkPackage : ReactPackage {
-    override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> = emptyList()
+    override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
+        listOf(SellwildModule(reactContext))
 
     override fun createViewManagers(
         reactContext: ReactApplicationContext,

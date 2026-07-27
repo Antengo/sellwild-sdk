@@ -50,6 +50,10 @@ object SellwildPrebidMobile {
     // Prebid Server is unreachable.
     @Volatile private var prebidReady = false
 
+    // Publisher id resolved at bootstrap + partner-supplied geo, retained so
+    // applyGlobalOrtb() re-emits both in one combined config (setGeo updates geo).
+    @Volatile private var resolvedPublisherId: String? = null
+
     /** True once Prebid Mobile has reported a successful init. */
     @JvmStatic
     fun isReady(): Boolean = prebidReady
@@ -85,6 +89,9 @@ object SellwildPrebidMobile {
             if (config.debug) {
                 SellwildPrebid.setLogLevel(SellwildPrebid.LogLevel.DEBUG)
             }
+            // Server-side auction debug — adds ext.prebid.debug=1 + returnallbidstatus
+            // so the PBS response carries the full debug block. Separate from log level.
+            SellwildPrebid.setPbsDebug(config.pbsDebug)
 
             // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
             config.appBundleId?.let { TargetingParams.setBundleName(it) }
@@ -94,14 +101,13 @@ object SellwildPrebidMobile {
             // sid) for supply-chain coherence. No dedicated setter maps to
             // app.publisher.id, so inject it via the global ORTB config, sourced
             // from the CDN S2S_CONFIG blob (publisherId / sellerId).
-            resolvePublisherId(config)?.let { pubId ->
-                val ortb = JSONObject().apply {
-                    put("app", JSONObject().apply {
-                        put("publisher", JSONObject().apply { put("id", pubId) })
-                    })
-                }
-                TargetingParams.setGlobalOrtbConfig(ortb.toString())
-            }
+            // Capture the resolved publisher id + declared geo, then emit ONE
+            // combined global ORTB config (app.publisher.id + device.geo).
+            // setGlobalOrtbConfig is last-write-wins, so both live in a single
+            // object; a later setGeo(...) re-emits it with updated geo.
+            resolvedPublisherId = resolvePublisherId(config)
+            if (SellwildGeoStore.current == null) SellwildGeoStore.current = config.geo
+            applyGlobalOrtb()
 
             try {
                 SellwildPrebid.initializeSdk(context.applicationContext, resolved.url) { status ->
@@ -190,6 +196,42 @@ object SellwildPrebidMobile {
             ExternalUserId(eid.source, uids)
         }
         TargetingParams.setExternalUserIds(mapped)
+    }
+
+    /**
+     * Set or update partner-supplied geo at runtime, emitted as OpenRTB
+     * `device.geo` on subsequent native Prebid auctions. Use when location is
+     * resolved or changes after [bootstrap]. Re-emits the combined ORTB config so
+     * `app.publisher.id` is preserved. Pass null to clear geo.
+     *
+     * The value is also stored in [SellwildGeoStore.current], so other SDK
+     * surfaces (e.g. the listings feed) and host-app code can read the current
+     * geo — it is not confined to the Prebid auction path.
+     */
+    @JvmStatic
+    fun setGeo(geo: SellwildGeo?) {
+        SellwildGeoStore.current = geo
+        applyGlobalOrtb()
+    }
+
+    /**
+     * Emit one combined global ORTB config carrying `app.publisher.id` and
+     * `device.geo`. setGlobalOrtbConfig is last-write-wins, so both live in a
+     * single object.
+     */
+    private fun applyGlobalOrtb() {
+        val root = JSONObject()
+        resolvedPublisherId?.takeIf { it.isNotEmpty() }?.let { pid ->
+            root.put("app", JSONObject().apply {
+                put("publisher", JSONObject().apply { put("id", pid) })
+            })
+        }
+        SellwildGeoStore.current?.toOrtbGeo()?.let { geo ->
+            root.put("device", JSONObject().apply { put("geo", geo) })
+        }
+        if (root.length() > 0) {
+            TargetingParams.setGlobalOrtbConfig(root.toString())
+        }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────

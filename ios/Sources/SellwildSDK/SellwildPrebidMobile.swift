@@ -47,6 +47,9 @@ public enum SellwildPrebidMobile {
         if config.debug {
             SellwildPrebid.shared.logLevel = .debug
         }
+        // Server-side auction debug — adds ext.prebid.debug=1 + returnallbidstatus
+        // so the PBS response carries the full debug block. Separate from log level.
+        SellwildPrebid.shared.pbsDebug = config.pbsDebug
 
         // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
         // OpenRTB app identity. In Prebid Mobile, Targeting.itunesID maps to
@@ -73,10 +76,13 @@ public enum SellwildPrebidMobile {
         // for supply-chain coherence. No Targeting property maps to
         // app.publisher.id, so inject it via the global ORTB config. Sourced
         // from the CDN S2S_CONFIG blob (publisherId / sellerId).
-        if let publisherId = resolvePublisherId(from: config),
-           let ortb = globalPublisherORTB(publisherId) {
-            Targeting.shared.setGlobalORTBConfig(ortb)
-        }
+        // Capture the resolved publisher id + any declared geo, then emit ONE
+        // combined global ORTB config (app.publisher.id + device.geo).
+        // setGlobalORTBConfig is last-write-wins, so both must live in a single
+        // object; a later setGeo(_:) re-emits it with updated geo.
+        resolvedPublisherId = resolvePublisherId(from: config)
+        if SellwildGeoStore.current == nil { SellwildGeoStore.current = config.geo }
+        applyGlobalORTB()
 
         do {
             // Prebid 3.x signature: serverURL is required, GMA version is
@@ -230,13 +236,43 @@ public enum SellwildPrebidMobile {
         }
     }
 
-    /// Build a minimal global ORTB JSON string that sets app.publisher.id.
-    private static func globalPublisherORTB(_ publisherId: String) -> String? {
-        let obj: [String: Any] = ["app": ["publisher": ["id": publisherId]]]
-        guard JSONSerialization.isValidJSONObject(obj),
-              let data = try? JSONSerialization.data(withJSONObject: obj),
-              let s = String(data: data, encoding: .utf8) else { return nil }
-        return s
+    /// Publisher id resolved at bootstrap, retained so `applyGlobalORTB()` can
+    /// re-emit it alongside geo without re-reading config.
+    private static var resolvedPublisherId: String?
+
+    /// Emit one combined global ORTB config carrying `app.publisher.id` and
+    /// `device.geo`. `setGlobalORTBConfig` is last-write-wins, so both live in a
+    /// single object rather than two competing calls.
+    private static func applyGlobalORTB() {
+        var app: [String: Any] = [:]
+        if let pid = resolvedPublisherId, !pid.isEmpty {
+            app["publisher"] = ["id": pid]
+        }
+        var device: [String: Any] = [:]
+        if let geoDict = SellwildGeoStore.current?.ortbGeoDict, !geoDict.isEmpty {
+            device["geo"] = geoDict
+        }
+        var root: [String: Any] = [:]
+        if !app.isEmpty { root["app"] = app }
+        if !device.isEmpty { root["device"] = device }
+        guard !root.isEmpty,
+              JSONSerialization.isValidJSONObject(root),
+              let data = try? JSONSerialization.data(withJSONObject: root),
+              let json = String(data: data, encoding: .utf8) else { return }
+        Targeting.shared.setGlobalORTBConfig(json)
+    }
+
+    /// Set or update partner-supplied geo at runtime, emitted as OpenRTB
+    /// `device.geo` on subsequent native Prebid auctions. Use when location is
+    /// resolved or changes after `bootstrap(with:)`. Re-emits the combined ORTB
+    /// config so `app.publisher.id` is preserved. Pass `nil` to clear geo.
+    ///
+    /// The value is also stored in `SellwildGeoStore.current`, so other SDK
+    /// surfaces (e.g. the listings feed) and host-app code can read the current
+    /// geo — it is not confined to the Prebid auction path.
+    public static func setGeo(_ geo: SellwildGeo?) {
+        SellwildGeoStore.current = geo
+        applyGlobalORTB()
     }
 
     @inline(__always)

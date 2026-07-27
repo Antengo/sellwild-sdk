@@ -13,6 +13,9 @@ export type { SellwildListingCardProps } from './SellwildListingCard'
 export { useSellwildListings } from './useSellwildListings'
 export type { UseSellwildListingsResult } from './useSellwildListings'
 
+// Imperative native setters (runtime, session-scoped).
+export { setGeo } from './commands'
+
 // Re-export core types for convenience
 export type {
   SellwildConfig,
@@ -22,6 +25,7 @@ export type {
   SellwildPhoto,
   SellwildUser,
   PrebidServerConfig,
+  SellwildGeo,
   AdSize,
   AdPlacement,
   AdPlacementType,

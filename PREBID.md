@@ -297,6 +297,86 @@ request for `user.ext.eids`.
 
 ---
 
+## Geo (`device.geo`) — partner-supplied
+
+Weather/utility apps usually know the user's location before the ad SDK would.
+Passing it in lets DSPs value the impression on real geo instead of coarse IP,
+and exposes `state` to non-ad consumers (e.g. per-state listing caches).
+
+### Type
+
+`SellwildGeo` — all fields optional; only what you set is sent. Maps to OpenRTB
+`device.geo` (note `state` → `region`):
+
+| field | OpenRTB | notes |
+|---|---|---|
+| `country` | `geo.country` | ISO-3166-1 alpha-3, e.g. `USA` |
+| `state` | `geo.region` | also the key for per-state consumers |
+| `city` | `geo.city` | |
+| `zip` | `geo.zip` | |
+| `metro` | `geo.metro` | DMA |
+| `lat` / `lon` | `geo.lat` / `geo.lon` | |
+| `type` | `geo.type` | 1 = GPS, 2 = IP, 3 = user |
+
+### Wiring
+
+Set at configure time (seeds both the auction and the shared store):
+
+```swift
+config.geo = SellwildGeo(country: "USA", state: "NY", zip: "10001")
+```
+```kotlin
+config = config.copy(geo = SellwildGeo(country = "USA", state = "NY", zip = "10001"))
+```
+
+Or update at runtime — re-emits the combined ORTB config, preserving
+`app.publisher.id`:
+
+```swift
+SellwildPrebidMobile.setGeo(SellwildGeo(state: "CA"))
+```
+```kotlin
+SellwildPrebidMobile.setGeo(SellwildGeo(state = "CA"))
+```
+
+### Reading it outside the ad path
+
+The current geo lives in a process-wide, thread-safe store — readable by the
+listings feed or host-app code, not just the Prebid auction:
+
+```swift
+let state = SellwildGeoStore.current?.state
+```
+```kotlin
+val state = SellwildGeoStore.current?.state
+```
+
+> **React Native:** the `pbsDebug` flag is bridged today. `geo` passthrough
+> (nested marshalling) and a JS runtime `setGeo` are pending — RN's ad bridge is
+> view-manager-only, so a callable `setGeo` needs a new native method module.
+
+## Debug flags — `debug` vs `pbsDebug`
+
+Two independent, locally-configurable toggles (also settable remotely via the
+CDN `DEBUG` / `PBS_DEBUG` keys):
+
+| flag | effect |
+|---|---|
+| `debug` | Raises Prebid Mobile SDK **log verbosity** and enables the SDK's own render/auction diagnostics. |
+| `pbsDebug` | Flips Prebid Mobile's `pbsDebug` → adds `ext.prebid.debug=1` + `returnallbidstatus` to the auction so the **response** carries the full server debug block (per-bidder status, `resolvedrequest`, cache calls). Heavier responses — leave OFF in production. |
+
+`pbsDebug` surfaces on-device the same auction detail you'd otherwise only get
+from a `debug=1` server curl. The two are orthogonal — verbose logs without heavy
+responses, or vice-versa.
+
+```swift
+config.debug = true      // SDK logs
+config.pbsDebug = true   // server-side auction debug block
+```
+```kotlin
+config = config.copy(debug = true, pbsDebug = true)
+```
+
 ## Outstream Video
 
 The SDK supports **outstream (in-banner) video** in the standard banner slot (e.g. 300×250) — autoplay muted, plays when in view. It's **off by default** and toggled entirely from remote config, so you enable/disable it per zone from the CDN with **no app release**.

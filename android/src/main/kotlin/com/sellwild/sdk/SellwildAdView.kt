@@ -294,7 +294,7 @@ class SellwildAdView @JvmOverloads constructor(
     private fun prebidBannerListener() = object : BannerViewListener {
         override fun onAdLoaded(bannerView: PrebidBannerView?) {
             val self = this@SellwildAdView
-            android.util.Log.d("SellwildAdView", "[prebidOnly] rendered — zone ${self.zoneId.orEmpty()}")
+            if (self.config.debug) android.util.Log.d("SellwildAdView", "[prebidOnly] rendered — zone ${self.zoneId.orEmpty()}")
             self.listener?.onAdLoaded(self)
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
         }
@@ -304,7 +304,7 @@ class SellwildAdView @JvmOverloads constructor(
         override fun onAdFailed(bannerView: PrebidBannerView?, exception: AdException?) {
             val self = this@SellwildAdView
             // Loud on purpose: this is how we diagnose why .prebidOnly renders blank.
-            android.util.Log.w("SellwildAdView", "[prebidOnly] failed to render — zone ${self.zoneId.orEmpty()}: ${exception?.message}")
+            if (self.config.debug) android.util.Log.w("SellwildAdView", "[prebidOnly] failed to render — zone ${self.zoneId.orEmpty()}: ${exception?.message}")
             self.listener?.onAdFailed(self, exception?.message ?: "Prebid ad failed")
         }
 

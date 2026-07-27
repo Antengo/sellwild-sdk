@@ -148,6 +148,7 @@ public enum SellwildSDK {
 
         // Debug
         if let v = raw["DEBUG"] as? Bool { c.debug = v }
+        if let v = raw["PBS_DEBUG"] as? Bool { c.pbsDebug = v }
 
         return c
     }
