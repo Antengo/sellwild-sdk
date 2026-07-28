@@ -63,6 +63,8 @@ public final class SellwildAdView: UIView {
     private var gamBanner: AdManagerBannerView?
     // Prebid render path (.prebidOnly). Created lazily on first Prebid load.
     private var prebidBanner: PrebidBannerView?
+    // Prebid native render path (.prebidOnly + NATIVE_ENABLED). Lazily created.
+    private var nativeAdView: SellwildNativeAdView?
 
     private var refreshTimer: Timer?
     private var refreshCount = 0
@@ -92,6 +94,16 @@ public final class SellwildAdView: UIView {
     public func load() {
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(with: config)
+
+        // Native reuses the slot on .prebidOnly only: Prebid fetches demand and
+        // we render the assets. On .both/.gamOnly a native creative would need
+        // GAM native line items + a GADNativeAd renderer (ad-ops), so we fall
+        // through to the banner path there.
+        if resolvedAdStack == .prebidOnly,
+           SellwildNative.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId) {
+            loadPrebidNative()
+            return
+        }
 
         switch resolvedAdStack {
         case .prebidOnly:
@@ -149,6 +161,7 @@ public final class SellwildAdView: UIView {
             pb.removeFromSuperview()
             prebidBanner = nil
         }
+        if let na = nativeAdView { na.removeFromSuperview(); nativeAdView = nil }
         if let existing = gamBanner { return existing }
 
         let v = AdManagerBannerView(adSize: adSizeFor(cgSize: adSize.cgSize))
@@ -190,6 +203,7 @@ public final class SellwildAdView: UIView {
             gb.removeFromSuperview()
             gamBanner = nil
         }
+        if let na = nativeAdView { na.removeFromSuperview(); nativeAdView = nil }
         if let existing = prebidBanner { return existing }
 
         // The (frame:configID:adSize:) convenience initializer uses Prebid's
@@ -209,6 +223,45 @@ public final class SellwildAdView: UIView {
         v.translatesAutoresizingMaskIntoConstraints = false
         v.delegate = self
         prebidBanner = v
+        addPinned(v)
+        return v
+    }
+
+    // MARK: Prebid native path (.prebidOnly + NATIVE_ENABLED)
+
+    private func loadPrebidNative() {
+        guard let configId = zoneId, !configId.isEmpty else {
+            #if DEBUG
+            print("[SellwildAdView] native requires a zoneId. No ad loaded.")
+            #endif
+            delegate?.sellwildAdView?(self, didFailWithError: SellwildAdError.missingZoneIdForPrebidOnly)
+            return
+        }
+        ensureNativeAdView(configId: configId).load()
+    }
+
+    private func ensureNativeAdView(configId: String) -> SellwildNativeAdView {
+        // Tear down banner render paths if we previously rendered one.
+        if let gb = gamBanner { gb.removeFromSuperview(); gamBanner = nil }
+        if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil }
+        if let existing = nativeAdView { return existing }
+
+        let v = SellwildNativeAdView(config: config, zoneId: configId)
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.onLoaded = { [weak self] in
+            guard let self else { return }
+            self.delegate?.sellwildAdViewDidLoad?(self)
+            self.delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: self.zoneId ?? "")
+        }
+        v.onClick = { [weak self] in
+            guard let self else { return }
+            self.delegate?.sellwildAdViewDidRecordClick?(self)
+        }
+        v.onFailed = { [weak self] error in
+            guard let self else { return }
+            self.delegate?.sellwildAdView?(self, didFailWithError: error)
+        }
+        nativeAdView = v
         addPinned(v)
         return v
     }
@@ -288,11 +341,16 @@ public enum SellwildAdError: Error, LocalizedError {
     /// Prebid configId is available and no ad can be requested.
     case missingZoneIdForPrebidOnly
 
+    /// A native demand request returned no fill for the placement.
+    case nativeNoFill
+
     public var errorDescription: String? {
         switch self {
         case .missingZoneIdForPrebidOnly:
             return "SellwildAdView resolved to .prebidOnly but has no zoneId; "
                 + "Prebid rendering requires a configId."
+        case .nativeNoFill:
+            return "Native demand request returned no fill."
         }
     }
 }

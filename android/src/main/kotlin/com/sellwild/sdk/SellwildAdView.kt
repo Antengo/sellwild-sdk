@@ -70,6 +70,7 @@ class SellwildAdView @JvmOverloads constructor(
 
     private var bannerView: AdManagerAdView? = null
     private var prebidBanner: PrebidBannerView? = null
+    private var nativeAdView: SellwildNativeAdView? = null
     private var refreshHandler: Handler? = null
     private var refreshCount = 0
 
@@ -85,14 +86,25 @@ class SellwildAdView @JvmOverloads constructor(
     val resolvedAdStack: SellwildAdStack
         get() = SellwildAdStack.resolve(config.remoteJson, zoneId, adStackOverride)
 
+    /**
+     * Native reuses the slot on PREBID_ONLY only: Prebid fetches demand and we
+     * render the assets. On BOTH/GAM_ONLY a native creative would need GAM
+     * native line items + a GADNativeAd renderer (ad-ops), so we fall through to
+     * the banner path there.
+     */
+    private val nativeEnabled: Boolean
+        get() = resolvedAdStack == SellwildAdStack.PREBID_ONLY &&
+            SellwildNative.isEnabled(config.remoteJson, zoneId)
+
     fun setup(config: SellwildConfig, adSize: AdSize, zoneId: String? = null) {
         this.config = config
         this.adSize = adSize
         this.zoneId = zoneId
 
-        when (resolvedAdStack) {
-            SellwildAdStack.PREBID_ONLY -> ensurePrebidBanner()
-            SellwildAdStack.BOTH, SellwildAdStack.GAM_ONLY -> ensureGamBanner()
+        when {
+            nativeEnabled -> ensureNativeAdView()
+            resolvedAdStack == SellwildAdStack.PREBID_ONLY -> ensurePrebidBanner()
+            else -> ensureGamBanner()
         }
     }
 
@@ -103,6 +115,11 @@ class SellwildAdView @JvmOverloads constructor(
     fun load() {
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(context, config)
+
+        if (nativeEnabled) {
+            loadPrebidNative()
+            return
+        }
 
         when (resolvedAdStack) {
             SellwildAdStack.PREBID_ONLY -> loadPrebidOnly()
@@ -131,17 +148,21 @@ class SellwildAdView @JvmOverloads constructor(
         bannerView = null
         prebidBanner?.destroy()
         prebidBanner = null
+        nativeAdView?.destroy()
+        nativeAdView = null
     }
 
     // ── GAM path (.both / .gamOnly) ──────────────────────────────────────────
 
     private fun ensureGamBanner(): AdManagerAdView {
-        // Tear down a Prebid-only banner if we previously rendered one.
+        // Tear down a Prebid-only banner / native view if we previously
+        // rendered one.
         prebidBanner?.let {
             it.destroy()
             removeView(it)
             prebidBanner = null
         }
+        nativeAdView?.let { it.destroy(); removeView(it); nativeAdView = null }
         bannerView?.let { return it }
 
         // Capture lateinit property to satisfy Kotlin's null-safety in lambdas.
@@ -218,12 +239,13 @@ class SellwildAdView @JvmOverloads constructor(
             return null
         }
 
-        // Tear down a GAM banner if we previously rendered one.
+        // Tear down a GAM banner / native view if we previously rendered one.
         bannerView?.let {
             it.destroy()
             removeView(it)
             bannerView = null
         }
+        nativeAdView?.let { it.destroy(); removeView(it); nativeAdView = null }
         prebidBanner?.let { return it }
 
         // Capture lateinit property to satisfy Kotlin's null-safety in lambdas.
@@ -277,6 +299,53 @@ class SellwildAdView @JvmOverloads constructor(
             return
         }
         prebid.loadAd()
+    }
+
+    // ── Prebid native path (.prebidOnly + NATIVE_ENABLED) ────────────────────
+
+    private fun ensureNativeAdView(): SellwildNativeAdView? {
+        val configId = zoneId
+        if (configId.isNullOrEmpty()) {
+            // Native rendering needs a configId, same as PREBID_ONLY banners.
+            return null
+        }
+
+        // Tear down banner render paths if we previously rendered one.
+        bannerView?.let { it.destroy(); removeView(it); bannerView = null }
+        prebidBanner?.let { it.destroy(); removeView(it); prebidBanner = null }
+        nativeAdView?.let { return it }
+
+        val native = SellwildNativeAdView(context, config, configId).apply {
+            onLoaded = {
+                val self = this@SellwildAdView
+                self.listener?.onAdLoaded(self)
+                self.listener?.onAdImpression(self, self.zoneId.orEmpty())
+            }
+            onClick = {
+                val self = this@SellwildAdView
+                self.listener?.onAdClicked(self)
+            }
+            onFailed = { message ->
+                val self = this@SellwildAdView
+                self.listener?.onAdFailed(self, message)
+            }
+        }
+        nativeAdView = native
+        addView(native, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        return native
+    }
+
+    private fun loadPrebidNative() {
+        val native = ensureNativeAdView()
+        if (native == null) {
+            listener?.onAdFailed(
+                this,
+                "SellwildAdView resolved to native but has no zoneId; " +
+                    "Prebid native rendering requires a configId.",
+            )
+            return
+        }
+        native.load()
     }
 
     // ── Internals ──────────────────────────────────────────────────────────
@@ -428,7 +497,11 @@ class SellwildAdView @JvmOverloads constructor(
             "S2S_CONFIG", "IAB_CATS", "APP_BUNDLE_ID", "APP_STORE_URL",
             "ENABLE_INTERSTITIAL", "ENABLE_FULLSCREEN_VIDEO",
             "INTERSTITIALS_PER_SESSION", "VIDEO_TAKEOVERS_PER_SESSION", "DEBUG",
-            "MEMBERSHIP_TYPE",
+            "MEMBERSHIP_TYPE", "PBS_DEBUG",
+            // Ad-format toggles: read directly by SellwildVideo / SellwildNative,
+            // not bidder params — keep them out of the .both auction ext.
+            "VIDEO_ENABLED", "VIDEO_ENABLED_BY_ZONE",
+            "NATIVE_ENABLED", "NATIVE_ENABLED_BY_ZONE",
         )
     }
 }

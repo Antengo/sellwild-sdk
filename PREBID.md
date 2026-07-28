@@ -405,6 +405,34 @@ On `both` zones, provision the GAM outstream creative **before** enabling video,
 
 ---
 
+## Native Ad Format
+
+The SDK supports the **Prebid native ad format** in the standard ad slot. Unlike banner/outstream — which the fork auto-renders — native returns raw **assets** (title, body, icon, main image, CTA, sponsoredBy) that the SDK lays out into a default template (icon + title + sponsoredBy on top, main media in the middle, body + CTA at the bottom) and registers for impression / click tracking. It's **off by default** and toggled entirely from remote config, so you enable/disable it per zone from the CDN with **no app release**.
+
+**Enable (remote config / CDN):**
+```json
+{ "NATIVE_ENABLED": true }
+```
+```json
+{ "NATIVE_ENABLED_BY_ZONE": { "280": true } }
+```
+Precedence mirrors `AD_STACK` / `VIDEO_ENABLED`: global flag, then per-zone.
+
+**Rendering depends on the ad stack (`AD_STACK`):**
+
+| Stack | Behavior |
+|-------|----------|
+| `prebidOnly` | Native renders — the SDK fetches demand and lays out the assets itself, no GAM. |
+| `both` / `gamOnly` | Native is **ignored**; the zone falls through to a banner. A GAM-rendered native creative needs GAM native line items + a `GADNativeAd` renderer (ad-ops) and is out of scope. |
+
+So native only takes effect on `prebidOnly` zones. On a `both`/`gamOnly` zone the flag is a no-op until that zone is moved to `prebidOnly`.
+
+**SDK native assets requested:** title (≤90 chars), icon image, main image, sponsoredBy, body (≤140 chars), CTA text, impression event tracker. The server-side stored request must offer these assets.
+
+**Requirements:** an SDK version that ships the native format (1.5+); SSPs with active native seats; the placement resolved to `prebidOnly`.
+
+---
+
 ## Choosing Between Modes
 
 | Scenario | Recommended Mode |
