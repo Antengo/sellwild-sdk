@@ -22,9 +22,12 @@ public enum SellwildVideo {
 
     /// Whether outstream video is enabled for this placement. Remote-config
     /// gated; defaults to `false` (banner-only) when unset or unrecognized.
-    /// Precedence mirrors `SellwildAdStack`: global flag, then per-zone.
+    /// A truthy global `VIDEO_ENABLED` forces on; otherwise the per-zone map decides.
     static func isEnabled(remoteValues: [String: Any]?, zoneId: String?) -> Bool {
-        if let global = remoteValues?["VIDEO_ENABLED"] { return truthy(global) }
+        // Global ON forces video everywhere; a falsy/absent global falls through
+        // to the per-zone map (so a CMS-emitted VIDEO_ENABLED:false doesn't
+        // dead-letter VIDEO_ENABLED_BY_ZONE — the AD_STACK_BY_ZONE gotcha).
+        if truthy(remoteValues?["VIDEO_ENABLED"]) { return true }
         if let zoneId,
            let byZone = remoteValues?["VIDEO_ENABLED_BY_ZONE"] as? [String: Any],
            let perZone = byZone[zoneId] {
@@ -54,7 +57,7 @@ public enum SellwildVideo {
         return params
     }
 
-    private static func truthy(_ value: Any) -> Bool {
+    private static func truthy(_ value: Any?) -> Bool {
         switch value {
         case let b as Bool: return b
         case let n as NSNumber: return n.boolValue

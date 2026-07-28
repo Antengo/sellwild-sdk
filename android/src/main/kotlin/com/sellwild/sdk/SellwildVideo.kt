@@ -21,12 +21,15 @@ internal object SellwildVideo {
 
     /**
      * Whether outstream video is enabled for this placement. Remote-config
-     * gated; defaults to `false` (banner-only). Precedence mirrors
-     * [SellwildAdStack]: global `VIDEO_ENABLED`, then per-zone.
+     * gated; defaults to `false` (banner-only). A truthy global `VIDEO_ENABLED`
+     * forces on; otherwise the per-zone map decides.
      */
     fun isEnabled(remoteJson: String?, zoneId: String?): Boolean {
         val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
-        obj.optAny("VIDEO_ENABLED")?.let { return truthy(it) }
+        // Global ON forces video everywhere; a falsy/absent global falls through
+        // to the per-zone map (so a CMS-emitted VIDEO_ENABLED:false doesn't
+        // dead-letter VIDEO_ENABLED_BY_ZONE — the AD_STACK_BY_ZONE gotcha).
+        if (truthy(obj.optAny("VIDEO_ENABLED"))) return true
         if (zoneId != null) {
             obj.optJSONObject("VIDEO_ENABLED_BY_ZONE")?.let { byZone ->
                 if (byZone.has(zoneId) && !byZone.isNull(zoneId)) return truthy(byZone.get(zoneId))
