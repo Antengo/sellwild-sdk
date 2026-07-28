@@ -21,5 +21,6 @@ RCT_EXPORT_VIEW_PROPERTY(onAdLoaded, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onAdImpression, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onAdClicked, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onAdFailed, RCTDirectEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onAdResize, RCTDirectEventBlock)
 
 @end

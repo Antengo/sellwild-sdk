@@ -54,6 +54,14 @@ class SellwildAdView @JvmOverloads constructor(
         fun onAdImpression(adView: SellwildAdView, zoneId: String) {}
         fun onAdClicked(adView: SellwildAdView) {}
         fun onAdFailed(adView: SellwildAdView, message: String) {}
+        /**
+         * The ad rendered at [width]x[height] (dp). Fires on every render so a
+         * host can resize its slot to the actual creative — the winning
+         * multi-size banner, an outstream video, or the capped native template.
+         * Enables dynamic sizing where the slot isn't a fixed banner (React
+         * Native especially).
+         */
+        fun onAdResize(adView: SellwildAdView, width: Int, height: Int) {}
     }
 
     var listener: Listener? = null
@@ -335,6 +343,9 @@ class SellwildAdView @JvmOverloads constructor(
             onLoaded = {
                 val self = this@SellwildAdView
                 self.listener?.onAdLoaded(self)
+                // Native fills to the (capped) height; report it so the host
+                // slot resizes to the template rather than clipping.
+                self.listener?.onAdResize(self, adSize.width, cap)
                 self.listener?.onAdImpression(self, self.zoneId.orEmpty())
             }
             onClick = {
@@ -370,6 +381,9 @@ class SellwildAdView @JvmOverloads constructor(
         override fun onAdLoaded() {
             val self = this@SellwildAdView
             self.listener?.onAdLoaded(self)
+            // Report the actual rendered creative size so multi-size fallbacks
+            // (e.g. a 320x50 win in a 300x250 request) resize the host slot.
+            self.bannerView?.adSize?.let { self.listener?.onAdResize(self, it.width, it.height) }
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
             scheduleRefresh()
         }
@@ -391,6 +405,10 @@ class SellwildAdView @JvmOverloads constructor(
             val self = this@SellwildAdView
             if (self.config.debug) android.util.Log.d("SellwildAdView", "[prebidOnly] rendered — zone ${self.zoneId.orEmpty()}")
             self.listener?.onAdLoaded(self)
+            // Best-effort: the rendering BannerView doesn't surface the winning
+            // creative size to this callback, so report the primary. Multi-size
+            // prebidOnly fallbacks won't shrink the slot — a known limitation.
+            self.listener?.onAdResize(self, self.adSize.width, self.adSize.height)
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
         }
 

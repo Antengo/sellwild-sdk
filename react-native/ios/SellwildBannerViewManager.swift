@@ -49,6 +49,8 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
     @objc var onAdImpression: RCTDirectEventBlock?
     @objc var onAdClicked: RCTDirectEventBlock?
     @objc var onAdFailed: RCTDirectEventBlock?
+    /// Emitted with the rendered creative size so JS can resize the slot.
+    @objc var onAdResize: RCTDirectEventBlock?
 
     // MARK: Internals
 
@@ -98,11 +100,15 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
         view.delegate = self
         view.translatesAutoresizingMaskIntoConstraints = false
         addSubview(view)
+        // Fill the RN-sized host rather than hard-pinning to the primary size —
+        // the host's dimensions are driven by JS style, which the JS component
+        // updates from the onAdResize event so the slot tracks the actual
+        // rendered creative (multi-size fallback, video, capped native).
         NSLayoutConstraint.activate([
             view.leadingAnchor.constraint(equalTo: leadingAnchor),
             view.topAnchor.constraint(equalTo: topAnchor),
-            view.widthAnchor.constraint(equalToConstant: adSize.cgSize.width),
-            view.heightAnchor.constraint(equalToConstant: adSize.cgSize.height),
+            view.trailingAnchor.constraint(equalTo: trailingAnchor),
+            view.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
         adView = view
         view.load()
@@ -124,6 +130,10 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
 
     func sellwildAdView(_ adView: SellwildAdView, didFailWithError error: Error) {
         onAdFailed?(["message": error.localizedDescription])
+    }
+
+    func sellwildAdView(_ adView: SellwildAdView, didRenderWithSize size: CGSize) {
+        onAdResize?(["width": size.width, "height": size.height])
     }
 
     // MARK: Config marshalling

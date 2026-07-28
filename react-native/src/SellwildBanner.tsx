@@ -41,6 +41,7 @@ interface NativeBannerProps {
   onAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
   onAdClicked?: (e: NativeSyntheticEvent<{}>) => void
   onAdFailed?: (e: NativeSyntheticEvent<{ message: string }>) => void
+  onAdResize?: (e: NativeSyntheticEvent<{ width: number; height: number }>) => void
 }
 
 const NativeBanner = (() => {
@@ -76,7 +77,19 @@ export function SellwildBanner({
   onError,
 }: SellwildBannerProps) {
   const dim = AD_DIMENSIONS[size]
-  const containerStyle: ViewStyle = { width: dim.width, height: dim.height }
+
+  // The slot starts at the placement's nominal size, then tracks whatever the
+  // native side actually renders (onAdResize): a multi-size fallback creative,
+  // an outstream video, or the capped native template. Without this the fixed
+  // <View> would clip taller content or leave whitespace under a smaller fill.
+  const [rendered, setRendered] = React.useState<{ width: number; height: number } | null>(null)
+  // Reset to the nominal size when the placement identity changes.
+  React.useEffect(() => { setRendered(null) }, [size, zoneId])
+
+  const containerStyle: ViewStyle = {
+    width: rendered?.width ?? dim.width,
+    height: rendered?.height ?? dim.height,
+  }
 
   if (!NativeBanner) {
     // Native module not registered. Most common cause: iOS bridge not yet
@@ -128,6 +141,10 @@ export function SellwildBanner({
       onAdFailed={(e: NativeSyntheticEvent<{ message: string }>) => {
         const msg = e.nativeEvent?.message ?? 'Ad failed'
         onError?.(new Error(msg))
+      }}
+      onAdResize={(e: NativeSyntheticEvent<{ width: number; height: number }>) => {
+        const { width, height } = e.nativeEvent ?? { width: 0, height: 0 }
+        if (width > 0 && height > 0) setRendered({ width, height })
       }}
     />
   )

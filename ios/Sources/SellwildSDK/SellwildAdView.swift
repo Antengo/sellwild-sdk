@@ -270,6 +270,9 @@ public final class SellwildAdView: UIView {
         v.onLoaded = { [weak self] in
             guard let self else { return }
             self.delegate?.sellwildAdViewDidLoad?(self)
+            // Native fills to the (capped) height; report it so the host slot
+            // resizes to the template rather than clipping.
+            self.delegate?.sellwildAdView?(self, didRenderWithSize: CGSize(width: self.adSize.cgSize.width, height: cap))
             self.delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: self.zoneId ?? "")
         }
         v.onClick = { [weak self] in
@@ -389,6 +392,9 @@ extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
 
     public func bannerViewDidReceiveAd(_ bannerView: GoogleMobileAds.BannerView) {
         delegate?.sellwildAdViewDidLoad?(self)
+        // Report the actual rendered creative size so multi-size fallbacks (e.g.
+        // a 320x50 win in a 300x250 request) resize the host slot.
+        delegate?.sellwildAdView?(self, didRenderWithSize: bannerView.adSize.size)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
         scheduleRefresh()
     }
@@ -426,6 +432,7 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         print("[SellwildAdView][prebidOnly] ✅ rendered — size \(adSize), zone \(zoneId ?? "?")")
         #endif
         delegate?.sellwildAdViewDidLoad?(self)
+        delegate?.sellwildAdView?(self, didRenderWithSize: adSize)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
     }
 
@@ -450,4 +457,10 @@ public protocol SellwildAdViewDelegate: AnyObject {
     @objc optional func sellwildAdViewDidRecordClick(_ adView: SellwildAdView)
     @objc optional func sellwildAdView(_ adView: SellwildAdView,
                                        didFailWithError error: Error)
+    /// The ad rendered at `size` (points). Fires on every render so a host can
+    /// resize its slot to the actual creative — the winning multi-size banner,
+    /// an outstream video, or the capped native template. Enables dynamic
+    /// sizing where the slot isn't a fixed banner (React Native especially).
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didRenderWithSize size: CGSize)
 }

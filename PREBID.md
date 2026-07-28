@@ -436,7 +436,7 @@ So native only takes effect on `prebidOnly` zones. On a `both`/`gamOnly` zone th
 ```json
 { "NATIVE_MAX_HEIGHT_BY_ZONE": { "280": 360 } }
 ```
-Unset defaults to the placement slot height, so the view is always bounded. Under the cap the **main image absorbs the squeeze** while title / sponsoredBy / body / CTA keep their size — a tight cap never clips the CTA. The ~1.91:1 image request above makes the media predictable so the cap rarely has to clip; a taller-than-slot cap only renders taller once the host slot itself is allowed to grow (variable-height container — not yet wired on the RN bridge).
+Unset defaults to the placement slot height, so the view is always bounded. Under the cap the **main image absorbs the squeeze** while title / sponsoredBy / body / CTA keep their size — a tight cap never clips the CTA. The ~1.91:1 image request above makes the media predictable so the cap rarely has to clip. On React Native the slot **tracks the rendered height automatically** (see [Dynamic slot sizing](#dynamic-slot-sizing)), so a taller-than-slot cap renders taller with no extra wiring.
 
 **Requirements:** an SDK version that ships the native format (1.5+); SSPs with active native seats; the placement resolved to `prebidOnly`.
 
@@ -465,7 +465,20 @@ The placement **primary** (the `AdSize` the host passes to the ad view) is alway
 
 > The GAM path is the well-supported one. The Prebid-bid and `prebidOnly` multi-size calls depend on the shaded fork's `addAdditionalSize` API and are **verify-on-build** (isolated in `SellwildAdSizes`), same caveat as the video/native fork surface.
 
-**Slot sizing caveat:** with multiple sizes the rendered height varies by which size wins. In `both`/`gamOnly` GAM resizes the slot; in `prebidOnly` the `BannerView` renders the winning size — but a fixed-height host container (a fixed RN `<View>` height) won't grow/shrink to match. Give multi-size slots a container that tolerates the size set, same as the native height concern.
+**Slot sizing:** with multiple sizes the rendered height varies by which size wins. In `both`/`gamOnly` GAM resizes the slot; in `prebidOnly` the `BannerView` renders the winning size. On React Native the `<SellwildBanner>` resizes itself to match — see below.
+
+---
+
+## Dynamic Slot Sizing
+
+Ads that don't render at a fixed banner size — a multi-size fallback creative, an outstream video, or the capped native template — would otherwise clip (too tall) or leave whitespace (too short) inside a fixed slot. To handle this the native `SellwildAdView` reports its **rendered size** on every render:
+
+- **iOS** — `SellwildAdViewDelegate.sellwildAdView(_:didRenderWithSize:)`
+- **Android** — `SellwildAdView.Listener.onAdResize(adView, width, height)`
+
+Native hosts can resize their container from this callback. **React Native does it for you:** the bridge forwards it as an `onAdResize` event and `<SellwildBanner>` tracks the size in state, so the slot grows/shrinks to the actual creative with no app code. The slot starts at the placement's nominal size and updates on render.
+
+Reported size by path: `both`/`gamOnly` → the winning GAM creative size; native → the capped template height; `prebidOnly` banner → the primary size (the rendering `BannerView` doesn't surface the winning multi-size creative to the callback — a known limitation, so a prebidOnly multi-size fallback won't shrink the slot). Feed ad rows are not yet self-sizing.
 
 ---
 
