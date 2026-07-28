@@ -45,6 +45,24 @@ internal object SellwildNative {
     }
 
     /**
+     * Hard cap on the rendered native height (dp). Same precedence as the enable
+     * toggle — global `NATIVE_MAX_HEIGHT`, then `NATIVE_MAX_HEIGHT_BY_ZONE[zoneId]`
+     * — falling back to [fallback] (the host slot height) when unset, so the view
+     * is always bounded. Native has no protocol max-height, so this is the
+     * render-side backstop for bidders that return taller media than requested.
+     */
+    fun maxHeight(remoteJson: String?, zoneId: String?, fallback: Int): Int {
+        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return fallback
+        if (zoneId != null) {
+            obj.optJSONObject("NATIVE_MAX_HEIGHT_BY_ZONE")?.let { byZone ->
+                if (byZone.has(zoneId) && !byZone.isNull(zoneId)) numeric(byZone.get(zoneId))?.let { return it }
+            }
+        }
+        numeric(obj.optAny("NATIVE_MAX_HEIGHT"))?.let { return it }
+        return fallback
+    }
+
+    /**
      * Standard native template ad unit: title, icon, main image, plus data
      * assets for sponsoredBy / body / CTA. This is the request contract the
      * server-side stored request must satisfy.
@@ -70,7 +88,11 @@ internal object SellwildNative {
             imageType = NativeImageAsset.IMAGE_TYPE.ICON
             isRequired = false
         })
-        unit.addAsset(NativeImageAsset(200, 200, 200, 200).apply {
+        // Landscape ~1.91:1 main image (the standard native main-image ratio) so
+        // returned media has a predictable height and the render cap rarely has
+        // to clip. Bidders treat this as a target, not a guarantee — hence the
+        // maxHeight backstop at render time.
+        unit.addAsset(NativeImageAsset(300, 157, 300, 157).apply {
             imageType = NativeImageAsset.IMAGE_TYPE.MAIN
             isRequired = false
         })
@@ -107,6 +129,13 @@ internal object SellwildNative {
         is String -> v.lowercase() in setOf("1", "true", "yes", "on")
         else -> false
     }
+
+    /** Coerce a remote value to a positive Int (numbers or numeric strings). */
+    private fun numeric(v: Any?): Int? = when (v) {
+        is Number -> v.toInt()
+        is String -> v.trim().toDoubleOrNull()?.toInt()
+        else -> null
+    }?.takeIf { it > 0 }
 
     private fun JSONObject.optAny(key: String): Any? =
         if (has(key) && !isNull(key)) get(key) else null

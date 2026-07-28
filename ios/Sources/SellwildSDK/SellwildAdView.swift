@@ -246,7 +246,12 @@ public final class SellwildAdView: UIView {
         if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil }
         if let existing = nativeAdView { return existing }
 
-        let v = SellwildNativeAdView(config: config, zoneId: configId)
+        let cap = SellwildNative.maxHeight(
+            remoteValues: config.remoteValues,
+            zoneId: zoneId,
+            fallback: adSize.cgSize.height
+        )
+        let v = SellwildNativeAdView(config: config, zoneId: configId, maxHeight: cap)
         v.translatesAutoresizingMaskIntoConstraints = false
         v.onLoaded = { [weak self] in
             guard let self else { return }
@@ -262,7 +267,16 @@ public final class SellwildAdView: UIView {
             self.delegate?.sellwildAdView?(self, didFailWithError: error)
         }
         nativeAdView = v
-        addPinned(v)
+        // Pin top/leading/trailing, but bottom is `<=` so the native view can
+        // render shorter than the slot (under its own height cap) without
+        // fighting the cap constraint.
+        addSubview(v)
+        NSLayoutConstraint.activate([
+            v.topAnchor.constraint(equalTo: topAnchor),
+            v.leadingAnchor.constraint(equalTo: leadingAnchor),
+            v.trailingAnchor.constraint(equalTo: trailingAnchor),
+            v.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor),
+        ])
         return v
     }
 

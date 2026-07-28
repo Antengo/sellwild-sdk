@@ -427,7 +427,16 @@ Precedence mirrors `AD_STACK` / `VIDEO_ENABLED`: global flag, then per-zone.
 
 So native only takes effect on `prebidOnly` zones. On a `both`/`gamOnly` zone the flag is a no-op until that zone is moved to `prebidOnly`.
 
-**SDK native assets requested:** title (≤90 chars), icon image, main image, sponsoredBy, body (≤140 chars), CTA text, impression event tracker. The server-side stored request must offer these assets.
+**SDK native assets requested:** title (≤90 chars), icon image, **main image at ~1.91:1** (landscape, so returned media has a predictable height), sponsoredBy, body (≤140 chars), CTA text, impression event tracker. The server-side stored request must offer these assets.
+
+**Height cap.** Native has no protocol max-height (the image asset only carries `w/h/wmin/hmin`, and total height is a function of your layout, not the bid), so the SDK enforces a **render-side cap** — remote-config, per-zone, same precedence as the enable toggle:
+```json
+{ "NATIVE_MAX_HEIGHT": 300 }
+```
+```json
+{ "NATIVE_MAX_HEIGHT_BY_ZONE": { "280": 360 } }
+```
+Unset defaults to the placement slot height, so the view is always bounded. Under the cap the **main image absorbs the squeeze** while title / sponsoredBy / body / CTA keep their size — a tight cap never clips the CTA. The ~1.91:1 image request above makes the media predictable so the cap rarely has to clip; a taller-than-slot cap only renders taller once the host slot itself is allowed to grow (variable-height container — not yet wired on the RN bridge).
 
 **Requirements:** an SDK version that ships the native format (1.5+); SSPs with active native seats; the placement resolved to `prebidOnly`.
 

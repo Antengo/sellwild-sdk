@@ -34,6 +34,7 @@ public final class SellwildNativeAdView: UIView {
 
     private let config: SellwildConfig
     private let zoneId: String
+    private let maxHeight: CGFloat
 
     // Strong reference: the fork's NativeAd must outlive fetchDemand or its
     // trackers/click handling are torn down. Cleared on failure.
@@ -48,14 +49,15 @@ public final class SellwildNativeAdView: UIView {
 
     private var imageTasks: [URLSessionDataTask] = []
 
-    public init(config: SellwildConfig, zoneId: String) {
+    public init(config: SellwildConfig, zoneId: String, maxHeight: CGFloat) {
         self.config = config
         self.zoneId = zoneId
+        self.maxHeight = maxHeight
         super.init(frame: .zero)
         buildLayout()
     }
 
-    required init?(coder: NSCoder) { fatalError("Use init(config:zoneId:)") }
+    required init?(coder: NSCoder) { fatalError("Use init(config:zoneId:maxHeight:)") }
 
     deinit { imageTasks.forEach { $0.cancel() } }
 
@@ -111,6 +113,7 @@ public final class SellwildNativeAdView: UIView {
 
     private func buildLayout() {
         backgroundColor = .clear
+        clipsToBounds = true
 
         iconView.contentMode = .scaleAspectFit
         iconView.clipsToBounds = true
@@ -127,10 +130,17 @@ public final class SellwildNativeAdView: UIView {
         mediaView.clipsToBounds = true
         mediaView.layer.cornerRadius = 8
         mediaView.backgroundColor = UIColor.secondarySystemBackground
+        // The media absorbs the vertical squeeze under the height cap; text and
+        // CTA keep their intrinsic size so they're never clipped.
+        mediaView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        mediaView.setContentHuggingPriority(.defaultLow, for: .vertical)
 
         bodyLabel.font = .systemFont(ofSize: 13)
         bodyLabel.textColor = .label
         bodyLabel.numberOfLines = 3
+        [titleLabel, sponsoredLabel, bodyLabel].forEach {
+            $0.setContentCompressionResistancePriority(.required, for: .vertical)
+        }
 
         ctaButton.titleLabel?.font = .boldSystemFont(ofSize: 14)
         ctaButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
@@ -162,14 +172,24 @@ public final class SellwildNativeAdView: UIView {
         root.translatesAutoresizingMaskIntoConstraints = false
         addSubview(root)
 
+        // Hard height cap (the render-side backstop). Let the content be shorter
+        // than the slot without a conflict (bottom pin is high, not required),
+        // and give the media a min it can break under a tight cap.
+        let cap = heightAnchor.constraint(lessThanOrEqualToConstant: maxHeight)
+        let bottom = root.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8)
+        bottom.priority = .defaultHigh
+        let mediaMin = mediaView.heightAnchor.constraint(greaterThanOrEqualToConstant: 60)
+        mediaMin.priority = .defaultHigh
+
         NSLayoutConstraint.activate([
             root.topAnchor.constraint(equalTo: topAnchor, constant: 8),
-            root.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
+            bottom,
             root.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             root.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            cap,
             iconView.widthAnchor.constraint(equalToConstant: 40),
             iconView.heightAnchor.constraint(equalToConstant: 40),
-            mediaView.heightAnchor.constraint(greaterThanOrEqualToConstant: 120),
+            mediaMin,
         ])
     }
 

@@ -315,7 +315,8 @@ class SellwildAdView @JvmOverloads constructor(
         prebidBanner?.let { it.destroy(); removeView(it); prebidBanner = null }
         nativeAdView?.let { return it }
 
-        val native = SellwildNativeAdView(context, config, configId).apply {
+        val cap = SellwildNative.maxHeight(config.remoteJson, zoneId, fallback = adSize.height)
+        val native = SellwildNativeAdView(context, config, configId, cap).apply {
             onLoaded = {
                 val self = this@SellwildAdView
                 self.listener?.onAdLoaded(self)
@@ -502,6 +503,7 @@ class SellwildAdView @JvmOverloads constructor(
             // not bidder params — keep them out of the .both auction ext.
             "VIDEO_ENABLED", "VIDEO_ENABLED_BY_ZONE",
             "NATIVE_ENABLED", "NATIVE_ENABLED_BY_ZONE",
+            "NATIVE_MAX_HEIGHT", "NATIVE_MAX_HEIGHT_BY_ZONE",
         )
     }
 }

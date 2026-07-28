@@ -36,6 +36,22 @@ public enum SellwildNative {
         return false
     }
 
+    /// Hard cap on the rendered native height (points). Remote-config gated with
+    /// the same precedence as the enable toggle — global `NATIVE_MAX_HEIGHT`,
+    /// then `NATIVE_MAX_HEIGHT_BY_ZONE[zoneId]` — falling back to `fallback`
+    /// (the host slot height) when unset, so the view is always bounded.
+    /// Native has no protocol max-height, so this is the render-side backstop
+    /// for bidders that return taller media than requested.
+    static func maxHeight(remoteValues: [String: Any]?, zoneId: String?, fallback: CGFloat) -> CGFloat {
+        if let zoneId,
+           let byZone = remoteValues?["NATIVE_MAX_HEIGHT_BY_ZONE"] as? [String: Any],
+           let perZone = numeric(byZone[zoneId]) {
+            return perZone
+        }
+        if let global = numeric(remoteValues?["NATIVE_MAX_HEIGHT"]) { return global }
+        return fallback
+    }
+
     /// Standard native template asset set: title, icon, main image, plus data
     /// assets for sponsoredBy / body / CTA. This is the request contract the
     /// server-side stored request must satisfy.
@@ -53,7 +69,11 @@ public enum SellwildNative {
         let icon = NativeAssetImage(minimumWidth: 20, minimumHeight: 20, required: false)
         icon.type = ImageAsset.Icon
 
-        let image = NativeAssetImage(minimumWidth: 200, minimumHeight: 200, required: false)
+        // Landscape ~1.91:1 main image (the standard native main-image ratio) so
+        // returned media has a predictable height and the render cap rarely has
+        // to clip. Bidders treat this as a target — not a guarantee — hence the
+        // maxHeight backstop at render time.
+        let image = NativeAssetImage(minimumWidth: 300, minimumHeight: 157, required: false)
         image.type = ImageAsset.Main
 
         let sponsored = NativeAssetData(type: DataAsset.sponsored, required: false)
@@ -84,5 +104,20 @@ public enum SellwildNative {
         case let s as String: return ["1", "true", "yes", "on"].contains(s.lowercased())
         default: return false
         }
+    }
+
+    /// Coerce a remote value to a positive CGFloat (accepts numbers or numeric
+    /// strings); returns nil for anything non-positive or unparseable.
+    private static func numeric(_ value: Any?) -> CGFloat? {
+        let n: CGFloat?
+        switch value {
+        case let d as Double: n = CGFloat(d)
+        case let i as Int: n = CGFloat(i)
+        case let num as NSNumber: n = CGFloat(truncating: num)
+        case let s as String: n = Double(s).map { CGFloat($0) }
+        default: n = nil
+        }
+        guard let n, n > 0 else { return nil }
+        return n
     }
 }

@@ -36,6 +36,7 @@ class SellwildNativeAdView(
     context: Context,
     private val config: SellwildConfig,
     private val zoneId: String,
+    private val maxHeightDp: Int,
 ) : FrameLayout(context) {
 
     // Forwarded to the hosting SellwildAdView's listener.
@@ -108,14 +109,17 @@ class SellwildNativeAdView(
             addView(ctaButton, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         }
 
+        // Fixed-height root = the hard cap; the media (height 0 + weight 1)
+        // absorbs the leftover space, while header/footer stay WRAP_CONTENT so
+        // title / sponsoredBy / body / CTA are never squeezed out.
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(px(8), px(8), px(8), px(8))
             addView(header, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            addView(mediaView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, px(140)).apply { topMargin = px(8); bottomMargin = px(8) })
+            addView(mediaView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = px(8); bottomMargin = px(8) })
             addView(footer, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         }
-        addView(root, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        addView(root, LayoutParams(LayoutParams.MATCH_PARENT, px(maxHeightDp)))
     }
 
     // MARK: Load
