@@ -14,7 +14,7 @@ export { useSellwildListings } from './useSellwildListings'
 export type { UseSellwildListingsResult } from './useSellwildListings'
 
 // Imperative native setters (runtime, session-scoped).
-export { setGeo } from './commands'
+export { setGeo, setExternalUserIds } from './commands'
 
 // Re-export core types for convenience
 export type {
@@ -26,6 +26,8 @@ export type {
   SellwildUser,
   PrebidServerConfig,
   SellwildGeo,
+  SellwildEid,
+  SellwildEidUid,
   AdSize,
   AdPlacement,
   AdPlacementType,

@@ -1,11 +1,14 @@
 import { NativeModules } from 'react-native'
-import type { SellwildGeo } from '@sellwild/sdk-core'
+import type { SellwildEid, SellwildGeo } from '@sellwild/sdk-core'
 
 // Imperative bridge to the native Sellwild method module. The ad surface is
 // otherwise view-manager-only (config flows as a prop on <SellwildBanner> /
 // <SellwildFeed>); this file exposes the session-scoped native setters.
 const SellwildRNModule = NativeModules.SellwildRNModule as
-  | { setGeo?: (geo: Record<string, unknown>) => void }
+  | {
+      setGeo?: (geo: Record<string, unknown>) => void
+      setExternalUserIds?: (eids: SellwildEid[]) => void
+    }
   | undefined
 
 /**
@@ -20,4 +23,15 @@ const SellwildRNModule = NativeModules.SellwildRNModule as
 export function setGeo(geo: SellwildGeo | null): void {
   // Native maps an empty object to "clear", so send {} for null.
   SellwildRNModule?.setGeo?.((geo ?? {}) as Record<string, unknown>)
+}
+
+/**
+ * Set partner-supplied external/extended user IDs, emitted as OpenRTB
+ * `user.ext.eids` on every native Prebid auction. Pass `[]` to clear.
+ *
+ * Re-set on each launch (Prebid Mobile does not persist eids across restarts).
+ * No-op if the native module isn't linked.
+ */
+export function setExternalUserIds(eids: SellwildEid[]): void {
+  SellwildRNModule?.setExternalUserIds?.(eids ?? [])
 }

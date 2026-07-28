@@ -5,5 +5,6 @@
 @interface RCT_EXTERN_MODULE(SellwildRNModule, NSObject)
 
 RCT_EXTERN_METHOD(setGeo:(NSDictionary *)geo)
+RCT_EXTERN_METHOD(setExternalUserIds:(NSArray *)eids)
 
 @end

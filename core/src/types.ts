@@ -323,6 +323,22 @@ export interface SellwildGeo {
   type?: number     // ortb geo.type: 1 = GPS, 2 = IP, 3 = user
 }
 
+/** One id value within a `SellwildEid` source (OpenRTB user.ext.eids[].uids[]). */
+export interface SellwildEidUid {
+  id: string
+  atype: number                    // 1 = cookie/web, 2 = in-app device id, 3 = person-based
+  ext?: Record<string, unknown>    // provider-specific, e.g. { rtiPartner: "TDID" }
+}
+
+/**
+ * One identity source for OpenRTB `user.ext.eids` (e.g. uidapi.com, id5-sync.com,
+ * liveramp.com). Supplied at runtime via `setExternalUserIds`.
+ */
+export interface SellwildEid {
+  source: string
+  uids: SellwildEidUid[]
+}
+
 export type PartialSellwildConfig = Partial<SellwildConfig> & {
   partnerCode: string
 }

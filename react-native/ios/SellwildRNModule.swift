@@ -22,4 +22,21 @@ final class SellwildRNModule: NSObject {
         let map = geo as? [String: Any] ?? [:]
         SellwildPrebidMobile.setGeo(SellwildGeo(bridged: map))
     }
+
+    /// JS: `SellwildRNModule.setExternalUserIds([{ source, uids: [{ id, atype, ext? }] }])`.
+    /// Pass `[]` to clear. Mirrors `SellwildPrebidMobile.setExternalUserIds(_:)`.
+    @objc(setExternalUserIds:)
+    func setExternalUserIds(_ eids: NSArray) {
+        let mapped: [SellwildEid] = (eids as? [[String: Any]] ?? []).compactMap { dict in
+            guard let source = dict["source"] as? String,
+                  let rawUids = dict["uids"] as? [[String: Any]] else { return nil }
+            let uids: [SellwildEidUID] = rawUids.compactMap { u in
+                guard let id = u["id"] as? String else { return nil }
+                let atype = (u["atype"] as? NSNumber)?.intValue ?? 0
+                return SellwildEidUID(id: id, atype: atype, ext: u["ext"] as? [String: Any])
+            }
+            return SellwildEid(source: source, uids: uids)
+        }
+        SellwildPrebidMobile.setExternalUserIds(mapped)
+    }
 }
