@@ -828,6 +828,18 @@ Outstream (in-banner) video is supported and **toggled from remote config** (`VI
 
 See **[Outstream Video](./prebid-server.md#outstream-video)** for enabling, rendering paths, and parameters.
 
+### Native Ad Format
+
+The Prebid native ad format is supported and **toggled from remote config** (`NATIVE_ENABLED` / `NATIVE_ENABLED_BY_ZONE`) — no app release. Native renders only on `prebidOnly` zones (the SDK lays out the assets itself into a default template and registers impression/click tracking); on `both`/`gamOnly` the zone falls through to a banner. A per-zone render-height cap (`NATIVE_MAX_HEIGHT` / `NATIVE_MAX_HEIGHT_BY_ZONE`) bounds the view.
+
+See **[Native Ad Format](./prebid-server.md#native-ad-format)** for assets, the height cap, and rendering rules.
+
+### Multi-Size Banners
+
+A placement can request additional banner sizes (`BANNER_SIZES` / `BANNER_SIZES_BY_ZONE`) so demand falls back to a smaller creative when the primary doesn't fill — one unified auction, applied on all three stacks. Remember the winning size can change the rendered height; give the slot a container that tolerates the size set.
+
+See **[Multi-Size Banners](./prebid-server.md#multi-size-banners)** for the config format and per-stack behavior.
+
 ## GDPR and Privacy
 
 ### TCF Consent String

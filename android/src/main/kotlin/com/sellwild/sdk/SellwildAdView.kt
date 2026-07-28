@@ -96,6 +96,17 @@ class SellwildAdView @JvmOverloads constructor(
         get() = resolvedAdStack == SellwildAdStack.PREBID_ONLY &&
             SellwildNative.isEnabled(config.remoteJson, zoneId)
 
+    /**
+     * The banner size set for this placement — the [adSize] primary plus any
+     * remote `BANNER_SIZES` / `BANNER_SIZES_BY_ZONE` fallbacks (primary first).
+     */
+    private val resolvedAdSizes: List<SellwildAdSizes.Size>
+        get() = SellwildAdSizes.resolve(
+            config.remoteJson,
+            zoneId,
+            SellwildAdSizes.Size(adSize.width, adSize.height),
+        )
+
     fun setup(config: SellwildConfig, adSize: AdSize, zoneId: String? = null) {
         this.config = config
         this.adSize = adSize
@@ -168,7 +179,8 @@ class SellwildAdView @JvmOverloads constructor(
         // Capture lateinit property to satisfy Kotlin's null-safety in lambdas.
         val size = adSize
         val banner = AdManagerAdView(context).apply {
-            setAdSizes(GmaAdSize(size.width, size.height))
+            // Multi-size: primary + any BANNER_SIZES fallbacks.
+            SellwildAdSizes.applyGam(resolvedAdSizes, this)
             adUnitId = resolveGAMAdUnitID()
             adListener = bannerAdListener()
         }
@@ -225,6 +237,7 @@ class SellwildAdView @JvmOverloads constructor(
             heightDp = size.height,
             bidderParams = bidderParamsFromRemote(config),
             video = SellwildVideo.isEnabled(config.remoteJson, zoneId),
+            adSizes = resolvedAdSizes,
         )
     }
 
@@ -278,6 +291,8 @@ class SellwildAdView @JvmOverloads constructor(
                         "shaded fork — falling back to banner-only.",
                 )
             }
+            // Multi-size fallback for the Prebid-rendered banner (primary above).
+            SellwildAdSizes.applyRendering(resolvedAdSizes, this)
         }
         prebidBanner = prebid
 
@@ -504,6 +519,7 @@ class SellwildAdView @JvmOverloads constructor(
             "VIDEO_ENABLED", "VIDEO_ENABLED_BY_ZONE",
             "NATIVE_ENABLED", "NATIVE_ENABLED_BY_ZONE",
             "NATIVE_MAX_HEIGHT", "NATIVE_MAX_HEIGHT_BY_ZONE",
+            "BANNER_SIZES", "BANNER_SIZES_BY_ZONE",
         )
     }
 }

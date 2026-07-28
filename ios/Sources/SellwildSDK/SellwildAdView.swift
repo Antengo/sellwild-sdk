@@ -57,6 +57,16 @@ public final class SellwildAdView: UIView {
         )
     }
 
+    /// The banner size set for this placement — the `adSize` primary plus any
+    /// remote `BANNER_SIZES` / `BANNER_SIZES_BY_ZONE` fallbacks (primary first).
+    private var resolvedAdSizes: [CGSize] {
+        SellwildAdSizes.resolve(
+            remoteValues: config.remoteValues,
+            zoneId: zoneId,
+            primary: adSize.cgSize
+        )
+    }
+
     // MARK: Private
 
     // GAM render path (.both / .gamOnly). Created lazily on first GAM load.
@@ -142,7 +152,7 @@ public final class SellwildAdView: UIView {
         SellwildPrebidMobile.runBannerAuction(
             on: banner,
             configId: configId,
-            adSize: adSize.cgSize,
+            adSizes: resolvedAdSizes,
             bidderParams: [:],
             video: SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId)
         ) { [weak self] result in
@@ -165,6 +175,8 @@ public final class SellwildAdView: UIView {
         if let existing = gamBanner { return existing }
 
         let v = AdManagerBannerView(adSize: adSizeFor(cgSize: adSize.cgSize))
+        // Multi-size: primary + any BANNER_SIZES fallbacks (validAdSizes).
+        SellwildAdSizes.applyGAM(resolvedAdSizes, to: v)
         v.translatesAutoresizingMaskIntoConstraints = false
         v.delegate = self
         v.adUnitID = resolveGAMAdUnitID()
@@ -220,6 +232,8 @@ public final class SellwildAdView: UIView {
         if SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId) {
             print("[SellwildSDK] Outstream video not yet supported on the prebidOnly rendering path")
         }
+        // Multi-size fallback for the Prebid-rendered banner (primary set above).
+        SellwildAdSizes.applyRendering(resolvedAdSizes, to: v)
         v.translatesAutoresizingMaskIntoConstraints = false
         v.delegate = self
         prebidBanner = v

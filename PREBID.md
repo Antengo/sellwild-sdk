@@ -442,6 +442,33 @@ Unset defaults to the placement slot height, so the view is always bounded. Unde
 
 ---
 
+## Multi-Size Banners
+
+A placement can request more than one banner size in a single auction so demand falls back to a smaller creative when the primary doesn't fill — e.g. no 300×250 → take 320×50. It's one unified auction: bidders bid on whichever sizes they have, the best net bid wins, and that size renders. Sizes are remote-config, per-zone:
+
+```json
+{ "BANNER_SIZES": ["300x250", "320x50"] }
+```
+```json
+{ "BANNER_SIZES_BY_ZONE": { "280": ["300x250", "320x50"] } }
+```
+
+The placement **primary** (the `AdSize` the host passes to the ad view) is always requested and always first; `BANNER_SIZES` entries are additional. Accepts `"WxH"` strings or `[w,h]` pairs; per-zone overrides global.
+
+**Applies to all three stacks:**
+
+| Stack | How sizes are applied |
+|-------|-----------------------|
+| `both` / `gamOnly` | GAM `validAdSizes` / `setAdSizes` — the solid path; GAM line items + AdX fill the fallback sizes. |
+| `both` (Prebid bid) | Additional sizes attached to the Prebid `BannerAdUnit` so SSPs bid every size. |
+| `prebidOnly` | Additional sizes attached to the rendering `BannerView`. |
+
+> The GAM path is the well-supported one. The Prebid-bid and `prebidOnly` multi-size calls depend on the shaded fork's `addAdditionalSize` API and are **verify-on-build** (isolated in `SellwildAdSizes`), same caveat as the video/native fork surface.
+
+**Slot sizing caveat:** with multiple sizes the rendered height varies by which size wins. In `both`/`gamOnly` GAM resizes the slot; in `prebidOnly` the `BannerView` renders the winning size — but a fixed-height host container (a fixed RN `<View>` height) won't grow/shrink to match. Give multi-size slots a container that tolerates the size set, same as the native height concern.
+
+---
+
 ## Choosing Between Modes
 
 | Scenario | Recommended Mode |

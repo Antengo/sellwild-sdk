@@ -14,9 +14,11 @@ This document covers the Sellwild managed Prebid Server instance at `prebid.sell
 6. [GDPR Enforcement](#gdpr-enforcement)
 7. [External User IDs (eids)](#external-user-ids-eids)
 8. [Outstream Video](#outstream-video)
-9. [Auction Telemetry](#auction-telemetry)
-10. [Testing](#testing)
-11. [House Ads and No-Fill Handling](#house-ads-and-no-fill-handling)
+9. [Native Ad Format](#native-ad-format)
+10. [Multi-Size Banners](#multi-size-banners)
+11. [Auction Telemetry](#auction-telemetry)
+12. [Testing](#testing)
+13. [House Ads and No-Fill Handling](#house-ads-and-no-fill-handling)
 12. [Troubleshooting](#troubleshooting)
 
 ---
@@ -336,6 +338,92 @@ mp4 · VAST 2.0–4.0 · autoplay sound-off · OMID + MRAID (no VPAID) · in-ban
 
 - An SDK version that ships outstream video.
 - SSPs in the auction must have **active video seats** (same demand-activation reality as banner).
+
+---
+
+## Native Ad Format
+
+The SDK supports the **Prebid native ad format**. Unlike banner/outstream (auto-rendered by the fork), native returns raw **assets** — title, body, icon, main image, CTA, sponsoredBy — which the SDK lays out into a default template (icon + title + sponsoredBy / main media / body + CTA) and registers for impression + click tracking. It is **off by default** and toggled from remote config with **no app release**.
+
+### Enabling
+
+```json
+{ "NATIVE_ENABLED": true }
+```
+
+or per placement:
+
+```json
+{ "NATIVE_ENABLED_BY_ZONE": { "280": true } }
+```
+
+Precedence mirrors `AD_STACK` / `VIDEO_ENABLED`: global flag, then per-zone.
+
+### Rendering depends on the ad stack
+
+| `AD_STACK` | Behavior |
+|---|---|
+| `prebidOnly` | Native renders — the SDK fetches demand and lays out the assets itself, no GAM. |
+| `both` / `gamOnly` | Native is **ignored**; the zone falls through to a banner. A GAM-rendered native creative needs GAM native line items + a `GADNativeAd` renderer (ad-ops) and is out of scope. |
+
+Native only takes effect on `prebidOnly` zones.
+
+### Assets requested
+
+title (≤90 chars) · icon image · **main image at ~1.91:1** (landscape, for a predictable height) · sponsoredBy · body (≤140 chars) · CTA text · impression event tracker. The server-side stored request must offer these assets.
+
+### Height cap
+
+Native has no protocol max-height (the image asset carries only `w/h/wmin/hmin`, and total height is a function of layout, not the bid), so the SDK enforces a **render-side cap** — remote-config, per-zone:
+
+```json
+{ "NATIVE_MAX_HEIGHT": 300 }
+```
+```json
+{ "NATIVE_MAX_HEIGHT_BY_ZONE": { "280": 360 } }
+```
+
+Unset defaults to the placement slot height, so the view is always bounded. Under the cap the **main image absorbs the squeeze** while title / sponsoredBy / body / CTA keep their size — a tight cap never clips the CTA. A cap larger than the slot only renders taller once the host container is allowed to grow (variable-height — not yet wired on the RN bridge).
+
+### Requirements
+
+- An SDK version that ships the native format (1.5+).
+- SSPs with **active native seats**.
+- The placement resolved to `prebidOnly`.
+
+---
+
+## Multi-Size Banners
+
+A placement can request more than one banner size in a single auction so demand falls back to a smaller creative when the primary doesn't fill — e.g. no 300×250 → take 320×50. It is one unified auction: bidders bid on whichever sizes they have, the best net bid wins, and that size renders.
+
+### Enabling
+
+```json
+{ "BANNER_SIZES": ["300x250", "320x50"] }
+```
+
+or per placement:
+
+```json
+{ "BANNER_SIZES_BY_ZONE": { "280": ["300x250", "320x50"] } }
+```
+
+The placement **primary** (the `AdSize` the host passes to the ad view) is always requested and always first; `BANNER_SIZES` entries are additional. Accepts `"WxH"` strings or `[w,h]` pairs; per-zone overrides global.
+
+### Applies to all three stacks
+
+| Stack | How sizes are applied |
+|---|---|
+| `both` / `gamOnly` | GAM `validAdSizes` / `setAdSizes` — the solid path; GAM line items + AdX fill the fallback sizes. |
+| `both` (Prebid bid) | Additional sizes attached to the Prebid `BannerAdUnit` so SSPs bid every size. |
+| `prebidOnly` | Additional sizes attached to the rendering `BannerView`. |
+
+The GAM path is well-supported; the Prebid-bid and `prebidOnly` multi-size calls depend on the shaded fork's `addAdditionalSize` API (isolated in `SellwildAdSizes`, verify-on-build).
+
+### Slot sizing caveat
+
+With multiple sizes the rendered height varies by which size wins. In `both`/`gamOnly` GAM resizes the slot; in `prebidOnly` the `BannerView` renders the winning size — but a fixed-height host container (a fixed RN `<View>` height) won't grow/shrink to match. Give multi-size slots a container that tolerates the size set.
 
 ---
 

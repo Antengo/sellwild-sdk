@@ -123,18 +123,22 @@ public enum SellwildPrebidMobile {
     ///   - bannerView: An already-constructed `AdManagerBannerView` (sized + adUnitID
     ///     set + rootViewController set + delegate set by the caller).
     ///   - configId: Prebid Server stored impression id.
-    ///   - adSize: Banner size to auction.
+    ///   - adSizes: Banner sizes to auction, primary first. Additional sizes let
+    ///     demand fall back to a smaller creative when the primary doesn't fill.
     ///   - bidderParams: Optional bidder params forwarded to Prebid Server as
     ///     impression-level ORTB ext data via `setImpORTBConfig`.
     public static func runBannerAuction(
         on bannerView: AdManagerBannerView,
         configId: String,
-        adSize: CGSize,
+        adSizes: [CGSize],
         bidderParams: [String: Any] = [:],
         video: Bool = false,
         completion: @escaping (ResultCode) -> Void
     ) {
-        let unit = BannerAdUnit(configId: configId, size: adSize)
+        let primary = adSizes.first ?? CGSize(width: 300, height: 250)
+        let unit = BannerAdUnit(configId: configId, size: primary)
+        // Additional banner sizes for the Prebid bid (primary set above).
+        SellwildAdSizes.applyPrebid(adSizes, to: unit)
 
         // Declare MRAID + Open Measurement (OMID) so buyers can serve rich-media
         // and measure viewability — mirrors the Android banner path.
