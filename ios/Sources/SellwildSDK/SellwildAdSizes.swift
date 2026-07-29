@@ -66,31 +66,30 @@ enum SellwildAdSizes {
         guard let primary = sizes.first else { return }
         banner.adSize = adSizeFor(cgSize: primary)
         guard sizes.count > 1 else { return }
-        // NOTE (verify on build): `NSValueFromGADAdSize` is the GMA multi-size
-        // helper; confirm the spelling in the pinned GoogleMobileAds version.
-        banner.validAdSizes = sizes.map { NSValueFromGADAdSize(adSizeFor(cgSize: $0)) }
+        // GMA 12.x renamed `NSValueFromGADAdSize(_:)` to `nsValue(for:)`.
+        banner.validAdSizes = sizes.map { nsValue(for: adSizeFor(cgSize: $0)) }
     }
 
     /// Attach additional sizes to a transactional Prebid `BannerAdUnit` (the
     /// .both bid). Primary is set at construction; this adds the rest.
     ///
-    /// NOTE (verify on build): `addAdditionalSize(width:height:)` is the Prebid
-    /// Mobile multi-size API. If the shaded fork does not expose it on iOS,
-    /// remove this call — GAM `validAdSizes` above still covers .both fallback.
+    /// Shaded fork exposes `addAdditionalSize(sizes: [CGSize])` on
+    /// `BannerAdUnit` (Prebid Mobile 3.x).
     static func applyPrebid(_ sizes: [CGSize], to unit: BannerAdUnit) {
-        for s in sizes.dropFirst() {
-            unit.addAdditionalSize(width: Int(s.width), height: Int(s.height))
-        }
+        let extras = Array(sizes.dropFirst())
+        guard !extras.isEmpty else { return }
+        unit.addAdditionalSize(sizes: extras)
     }
 
     /// Attach additional sizes to the rendering `BannerView` (.prebidOnly).
     ///
-    /// NOTE (verify on build): the rendering BannerView multi-size API is
-    /// fork-dependent; confirm `addAdditionalSize` (or the fork equivalent).
+    /// The shaded rendering `BannerView` exposes `additionalSizes: [CGSize]?`
+    /// as a settable property (see BannerView.swift). Primary is set at
+    /// construction via `adSize:`; this appends the rest.
     static func applyRendering(_ sizes: [CGSize], to banner: SellwildPrebidSDK.BannerView) {
-        for s in sizes.dropFirst() {
-            banner.addAdditionalSize(width: Int(s.width), height: Int(s.height))
-        }
+        let extras = Array(sizes.dropFirst())
+        guard !extras.isEmpty else { return }
+        banner.additionalSizes = extras
     }
 
     // MARK: Parsing (pure)

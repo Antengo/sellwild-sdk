@@ -108,7 +108,7 @@ internal object SellwildNative {
         })
         unit.addAsset(NativeDataAsset().apply {
             setLen(25)
-            dataType = NativeDataAsset.DATA_TYPE.CTA_TEXT
+            dataType = NativeDataAsset.DATA_TYPE.CTATEXT
             isRequired = false
         })
 

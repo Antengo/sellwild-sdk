@@ -84,9 +84,9 @@ public enum SellwildNative {
             configId: configId,
             assets: [title, icon, image, sponsored, body, cta]
         )
-        request.context = ContextType.content
-        request.placementType = PlacementType.feedContent
-        request.contextSubType = ContextSubType.general
+        request.context = ContextType.Content
+        request.placementType = PlacementType.FeedContent
+        request.contextSubType = ContextSubType.General
 
         let tracker = NativeEventTracker(
             event: EventType.Impression,

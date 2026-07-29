@@ -66,18 +66,18 @@ public final class SellwildNativeAdView: UIView {
     /// Request native demand and, on a win, bind + register the assets.
     public func load() {
         let request = SellwildNative.makeRequest(configId: zoneId)
-        // NOTE (verify on build): `fetchDemand`'s completion shape and the
-        // success `ResultCode` case (`.prebidDemandFetchSuccess`) are Prebid
-        // Mobile 3.x. The winning bid's local cache id key is
-        // `hb_cache_id_local`; `NativeAd.create(cacheId:)` inflates it.
-        request.fetchDemand { [weak self] result, kvResultDict in
+        // `fetchDemand`'s completion is single-arg (`BidInfo`) in the shaded
+        // Prebid Mobile 3.x fork. The winning bid's local cache id is exposed
+        // via `bidInfo.targetingKeywords?[PrebidLocalCacheIdKey]` and inflated
+        // through `NativeAd.create(cacheId:)`.
+        request.fetchDemand { [weak self] bidInfo in
             guard let self else { return }
-            guard result == .prebidDemandFetchSuccess,
-                  let cacheId = kvResultDict?["hb_cache_id_local"],
+            guard bidInfo.resultCode == .prebidDemandFetchSuccess,
+                  let cacheId = bidInfo.targetingKeywords?[PrebidLocalCacheIdKey],
                   let ad = NativeAd.create(cacheId: cacheId) else {
                 let err = SellwildAdError.nativeNoFill
                 #if DEBUG
-                print("[SellwildNativeAdView] no native fill — zone \(self.zoneId), result \(result)")
+                print("[SellwildNativeAdView] no native fill — zone \(self.zoneId), result \(bidInfo.resultCode)")
                 #endif
                 self.onFailed?(err)
                 return

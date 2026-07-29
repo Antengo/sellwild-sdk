@@ -17,6 +17,7 @@ package com.sellwild.sdk
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
@@ -128,17 +129,18 @@ class SellwildNativeAdView(
     fun load() {
         val unit = SellwildNative.makeRequest(zoneId)
         nativeAdUnit = unit
-        // NOTE (verify on build): the fetchDemand callback shape, the success
-        // `ResultCode.SUCCESS` case, and how the winning `PrebidNativeAd` is
-        // retrieved (`PrebidNativeAd.create(...)`) are Prebid Mobile 3.x. Fix
-        // the retrieval accessor here if the fork differs.
-        unit.fetchDemand { resultCode ->
+        // Pass a Bundle as the ad object so the fork writes the winning cache
+        // id into `BUNDLE_KEY_CACHE_ID` (Util.saveCacheId Bundle path). We
+        // then hand that id to `PrebidNativeAd.create(cacheId)`.
+        val adBundle = Bundle()
+        unit.fetchDemand(adBundle) { resultCode ->
             if (resultCode != ResultCode.SUCCESS) {
                 if (config.debug) android.util.Log.d("SellwildNativeAdView", "[native] no fill — zone $zoneId, result $resultCode")
                 onFailed?.invoke("Native demand request returned no fill ($resultCode).")
                 return@fetchDemand
             }
-            val ad = PrebidNativeAd.create(unit)
+            val cacheId = adBundle.getString(NativeAdUnit.BUNDLE_KEY_CACHE_ID)
+            val ad = cacheId?.let { PrebidNativeAd.create(it) }
             if (ad == null) {
                 onFailed?.invoke("Native demand won but no PrebidNativeAd could be created.")
                 return@fetchDemand
@@ -160,9 +162,9 @@ class SellwildNativeAdView(
         loadImage(ad.iconUrl, iconView)
         loadImage(ad.imageUrl, mediaView)
 
-        // Register for impression / click tracking. NOTE (verify on build):
-        // `registerViewList(view, clickableViews, listener)` signature.
-        ad.registerViewList(this, listOf(ctaButton, titleView, mediaView), object : PrebidNativeAdEventListener {
+        // Register for impression / click tracking. Shaded fork uses
+        // `registerView(container, clickableViews, listener)`.
+        ad.registerView(this, listOf(ctaButton, titleView, mediaView), object : PrebidNativeAdEventListener {
             override fun onAdClicked() { onClick?.invoke() }
             override fun onAdImpression() { onImpression?.invoke() }
             override fun onAdExpired() {

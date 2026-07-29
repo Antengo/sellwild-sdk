@@ -22,10 +22,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.google.android.gms.ads.AdSize as GmaAdSize
 import com.google.android.gms.ads.admanager.AdManagerAdView
+import com.sellwild.prebid.AdSize as PrebidAdSize
 import com.sellwild.prebid.BannerAdUnit
 import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView
 
-internal object SellwildAdSizes {
+object SellwildAdSizes {
 
     /** A banner size in dp. */
     data class Size(val width: Int, val height: Int)
@@ -88,7 +89,8 @@ internal object SellwildAdSizes {
      * fork-dependent; confirm `addAdditionalSize` (or the fork equivalent).
      */
     fun applyRendering(sizes: List<Size>, banner: PrebidBannerView) {
-        sizes.drop(1).forEach { banner.addAdditionalSize(it.width, it.height) }
+        val extras = sizes.drop(1).map { PrebidAdSize(it.width, it.height) }
+        if (extras.isNotEmpty()) banner.addAdditionalSizes(*extras.toTypedArray())
     }
 
     // ── Parsing (pure) ────────────────────────────────────────────────────────
