@@ -16,11 +16,12 @@ Server-side header bidding for React Native applications, powered by Prebid Serv
 8. [Native Listing Cards](#native-listing-cards)
 9. [Direct Prebid Server Auction](#direct-prebid-server-auction)
 10. [Prebid Server Configuration](#prebid-server-configuration)
-11. [Metro Configuration](#metro-configuration)
-12. [GDPR and Privacy](#gdpr-and-privacy)
-13. [TypeScript Reference](#typescript-reference)
-14. [Troubleshooting](#troubleshooting)
-15. [Migration Guide: Widget → Feed](#migration-guide)
+11. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
+12. [Metro Configuration](#metro-configuration)
+13. [GDPR and Privacy](#gdpr-and-privacy)
+14. [TypeScript Reference](#typescript-reference)
+15. [Troubleshooting](#troubleshooting)
+16. [Migration Guide: Widget → Feed](#migration-guide)
 
 ---
 
@@ -957,6 +958,22 @@ When `prebidServer` is set, `<SellwildBanner>`:
 1. Bootstraps Prebid Mobile with `accountId`, `endpoint`, and `timeout` on first use.
 2. Builds an OpenRTB 2.6 banner ad unit on every `load()`, including any passthrough bidder parameters from `SellwildConfig.remote`.
 3. Posts the request to your Prebid Server endpoint and applies the winning bid's targeting keywords to the underlying GAM ad request.
+
+---
+
+## GrowthCode Signal Resolve
+
+**GrowthCode Signal Resolve** is the SDK-resolved counterpart to partner-supplied eids: when enabled, the SDK syncs with GrowthCode, persists the returned **GCID**, and merges GrowthCode's eids into every native Prebid auction. It is **OFF by default** and controlled entirely from the CMS. Requires **SDK 1.6+**; your explicitly-set eids still win on a source conflict.
+
+The remote `GROWTHCODE_*` keys ride the CMS/remote passthrough automatically — **no JS needed** to enable it. For a code-pinned value, pass an optional `growthCode` object on the `config` prop (precedence: local field → remote `GROWTHCODE_*` → default):
+
+```tsx
+<SellwildBanner config={{ ...config, growthCode: { partnerId: 'YOUR_PID', syncUrl: 'https://weatherbug.com' } }} size="300x250" zoneId="43" />
+```
+
+The MAID policy is handled natively per platform: iOS reads the IDFA only when the app already has ATT authorization; Android reads the GAID by reflection with no added dependency. The SDK never prompts for tracking and adds no new dependency.
+
+See **[GrowthCode Signal Resolve](./prebid-server.md#growthcode-signal-resolve)** for the sync flow, remote keys, throttle/TTL, and MAID policy.
 
 ---
 

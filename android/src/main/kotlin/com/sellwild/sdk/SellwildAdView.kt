@@ -135,6 +135,10 @@ class SellwildAdView @JvmOverloads constructor(
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(context, config)
 
+        // Resolve GrowthCode identity (once per launch, throttled, off-main). No-op
+        // unless enabled with a partner id; injects/merges eids into the auction.
+        SellwildGrowthCode.resolveIfNeeded(context, config, zoneId)
+
         if (nativeEnabled) {
             loadPrebidNative()
             return
@@ -546,6 +550,11 @@ class SellwildAdView @JvmOverloads constructor(
             "NATIVE_ENABLED", "NATIVE_ENABLED_BY_ZONE",
             "NATIVE_MAX_HEIGHT", "NATIVE_MAX_HEIGHT_BY_ZONE",
             "BANNER_SIZES", "BANNER_SIZES_BY_ZONE",
+            // GrowthCode identity: read directly by SellwildGrowthCode, not
+            // bidder params.
+            "GROWTHCODE_ENABLED", "GROWTHCODE_ENABLED_BY_ZONE",
+            "GROWTHCODE_PARTNER_ID", "GROWTHCODE_ENDPOINT", "GROWTHCODE_SYNC_URL",
+            "GROWTHCODE_SEND_MAID", "GROWTHCODE_TTL_HOURS",
         )
     }
 }

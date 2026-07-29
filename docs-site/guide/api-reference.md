@@ -32,6 +32,10 @@ public struct SellwildConfig: Codable {
     // Prebid Server
     public var prebidServer: PrebidServerConfig?
 
+    // GrowthCode Signal Resolve (identity) — local overrides; each set field
+    // wins over the matching remote GROWTHCODE_* key. See GrowthCode below.
+    public var growthCode: SellwildGrowthCodeConfig?
+
     // Ad refresh
     public var adRefreshMax: Int                 // default: 0
     public var adRefreshMaxMobile: Int           // default: 0
@@ -232,6 +236,21 @@ Sets authenticated universal IDs (UID2, ID5, LiveRamp RampID, …) as OpenRTB `u
 
 See **[External User IDs (eids)](./prebid-server.md#external-user-ids-eids)** for full wiring and server-side eid permissions.
 
+### SellwildGrowthCodeConfig — GrowthCode Signal Resolve (identity)
+
+```swift
+public struct SellwildGrowthCodeConfig: Codable {
+    public var enabled: Bool?      // wins over remote GROWTHCODE_ENABLED
+    public var partnerId: String?  // the `pid`; required for the sync to run
+    public var endpoint: String?   // default: GrowthCode hosted endpoint
+    public var syncUrl: String?    // publisher domain sent as `u`/`h`
+    public var sendMaid: Bool?     // default true; false = skip signal-less calls
+    public var ttlHours: Int?      // default 48; min hours between billed syncs
+}
+```
+
+Optional local overrides for the SDK-resolved GrowthCode identity. Each set field wins over the corresponding remote `GROWTHCODE_*` key; otherwise the remote value (or a default) applies. When enabled, the SDK syncs with GrowthCode, persists the GCID, and merges GrowthCode eids into the auction — your `setExternalUserIds` eids win on a source conflict. Same type name on Android (`SellwildGrowthCodeConfig`); React Native passes a `growthCode` object on the config prop. See **[GrowthCode Signal Resolve](./prebid-server.md#growthcode-signal-resolve)**.
+
 ## Android (Kotlin)
 
 ### SellwildConfig
@@ -244,6 +263,7 @@ data class SellwildConfig(
     val appBundleId: String? = null,
     val appStoreUrl: String? = null,
     val prebidServer: PrebidServerConfig? = null,
+    val growthCode: SellwildGrowthCodeConfig? = null,  // GrowthCode identity overrides
     val adRefreshMax: Int = 0,
     val adRefreshMaxMobile: Int = 0,
     val adRefreshIntervalMs: Long = 30_000L,
@@ -377,6 +397,8 @@ fun setExternalUserIds(eids: List<SellwildEid>)
 Sets authenticated universal IDs (UID2, ID5, LiveRamp RampID, …) as OpenRTB `user.ext.eids`. Build `SellwildEid(source, uids)` from `SellwildEidUid(id, atype, ext?)`. Set once per session; not persisted across app restarts; pass `emptyList()` to clear.
 
 See **[External User IDs (eids)](./prebid-server.md#external-user-ids-eids)** for full wiring and server-side eid permissions.
+
+For SDK-resolved identity via `SellwildGrowthCodeConfig` (`config.growthCode`), see **[GrowthCode Signal Resolve](./prebid-server.md#growthcode-signal-resolve)** — its eids merge with these, and these win on a source conflict.
 
 ## React Native (TypeScript)
 

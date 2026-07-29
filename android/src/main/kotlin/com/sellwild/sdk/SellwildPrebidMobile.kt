@@ -197,6 +197,11 @@ object SellwildPrebidMobile {
      */
     @JvmStatic
     fun setExternalUserIds(eids: List<SellwildEid>) {
+        SellwildEidRegistry.setConsumer(eids)
+    }
+
+    /** Map SDK eids → Prebid [ExternalUserId] and push to global targeting. */
+    internal fun applyEids(eids: List<SellwildEid>) {
         val mapped = eids.map { eid ->
             val uids = eid.uids.map { u ->
                 ExternalUserId.UniqueId(u.id, u.atype).apply {
@@ -319,6 +324,44 @@ object SellwildPrebidMobile {
     // Test-only seam to reset the bootstrap latch.
     internal fun resetForTesting() {
         synchronized(lock) { didBootstrap = false }
+    }
+}
+
+/**
+ * Merges the two eid sources the SDK can carry — partner-supplied ("consumer")
+ * eids from [SellwildPrebidMobile.setExternalUserIds], and SDK-resolved eids
+ * (GrowthCode) — and pushes the union to Prebid's global targeting on every
+ * change.
+ *
+ * Prebid's `TargetingParams.setExternalUserIds` is last-write-wins (it REPLACES
+ * the whole set), so neither source can call it directly without clobbering the
+ * other. This registry holds both buckets and re-emits the merge, with the
+ * consumer bucket winning on a source conflict (a source present in `consumer`
+ * fully suppresses GrowthCode's entry for that same source).
+ */
+internal object SellwildEidRegistry {
+    private val lock = Any()
+    private var consumer: List<SellwildEid> = emptyList()
+    private var growthCode: List<SellwildEid> = emptyList()
+
+    /** Partner-supplied eids (from the public setExternalUserIds). */
+    fun setConsumer(eids: List<SellwildEid>) {
+        synchronized(lock) { consumer = eids }
+        push()
+    }
+
+    /** SDK-resolved eids (GrowthCode). Set by [SellwildGrowthCode]. */
+    fun setGrowthCode(eids: List<SellwildEid>) {
+        synchronized(lock) { growthCode = eids }
+        push()
+    }
+
+    private fun push() {
+        val merged = synchronized(lock) {
+            val consumerSources = consumer.map { it.source }.toSet()
+            consumer + growthCode.filter { it.source !in consumerSources }
+        }
+        SellwildPrebidMobile.applyEids(merged)
     }
 }
 

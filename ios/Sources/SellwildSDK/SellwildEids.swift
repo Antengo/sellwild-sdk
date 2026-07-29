@@ -49,8 +49,46 @@ public extension SellwildPrebidMobile {
     /// - Delivery to each bidder is additionally governed by eid permissions in
     ///   the Prebid Server stored request; by default Prebid Server forwards eids.
     /// - Pass an empty array to clear previously set eids (e.g. on logout).
+    /// - These "consumer" eids are merged with any SDK-resolved identity (e.g.
+    ///   GrowthCode Signal Resolve); on a source conflict, THESE win.
     static func setExternalUserIds(_ eids: [SellwildEid]) {
-        let mapped: [ExternalUserId] = eids.map { eid in
+        SellwildEidRegistry.setConsumer(eids)
+    }
+}
+
+/// Merges the two eid sources the SDK can carry — partner-supplied ("consumer")
+/// eids from `setExternalUserIds`, and SDK-resolved eids (GrowthCode) — and
+/// pushes the union to Prebid's global targeting on every change.
+///
+/// Prebid's `Targeting.setExternalUserIds` is last-write-wins (it REPLACES the
+/// whole set), so neither source can call it directly without clobbering the
+/// other. This registry holds both buckets and re-emits the merge, with the
+/// consumer bucket winning on a source conflict (a source present in `consumer`
+/// fully suppresses GrowthCode's entry for that same source).
+enum SellwildEidRegistry {
+    private static let lock = NSLock()
+    private static var consumer: [SellwildEid] = []
+    private static var growthCode: [SellwildEid] = []
+
+    /// Partner-supplied eids (from the public `setExternalUserIds`).
+    static func setConsumer(_ eids: [SellwildEid]) {
+        lock.lock(); consumer = eids; lock.unlock()
+        push()
+    }
+
+    /// SDK-resolved eids (GrowthCode). Internal — set by `SellwildGrowthCode`.
+    static func setGrowthCode(_ eids: [SellwildEid]) {
+        lock.lock(); growthCode = eids; lock.unlock()
+        push()
+    }
+
+    private static func push() {
+        lock.lock()
+        let consumerSources = Set(consumer.map { $0.source })
+        let merged = consumer + growthCode.filter { !consumerSources.contains($0.source) }
+        lock.unlock()
+
+        let mapped: [ExternalUserId] = merged.map { eid in
             ExternalUserId(
                 source: eid.source,
                 uids: eid.uids.map {

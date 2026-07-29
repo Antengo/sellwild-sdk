@@ -19,11 +19,12 @@ As of 1.3.0, banner ads render natively through `AdManagerAdView` (Google Mobile
 9. [Coroutines API](#coroutines-api)
 10. [Remote Config](#remote-config)
 11. [Prebid Server Configuration](#prebid-server-configuration)
-12. [GDPR and Privacy](#gdpr-and-privacy)
-13. [Lifecycle Management](#lifecycle-management)
-14. [Ad Refresh](#ad-refresh)
-15. [ProGuard and R8](#proguard-and-r8)
-16. [Troubleshooting](#troubleshooting)
+12. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
+13. [GDPR and Privacy](#gdpr-and-privacy)
+14. [Lifecycle Management](#lifecycle-management)
+15. [Ad Refresh](#ad-refresh)
+16. [ProGuard and R8](#proguard-and-r8)
+17. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -862,6 +863,22 @@ See **[Native Ad Format](./prebid-server.md#native-ad-format)** for assets, the 
 A placement can request additional banner sizes (`BANNER_SIZES` / `BANNER_SIZES_BY_ZONE`) so demand falls back to a smaller creative when the primary doesn't fill — one unified auction, applied on all three stacks. Remember the winning size can change the rendered height; give the slot a container that tolerates the size set.
 
 See **[Multi-Size Banners](./prebid-server.md#multi-size-banners)** for the config format and per-stack behavior.
+
+## GrowthCode Signal Resolve
+
+**GrowthCode Signal Resolve** is the SDK-resolved counterpart to the eids above: when enabled, the SDK syncs with GrowthCode, persists the returned **GCID**, and merges GrowthCode's eids into every native Prebid auction. It is **OFF by default** and controlled entirely from the CMS (remote `GROWTHCODE_*` keys) — no app release to enable it. Requires **SDK 1.6+**. Your explicitly-set `setExternalUserIds` eids still win on a source conflict.
+
+Typical setup is CMS-only. For a code-pinned value, set the optional `growthCode` override with `.copy(...)` (precedence: local field → remote `GROWTHCODE_*` → default):
+
+```kotlin
+val config = SellwildSDK.configure(context, "weatherbug", "weatherbug-main").copy(
+    growthCode = SellwildGrowthCodeConfig(partnerId = "YOUR_PID", syncUrl = "https://weatherbug.com"),
+)
+```
+
+**GAID — no new Gradle dependency:** the SDK reads the GAID by **reflection**, so nothing needs to be added to your build. If the host app doesn't already bundle `com.google.android.gms:play-services-ads-identifier`, GrowthCode simply runs without a GAID. Limit-ad-tracking is respected.
+
+See **[GrowthCode Signal Resolve](./prebid-server.md#growthcode-signal-resolve)** for the sync flow, remote keys, throttle/TTL, and MAID policy.
 
 ## GDPR and Privacy
 

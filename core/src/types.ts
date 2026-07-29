@@ -278,6 +278,12 @@ export interface SellwildConfig {
   // Leave undefined to use the default Prebid.js client-side mode.
   prebidServer?: PrebidServerConfig
 
+  // GrowthCode Signal Resolve (native mobile identity) — local overrides for the
+  // GrowthCode sync. Each field, when set, wins over the corresponding remote
+  // `GROWTHCODE_*` key; otherwise the remote value (or a default) applies.
+  // Distinct from the legacy web `growthcode` string above (the partner.js tag).
+  growthCode?: GrowthCodeConfig
+
   // Mobile app identity — used to populate ortb2.app when Prebid.js runs in a native WebView.
   // Without these, Prebid.js sends bids as web (ortb2.site) traffic instead of in-app traffic,
   // which suppresses fill from DSPs that buy app inventory differently and breaks app-ads.txt enforcement.
@@ -337,6 +343,28 @@ export interface SellwildEidUid {
 export interface SellwildEid {
   source: string
   uids: SellwildEidUid[]
+}
+
+/**
+ * Local, code-supplied GrowthCode Signal Resolve settings. Each field, when
+ * set, takes precedence over the corresponding remote `GROWTHCODE_*` key
+ * (same local→remote→default precedence as S2S config). The GrowthCode sync
+ * itself runs on native (iOS/Android); a future web build shares `growthcode.ts`.
+ */
+export interface GrowthCodeConfig {
+  /** Master on/off. When set, wins over remote `GROWTHCODE_ENABLED`. */
+  enabled?: boolean
+  /** GrowthCode PartnerID — the `pid` query param. Required for the sync to run. */
+  partnerId?: string
+  /** Sync endpoint. Defaults to the GrowthCode hosted endpoint. */
+  endpoint?: string
+  /** Publisher domain sent as `u`/`h` (a native app has no page URL). */
+  syncUrl?: string
+  /** Send the device advertising id (IDFA/GAID) when available. Default true.
+   *  When false, the SDK skips the call entirely for devices with no usable id. */
+  sendMaid?: boolean
+  /** Minimum hours between syncs. Default 48. */
+  ttlHours?: number
 }
 
 export type PartialSellwildConfig = Partial<SellwildConfig> & {

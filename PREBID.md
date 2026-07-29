@@ -292,8 +292,101 @@ request for `user.ext.eids`.
 ### What the SDK sources vs. what you supply
 
 - **You (partner) supply** authenticated IDs (UID2/ID5/RampID) — the SDK cannot mint them.
-- **Device-graph IDs** (e.g. Lotame Panorama) that Sellwild can resolve are a planned SDK
-  enhancement; until then, pass any resolved ID through the same `setExternalUserIds` API.
+- **Device-graph IDs** that Sellwild resolves for you: **GrowthCode Signal Resolve** (below)
+  is now wired — the SDK calls GrowthCode, persists the returned GCID, and merges its eids
+  into the same auction. Your explicitly-set `setExternalUserIds` still win on conflict.
+
+---
+
+## GrowthCode Signal Resolve — SDK-resolved identity
+
+The eids above are IDs **you** mint and hand in. GrowthCode Signal Resolve is the
+counterpart the **SDK resolves for you**: when enabled, the SDK POSTs a "sync" to
+GrowthCode, persists the returned **GCID**, and merges GrowthCode's returned eids into
+every native Prebid auction — no partner wiring beyond a CMS toggle + a GrowthCode
+Partner ID. It is **OFF by default** and controlled entirely from the CMS (no app release
+to turn on/off). Wired identically on iOS, Android, and React Native; the pure logic also
+lives in `@sellwild/sdk-core` (`growthcode.ts`) so a future web build shares it.
+
+### How it works
+
+1. On the first ad load of a launch (once, throttled), the SDK reads the config and — if
+   enabled with a Partner ID — POSTs to `{endpoint}?pid={partnerId}&u={syncUrl}` with a
+   form body carrying any stored `gcid`, the publisher host `h`, and (see MAID policy) the
+   device advertising id.
+2. GrowthCode returns `gc_id` (persisted on device) and `eb`, a serialized EID blob. The
+   SDK parses `eb` into `SellwildEid`s and feeds them into the auction via the same
+   `user.ext.eids` rail as partner-supplied eids.
+3. **Merge rule:** GrowthCode's eids are merged with your `setExternalUserIds` eids;
+   **on a source conflict your explicitly-set eids win** and fully suppress GrowthCode's
+   entry for that source.
+4. **Throttle:** the SDK calls GrowthCode only when it has **no stored GCID** or when
+   **`GROWTHCODE_TTL_HOURS` (default 48)** have elapsed since the last sync. Inside the
+   window it re-injects the **cached** eids (no billed call), so the auction keeps the
+   signal between syncs.
+
+### MAID policy (IDFA / GAID) — you own the permission surface, not us
+
+GrowthCode match rates improve with the device advertising id, but the SDK will **never**
+prompt for it or take on your ad-tracking regulatory surface:
+
+- **iOS:** the SDK only *reads* the IDFA the system already grants. It does **not** call
+  `requestTrackingAuthorization` — if the host app hasn't obtained ATT authorization, iOS
+  returns the zeroed id and the SDK treats it as "no device id."
+- **Android:** the GAID is read by **reflection**, with **no new Play Services dependency**.
+  If the host app doesn't already bundle `play-services-ads-identifier`, the SDK simply has
+  no GAID (it isn't your identity manager). Limit-ad-tracking is respected.
+- **`GROWTHCODE_SEND_MAID`** (default **on**): when **off**, the SDK **skips the GrowthCode
+  call entirely** for devices with no usable advertising id — GrowthCode bills per call, so
+  this stops paying for signal-less requests. When on, the call still runs without a MAID.
+
+See [privacy.md](docs-site/guide/privacy.md) for the data-flow and privacy-manifest note.
+
+### Configuration
+
+Everything is remote-first (CMS), with an optional local override that wins per field
+(same precedence as S2S config: **local → remote `GROWTHCODE_*` → default**).
+
+| Remote key (CMS) | Local field (`growthCode.*`) | Purpose |
+|---|---|---|
+| `GROWTHCODE_ENABLED` / `_BY_ZONE` | `enabled` | master on/off (global forces on; else per-zone) |
+| `GROWTHCODE_PARTNER_ID` | `partnerId` | the `pid` — **required** for the sync to run |
+| `GROWTHCODE_ENDPOINT` | `endpoint` | sync endpoint (default `https://ids.api.gcprivacy.id/v4/sync/api`) |
+| `GROWTHCODE_SYNC_URL` | `syncUrl` | publisher domain sent as `u`/`h` (a native app has no page URL) |
+| `GROWTHCODE_SEND_MAID` | `sendMaid` | send device id when available; off = skip signal-less calls |
+| `GROWTHCODE_TTL_HOURS` | `ttlHours` | min hours between billed syncs (default 48) |
+
+Typical setup is **CMS-only**: flip `GROWTHCODE_ENABLED`, set `GROWTHCODE_PARTNER_ID` and
+`GROWTHCODE_SYNC_URL`. The local override is for code-pinned values:
+
+**iOS**
+```swift
+let config = await SellwildSDK.configure(partnerCode: "weatherbug", slug: "weatherbug-main") {
+    $0.growthCode = SellwildGrowthCodeConfig(partnerId: "YOUR_PID", syncUrl: "https://weatherbug.com")
+}
+```
+
+**Android**
+```kotlin
+val config = SellwildSDK.configure(context, "weatherbug", "weatherbug-main").copy(
+    growthCode = SellwildGrowthCodeConfig(partnerId = "YOUR_PID", syncUrl = "https://weatherbug.com"),
+)
+```
+
+**React Native** — remote keys ride the `remote` passthrough automatically; the local
+override rides the config prop:
+```tsx
+<SellwildBanner config={{ ...config, growthCode: { partnerId: 'YOUR_PID', syncUrl: 'https://weatherbug.com' } }} size="300x250" zoneId="43" />
+```
+
+### Prerequisites & notes
+
+- **No native stored-imp change required** — GrowthCode eids ride the existing auction; you
+  do **not** need a separate stored impression the way the native ad *format* does.
+- A GrowthCode **Partner ID** is required; without `GROWTHCODE_PARTNER_ID` the sync no-ops.
+- GCID + last-sync + the last EID blob are stored in `UserDefaults` /
+  `SharedPreferences("sellwild_sdk")`, keyed per Partner ID (unencrypted — it is an ad id,
+  not PHI).
 
 ---
 

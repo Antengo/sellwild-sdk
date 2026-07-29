@@ -17,11 +17,12 @@ Integration guide for the Sellwild native ad SDK. The SDK runs server-side heade
 9. [App Tracking Transparency](#app-tracking-transparency)
 10. [Remote Config](#remote-config)
 11. [Prebid Server Configuration](#prebid-server-configuration)
-12. [GDPR and Privacy](#gdpr-and-privacy)
-13. [Ad Refresh](#ad-refresh)
-14. [Lifecycle Management](#lifecycle-management)
-15. [Troubleshooting](#troubleshooting)
-16. [API Reference](#api-reference)
+12. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
+13. [GDPR and Privacy](#gdpr-and-privacy)
+14. [Ad Refresh](#ad-refresh)
+15. [Lifecycle Management](#lifecycle-management)
+16. [Troubleshooting](#troubleshooting)
+17. [API Reference](#api-reference)
 
 ---
 
@@ -866,6 +867,22 @@ See **[Native Ad Format](./prebid-server.md#native-ad-format)** for assets, the 
 A placement can request additional banner sizes (`BANNER_SIZES` / `BANNER_SIZES_BY_ZONE`) so demand falls back to a smaller creative when the primary doesn't fill — one unified auction, applied on all three stacks. Remember the winning size can change the rendered height; give the slot a container that tolerates the size set.
 
 See **[Multi-Size Banners](./prebid-server.md#multi-size-banners)** for the config format and per-stack behavior.
+
+## GrowthCode Signal Resolve
+
+**GrowthCode Signal Resolve** is the SDK-resolved counterpart to the eids above: when enabled, the SDK syncs with GrowthCode, persists the returned **GCID**, and merges GrowthCode's eids into every native Prebid auction. It is **OFF by default** and controlled entirely from the CMS (remote `GROWTHCODE_*` keys) — no app release to enable it. Requires **SDK 1.6+**. Your explicitly-set `setExternalUserIds` eids still win on a source conflict.
+
+Typical setup is CMS-only. For a code-pinned value, set the optional `growthCode` override in the `configure` overrides closure (precedence: local field → remote `GROWTHCODE_*` → default):
+
+```swift
+let config = await SellwildSDK.configure(partnerCode: "weatherbug", slug: "weatherbug-main") {
+    $0.growthCode = SellwildGrowthCodeConfig(partnerId: "YOUR_PID", syncUrl: "https://weatherbug.com")
+}
+```
+
+**IDFA / ATT:** the SDK reads the IDFA **only when the host app already has ATT authorization** and **never presents the prompt itself** — if ATT isn't authorized, iOS returns the zeroed id and GrowthCode runs without a device id. See [App Tracking Transparency](#app-tracking-transparency) for obtaining authorization.
+
+See **[GrowthCode Signal Resolve](./prebid-server.md#growthcode-signal-resolve)** for the sync flow, remote keys, throttle/TTL, and MAID policy.
 
 ## GDPR and Privacy
 

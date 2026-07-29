@@ -175,6 +175,17 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
             )
         }
 
+        if let gc = map["growthCode"] as? NSDictionary {
+            cfg.growthCode = SellwildGrowthCodeConfig(
+                enabled: gc["enabled"] as? Bool,
+                partnerId: gc["partnerId"] as? String,
+                endpoint: gc["endpoint"] as? String,
+                syncUrl: gc["syncUrl"] as? String,
+                sendMaid: gc["sendMaid"] as? Bool,
+                ttlHours: gc["ttlHours"] as? Int
+            )
+        }
+
         if let remote = map["remote"] as? NSDictionary,
            let data = try? JSONSerialization.data(withJSONObject: remote, options: []) {
             cfg.remoteJSON = data

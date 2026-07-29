@@ -111,6 +111,10 @@ public final class SellwildAdView: UIView {
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(with: config)
 
+        // Resolve GrowthCode identity (once per launch, throttled). No-op unless
+        // enabled with a partner id; injects/merges eids into the auction async.
+        SellwildGrowthCode.resolveIfNeeded(config: config, zoneId: zoneId)
+
         // Native reuses the slot on .prebidOnly only: Prebid fetches demand and
         // we render the assets. On .both/.gamOnly a native creative would need
         // GAM native line items + a GADNativeAd renderer (ad-ops), so we fall
