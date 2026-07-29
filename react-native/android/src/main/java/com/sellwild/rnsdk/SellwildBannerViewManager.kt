@@ -87,6 +87,14 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
                 }
                 emit(reactContext, adView, "onAdFailed", payload)
             }
+
+            override fun onAdResize(adView: SellwildAdView, width: Int, height: Int) {
+                val payload = com.facebook.react.bridge.Arguments.createMap().apply {
+                    putInt("width", width)
+                    putInt("height", height)
+                }
+                emit(reactContext, adView, "onAdResize", payload)
+            }
         }
         return view
     }
@@ -148,6 +156,7 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
             .put("onAdImpression", MapBuilder.of("registrationName", "onAdImpression"))
             .put("onAdClicked", MapBuilder.of("registrationName", "onAdClicked"))
             .put("onAdFailed", MapBuilder.of("registrationName", "onAdFailed"))
+            .put("onAdResize", MapBuilder.of("registrationName", "onAdResize"))
             .build()
     }
 

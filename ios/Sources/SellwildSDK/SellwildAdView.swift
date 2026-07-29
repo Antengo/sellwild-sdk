@@ -57,12 +57,24 @@ public final class SellwildAdView: UIView {
         )
     }
 
+    /// The banner size set for this placement — the `adSize` primary plus any
+    /// remote `BANNER_SIZES` / `BANNER_SIZES_BY_ZONE` fallbacks (primary first).
+    private var resolvedAdSizes: [CGSize] {
+        SellwildAdSizes.resolve(
+            remoteValues: config.remoteValues,
+            zoneId: zoneId,
+            primary: adSize.cgSize
+        )
+    }
+
     // MARK: Private
 
     // GAM render path (.both / .gamOnly). Created lazily on first GAM load.
     private var gamBanner: AdManagerBannerView?
     // Prebid render path (.prebidOnly). Created lazily on first Prebid load.
     private var prebidBanner: PrebidBannerView?
+    // Prebid native render path (.prebidOnly + NATIVE_ENABLED). Lazily created.
+    private var nativeAdView: SellwildNativeAdView?
 
     private var refreshTimer: Timer?
     private var refreshCount = 0
@@ -74,6 +86,12 @@ public final class SellwildAdView: UIView {
         self.adSize = adSize
         self.zoneId = zoneId
         super.init(frame: CGRect(origin: .zero, size: adSize.cgSize))
+        // Reserve the widest/tallest size the auction may return (primary + any
+        // BANNER_SIZES fallbacks) so a wider/taller fallback creative doesn't
+        // clip. Hosts using Auto Layout override this initial frame; frame-based
+        // hosts get a box that fits every requested size. The didRenderWithSize
+        // delegate still reports the actual rendered size for hosts that tighten.
+        self.frame = CGRect(origin: .zero, size: SellwildAdSizes.boundingSize(resolvedAdSizes))
     }
 
     required init?(coder: NSCoder) {
@@ -92,6 +110,16 @@ public final class SellwildAdView: UIView {
     public func load() {
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(with: config)
+
+        // Native reuses the slot on .prebidOnly only: Prebid fetches demand and
+        // we render the assets. On .both/.gamOnly a native creative would need
+        // GAM native line items + a GADNativeAd renderer (ad-ops), so we fall
+        // through to the banner path there.
+        if resolvedAdStack == .prebidOnly,
+           SellwildNative.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId) {
+            loadPrebidNative()
+            return
+        }
 
         switch resolvedAdStack {
         case .prebidOnly:
@@ -130,7 +158,7 @@ public final class SellwildAdView: UIView {
         SellwildPrebidMobile.runBannerAuction(
             on: banner,
             configId: configId,
-            adSize: adSize.cgSize,
+            adSizes: resolvedAdSizes,
             bidderParams: [:],
             video: SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId)
         ) { [weak self] result in
@@ -149,9 +177,12 @@ public final class SellwildAdView: UIView {
             pb.removeFromSuperview()
             prebidBanner = nil
         }
+        if let na = nativeAdView { na.removeFromSuperview(); nativeAdView = nil }
         if let existing = gamBanner { return existing }
 
         let v = AdManagerBannerView(adSize: adSizeFor(cgSize: adSize.cgSize))
+        // Multi-size: primary + any BANNER_SIZES fallbacks (validAdSizes).
+        SellwildAdSizes.applyGAM(resolvedAdSizes, to: v)
         v.translatesAutoresizingMaskIntoConstraints = false
         v.delegate = self
         v.adUnitID = resolveGAMAdUnitID()
@@ -190,6 +221,7 @@ public final class SellwildAdView: UIView {
             gb.removeFromSuperview()
             gamBanner = nil
         }
+        if let na = nativeAdView { na.removeFromSuperview(); nativeAdView = nil }
         if let existing = prebidBanner { return existing }
 
         // The (frame:configID:adSize:) convenience initializer uses Prebid's
@@ -206,10 +238,68 @@ public final class SellwildAdView: UIView {
         if SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId) {
             print("[SellwildSDK] Outstream video not yet supported on the prebidOnly rendering path")
         }
+        // Multi-size fallback for the Prebid-rendered banner (primary set above).
+        SellwildAdSizes.applyRendering(resolvedAdSizes, to: v)
         v.translatesAutoresizingMaskIntoConstraints = false
         v.delegate = self
         prebidBanner = v
         addPinned(v)
+        return v
+    }
+
+    // MARK: Prebid native path (.prebidOnly + NATIVE_ENABLED)
+
+    private func loadPrebidNative() {
+        guard let configId = zoneId, !configId.isEmpty else {
+            #if DEBUG
+            print("[SellwildAdView] native requires a zoneId. No ad loaded.")
+            #endif
+            delegate?.sellwildAdView?(self, didFailWithError: SellwildAdError.missingZoneIdForPrebidOnly)
+            return
+        }
+        ensureNativeAdView(configId: configId).load()
+    }
+
+    private func ensureNativeAdView(configId: String) -> SellwildNativeAdView {
+        // Tear down banner render paths if we previously rendered one.
+        if let gb = gamBanner { gb.removeFromSuperview(); gamBanner = nil }
+        if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil }
+        if let existing = nativeAdView { return existing }
+
+        let cap = SellwildNative.maxHeight(
+            remoteValues: config.remoteValues,
+            zoneId: zoneId,
+            fallback: adSize.cgSize.height
+        )
+        let v = SellwildNativeAdView(config: config, zoneId: configId, maxHeight: cap)
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.onLoaded = { [weak self] in
+            guard let self else { return }
+            self.delegate?.sellwildAdViewDidLoad?(self)
+            // Native fills to the (capped) height; report it so the host slot
+            // resizes to the template rather than clipping.
+            self.delegate?.sellwildAdView?(self, didRenderWithSize: CGSize(width: self.adSize.cgSize.width, height: cap))
+            self.delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: self.zoneId ?? "")
+        }
+        v.onClick = { [weak self] in
+            guard let self else { return }
+            self.delegate?.sellwildAdViewDidRecordClick?(self)
+        }
+        v.onFailed = { [weak self] error in
+            guard let self else { return }
+            self.delegate?.sellwildAdView?(self, didFailWithError: error)
+        }
+        nativeAdView = v
+        // Pin top/leading/trailing, but bottom is `<=` so the native view can
+        // render shorter than the slot (under its own height cap) without
+        // fighting the cap constraint.
+        addSubview(v)
+        NSLayoutConstraint.activate([
+            v.topAnchor.constraint(equalTo: topAnchor),
+            v.leadingAnchor.constraint(equalTo: leadingAnchor),
+            v.trailingAnchor.constraint(equalTo: trailingAnchor),
+            v.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor),
+        ])
         return v
     }
 
@@ -288,11 +378,16 @@ public enum SellwildAdError: Error, LocalizedError {
     /// Prebid configId is available and no ad can be requested.
     case missingZoneIdForPrebidOnly
 
+    /// A native demand request returned no fill for the placement.
+    case nativeNoFill
+
     public var errorDescription: String? {
         switch self {
         case .missingZoneIdForPrebidOnly:
             return "SellwildAdView resolved to .prebidOnly but has no zoneId; "
                 + "Prebid rendering requires a configId."
+        case .nativeNoFill:
+            return "Native demand request returned no fill."
         }
     }
 }
@@ -303,6 +398,9 @@ extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
 
     public func bannerViewDidReceiveAd(_ bannerView: GoogleMobileAds.BannerView) {
         delegate?.sellwildAdViewDidLoad?(self)
+        // Report the actual rendered creative size so multi-size fallbacks (e.g.
+        // a 320x50 win in a 300x250 request) resize the host slot.
+        delegate?.sellwildAdView?(self, didRenderWithSize: bannerView.adSize.size)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
         scheduleRefresh()
     }
@@ -340,6 +438,7 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         print("[SellwildAdView][prebidOnly] ✅ rendered — size \(adSize), zone \(zoneId ?? "?")")
         #endif
         delegate?.sellwildAdViewDidLoad?(self)
+        delegate?.sellwildAdView?(self, didRenderWithSize: adSize)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
     }
 
@@ -364,4 +463,10 @@ public protocol SellwildAdViewDelegate: AnyObject {
     @objc optional func sellwildAdViewDidRecordClick(_ adView: SellwildAdView)
     @objc optional func sellwildAdView(_ adView: SellwildAdView,
                                        didFailWithError error: Error)
+    /// The ad rendered at `size` (points). Fires on every render so a host can
+    /// resize its slot to the actual creative — the winning multi-size banner,
+    /// an outstream video, or the capped native template. Enables dynamic
+    /// sizing where the slot isn't a fixed banner (React Native especially).
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didRenderWithSize size: CGSize)
 }

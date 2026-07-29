@@ -54,6 +54,14 @@ class SellwildAdView @JvmOverloads constructor(
         fun onAdImpression(adView: SellwildAdView, zoneId: String) {}
         fun onAdClicked(adView: SellwildAdView) {}
         fun onAdFailed(adView: SellwildAdView, message: String) {}
+        /**
+         * The ad rendered at [width]x[height] (dp). Fires on every render so a
+         * host can resize its slot to the actual creative — the winning
+         * multi-size banner, an outstream video, or the capped native template.
+         * Enables dynamic sizing where the slot isn't a fixed banner (React
+         * Native especially).
+         */
+        fun onAdResize(adView: SellwildAdView, width: Int, height: Int) {}
     }
 
     var listener: Listener? = null
@@ -70,6 +78,7 @@ class SellwildAdView @JvmOverloads constructor(
 
     private var bannerView: AdManagerAdView? = null
     private var prebidBanner: PrebidBannerView? = null
+    private var nativeAdView: SellwildNativeAdView? = null
     private var refreshHandler: Handler? = null
     private var refreshCount = 0
 
@@ -85,14 +94,36 @@ class SellwildAdView @JvmOverloads constructor(
     val resolvedAdStack: SellwildAdStack
         get() = SellwildAdStack.resolve(config.remoteJson, zoneId, adStackOverride)
 
+    /**
+     * Native reuses the slot on PREBID_ONLY only: Prebid fetches demand and we
+     * render the assets. On BOTH/GAM_ONLY a native creative would need GAM
+     * native line items + a GADNativeAd renderer (ad-ops), so we fall through to
+     * the banner path there.
+     */
+    private val nativeEnabled: Boolean
+        get() = resolvedAdStack == SellwildAdStack.PREBID_ONLY &&
+            SellwildNative.isEnabled(config.remoteJson, zoneId)
+
+    /**
+     * The banner size set for this placement — the [adSize] primary plus any
+     * remote `BANNER_SIZES` / `BANNER_SIZES_BY_ZONE` fallbacks (primary first).
+     */
+    private val resolvedAdSizes: List<SellwildAdSizes.Size>
+        get() = SellwildAdSizes.resolve(
+            config.remoteJson,
+            zoneId,
+            SellwildAdSizes.Size(adSize.width, adSize.height),
+        )
+
     fun setup(config: SellwildConfig, adSize: AdSize, zoneId: String? = null) {
         this.config = config
         this.adSize = adSize
         this.zoneId = zoneId
 
-        when (resolvedAdStack) {
-            SellwildAdStack.PREBID_ONLY -> ensurePrebidBanner()
-            SellwildAdStack.BOTH, SellwildAdStack.GAM_ONLY -> ensureGamBanner()
+        when {
+            nativeEnabled -> ensureNativeAdView()
+            resolvedAdStack == SellwildAdStack.PREBID_ONLY -> ensurePrebidBanner()
+            else -> ensureGamBanner()
         }
     }
 
@@ -103,6 +134,11 @@ class SellwildAdView @JvmOverloads constructor(
     fun load() {
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(context, config)
+
+        if (nativeEnabled) {
+            loadPrebidNative()
+            return
+        }
 
         when (resolvedAdStack) {
             SellwildAdStack.PREBID_ONLY -> loadPrebidOnly()
@@ -131,31 +167,39 @@ class SellwildAdView @JvmOverloads constructor(
         bannerView = null
         prebidBanner?.destroy()
         prebidBanner = null
+        nativeAdView?.destroy()
+        nativeAdView = null
     }
 
     // ── GAM path (.both / .gamOnly) ──────────────────────────────────────────
 
     private fun ensureGamBanner(): AdManagerAdView {
-        // Tear down a Prebid-only banner if we previously rendered one.
+        // Tear down a Prebid-only banner / native view if we previously
+        // rendered one.
         prebidBanner?.let {
             it.destroy()
             removeView(it)
             prebidBanner = null
         }
+        nativeAdView?.let { it.destroy(); removeView(it); nativeAdView = null }
         bannerView?.let { return it }
 
         // Capture lateinit property to satisfy Kotlin's null-safety in lambdas.
         val size = adSize
         val banner = AdManagerAdView(context).apply {
-            setAdSizes(GmaAdSize(size.width, size.height))
+            // Multi-size: primary + any BANNER_SIZES fallbacks.
+            SellwildAdSizes.applyGam(resolvedAdSizes, this)
             adUnitId = resolveGAMAdUnitID()
             adListener = bannerAdListener()
         }
         bannerView = banner
 
+        // Reserve the widest/tallest size the auction may return (primary + any
+        // BANNER_SIZES fallbacks) so a wider/taller fallback creative doesn't clip.
+        val bound = SellwildAdSizes.boundingSize(resolvedAdSizes)
         val dp = context.resources.displayMetrics.density
-        val widthPx = (size.width * dp).toInt()
-        val heightPx = (size.height * dp).toInt()
+        val widthPx = (bound.width * dp).toInt()
+        val heightPx = (bound.height * dp).toInt()
         addView(banner, LayoutParams(widthPx, heightPx))
         return banner
     }
@@ -204,6 +248,7 @@ class SellwildAdView @JvmOverloads constructor(
             heightDp = size.height,
             bidderParams = bidderParamsFromRemote(config),
             video = SellwildVideo.isEnabled(config.remoteJson, zoneId),
+            adSizes = resolvedAdSizes,
         )
     }
 
@@ -218,12 +263,13 @@ class SellwildAdView @JvmOverloads constructor(
             return null
         }
 
-        // Tear down a GAM banner if we previously rendered one.
+        // Tear down a GAM banner / native view if we previously rendered one.
         bannerView?.let {
             it.destroy()
             removeView(it)
             bannerView = null
         }
+        nativeAdView?.let { it.destroy(); removeView(it); nativeAdView = null }
         prebidBanner?.let { return it }
 
         // Capture lateinit property to satisfy Kotlin's null-safety in lambdas.
@@ -256,12 +302,19 @@ class SellwildAdView @JvmOverloads constructor(
                         "shaded fork — falling back to banner-only.",
                 )
             }
+            // Multi-size fallback for the Prebid-rendered banner (primary above).
+            SellwildAdSizes.applyRendering(resolvedAdSizes, this)
         }
         prebidBanner = prebid
 
+        // Reserve the widest/tallest size the auction may return. Critical for
+        // prebidOnly: the rendering BannerView doesn't surface the winning
+        // creative size, so onAdResize can't shrink a clip back — reserving the
+        // bounding box up front prevents it.
+        val bound = SellwildAdSizes.boundingSize(resolvedAdSizes)
         val dp = context.resources.displayMetrics.density
-        val widthPx = (size.width * dp).toInt()
-        val heightPx = (size.height * dp).toInt()
+        val widthPx = (bound.width * dp).toInt()
+        val heightPx = (bound.height * dp).toInt()
         addView(prebid, LayoutParams(widthPx, heightPx))
         return prebid
     }
@@ -279,12 +332,66 @@ class SellwildAdView @JvmOverloads constructor(
         prebid.loadAd()
     }
 
+    // ── Prebid native path (.prebidOnly + NATIVE_ENABLED) ────────────────────
+
+    private fun ensureNativeAdView(): SellwildNativeAdView? {
+        val configId = zoneId
+        if (configId.isNullOrEmpty()) {
+            // Native rendering needs a configId, same as PREBID_ONLY banners.
+            return null
+        }
+
+        // Tear down banner render paths if we previously rendered one.
+        bannerView?.let { it.destroy(); removeView(it); bannerView = null }
+        prebidBanner?.let { it.destroy(); removeView(it); prebidBanner = null }
+        nativeAdView?.let { return it }
+
+        val cap = SellwildNative.maxHeight(config.remoteJson, zoneId, fallback = adSize.height)
+        val native = SellwildNativeAdView(context, config, configId, cap).apply {
+            onLoaded = {
+                val self = this@SellwildAdView
+                self.listener?.onAdLoaded(self)
+                // Native fills to the (capped) height; report it so the host
+                // slot resizes to the template rather than clipping.
+                self.listener?.onAdResize(self, adSize.width, cap)
+                self.listener?.onAdImpression(self, self.zoneId.orEmpty())
+            }
+            onClick = {
+                val self = this@SellwildAdView
+                self.listener?.onAdClicked(self)
+            }
+            onFailed = { message ->
+                val self = this@SellwildAdView
+                self.listener?.onAdFailed(self, message)
+            }
+        }
+        nativeAdView = native
+        addView(native, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        return native
+    }
+
+    private fun loadPrebidNative() {
+        val native = ensureNativeAdView()
+        if (native == null) {
+            listener?.onAdFailed(
+                this,
+                "SellwildAdView resolved to native but has no zoneId; " +
+                    "Prebid native rendering requires a configId.",
+            )
+            return
+        }
+        native.load()
+    }
+
     // ── Internals ──────────────────────────────────────────────────────────
 
     private fun bannerAdListener() = object : AdListener() {
         override fun onAdLoaded() {
             val self = this@SellwildAdView
             self.listener?.onAdLoaded(self)
+            // Report the actual rendered creative size so multi-size fallbacks
+            // (e.g. a 320x50 win in a 300x250 request) resize the host slot.
+            self.bannerView?.adSize?.let { self.listener?.onAdResize(self, it.width, it.height) }
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
             scheduleRefresh()
         }
@@ -306,6 +413,10 @@ class SellwildAdView @JvmOverloads constructor(
             val self = this@SellwildAdView
             if (self.config.debug) android.util.Log.d("SellwildAdView", "[prebidOnly] rendered — zone ${self.zoneId.orEmpty()}")
             self.listener?.onAdLoaded(self)
+            // Best-effort: the rendering BannerView doesn't surface the winning
+            // creative size to this callback, so report the primary. Multi-size
+            // prebidOnly fallbacks won't shrink the slot — a known limitation.
+            self.listener?.onAdResize(self, self.adSize.width, self.adSize.height)
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
         }
 
@@ -428,7 +539,13 @@ class SellwildAdView @JvmOverloads constructor(
             "S2S_CONFIG", "IAB_CATS", "APP_BUNDLE_ID", "APP_STORE_URL",
             "ENABLE_INTERSTITIAL", "ENABLE_FULLSCREEN_VIDEO",
             "INTERSTITIALS_PER_SESSION", "VIDEO_TAKEOVERS_PER_SESSION", "DEBUG",
-            "MEMBERSHIP_TYPE",
+            "MEMBERSHIP_TYPE", "PBS_DEBUG",
+            // Ad-format toggles: read directly by SellwildVideo / SellwildNative,
+            // not bidder params — keep them out of the .both auction ext.
+            "VIDEO_ENABLED", "VIDEO_ENABLED_BY_ZONE",
+            "NATIVE_ENABLED", "NATIVE_ENABLED_BY_ZONE",
+            "NATIVE_MAX_HEIGHT", "NATIVE_MAX_HEIGHT_BY_ZONE",
+            "BANNER_SIZES", "BANNER_SIZES_BY_ZONE",
         )
     }
 }

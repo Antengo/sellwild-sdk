@@ -154,6 +154,7 @@ object SellwildPrebidMobile {
         heightDp: Int,
         bidderParams: Map<String, Any?> = emptyMap(),
         video: Boolean = false,
+        adSizes: List<SellwildAdSizes.Size> = emptyList(),
         completion: ((ResultCode) -> Unit)? = null,
     ) {
         val unit = if (video) {
@@ -165,6 +166,9 @@ object SellwildPrebidMobile {
         } else {
             BannerAdUnit(configId, widthDp, heightDp)
         }
+        // Additional banner sizes for the Prebid bid — `adSizes` is primary-first
+        // (matching the ctor size), so applyPrebid drops the primary.
+        if (adSizes.isNotEmpty()) SellwildAdSizes.applyPrebid(adSizes, unit)
         unit.bannerParameters = BannerParameters().apply {
             api = listOf(Signals.Api.MRAID_3, Signals.Api.OMID_1)
         }

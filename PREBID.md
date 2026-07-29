@@ -405,6 +405,85 @@ On `both` zones, provision the GAM outstream creative **before** enabling video,
 
 ---
 
+## Native Ad Format
+
+The SDK supports the **Prebid native ad format** in the standard ad slot. Unlike banner/outstream — which the fork auto-renders — native returns raw **assets** (title, body, icon, main image, CTA, sponsoredBy) that the SDK lays out into a default template (icon + title + sponsoredBy on top, main media in the middle, body + CTA at the bottom) and registers for impression / click tracking. It's **off by default** and toggled entirely from remote config, so you enable/disable it per zone from the CDN with **no app release**.
+
+**Enable (remote config / CDN):**
+```json
+{ "NATIVE_ENABLED": true }
+```
+```json
+{ "NATIVE_ENABLED_BY_ZONE": { "280": true } }
+```
+Precedence mirrors `AD_STACK` / `VIDEO_ENABLED`: global flag, then per-zone.
+
+**Rendering depends on the ad stack (`AD_STACK`):**
+
+| Stack | Behavior |
+|-------|----------|
+| `prebidOnly` | Native renders — the SDK fetches demand and lays out the assets itself, no GAM. |
+| `both` / `gamOnly` | Native is **ignored**; the zone falls through to a banner. A GAM-rendered native creative needs GAM native line items + a `GADNativeAd` renderer (ad-ops) and is out of scope. |
+
+So native only takes effect on `prebidOnly` zones. On a `both`/`gamOnly` zone the flag is a no-op until that zone is moved to `prebidOnly`.
+
+**SDK native assets requested:** title (≤90 chars), icon image, **main image at ~1.91:1** (landscape, so returned media has a predictable height), sponsoredBy, body (≤140 chars), CTA text, impression event tracker. The server-side stored request must offer these assets.
+
+**Height cap.** Native has no protocol max-height (the image asset only carries `w/h/wmin/hmin`, and total height is a function of your layout, not the bid), so the SDK enforces a **render-side cap** — remote-config, per-zone, same precedence as the enable toggle:
+```json
+{ "NATIVE_MAX_HEIGHT": 300 }
+```
+```json
+{ "NATIVE_MAX_HEIGHT_BY_ZONE": { "280": 360 } }
+```
+Unset defaults to the placement slot height, so the view is always bounded. Under the cap the **main image absorbs the squeeze** while title / sponsoredBy / body / CTA keep their size — a tight cap never clips the CTA. The ~1.91:1 image request above makes the media predictable so the cap rarely has to clip. On React Native the slot **tracks the rendered height automatically** (see [Dynamic slot sizing](#dynamic-slot-sizing)), so a taller-than-slot cap renders taller with no extra wiring.
+
+**Requirements:** an SDK version that ships the native format (1.5+); SSPs with active native seats; the placement resolved to `prebidOnly`.
+
+---
+
+## Multi-Size Banners
+
+A placement can request more than one banner size in a single auction so demand falls back to a smaller creative when the primary doesn't fill — e.g. no 300×250 → take 320×50. It's one unified auction: bidders bid on whichever sizes they have, the best net bid wins, and that size renders. Sizes are remote-config, per-zone:
+
+```json
+{ "BANNER_SIZES": ["300x250", "320x50"] }
+```
+```json
+{ "BANNER_SIZES_BY_ZONE": { "280": ["300x250", "320x50"] } }
+```
+
+The placement **primary** (the `AdSize` the host passes to the ad view) is always requested and always first; `BANNER_SIZES` entries are additional. Accepts `"WxH"` strings or `[w,h]` pairs; per-zone overrides global.
+
+**Applies to all three stacks:**
+
+| Stack | How sizes are applied |
+|-------|-----------------------|
+| `both` / `gamOnly` | GAM `validAdSizes` / `setAdSizes` — the solid path; GAM line items + AdX fill the fallback sizes. |
+| `both` (Prebid bid) | Additional sizes attached to the Prebid `BannerAdUnit` so SSPs bid every size. |
+| `prebidOnly` | Additional sizes attached to the rendering `BannerView`. |
+
+> The GAM path is the well-supported one. The Prebid-bid and `prebidOnly` multi-size calls depend on the shaded fork's `addAdditionalSize` API and are **verify-on-build** (isolated in `SellwildAdSizes`), same caveat as the video/native fork surface.
+
+**Slot sizing:** with multiple sizes the rendered height varies by which size wins. In `both`/`gamOnly` GAM resizes the slot; in `prebidOnly` the `BannerView` renders the winning size. On React Native the `<SellwildBanner>` resizes itself to match — see below.
+
+---
+
+## Dynamic Slot Sizing
+
+Ads that don't render at a fixed banner size — a multi-size fallback creative, an outstream video, or the capped native template — would otherwise clip (too tall) or leave whitespace (too short) inside a fixed slot. To handle this the native `SellwildAdView` reports its **rendered size** on every render:
+
+- **iOS** — `SellwildAdViewDelegate.sellwildAdView(_:didRenderWithSize:)`
+- **Android** — `SellwildAdView.Listener.onAdResize(adView, width, height)`
+
+Native hosts can resize their container from this callback. **React Native does it for you:** the bridge forwards it as an `onAdResize` event and `<SellwildBanner>` tracks the size in state, so the slot grows/shrinks to the actual creative with no app code.
+
+**Baseline reservation (no clip).** The slot does **not** start at the primary size — it starts at the **bounding box of the requested size set** (`max(width) × max(height)` across the primary + `BANNER_SIZES` fallbacks). This matters because fallbacks can be *wider* than the primary — e.g. a `320×50` fallback in a `300×250` MREC request (320 > 300) — or taller. Reserving the bounding box means a fallback creative never clips, in any dimension, before or without the resize callback. The SDK computes this on all platforms (`SellwildAdSizes.boundingSize`); RN computes it in JS from the `BANNER_SIZES` it receives via `remote`. `didRenderWithSize` / `onAdResize` then reports the **actual** rendered size so the slot can tighten to fit.
+
+Reported size by path: `both`/`gamOnly` → the winning GAM creative size (slot tightens); native → the capped template height; `prebidOnly` banner → the primary size (the rendering `BannerView` doesn't surface the winning multi-size creative to the callback — a known limitation, so a prebidOnly slot **stays at the reserved bounding box** rather than tightening, but it never clips). Feed ad rows are not yet self-sizing.
+
+---
+
 ## Choosing Between Modes
 
 | Scenario | Recommended Mode |

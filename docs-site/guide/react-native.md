@@ -176,7 +176,7 @@ import { SellwildBanner } from '@sellwild/react-native-sdk';
 | `config` | `SellwildConfig` | Resolved config (typically from `configure(partnerCode, slug)`). |
 | `size` | `AdSize` | Banner size — one of `'320x50'`, `'300x250'`, `'728x90'`, `'160x600'`, `'300x600'`, `'1x1'`. |
 | `zoneId` | `number \| string` | Ad zone / placement identifier, mapped to a GAM ad unit on the server. |
-| `style` | `ViewStyle?` | Optional override for the host `View` style. The component already locks width/height to the chosen `size`. |
+| `style` | `ViewStyle?` | Optional override for the host `View` style. The slot starts at the chosen `size` and then **auto-sizes** to the rendered creative (see below); a `height` you set here is overridden once an ad renders. |
 
 **Events**
 
@@ -185,6 +185,10 @@ import { SellwildBanner } from '@sellwild/react-native-sdk';
 | `onImpression` | `() => void` | GMA reports an impression on the rendered creative. |
 | `onClick` | `() => void` | The user taps the ad. |
 | `onError` | `(err: Error) => void` | The Prebid auction or GMA load fails. `err.message` contains a human-readable reason. |
+
+**Dynamic slot sizing.** `<SellwildBanner>` **resizes itself to the rendered creative** — a multi-size fallback (e.g. no 300×250 fill → a 320×50 renders), an outstream video, or the capped native template. The native view reports its size on render and the component updates its own width/height, so the slot never clips tall content or leaves whitespace under a smaller fill. You don't wire anything; just don't hard-lock `height` in `style` if you want it to track.
+
+The slot's **baseline is the bounding box of the requested size set** (the widest and tallest across the primary `size` and any `BANNER_SIZES` fallbacks, which `<SellwildBanner>` reads from `config.remote`), not the primary alone — so a *wider* fallback (a 320-wide creative in a 300-wide MREC request) never clips horizontally before the resize event lands. `onAdResize` then tightens the slot to the actual creative. (Gaps: a `prebidOnly` multi-size slot stays at the reserved bounding box — the rendering view doesn't surface the winning creative size, so it won't tighten, but it no longer clips; feed ad rows are not yet self-sizing.)
 
 **Required platform setup.** GMA still needs `GADApplicationIdentifier` (iOS `Info.plist`) and `com.google.android.gms.ads.APPLICATION_ID` (Android `AndroidManifest.xml`) to initialize. See the [iOS Configuration](#ios-configuration) and [Android Configuration](#android-configuration) sections below.
 

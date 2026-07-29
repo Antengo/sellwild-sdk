@@ -13,6 +13,29 @@ const AD_DIMENSIONS: Record<AdSize, { width: number; height: number }> = {
   '1x1': { width: 1, height: 1 },
 }
 
+// Parse a BANNER_SIZES value — `["300x250","320x50"]` or `[[300,250],…]`,
+// possibly a JSON string — into {width,height}[]. Mirrors the native
+// SellwildAdSizes parser so the RN slot reasons about the same size set the
+// auction requests.
+function parseSizeList(raw: unknown): Array<{ width: number; height: number }> {
+  let arr: unknown = raw
+  if (typeof raw === 'string') {
+    try { arr = JSON.parse(raw) } catch { arr = [raw] }
+  }
+  if (!Array.isArray(arr)) return []
+  const out: Array<{ width: number; height: number }> = []
+  for (const e of arr) {
+    if (typeof e === 'string') {
+      const [w, h] = e.toLowerCase().split('x').map((s) => Number(s.trim()))
+      if (w > 0 && h > 0) out.push({ width: w, height: h })
+    } else if (Array.isArray(e) && e.length === 2) {
+      const w = Number(e[0]); const h = Number(e[1])
+      if (w > 0 && h > 0) out.push({ width: w, height: h })
+    }
+  }
+  return out
+}
+
 // ─── Native component bridge ─────────────────────────────────────────────────
 //
 // As of 1.3.0 the React Native banner is backed by a real native ad view —
@@ -41,6 +64,7 @@ interface NativeBannerProps {
   onAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
   onAdClicked?: (e: NativeSyntheticEvent<{}>) => void
   onAdFailed?: (e: NativeSyntheticEvent<{ message: string }>) => void
+  onAdResize?: (e: NativeSyntheticEvent<{ width: number; height: number }>) => void
 }
 
 const NativeBanner = (() => {
@@ -76,7 +100,40 @@ export function SellwildBanner({
   onError,
 }: SellwildBannerProps) {
   const dim = AD_DIMENSIONS[size]
-  const containerStyle: ViewStyle = { width: dim.width, height: dim.height }
+
+  // The widest/tallest size the auction may return for this placement: the
+  // primary plus any BANNER_SIZES / BANNER_SIZES_BY_ZONE fallbacks. We reserve
+  // this as the slot's baseline so a wider or taller fallback creative — e.g. a
+  // 320x50 winning a 300-wide MREC request, where 320 > 300 — never clips
+  // before, or without, the onAdResize callback. This also covers the Android
+  // prebidOnly path, whose rendering BannerView doesn't surface the winning
+  // creative size (so onAdResize can't shrink it back down there).
+  const baseline = React.useMemo(() => {
+    const remote = (config.remote ?? {}) as Record<string, unknown>
+    const byZone = remote['BANNER_SIZES_BY_ZONE']
+    const zoned = byZone && typeof byZone === 'object'
+      ? (byZone as Record<string, unknown>)[String(zoneId)]
+      : undefined
+    const sizes = [dim, ...parseSizeList(zoned ?? remote['BANNER_SIZES'])]
+    return {
+      width: Math.max(...sizes.map((s) => s.width)),
+      height: Math.max(...sizes.map((s) => s.height)),
+    }
+  }, [dim, zoneId, config.remote])
+
+  // The slot starts at the reserved baseline, then tracks whatever the native
+  // side actually renders (onAdResize): a multi-size fallback creative, an
+  // outstream video, or the capped native template. Where the actual size is
+  // reported it shrinks the slot to fit; where it isn't (Android prebidOnly)
+  // the baseline reservation prevents a clip.
+  const [rendered, setRendered] = React.useState<{ width: number; height: number } | null>(null)
+  // Reset to the baseline when the placement identity changes.
+  React.useEffect(() => { setRendered(null) }, [size, zoneId])
+
+  const containerStyle: ViewStyle = {
+    width: rendered?.width ?? baseline.width,
+    height: rendered?.height ?? baseline.height,
+  }
 
   if (!NativeBanner) {
     // Native module not registered. Most common cause: iOS bridge not yet
@@ -128,6 +185,10 @@ export function SellwildBanner({
       onAdFailed={(e: NativeSyntheticEvent<{ message: string }>) => {
         const msg = e.nativeEvent?.message ?? 'Ad failed'
         onError?.(new Error(msg))
+      }}
+      onAdResize={(e: NativeSyntheticEvent<{ width: number; height: number }>) => {
+        const { width, height } = e.nativeEvent ?? { width: 0, height: 0 }
+        if (width > 0 && height > 0) setRendered({ width, height })
       }}
     />
   )
