@@ -197,15 +197,42 @@ class SellwildFeedView @JvmOverloads constructor(
             refreshLayout.isRefreshing = true
             val client = SellwildAPIClient(context)
             val result = client.fetchListings(cfg)
-            refreshLayout.isRefreshing = false
             result.onSuccess { response ->
-                listings = response.listings
+                // After the primary fetch, optionally disperse geo-based
+                // secondary listings into the feed before rendering. When the
+                // integration is off, no state resolves, or the secondary fetch
+                // fails/404s, the primary feed renders unchanged.
+                listings = applyLocalizedDispersion(cfg, client, response.listings)
+                refreshLayout.isRefreshing = false
                 adapter.rebuild()
                 listener?.onLoad()
             }.onFailure { t ->
+                refreshLayout.isRefreshing = false
                 listener?.onError(t.message ?: "Failed to load listings")
             }
         }
+    }
+
+    /**
+     * Resolve the localized-listings integration and, when active with a
+     * resolvable state, fetch the state-keyed secondary cache and merge it into
+     * [primary] (every Nth slot). Returns [primary] unchanged on skip/failure.
+     */
+    private suspend fun applyLocalizedDispersion(
+        config: SellwildConfig,
+        client: SellwildAPIClient,
+        primary: List<SellwildListing>,
+    ): List<SellwildListing> {
+        val integration = SellwildLocalizedListings.resolve(config) ?: return primary
+        val everyN = SellwildLocalizedListings.everyN(integration.frequency)
+        if (everyN <= 0) return primary
+        val state = SellwildLocalizedListings.resolveState(integration, SellwildGeoStore.current?.state)
+            ?: return primary
+        val url = SellwildLocalizedListings.buildCacheUrl(integration, state)
+        return client.fetchCacheListings(url).fold(
+            onSuccess = { secondary -> SellwildLocalizedListings.merge(primary, secondary, everyN) },
+            onFailure = { primary },
+        )
     }
 
     /** Force a re-fetch. Wired to SwipeRefreshLayout. */

@@ -9,19 +9,20 @@ Server-side header bidding for React Native applications, powered by Prebid Serv
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
 3. [Native Feed (1.3.5+)](#native-feed-1-3-5) ⭐ **Recommended**
-4. [Native Banner (1.3.0+)](#native-banner-path-1-3-0)
-5. [iOS Configuration](#ios-configuration)
-6. [Android Configuration](#android-configuration)
-7. [Basic Integration](#basic-integration)
-8. [Native Listing Cards](#native-listing-cards)
-9. [Direct Prebid Server Auction](#direct-prebid-server-auction)
-10. [Prebid Server Configuration](#prebid-server-configuration)
-11. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
-12. [Metro Configuration](#metro-configuration)
-13. [GDPR and Privacy](#gdpr-and-privacy)
-14. [TypeScript Reference](#typescript-reference)
-15. [Troubleshooting](#troubleshooting)
-16. [Migration Guide: Widget → Feed](#migration-guide)
+4. [Localized (geo) listings](#localized-geo-listings)
+5. [Native Banner (1.3.0+)](#native-banner-path-1-3-0)
+6. [iOS Configuration](#ios-configuration)
+7. [Android Configuration](#android-configuration)
+8. [Basic Integration](#basic-integration)
+9. [Native Listing Cards](#native-listing-cards)
+10. [Direct Prebid Server Auction](#direct-prebid-server-auction)
+11. [Prebid Server Configuration](#prebid-server-configuration)
+12. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
+13. [Metro Configuration](#metro-configuration)
+14. [GDPR and Privacy](#gdpr-and-privacy)
+15. [TypeScript Reference](#typescript-reference)
+16. [Troubleshooting](#troubleshooting)
+17. [Migration Guide: Widget → Feed](#migration-guide)
 
 ---
 
@@ -172,6 +173,26 @@ If you're currently using `<SellwildWidget>` (the WebView-based component), see 
 ### Per-platform ad zones
 
 The feed's interleaved ad zones (`MOBILE_ZID`) and the mobile banner zone (`MOBILE_BANNER_ZID`) can resolve to different Prebid stored-impression IDs per OS. Because the resolution happens in the native mapper — not in JavaScript — a React Native app **inherits the OS it is running on**: the same JS bundle resolves `MOBILE_ZID_IOS` / `MOBILE_BANNER_ZID_IOS` on an iPhone and `MOBILE_ZID_ANDROID` / `MOBILE_BANNER_ZID_ANDROID` on an Android device. When a suffixed key is absent or blank, resolution falls back to the unsuffixed key, so existing configs are unaffected. See [Configuration → Per-platform ad zones](/guide/configuration#per-platform-ad-zones).
+
+---
+
+## Localized (geo) listings
+
+`<SellwildFeed>` **inherits localized listings from the native feed** — when enabled, it loads a **second** listings cache keyed by the user's US state and disperses those listings into the primary feed at a configured frequency (every Nth slot; first use case: SportServer sports merch). It is controlled entirely from the CMS via the remote-config field `LOCALIZED_LISTINGS`, which rides the CMS/remote passthrough automatically — **no JS needed** to enable it. An optional local `localizedListings` override on the config object (same shape) wins over the remote value.
+
+```json
+LOCALIZED_LISTINGS = {
+  "baseUrl": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/",
+  "urlTemplate": "sports-img-data-sm-{state}.json",   // {state} lowercased at fill time
+  "frequency": 25                                       // percent; 25 = every 4th slot
+}
+```
+
+- **State resolution order:** (1) `forceState` from the CMS (a fixed 2-letter override), (2) the user's geo state — partner-supplied geo (`config.geo.state` / `setGeo`) **or** the CloudFront `CloudFront-Viewer-Country-Region` header captured off the primary fetch automatically, (3) none → the localized cache is skipped and the feed renders unchanged.
+- **Dispersion:** deterministic every-Nth **replacement** (not insertion) — total count unchanged, secondary listings de-duped by `id`. The localized response is the same `{result:{rs:[...]}}` shape as the primary cache and reuses the existing parser; a `404` (a state with no data) is a normal skip.
+- **Image format:** match the `urlTemplate` variant to your primary cache's image format (standard caches are base64 `listings-img-data-sm-*`, so the SportServer default is the base64 variant above; a webp-URL variant `sports-img-data-sm-webp-{state}.json` also exists). All card renderers handle both base64 data-URIs and image URLs.
+
+Requires SDK 1.6+. See the [iOS guide](./ios.md#localized-geo-listings) for the full `LOCALIZED_LISTINGS` field list (`enabled`, `source`, `forceState`).
 
 ---
 

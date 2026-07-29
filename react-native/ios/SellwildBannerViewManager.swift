@@ -186,6 +186,17 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
             )
         }
 
+        if let ll = map["localizedListings"] as? NSDictionary {
+            cfg.localizedListings = SellwildLocalizedListingsConfig(
+                enabled: ll["enabled"] as? Bool,
+                source: ll["source"] as? String,
+                baseUrl: ll["baseUrl"] as? String,
+                urlTemplate: ll["urlTemplate"] as? String,
+                frequency: ll["frequency"] as? Int,
+                forceState: ll["forceState"] as? String
+            )
+        }
+
         if let remote = map["remote"] as? NSDictionary,
            let data = try? JSONSerialization.data(withJSONObject: remote, options: []) {
             cfg.remoteJSON = data

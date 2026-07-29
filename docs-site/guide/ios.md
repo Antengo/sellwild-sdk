@@ -10,19 +10,20 @@ Integration guide for the Sellwild native ad SDK. The SDK runs server-side heade
 2. [Installation](#installation)
 3. [Native banner path (1.3.0+)](#native-banner-path-1-3-0)
 4. [Native Marketplace Feed (1.3.5+)](#native-marketplace-feed-1-3-5)
-5. [Info.plist Configuration](#infoplist-configuration)
-6. [UIKit Integration](#uikit-integration)
-7. [SwiftUI Integration](#swiftui-integration)
-8. [Native Listing Cards](#native-listing-cards)
-9. [App Tracking Transparency](#app-tracking-transparency)
-10. [Remote Config](#remote-config)
-11. [Prebid Server Configuration](#prebid-server-configuration)
-12. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
-13. [GDPR and Privacy](#gdpr-and-privacy)
-14. [Ad Refresh](#ad-refresh)
-15. [Lifecycle Management](#lifecycle-management)
-16. [Troubleshooting](#troubleshooting)
-17. [API Reference](#api-reference)
+5. [Localized (geo) listings](#localized-geo-listings)
+6. [Info.plist Configuration](#infoplist-configuration)
+7. [UIKit Integration](#uikit-integration)
+8. [SwiftUI Integration](#swiftui-integration)
+9. [Native Listing Cards](#native-listing-cards)
+10. [App Tracking Transparency](#app-tracking-transparency)
+11. [Remote Config](#remote-config)
+12. [Prebid Server Configuration](#prebid-server-configuration)
+13. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
+14. [GDPR and Privacy](#gdpr-and-privacy)
+15. [Ad Refresh](#ad-refresh)
+16. [Lifecycle Management](#lifecycle-management)
+17. [Troubleshooting](#troubleshooting)
+18. [API Reference](#api-reference)
 
 ---
 
@@ -255,6 +256,29 @@ The feed respects these CDN config keys:
 ### Per-platform ad zones
 
 `MOBILE_ZID` (feed zones) and `MOBILE_BANNER_ZID` (320×50 banner) can resolve to iOS-specific Prebid stored-impression IDs. On iOS the SDK uses `MOBILE_ZID_IOS` / `MOBILE_BANNER_ZID_IOS` when present and non-empty, otherwise it falls back to the unsuffixed key. The pick is made in the native Swift mapper keyed on the runtime OS, so React Native and Flutter apps running on iOS resolve the `_IOS` keys automatically. If no suffixed key is set, behavior is unchanged. See [Configuration → Per-platform ad zones](/guide/configuration#per-platform-ad-zones).
+
+---
+
+## Localized (geo) listings
+
+When enabled, `SellwildFeedView` loads a **second** listings cache keyed by the user's US state and disperses those listings into the primary marketplace feed at a configured frequency (every Nth slot). First use case: SportServer sports merch. It is controlled entirely from the CMS via a single remote-config field, `LOCALIZED_LISTINGS` — no app release to enable or disable. An optional local `localizedListings` override on `SellwildConfig` uses the same shape and wins over the remote object.
+
+```json
+LOCALIZED_LISTINGS = {
+  "enabled": true,                                                 // absent = on, false = off
+  "source": "sportserver",                                         // optional label
+  "baseUrl": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/", // required
+  "urlTemplate": "sports-img-data-sm-{state}.json",               // required; {state} lowercased at fill time
+  "frequency": 25,                                                 // percent; 25 = every 4th slot
+  "forceState": "AL"                                               // optional 2-letter code that overrides geo
+}
+```
+
+- **State resolution order:** (1) `forceState` from the CMS (e.g. a known-Alabama news site), (2) the user's geo state — from partner-supplied geo (`config.geo.state` / `setGeo`) **or** the CloudFront `CloudFront-Viewer-Country-Region` header captured off the primary listings fetch automatically, (3) none → the localized cache is skipped and the primary feed renders unchanged.
+- **Dispersion:** deterministic every-Nth **replacement** (not insertion). At `frequency` 25 every 4th feed slot is replaced by a randomly-picked localized listing; total count is unchanged and secondary listings are de-duped by `id` against the primary. The localized response is the same `{result:{rs:[...]}}` shape as the primary cache (it reuses the existing listing parser); a `404` (a state with no data) is a normal skip.
+- **Image format:** pick the `urlTemplate` variant that matches your primary cache's image format. The standard caches are base64 (`listings-img-data-sm-*`), so the SportServer default is the base64 variant above. A lighter webp-URL variant (`sports-img-data-sm-webp-{state}.json`) also exists; all card renderers handle both base64 data-URIs and image URLs, but matching the primary is the current default.
+
+Requires SDK 1.6+. Available on `SellwildFeedView` (native feed).
 
 ---
 

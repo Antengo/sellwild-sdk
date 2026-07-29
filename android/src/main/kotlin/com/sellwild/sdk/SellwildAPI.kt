@@ -120,12 +120,56 @@ class SellwildAPIClient(private val context: Context) {
                     throw SellwildException("HTTP $responseCode from $listingsUrl")
                 }
 
+                // Seed the geo state from CloudFront's viewer-country-region
+                // header when the partner hasn't supplied one, so the
+                // localized-listings path can key a per-state cache. Mirrors the
+                // web widget's appendViewerHeaders seeding userLocation.state.
+                seedGeoStateIfEmpty(connection.getHeaderField("CloudFront-Viewer-Country-Region"))
+
                 val body = connection.inputStream.bufferedReader().readText()
                 val response = parseListingsResponse(body)
                 listingCache[listingsUrl] = response
                 response
             }
         }
+
+    /**
+     * GET a state-keyed secondary listings cache and reuse the primary listing
+     * parser. The payload shape is identical to the primary feed (`result.rs`),
+     * so the same parser applies. A non-200 (e.g. a 404 for a state with no
+     * data) resolves to [Result.failure] — the caller treats that as a skip and
+     * renders the primary feed unchanged.
+     */
+    suspend fun fetchCacheListings(url: String): Result<List<SellwildListing>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 15_000
+                connection.setRequestProperty("Accept", "application/json")
+
+                val responseCode = connection.responseCode
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    throw SellwildException("HTTP $responseCode from $url")
+                }
+
+                val body = connection.inputStream.bufferedReader().readText()
+                parseListingsResponse(body).listings
+            }
+        }
+
+    /**
+     * Seed [SellwildGeoStore] state from the CloudFront viewer-country-region
+     * header only when no state is already set. Never overwrites a
+     * partner-supplied or previously-seeded state.
+     */
+    private fun seedGeoStateIfEmpty(region: String?) {
+        val trimmed = region?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        val current = SellwildGeoStore.current
+        if (!current?.state.isNullOrEmpty()) return
+        SellwildGeoStore.current = (current ?: SellwildGeo()).copy(state = trimmed)
+    }
 
     fun clearCache() = listingCache.clear()
 

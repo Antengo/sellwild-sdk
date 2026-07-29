@@ -201,6 +201,19 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
             )
         }
 
+        // Local override for the localized (geo-based) secondary-listings
+        // integration; remote LOCALIZED_LISTINGS rides `remote` verbatim.
+        if let ll = map["localizedListings"] as? NSDictionary {
+            cfg.localizedListings = SellwildLocalizedListingsConfig(
+                enabled: ll["enabled"] as? Bool,
+                source: ll["source"] as? String,
+                baseUrl: ll["baseUrl"] as? String,
+                urlTemplate: ll["urlTemplate"] as? String,
+                frequency: ll["frequency"] as? Int,
+                forceState: ll["forceState"] as? String
+            )
+        }
+
         return cfg
     }
 

@@ -12,19 +12,20 @@ As of 1.3.0, banner ads render natively through `AdManagerAdView` (Google Mobile
 2. [Installation](#installation)
 3. [Native banner path (1.3.0+)](#native-banner-path-1-3-0)
 4. [Native Marketplace Feed (1.3.5+)](#native-marketplace-feed-1-3-5)
-5. [AndroidManifest Configuration](#androidmanifest-configuration)
-6. [Basic Integration](#basic-integration)
-7. [Jetpack Compose](#jetpack-compose)
-8. [Native Listing Cards](#native-listing-cards)
-9. [Coroutines API](#coroutines-api)
-10. [Remote Config](#remote-config)
-11. [Prebid Server Configuration](#prebid-server-configuration)
-12. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
-13. [GDPR and Privacy](#gdpr-and-privacy)
-14. [Lifecycle Management](#lifecycle-management)
-15. [Ad Refresh](#ad-refresh)
-16. [ProGuard and R8](#proguard-and-r8)
-17. [Troubleshooting](#troubleshooting)
+5. [Localized (geo) listings](#localized-geo-listings)
+6. [AndroidManifest Configuration](#androidmanifest-configuration)
+7. [Basic Integration](#basic-integration)
+8. [Jetpack Compose](#jetpack-compose)
+9. [Native Listing Cards](#native-listing-cards)
+10. [Coroutines API](#coroutines-api)
+11. [Remote Config](#remote-config)
+12. [Prebid Server Configuration](#prebid-server-configuration)
+13. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
+14. [GDPR and Privacy](#gdpr-and-privacy)
+15. [Lifecycle Management](#lifecycle-management)
+16. [Ad Refresh](#ad-refresh)
+17. [ProGuard and R8](#proguard-and-r8)
+18. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -253,6 +254,26 @@ The feed respects these CDN config keys:
 ### Per-platform ad zones
 
 `MOBILE_ZID` (feed zones) and `MOBILE_BANNER_ZID` (320×50 banner) can resolve to Android-specific Prebid stored-impression IDs. On Android the SDK uses `MOBILE_ZID_ANDROID` / `MOBILE_BANNER_ZID_ANDROID` when present and non-empty, otherwise it falls back to the unsuffixed key. The pick is made in the native Kotlin mapper keyed on the runtime OS, so React Native and Flutter apps running on Android resolve the `_ANDROID` keys automatically. If no suffixed key is set, behavior is unchanged. See [Configuration → Per-platform ad zones](/guide/configuration#per-platform-ad-zones).
+
+---
+
+## Localized (geo) listings
+
+When enabled, `SellwildFeedView` loads a **second** listings cache keyed by the user's US state and disperses those listings into the primary marketplace feed at a configured frequency (every Nth slot). First use case: SportServer sports merch. It is driven entirely from the CMS via the remote-config field `LOCALIZED_LISTINGS` — no app release to toggle. An optional local `localizedListings` override on `SellwildConfig` (same shape) wins over the remote object.
+
+```json
+LOCALIZED_LISTINGS = {
+  "baseUrl": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/",
+  "urlTemplate": "sports-img-data-sm-{state}.json",   // {state} lowercased at fill time
+  "frequency": 25                                       // percent; 25 = every 4th slot
+}
+```
+
+- **State resolution order:** (1) `forceState` from the CMS (a fixed 2-letter override), (2) the user's geo state — from partner-supplied geo (`config.geo.state` / `setGeo`) **or** the CloudFront `CloudFront-Viewer-Country-Region` header captured off the primary listings fetch automatically, (3) none → the localized cache is skipped and the primary feed renders unchanged.
+- **Dispersion:** deterministic every-Nth **replacement** (not insertion) — total count unchanged, secondary listings de-duped by `id` against the primary. The localized response is the same `{result:{rs:[...]}}` shape as the primary cache and reuses the existing parser; a `404` (a state with no data) is a normal skip.
+- **Image format:** match the `urlTemplate` variant to your primary cache's image format. The standard caches are base64 (`listings-img-data-sm-*`), so the SportServer default is the base64 variant above; a lighter webp-URL variant (`sports-img-data-sm-webp-{state}.json`) also exists. All card renderers handle both base64 data-URIs and image URLs.
+
+Requires SDK 1.6+. See the [iOS guide](./ios.md#localized-geo-listings) for the full `LOCALIZED_LISTINGS` field list (`enabled`, `source`, `forceState`).
 
 ---
 

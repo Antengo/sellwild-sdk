@@ -169,6 +169,8 @@ export function SellwildBanner({
     prebidServer: config.prebidServer,
     // Local GrowthCode overrides (remote GROWTHCODE_* keys ride `remote`).
     growthCode: config.growthCode,
+    // Local localized-listings overrides (remote LOCALIZED_LISTINGS rides `remote`).
+    localizedListings: config.localizedListings,
     remote: config.remote,
   }
 

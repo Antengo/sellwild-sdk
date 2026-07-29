@@ -133,10 +133,7 @@ public final class SellwildFeedView: UIView {
                 case .success(let response):
                     NSLog("[Sellwild] fetchListings success count=%d schedule=%@",
                           response.listings.count, self.schedule)
-                    self.listings = response.listings
-                    self.rebuildRows()
-                    NSLog("[Sellwild] rebuildRows -> rowCount=%d", self.rows.count)
-                    self.delegate?.sellwildFeedDidLoad(self)
+                    self.applyLocalizedDispersion(primary: response.listings)
                 case .failure(let error):
                     NSLog("[Sellwild] fetchListings FAILED: %@", error.localizedDescription)
                     self.delegate?.sellwildFeed(self, didFailWithError: error.localizedDescription)
@@ -169,6 +166,50 @@ public final class SellwildFeedView: UIView {
 
     deinit {
         contentSizeObservation?.invalidate()
+    }
+
+    // MARK: Localized dispersion
+
+    /// After the primary fetch, optionally disperse geo-based secondary
+    /// listings into the feed before rendering. When the integration is off,
+    /// no state resolves, or the secondary fetch fails/404s, the primary feed
+    /// renders unchanged (current behavior). Runs on the main thread.
+    private func applyLocalizedDispersion(primary: [SellwildListing]) {
+        guard let integration = SellwildLocalizedListings.resolve(config: config) else {
+            finishLoad(with: primary)
+            return
+        }
+        let everyN = SellwildLocalizedListings.everyN(frequencyPercent: integration.frequency)
+        guard everyN > 0,
+              let state = SellwildLocalizedListings.resolveState(integration, geoState: SellwildGeoStore.current?.state),
+              let url = SellwildLocalizedListings.buildCacheURL(integration, state: state) else {
+            finishLoad(with: primary)
+            return
+        }
+
+        NSLog("[Sellwild] localized listings state=%@ everyN=%d url=%@", state, everyN, url.absoluteString)
+        apiClient.fetchCacheListings(url: url) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                switch result {
+                case .success(let secondary):
+                    let merged = SellwildLocalizedListings.merge(primary: primary, secondary: secondary, everyN: everyN)
+                    NSLog("[Sellwild] localized merge primary=%d secondary=%d merged=%d",
+                          primary.count, secondary.count, merged.count)
+                    self.finishLoad(with: merged)
+                case .failure(let error):
+                    NSLog("[Sellwild] localized fetch skipped: %@", error.localizedDescription)
+                    self.finishLoad(with: primary)
+                }
+            }
+        }
+    }
+
+    private func finishLoad(with listings: [SellwildListing]) {
+        self.listings = listings
+        self.rebuildRows()
+        NSLog("[Sellwild] rebuildRows -> rowCount=%d", self.rows.count)
+        self.delegate?.sellwildFeedDidLoad(self)
     }
 
     // MARK: Setup
