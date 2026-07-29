@@ -435,9 +435,11 @@ Ads that don't render at a fixed banner size — a multi-size fallback creative,
 - **iOS** — `SellwildAdViewDelegate.sellwildAdView(_:didRenderWithSize:)`
 - **Android** — `SellwildAdView.Listener.onAdResize(adView, width, height)`
 
-Native hosts resize their container from this callback. **React Native handles it automatically:** the bridge forwards an `onAdResize` event and `<SellwildBanner>` tracks the size in state, so the slot grows/shrinks to the actual creative with no app code — starting at the placement's nominal size and updating on render.
+Native hosts resize their container from this callback. **React Native handles it automatically:** the bridge forwards an `onAdResize` event and `<SellwildBanner>` tracks the size in state, so the slot grows/shrinks to the actual creative with no app code.
 
-Reported size by path: `both`/`gamOnly` → the winning GAM creative size; native → the capped template height; `prebidOnly` banner → the primary size (the rendering `BannerView` doesn't surface the winning multi-size creative to the callback, so a prebidOnly multi-size fallback won't shrink the slot — a known limitation). Feed ad rows are not yet self-sizing.
+**No-clip baseline.** The slot starts at the **bounding box of the requested size set** — `max(width) × max(height)` across the primary and any `BANNER_SIZES` fallbacks — not the primary alone. Fallbacks can be *wider* than the primary (a `320×50` fallback in a `300×250` request: 320 > 300) or taller, so reserving the bounding box guarantees no clip in any dimension before/without the resize callback (`SellwildAdSizes.boundingSize` on native; computed in JS on RN). The callback then reports the **actual** size so the slot can tighten.
+
+Reported size by path: `both`/`gamOnly` → the winning GAM creative size (slot tightens); native → the capped template height; `prebidOnly` banner → the primary size (the rendering `BannerView` doesn't surface the winning multi-size creative, so a prebidOnly slot **stays at the reserved bounding box** — it never clips, but it won't tighten). Feed ad rows are not yet self-sizing.
 
 ---
 

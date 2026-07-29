@@ -53,6 +53,15 @@ internal object SellwildAdSizes {
         return out.toList()
     }
 
+    /**
+     * The smallest [Size] that contains every size in the set — `max(width) ×
+     * max(height)`. Reserves a slot that fits the widest/tallest creative the
+     * auction may return, so a fallback never clips (including on prebidOnly,
+     * where the winning creative size isn't surfaced back to the SDK).
+     */
+    fun boundingSize(sizes: List<Size>): Size =
+        Size(sizes.maxOfOrNull { it.width } ?: 0, sizes.maxOfOrNull { it.height } ?: 0)
+
     // ── Apply (per stack) ────────────────────────────────────────────────────
 
     /** GAM multi-size — this is what delivers fallback fill on BOTH / GAM_ONLY. */

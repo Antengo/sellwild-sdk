@@ -476,9 +476,11 @@ Ads that don't render at a fixed banner size — a multi-size fallback creative,
 - **iOS** — `SellwildAdViewDelegate.sellwildAdView(_:didRenderWithSize:)`
 - **Android** — `SellwildAdView.Listener.onAdResize(adView, width, height)`
 
-Native hosts can resize their container from this callback. **React Native does it for you:** the bridge forwards it as an `onAdResize` event and `<SellwildBanner>` tracks the size in state, so the slot grows/shrinks to the actual creative with no app code. The slot starts at the placement's nominal size and updates on render.
+Native hosts can resize their container from this callback. **React Native does it for you:** the bridge forwards it as an `onAdResize` event and `<SellwildBanner>` tracks the size in state, so the slot grows/shrinks to the actual creative with no app code.
 
-Reported size by path: `both`/`gamOnly` → the winning GAM creative size; native → the capped template height; `prebidOnly` banner → the primary size (the rendering `BannerView` doesn't surface the winning multi-size creative to the callback — a known limitation, so a prebidOnly multi-size fallback won't shrink the slot). Feed ad rows are not yet self-sizing.
+**Baseline reservation (no clip).** The slot does **not** start at the primary size — it starts at the **bounding box of the requested size set** (`max(width) × max(height)` across the primary + `BANNER_SIZES` fallbacks). This matters because fallbacks can be *wider* than the primary — e.g. a `320×50` fallback in a `300×250` MREC request (320 > 300) — or taller. Reserving the bounding box means a fallback creative never clips, in any dimension, before or without the resize callback. The SDK computes this on all platforms (`SellwildAdSizes.boundingSize`); RN computes it in JS from the `BANNER_SIZES` it receives via `remote`. `didRenderWithSize` / `onAdResize` then reports the **actual** rendered size so the slot can tighten to fit.
+
+Reported size by path: `both`/`gamOnly` → the winning GAM creative size (slot tightens); native → the capped template height; `prebidOnly` banner → the primary size (the rendering `BannerView` doesn't surface the winning multi-size creative to the callback — a known limitation, so a prebidOnly slot **stays at the reserved bounding box** rather than tightening, but it never clips). Feed ad rows are not yet self-sizing.
 
 ---
 

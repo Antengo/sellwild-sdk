@@ -108,9 +108,14 @@ cd <widget> && git push -u origin cms/mobile-native-toggle
       not flipped). Flip = one CDN edit, but only after the native stored imp.
 
 ### 5. Known gaps / follow-ups
-- [ ] **prebidOnly multi-size** reports the primary size to `onAdResize`, not the
-      winning smaller creative (the rendering `BannerView` doesn't surface it) —
-      so a prebidOnly multi-size fallback won't shrink the RN slot.
+- [x] **Multi-size width clip — fixed.** The slot now reserves the *bounding box*
+      of the requested size set (`SellwildAdSizes.boundingSize`; computed in JS on
+      RN), so a wider/taller fallback (e.g. 320×50 in a 300-wide MREC request)
+      never clips before/without `onAdResize`. `didRenderWithSize`/`onAdResize`
+      still reports the actual size so `both`/`gamOnly` tighten.
+- [ ] **prebidOnly multi-size** still can't *tighten*: the rendering `BannerView`
+      doesn't surface the winning creative size, so a prebidOnly slot stays at the
+      reserved bounding box (no clip, but no shrink either). Fork limitation.
 - [ ] **Feed ad rows** are not self-sizing (only `<SellwildBanner>` is).
 - [ ] Native↔banner multiformat fallback (render whichever wins) — needs a
       branch-on-`mediaType` renderer; deferred.

@@ -86,6 +86,12 @@ public final class SellwildAdView: UIView {
         self.adSize = adSize
         self.zoneId = zoneId
         super.init(frame: CGRect(origin: .zero, size: adSize.cgSize))
+        // Reserve the widest/tallest size the auction may return (primary + any
+        // BANNER_SIZES fallbacks) so a wider/taller fallback creative doesn't
+        // clip. Hosts using Auto Layout override this initial frame; frame-based
+        // hosts get a box that fits every requested size. The didRenderWithSize
+        // delegate still reports the actual rendered size for hosts that tighten.
+        self.frame = CGRect(origin: .zero, size: SellwildAdSizes.boundingSize(resolvedAdSizes))
     }
 
     required init?(coder: NSCoder) {

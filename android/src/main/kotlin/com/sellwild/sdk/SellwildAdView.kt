@@ -194,9 +194,12 @@ class SellwildAdView @JvmOverloads constructor(
         }
         bannerView = banner
 
+        // Reserve the widest/tallest size the auction may return (primary + any
+        // BANNER_SIZES fallbacks) so a wider/taller fallback creative doesn't clip.
+        val bound = SellwildAdSizes.boundingSize(resolvedAdSizes)
         val dp = context.resources.displayMetrics.density
-        val widthPx = (size.width * dp).toInt()
-        val heightPx = (size.height * dp).toInt()
+        val widthPx = (bound.width * dp).toInt()
+        val heightPx = (bound.height * dp).toInt()
         addView(banner, LayoutParams(widthPx, heightPx))
         return banner
     }
@@ -304,9 +307,14 @@ class SellwildAdView @JvmOverloads constructor(
         }
         prebidBanner = prebid
 
+        // Reserve the widest/tallest size the auction may return. Critical for
+        // prebidOnly: the rendering BannerView doesn't surface the winning
+        // creative size, so onAdResize can't shrink a clip back — reserving the
+        // bounding box up front prevents it.
+        val bound = SellwildAdSizes.boundingSize(resolvedAdSizes)
         val dp = context.resources.displayMetrics.density
-        val widthPx = (size.width * dp).toInt()
-        val heightPx = (size.height * dp).toInt()
+        val widthPx = (bound.width * dp).toInt()
+        val heightPx = (bound.height * dp).toInt()
         addView(prebid, LayoutParams(widthPx, heightPx))
         return prebid
     }

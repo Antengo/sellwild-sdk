@@ -47,6 +47,17 @@ enum SellwildAdSizes {
         return out
     }
 
+    /// The smallest box that contains every size in the set — `max(width) ×
+    /// max(height)`. Used to reserve a slot that fits the widest/tallest
+    /// creative the auction may return, so a fallback never clips (including on
+    /// the prebidOnly path, where the winning creative size isn't surfaced).
+    static func boundingSize(_ sizes: [CGSize]) -> CGSize {
+        CGSize(
+            width: sizes.map { $0.width }.max() ?? 0,
+            height: sizes.map { $0.height }.max() ?? 0
+        )
+    }
+
     // MARK: Apply (per stack)
 
     /// GAM multi-size: primary `adSize` + `validAdSizes` for the rest. Solid GMA
