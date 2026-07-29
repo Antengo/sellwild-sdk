@@ -200,10 +200,11 @@ public final class SellwildAdView: UIView {
             configID: configId,
             adSize: adSize.cgSize
         )
-        // Prebid-rendered outstream video (no GAM). Verify `videoParameters`
-        // exists on the rendering BannerView in the shaded fork.
+        // Prebid-rendered outstream video (no GAM). The rendering `PrebidBannerView`
+        // in the shaded fork exposes `videoParameters` as get-only, so we can't set
+        // outstream params on this path yet — matches the Android limitation.
         if SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId) {
-            v.videoParameters = SellwildVideo.outstreamParameters()
+            print("[SellwildSDK] Outstream video not yet supported on the prebidOnly rendering path")
         }
         v.translatesAutoresizingMaskIntoConstraints = false
         v.delegate = self

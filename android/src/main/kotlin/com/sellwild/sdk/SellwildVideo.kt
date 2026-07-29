@@ -13,9 +13,9 @@ package com.sellwild.sdk
 
 import java.util.EnumSet
 import org.json.JSONObject
-import com.sellwild.prebid.AdUnitFormat
 import com.sellwild.prebid.Signals
 import com.sellwild.prebid.VideoParameters
+import com.sellwild.prebid.api.data.AdUnitFormat
 
 internal object SellwildVideo {
 
@@ -58,8 +58,12 @@ internal object SellwildVideo {
             )
             playbackMethod = listOf(Signals.PlaybackMethod.AutoPlaySoundOff)
             api = listOf(Signals.Api.OMID_1, Signals.Api.MRAID_3)
-            placement = 2   // InBanner (deprecated in 2.6 but widely honored)
-            plcmt = 4       // Standalone (OpenRTB 2.6, no-content slot)
+            // InBanner (OpenRTB 2.5 placement value 2, deprecated in 2.6 but
+            // widely honored) + Standalone / no-content (OpenRTB 2.6 plcmt
+            // value 4). Named constants keep parity with the iOS implementation
+            // and avoid drift if the shaded fork ever remaps the ints.
+            placement = Signals.Placement.InBanner
+            plcmt = Signals.Plcmt.Standalone
             maxDuration = 30
             minDuration = 5
         }

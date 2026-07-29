@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
+import android.util.Log
 import android.widget.FrameLayout
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdSize as GmaAdSize
@@ -241,10 +242,19 @@ class SellwildAdView @JvmOverloads constructor(
             if (config.adRefreshMaxMobile > 0) {
                 setAutoRefreshDelay((config.adRefreshIntervalMs / 1000L).toInt())
             }
-            // Prebid-rendered outstream video (no GAM). Verify `videoParameters`
-            // exists on the rendering BannerView in the shaded fork.
+            // Prebid-rendered outstream video (no GAM) is not supported on the
+            // rendering BannerView in the current shaded fork — it has no
+            // videoParameters setter (unlike iOS PrebidBannerView). The GAM
+            // path (runBannerAuction with video=true) still delivers outstream
+            // via a multiformat BannerAdUnit + GAM outstream line item, so
+            // prebidOnly is the only surface losing video here.
             if (SellwildVideo.isEnabled(config.remoteJson, zoneId)) {
-                videoParameters = SellwildVideo.outstreamParameters()
+                Log.w(
+                    TAG,
+                    "prebidOnly outstream video requested but rendering " +
+                        "BannerView has no videoParameters setter in the " +
+                        "shaded fork — falling back to banner-only.",
+                )
             }
         }
         prebidBanner = prebid

@@ -81,7 +81,13 @@ object SellwildPrebidMobile {
                 Log.w(TAG, "MobileAds.initialize threw: ${e.message}")
             }
 
-            val resolved = resolvePrebidServer(config)
+            // Parse remoteJson ONCE per bootstrap — resolvePrebidServer and
+            // resolvePublisherId both read S2S_CONFIG out of it, and each parse
+            // allocates a fresh JSONObject tree over what can be a multi-KB blob.
+            val remoteRoot = config.remoteJson?.let {
+                runCatching { JSONObject(it) }.getOrNull()
+            }
+            val resolved = resolvePrebidServer(config, remoteRoot)
 
             SellwildPrebid.setPrebidServerAccountId(resolved.accountId)
             SellwildPrebid.setTimeoutMillis(config.prebidServer?.timeout ?: 1500)
@@ -105,7 +111,7 @@ object SellwildPrebidMobile {
             // combined global ORTB config (app.publisher.id + device.geo).
             // setGlobalOrtbConfig is last-write-wins, so both live in a single
             // object; a later setGeo(...) re-emits it with updated geo.
-            resolvedPublisherId = resolvePublisherId(config)
+            resolvedPublisherId = resolvePublisherId(remoteRoot)
             if (SellwildGeoStore.current == null) SellwildGeoStore.current = config.geo
             applyGlobalOrtb()
 
@@ -241,23 +247,32 @@ object SellwildPrebidMobile {
     /**
      * Pull the OpenRTB app.publisher.id (== sellers.json seller id / schain sid)
      * from the CDN S2S_CONFIG blob. Accepts `publisherId` or `sellerId`.
+     *
+     * Takes the already-parsed remoteJson root so bootstrap() and its siblings
+     * don't each re-parse the same string.
      */
-    internal fun resolvePublisherId(config: SellwildConfig): String? {
-        val raw = config.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() }
-        val s2s = raw?.optJSONObject("S2S_CONFIG") ?: return null
+    internal fun resolvePublisherId(remoteRoot: JSONObject?): String? {
+        val s2s = remoteRoot?.optJSONObject("S2S_CONFIG") ?: return null
         val id = s2s.optString("publisherId", "").ifEmpty { s2s.optString("sellerId", "") }
         return id.ifEmpty { null }
     }
 
-    internal fun resolvePrebidServer(config: SellwildConfig): PrebidServerResolution {
+    /**
+     * Resolve the Prebid Server URL + account id. [remoteRoot] is the
+     * already-parsed [SellwildConfig.remoteJson]; callers should parse once and
+     * share it across resolvers to avoid duplicate work.
+     */
+    internal fun resolvePrebidServer(
+        config: SellwildConfig,
+        remoteRoot: JSONObject?,
+    ): PrebidServerResolution {
         // 1. Typed config.
         config.prebidServer?.let {
             return PrebidServerResolution(url = it.endpoint, accountId = it.accountId)
         }
 
         // 2. Raw CDN passthrough.
-        val raw = config.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() }
-        val s2s = raw?.optJSONObject("S2S_CONFIG")
+        val s2s = remoteRoot?.optJSONObject("S2S_CONFIG")
         if (s2s != null) {
             val url = s2s.optString("endpoint", "")
                 .ifEmpty { s2s.optString("url", "") }

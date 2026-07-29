@@ -52,7 +52,8 @@ public enum SellwildVideo {
         ]
         params.playbackMethod = [Signals.PlaybackMethod.AutoPlaySoundOff]
         params.placement = Signals.Placement.InBanner   // deprecated in 2.6 but widely honored
-        params.plcmt = Signals.Plcmt.Standalone          // OpenRTB 2.6 (no-content slot)
+        // NOTE: Prebid Mobile 3.x shaded fork doesn't expose `plcmt` (OpenRTB 2.6);
+        // `placement = InBanner` covers the intent for buyers still on the 2.5 signal.
         params.api = [Signals.Api.OMID_1, Signals.Api.MRAID_3]
         return params
     }

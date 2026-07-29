@@ -53,7 +53,13 @@ public extension SellwildPrebidMobile {
         let mapped: [ExternalUserId] = eids.map { eid in
             ExternalUserId(
                 source: eid.source,
-                uids: eid.uids.map { UserUniqueID(id: $0.id, aType: $0.atype, ext: $0.ext) }
+                uids: eid.uids.map {
+                    UserUniqueID(
+                        uniqueId: $0.id,
+                        aType: NSNumber(value: $0.atype),
+                        ext: $0.ext
+                    )
+                }
             )
         }
         Targeting.shared.setExternalUserIds(mapped)

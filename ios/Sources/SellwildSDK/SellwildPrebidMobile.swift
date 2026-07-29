@@ -80,6 +80,9 @@ public enum SellwildPrebidMobile {
         // combined global ORTB config (app.publisher.id + device.geo).
         // setGlobalORTBConfig is last-write-wins, so both must live in a single
         // object; a later setGeo(_:) re-emits it with updated geo.
+        // resolvedPublisherId is protected by `lock` — we're already inside it
+        // for the duration of bootstrap. applyGlobalORTB() takes a snapshot
+        // under the same lock, so a concurrent setGeo() can't race the emit.
         resolvedPublisherId = resolvePublisherId(from: config)
         if SellwildGeoStore.current == nil { SellwildGeoStore.current = config.geo }
         applyGlobalORTB()
@@ -216,11 +219,16 @@ public enum SellwildPrebidMobile {
 
     /// Extract the numeric Apple App Store ID from a store URL, e.g.
     /// `https://apps.apple.com/us/app/weatherbug/id281940292` -> `"281940292"`.
-    /// Anchored on `/id` so a slug that merely contains "id" can't false-match.
-    /// Returns nil when the URL has no `/idNNNNN` segment.
+    /// Anchored on `/id` at the start and on a URL boundary at the end
+    /// (`/`, `?`, `#`, or end-of-string) so slugs like `/id281940292abc` or
+    /// `/idea-app/…` can't false-match. Returns nil when the URL has no
+    /// `/idNNNNN` segment.
     static func appStoreId(from storeURL: String?) -> String? {
         guard let storeURL,
-              let range = storeURL.range(of: #"/id\d+"#, options: .regularExpression)
+              let range = storeURL.range(
+                of: #"/id(\d+)(?=[/?#]|$)"#,
+                options: .regularExpression
+              )
         else { return nil }
         return String(storeURL[range].dropFirst(3))  // drop "/id"
     }
@@ -237,19 +245,29 @@ public enum SellwildPrebidMobile {
     }
 
     /// Publisher id resolved at bootstrap, retained so `applyGlobalORTB()` can
-    /// re-emit it alongside geo without re-reading config.
+    /// re-emit it alongside geo without re-reading config. Protected by `lock`.
     private static var resolvedPublisherId: String?
 
     /// Emit one combined global ORTB config carrying `app.publisher.id` and
     /// `device.geo`. `setGlobalORTBConfig` is last-write-wins, so both live in a
     /// single object rather than two competing calls.
+    ///
+    /// Thread-safe: takes a snapshot of `resolvedPublisherId` and the current
+    /// geo under `lock`, then serializes and hands the string to Prebid outside
+    /// the lock. Callers may invoke this from any thread; `bootstrap()` and
+    /// `setGeo()` are already the only writers.
     private static func applyGlobalORTB() {
+        lock.lock()
+        let pid = resolvedPublisherId
+        let geoDict = SellwildGeoStore.current?.ortbGeoDict
+        lock.unlock()
+
         var app: [String: Any] = [:]
-        if let pid = resolvedPublisherId, !pid.isEmpty {
+        if let pid, !pid.isEmpty {
             app["publisher"] = ["id": pid]
         }
         var device: [String: Any] = [:]
-        if let geoDict = SellwildGeoStore.current?.ortbGeoDict, !geoDict.isEmpty {
+        if let geoDict, !geoDict.isEmpty {
             device["geo"] = geoDict
         }
         var root: [String: Any] = [:]
@@ -267,9 +285,10 @@ public enum SellwildPrebidMobile {
     /// resolved or changes after `bootstrap(with:)`. Re-emits the combined ORTB
     /// config so `app.publisher.id` is preserved. Pass `nil` to clear geo.
     ///
-    /// The value is also stored in `SellwildGeoStore.current`, so other SDK
-    /// surfaces (e.g. the listings feed) and host-app code can read the current
-    /// geo — it is not confined to the Prebid auction path.
+    /// The value is also stored in `SellwildGeoStore.current` (itself
+    /// thread-safe), so other SDK surfaces (e.g. the listings feed) and
+    /// host-app code can read the current geo — it is not confined to the
+    /// Prebid auction path.
     public static func setGeo(_ geo: SellwildGeo?) {
         SellwildGeoStore.current = geo
         applyGlobalORTB()
