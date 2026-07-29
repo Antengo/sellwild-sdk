@@ -162,6 +162,8 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
             if (map.hasKey("appStoreUrl")) config = config.copy(appStoreUrl = map.getString("appStoreUrl"))
             if (map.hasKey("gamTag")) config = config.copy(gamTag = map.getString("gamTag"))
             if (map.hasKey("debug")) config = config.copy(debug = map.getBoolean("debug"))
+            if (map.hasKey("pbsDebug")) config = config.copy(pbsDebug = map.getBoolean("pbsDebug"))
+            if (map.hasKey("geo") && !map.isNull("geo")) config = config.copy(geo = RnGeo.readableMapToGeo(map.getMap("geo")))
             if (map.hasKey("adRefreshMax")) config = config.copy(adRefreshMax = map.getInt("adRefreshMax"))
             if (map.hasKey("adRefreshMaxMobile")) config = config.copy(adRefreshMaxMobile = map.getInt("adRefreshMaxMobile"))
             if (map.hasKey("adRefreshIntervalMs")) config = config.copy(adRefreshIntervalMs = map.getDouble("adRefreshIntervalMs").toLong())

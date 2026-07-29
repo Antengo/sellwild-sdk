@@ -284,6 +284,11 @@ export interface SellwildConfig {
   appBundleId?: string    // iOS bundle ID or Android package name (e.g., "com.mycompany.myapp")
   appStoreUrl?: string    // App Store or Google Play URL for the host app
 
+  // Geo — partner-supplied location. On native (iOS/Android) it is emitted as
+  // OpenRTB device.geo and seeds SellwildGeoStore; `state` is intended to key
+  // per-state listing caches. Bridged to native via the config prop.
+  geo?: SellwildGeo
+
   // Mobile ad controls — toggled remotely via CMS app config
   enableInterstitial?: boolean       // Allow interstitial ads
   enableFullscreenVideo?: boolean    // Allow fullscreen video takeovers
@@ -292,9 +297,46 @@ export interface SellwildConfig {
 
   // Debug
   debug: boolean
+  // Server-side auction debug — adds ext.prebid.debug=1 + returnallbidstatus to
+  // the Prebid Server auction so the response carries the full debug block
+  // (per-bidder status, resolvedrequest, cache calls). Heavier responses; leave
+  // off in production. Independent of `debug` (SDK log verbosity).
+  pbsDebug?: boolean
   membershipType: string
   minBidCacheTTL: number
   eventHistoryTTL: number
+}
+
+/**
+ * Partner-supplied geo, emitted as OpenRTB device.geo on native Prebid
+ * auctions. All fields optional. On native it also seeds SellwildGeoStore for
+ * non-ad consumers. `state` maps to OpenRTB `region`.
+ */
+export interface SellwildGeo {
+  country?: string  // ISO-3166-1 alpha-3, e.g. "USA"
+  state?: string    // -> ortb device.geo.region; also keys per-state caches
+  city?: string
+  zip?: string
+  metro?: string    // DMA
+  lat?: number
+  lon?: number
+  type?: number     // ortb geo.type: 1 = GPS, 2 = IP, 3 = user
+}
+
+/** One id value within a `SellwildEid` source (OpenRTB user.ext.eids[].uids[]). */
+export interface SellwildEidUid {
+  id: string
+  atype: number                    // 1 = cookie/web, 2 = in-app device id, 3 = person-based
+  ext?: Record<string, unknown>    // provider-specific, e.g. { rtiPartner: "TDID" }
+}
+
+/**
+ * One identity source for OpenRTB `user.ext.eids` (e.g. uidapi.com, id5-sync.com,
+ * liveramp.com). Supplied at runtime via `setExternalUserIds`.
+ */
+export interface SellwildEid {
+  source: string
+  uids: SellwildEidUid[]
 }
 
 export type PartialSellwildConfig = Partial<SellwildConfig> & {

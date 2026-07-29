@@ -17,7 +17,7 @@ class SellwildPrebidMobileTest {
             ),
         )
 
-        val resolved = SellwildPrebidMobile.resolvePrebidServer(config)
+        val resolved = SellwildPrebidMobile.resolvePrebidServer(config, remoteRoot = null)
 
         assertEquals("https://prebid.example.com/openrtb2/auction", resolved.url)
         assertEquals("abc-123", resolved.accountId)
@@ -40,7 +40,7 @@ class SellwildPrebidMobileTest {
             remoteJson = raw.toString(),
         )
 
-        val resolved = SellwildPrebidMobile.resolvePrebidServer(config)
+        val resolved = SellwildPrebidMobile.resolvePrebidServer(config, remoteRoot = raw)
 
         assertEquals("https://prebid-cdn.example.com/openrtb2/auction", resolved.url)
         assertEquals("cdn-account", resolved.accountId)
@@ -50,7 +50,7 @@ class SellwildPrebidMobileTest {
     fun `resolvePrebidServer falls back to Sellwild defaults`() {
         val config = SellwildConfig(partnerCode = "weatherbug")
 
-        val resolved = SellwildPrebidMobile.resolvePrebidServer(config)
+        val resolved = SellwildPrebidMobile.resolvePrebidServer(config, remoteRoot = null)
 
         assertEquals("https://prebid.sellwild.com/openrtb2/auction", resolved.url)
         assertEquals("weatherbug", resolved.accountId)

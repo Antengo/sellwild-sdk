@@ -149,8 +149,10 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
         if let v = map["slug"] as? String { cfg.slug = v }
         if let v = map["appBundleId"] as? String { cfg.appBundleId = v }
         if let v = map["appStoreUrl"] as? String { cfg.appStoreUrl = v }
+        if let geoMap = map["geo"] as? [String: Any] { cfg.geo = SellwildGeo(bridged: geoMap) }
         if let v = map["gamTag"] as? String { cfg.gamTag = v }
         if let v = map["debug"] as? Bool { cfg.debug = v }
+        if let v = map["pbsDebug"] as? Bool { cfg.pbsDebug = v }
         if let v = map["adRefreshMax"] as? Int { cfg.adRefreshMax = v }
         if let v = map["adRefreshMaxMobile"] as? Int { cfg.adRefreshMaxMobile = v }
         if let v = map["listingsUrl"] as? String { cfg.listingsUrl = v }

@@ -186,6 +186,10 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
             val appStoreUrl = if (map.hasKey("appStoreUrl")) map.getString("appStoreUrl") else null
             val gamTag = if (map.hasKey("gamTag")) map.getString("gamTag") else null
             val debug = map.hasKey("debug") && map.getBoolean("debug")
+            val pbsDebug = map.hasKey("pbsDebug") && map.getBoolean("pbsDebug")
+            val geo = RnGeo.readableMapToGeo(
+                if (map.hasKey("geo") && !map.isNull("geo")) map.getMap("geo") else null
+            )
             val adRefreshMax = if (map.hasKey("adRefreshMax")) map.getInt("adRefreshMax") else 0
             val adRefreshMaxMobile = if (map.hasKey("adRefreshMaxMobile")) map.getInt("adRefreshMaxMobile") else 0
             val adRefreshIntervalMs = if (map.hasKey("adRefreshIntervalMs")) map.getDouble("adRefreshIntervalMs").toLong() else 30_000L
@@ -202,6 +206,8 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
                 appStoreUrl = appStoreUrl,
                 gamTag = gamTag,
                 debug = debug,
+                pbsDebug = pbsDebug,
+                geo = geo,
                 adRefreshMax = adRefreshMax,
                 adRefreshMaxMobile = adRefreshMaxMobile,
                 adRefreshIntervalMs = adRefreshIntervalMs,

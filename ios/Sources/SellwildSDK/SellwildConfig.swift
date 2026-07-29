@@ -148,6 +148,13 @@ public struct SellwildConfig: Codable {
     /// App Store URL of the host app. Populates `ortb2.app.storeurl`.
     public var appStoreUrl: String?
 
+    // MARK: Geo
+    /// Partner-supplied geo (state, zip, city, lat/lon, …). Emitted as OpenRTB
+    /// `device.geo` on native Prebid auctions, and its `state` keys per-state
+    /// listing caches. Set via the `configure` overrides closure, or update at
+    /// runtime with `SellwildPrebidMobile.setGeo(_:)`.
+    public var geo: SellwildGeo?
+
     // MARK: Mobile ad controls (toggled remotely via CMS app config)
     public var enableInterstitial: Bool
     public var enableFullscreenVideo: Bool
@@ -168,6 +175,12 @@ public struct SellwildConfig: Codable {
 
     // MARK: Debug
     public var debug: Bool
+    /// Server-side auction debug. When true, the SDK flips Prebid Mobile's
+    /// `pbsDebug`, adding `ext.prebid.debug=1` + `returnallbidstatus` to the
+    /// auction so the response carries the full debug block (per-bidder status,
+    /// resolvedrequest, cache calls). Heavier responses — leave off in
+    /// production. Independent of `debug` (which controls SDK log verbosity).
+    public var pbsDebug: Bool
 
     public init(
         partnerCode: String,
@@ -217,9 +230,11 @@ public struct SellwildConfig: Codable {
         self.videoTakeoversPerSession = 0
         self.appBundleId = nil
         self.appStoreUrl = nil
+        self.geo = nil
         self.prebidServer = nil
         self.widgetJsUrl = nil
         self.debug = false
+        self.pbsDebug = false
         self.remoteJSON = nil
     }
 }

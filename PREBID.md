@@ -223,6 +223,188 @@ bannerUnit.fetchDemand(gamBannerView) {
 
 ---
 
+## External User IDs (eids) — partner-supplied
+
+Authenticated universal IDs (UID2, ID5, LiveRamp RampID, …) restore addressability and
+materially lift CPMs — but they are minted from the user's **email / login / consent**,
+which only your app holds. **The SDK cannot generate them.** You obtain the ID(s) from
+your identity provider and hand them to the SDK, which emits them as OpenRTB
+`user.ext.eids` on every native Prebid auction (Mode C).
+
+> This is **required partner wiring** — Sellwild provides the rail; you supply the IDs.
+
+### Wiring
+
+Set the IDs **once per user session**, after the SDK is configured/bootstrapped and
+before (or at) your first ad load. Prebid Mobile does **not** persist eids across app
+restarts — re-set them each launch after you resolve the user's identity.
+
+**iOS**
+```swift
+import SellwildSDK
+
+SellwildPrebidMobile.setExternalUserIds([
+    SellwildEid(source: "uidapi.com", uids: [
+        SellwildEidUID(id: uid2Token, atype: 3)                    // person-based
+    ]),
+    SellwildEid(source: "id5-sync.com", uids: [
+        SellwildEidUID(id: id5Id, atype: 1, ext: ["linkType": 2])
+    ]),
+])
+```
+
+**Android**
+```kotlin
+import com.sellwild.sdk.SellwildPrebidMobile
+import com.sellwild.sdk.SellwildEid
+import com.sellwild.sdk.SellwildEidUid
+
+SellwildPrebidMobile.setExternalUserIds(listOf(
+    SellwildEid("uidapi.com", listOf(
+        SellwildEidUid(uid2Token, atype = 3)
+    )),
+    SellwildEid("id5-sync.com", listOf(
+        SellwildEidUid(id5Id, atype = 1, ext = mapOf("linkType" to 2))
+    )),
+))
+```
+
+Pass an empty array/list to clear previously set IDs (e.g. on logout).
+
+### `atype` (OpenRTB agent type)
+
+| Value | Meaning |
+|---|---|
+| 1 | Cookie / web |
+| 2 | In-app device ID (IFA/DPID) |
+| 3 | Person-based (authenticated — most universal IDs) |
+
+Use the value your ID provider specifies; for an authenticated login-based ID, `3` is typical.
+
+### Server-side permission
+
+Emitting eids is necessary but not always sufficient: which bidders receive which eids is
+governed by **eid permissions** in the Prebid Server stored request. By default Prebid
+Server forwards eids to all bidders; if a bidder requires an explicit grant, coordinate
+with your Prebid Server owner. Confirm delivery by inspecting a debug auction's resolved
+request for `user.ext.eids`.
+
+### What the SDK sources vs. what you supply
+
+- **You (partner) supply** authenticated IDs (UID2/ID5/RampID) — the SDK cannot mint them.
+- **Device-graph IDs** (e.g. Lotame Panorama) that Sellwild can resolve are a planned SDK
+  enhancement; until then, pass any resolved ID through the same `setExternalUserIds` API.
+
+---
+
+## Geo (`device.geo`) — partner-supplied
+
+Weather/utility apps usually know the user's location before the ad SDK would.
+Passing it in lets DSPs value the impression on real geo instead of coarse IP,
+and exposes `state` to non-ad consumers (e.g. per-state listing caches).
+
+### Type
+
+`SellwildGeo` — all fields optional; only what you set is sent. Maps to OpenRTB
+`device.geo` (note `state` → `region`):
+
+| field | OpenRTB | notes |
+|---|---|---|
+| `country` | `geo.country` | ISO-3166-1 alpha-3, e.g. `USA` |
+| `state` | `geo.region` | also the key for per-state consumers |
+| `city` | `geo.city` | |
+| `zip` | `geo.zip` | |
+| `metro` | `geo.metro` | DMA |
+| `lat` / `lon` | `geo.lat` / `geo.lon` | |
+| `type` | `geo.type` | 1 = GPS, 2 = IP, 3 = user |
+
+### Wiring
+
+Set at configure time (seeds both the auction and the shared store):
+
+```swift
+config.geo = SellwildGeo(country: "USA", state: "NY", zip: "10001")
+```
+```kotlin
+config = config.copy(geo = SellwildGeo(country = "USA", state = "NY", zip = "10001"))
+```
+
+Or update at runtime — re-emits the combined ORTB config, preserving
+`app.publisher.id`:
+
+```swift
+SellwildPrebidMobile.setGeo(SellwildGeo(state: "CA"))
+```
+```kotlin
+SellwildPrebidMobile.setGeo(SellwildGeo(state = "CA"))
+```
+
+### Reading it outside the ad path
+
+The current geo lives in a process-wide, thread-safe store — readable by the
+listings feed or host-app code, not just the Prebid auction:
+
+```swift
+let state = SellwildGeoStore.current?.state
+```
+```kotlin
+val state = SellwildGeoStore.current?.state
+```
+
+> **React Native:** the `pbsDebug` flag is bridged today. `geo` passthrough
+> (nested marshalling) and a JS runtime `setGeo` are pending — RN's ad bridge is
+> view-manager-only, so a callable `setGeo` needs a new native method module.
+
+## Debug flags — `debug` vs `pbsDebug`
+
+Two independent, locally-configurable toggles (also settable remotely via the
+CDN `DEBUG` / `PBS_DEBUG` keys):
+
+| flag | effect |
+|---|---|
+| `debug` | Raises Prebid Mobile SDK **log verbosity** and enables the SDK's own render/auction diagnostics. |
+| `pbsDebug` | Flips Prebid Mobile's `pbsDebug` → adds `ext.prebid.debug=1` + `returnallbidstatus` to the auction so the **response** carries the full server debug block (per-bidder status, `resolvedrequest`, cache calls). Heavier responses — leave OFF in production. |
+
+`pbsDebug` surfaces on-device the same auction detail you'd otherwise only get
+from a `debug=1` server curl. The two are orthogonal — verbose logs without heavy
+responses, or vice-versa.
+
+```swift
+config.debug = true      // SDK logs
+config.pbsDebug = true   // server-side auction debug block
+```
+```kotlin
+config = config.copy(debug = true, pbsDebug = true)
+```
+
+## Outstream Video
+
+The SDK supports **outstream (in-banner) video** in the standard banner slot (e.g. 300×250) — autoplay muted, plays when in view. It's **off by default** and toggled entirely from remote config, so you enable/disable it per zone from the CDN with **no app release**.
+
+**Enable (remote config / CDN):**
+```json
+{ "VIDEO_ENABLED": true }
+```
+```json
+{ "VIDEO_ENABLED_BY_ZONE": { "43": true } }
+```
+When on, the SDK requests a multiformat (banner + video) impression; when off, it's banner-only (unchanged). Precedence mirrors `AD_STACK`: global flag, then per-zone.
+
+**Rendering depends on the ad stack (`AD_STACK`):**
+
+| Stack | Renders via | Extra setup |
+|-------|-------------|-------------|
+| `prebidOnly` | Prebid's own renderer | none — Prebid plays the outstream video itself |
+| `both` (default) | GAM | **GAM outstream line item / renderer required** |
+
+On `both` zones, provision the GAM outstream creative **before** enabling video, or a winning video bid can win-but-not-render (lost impression). On `prebidOnly` zones, just flip the flag.
+
+**SDK video defaults:** mp4; VAST 2.0–4.0; autoplay sound-off; OMID + MRAID (no VPAID); in-banner / standalone; 5–30s.
+
+**Requirements:** an SDK version that ships outstream video; SSPs with active video seats.
+
+---
+
 ## Choosing Between Modes
 
 | Scenario | Recommended Mode |

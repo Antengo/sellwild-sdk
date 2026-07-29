@@ -143,6 +143,7 @@ object SellwildSDK {
 
             // Debug
             debug = raw.optBooleanOrNull("DEBUG") ?: base.debug,
+            pbsDebug = raw.optBooleanOrNull("PBS_DEBUG") ?: base.pbsDebug,
         )
     }
 }

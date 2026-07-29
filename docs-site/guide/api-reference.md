@@ -222,6 +222,16 @@ Responses are cached by URL. Subsequent calls with the same config return the ca
 
 ---
 
+### SellwildPrebidMobile.setExternalUserIds(_:) — External User IDs (eids)
+
+```swift
+static func setExternalUserIds(_ eids: [SellwildEid])
+```
+
+Sets authenticated universal IDs (UID2, ID5, LiveRamp RampID, …) as OpenRTB `user.ext.eids`. Build `SellwildEid(source:uids:)` from `SellwildEidUID(id:atype:ext:)`. Set once per session; not persisted across app restarts; pass `[]` to clear.
+
+See **[External User IDs (eids)](./prebid-server.md#external-user-ids-eids)** for full wiring and server-side eid permissions.
+
 ## Android (Kotlin)
 
 ### SellwildConfig
@@ -357,6 +367,16 @@ client.clearCache()
 | `clearCache()` | `Unit` | Clear the response cache. |
 
 ---
+
+### SellwildPrebidMobile.setExternalUserIds — External User IDs (eids)
+
+```kotlin
+fun setExternalUserIds(eids: List<SellwildEid>)
+```
+
+Sets authenticated universal IDs (UID2, ID5, LiveRamp RampID, …) as OpenRTB `user.ext.eids`. Build `SellwildEid(source, uids)` from `SellwildEidUid(id, atype, ext?)`. Set once per session; not persisted across app restarts; pass `emptyList()` to clear.
+
+See **[External User IDs (eids)](./prebid-server.md#external-user-ids-eids)** for full wiring and server-side eid permissions.
 
 ## React Native (TypeScript)
 
@@ -719,6 +739,63 @@ class PrebidServerConfig {
 ```
 
 ---
+
+## Geo & debug flags (all platforms)
+
+### `SellwildGeo`
+
+Partner-supplied location, emitted as OpenRTB `device.geo` on native Prebid
+auctions and stored in `SellwildGeoStore` for non-ad consumers. All fields
+optional; `state` maps to OpenRTB `region`.
+
+| field | type | OpenRTB |
+|---|---|---|
+| `country` | string | `geo.country` (ISO-3, e.g. `USA`) |
+| `state` | string | `geo.region` |
+| `city` | string | `geo.city` |
+| `zip` | string | `geo.zip` |
+| `metro` | string | `geo.metro` |
+| `lat` / `lon` | number | `geo.lat` / `geo.lon` |
+| `type` | int | `geo.type` (1 = GPS, 2 = IP, 3 = user) |
+
+### Setting geo
+
+- **Configure time** — set `config.geo` (iOS `SellwildConfig.geo`, Android
+  `SellwildConfig(geo = …)`, RN `config.geo` prop). Seeds the auction and store.
+- **Runtime** — `SellwildPrebidMobile.setGeo(_:)` (iOS / Android) or
+  `setGeo(geo)` from `@sellwild/react-native-sdk`. Pass `nil` / `null` / `{}` to clear.
+
+```swift
+SellwildPrebidMobile.setGeo(SellwildGeo(state: "NY", zip: "10001"))
+```
+```kotlin
+SellwildPrebidMobile.setGeo(SellwildGeo(state = "NY", zip = "10001"))
+```
+```ts
+import { setGeo } from '@sellwild/react-native-sdk'
+setGeo({ state: 'NY', zip: '10001' })
+```
+
+### Reading geo outside the ad path
+
+`SellwildGeoStore.current` — process-wide, thread-safe (iOS / Android).
+
+```swift
+let state = SellwildGeoStore.current?.state
+```
+```kotlin
+val state = SellwildGeoStore.current?.state
+```
+
+### Debug flags
+
+Both are locally settable on `SellwildConfig` and remotely via CDN keys
+(`DEBUG` / `PBS_DEBUG`):
+
+| flag | effect |
+|---|---|
+| `debug` | Prebid Mobile log verbosity + the SDK's render/auction diagnostics. |
+| `pbsDebug` | Adds `ext.prebid.debug=1` + `returnallbidstatus` to the auction so the response carries the full server debug block (per-bidder status, `resolvedrequest`, cache calls). Heavier responses — off in production. |
 
 ## Core Types
 

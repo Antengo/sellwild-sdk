@@ -139,6 +139,12 @@ data class SellwildConfig(
     val appBundleId: String? = null,   // Android package name (e.g. "com.mycompany.myapp")
     val appStoreUrl: String? = null,   // Google Play Store URL for the host app
 
+    // Geo — partner-supplied location (state, zip, city, lat/lon). Emitted as
+    // OpenRTB device.geo on native Prebid auctions; its `state` keys per-state
+    // listing caches. Set via the configure overrides, or update at runtime with
+    // SellwildPrebidMobile.setGeo(...).
+    val geo: SellwildGeo? = null,
+
     // Prebid Server S2S (optional)
     // Route all Prebid.js bidder calls through a Prebid Server instance instead of running
     // client-side adapters in the WebView. Solves cookie/IDFA limitations.
@@ -147,6 +153,13 @@ data class SellwildConfig(
 
     // Debug
     val debug: Boolean = false,
+    /**
+     * Server-side auction debug. When true, flips Prebid Mobile's pbsDebug,
+     * adding `ext.prebid.debug=1` + `returnallbidstatus` so the PBS response
+     * carries the full debug block. Heavier responses; leave off in production.
+     * Independent of [debug] (log verbosity).
+     */
+    val pbsDebug: Boolean = false,
 ) {
     /**
      * Effective listings URL. Returns [listingsUrl] when set, otherwise derives
