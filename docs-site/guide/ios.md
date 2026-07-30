@@ -216,6 +216,29 @@ The `didTapListing` delegate method returns a `Bool`:
 - **Return `false`** (recommended): The SDK opens the listing URL in `SFSafariViewController`. This matches the WebView widget behavior.
 - **Return `true`**: You handle navigation yourself. The SDK does nothing.
 
+### Embedding in a Scroll View (1.4.0+)
+
+To place the feed inside a parent `UIScrollView` (a single-scroll page — e.g. alongside a Taboola feed), disable the feed's own scrolling and let the host size its container:
+
+```swift
+feed.scrollEnabled = false
+```
+
+With `scrollEnabled = false`:
+
+- The feed **self-sizes** via `intrinsicContentSize`, so in Auto Layout you can pin all four edges and the feed reports its own height — no manual height constraint needed.
+- If you're not using Auto Layout, observe the content-height callback and size the container yourself:
+
+```swift
+func sellwildFeed(_ feedView: SellwildFeedView, didChangeContentHeight height: CGFloat) {
+    feedHeightConstraint.constant = height
+}
+```
+
+You can also read the current height imperatively via `feed.contentHeight`.
+
+> **Caveats.** Disabling scroll turns **off** pull-to-refresh (it needs the scroll gesture) — the host must drive refresh (e.g. call `feed.refresh()` from your own control). The feed also renders **all** rows (no cell virtualization), so keep embedded feeds reasonably sized. `scrollEnabled` defaults to `true`; full-screen integrations are unaffected.
+
 ### Feed Configuration
 
 The feed respects these CDN config keys:

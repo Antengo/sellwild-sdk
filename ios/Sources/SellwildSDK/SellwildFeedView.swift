@@ -36,6 +36,11 @@ public protocol SellwildFeedViewDelegate: AnyObject {
     func sellwildFeed(_ feed: SellwildFeedView, didRecordAdClickForZoneId zoneId: String)
     func sellwildFeedDidLoad(_ feed: SellwildFeedView)
     func sellwildFeed(_ feed: SellwildFeedView, didFailWithError message: String)
+    /// Called whenever the feed's rendered content height changes (deduped
+    /// against the last reported value). Use this to size the feed's
+    /// container when embedding it inside a parent scroll view with
+    /// `scrollEnabled = false`. `height` is in points.
+    func sellwildFeed(_ feed: SellwildFeedView, didChangeContentHeight height: CGFloat)
 }
 
 public extension SellwildFeedViewDelegate {
@@ -44,6 +49,7 @@ public extension SellwildFeedViewDelegate {
     func sellwildFeed(_ feed: SellwildFeedView, didRecordAdClickForZoneId zoneId: String) {}
     func sellwildFeedDidLoad(_ feed: SellwildFeedView) {}
     func sellwildFeed(_ feed: SellwildFeedView, didFailWithError message: String) {}
+    func sellwildFeed(_ feed: SellwildFeedView, didChangeContentHeight height: CGFloat) {}
 }
 
 public final class SellwildFeedView: UIView {
@@ -52,6 +58,26 @@ public final class SellwildFeedView: UIView {
 
     public weak var delegate: SellwildFeedViewDelegate?
     public private(set) var config: SellwildConfig
+
+    /// Disable the feed's own scrolling so it can be embedded inside a parent
+    /// `UIScrollView` (single-scroll pages, e.g. alongside a Taboola feed).
+    /// When `false` the feed renders every row (no virtualization) and
+    /// self-sizes via `intrinsicContentSize`; pull-to-refresh is also
+    /// detached (it needs the scroll gesture), so the host must drive refresh.
+    /// Defaults to `true` — existing full-screen integrations are unaffected.
+    public var scrollEnabled: Bool = true {
+        didSet {
+            tableView.isScrollEnabled = scrollEnabled
+            // Pull-to-refresh needs the scroll gesture; detach it when scroll
+            // is off and restore it when scroll is back on.
+            tableView.refreshControl = scrollEnabled ? refreshControl : nil
+            invalidateIntrinsicContentSize()
+        }
+    }
+
+    /// The feed's current rendered content height in points, for imperative
+    /// reads. Also surfaced push-style via `sellwildFeed(_:didChangeContentHeight:)`.
+    public var contentHeight: CGFloat { tableView.contentSize.height }
 
     // MARK: Private
 
@@ -62,6 +88,13 @@ public final class SellwildFeedView: UIView {
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let refreshControl = UIRefreshControl()
     private let apiClient = SellwildAPIClient()
+
+    /// KVO token for `tableView.contentSize`, driving the content-height
+    /// callback and self-sizing. Torn down in `deinit`.
+    private var contentSizeObservation: NSKeyValueObservation?
+    /// Last height reported to the delegate, so we dedupe repeated identical
+    /// heights. `-1` means "nothing reported yet".
+    private var lastReportedHeight: CGFloat = -1
 
     // MARK: Init
 
@@ -115,6 +148,29 @@ public final class SellwildFeedView: UIView {
     /// Force a re-fetch. Wired to the pull-to-refresh control.
     @objc public func refresh() { load() }
 
+    // MARK: Self-sizing
+
+    /// When scrolling is disabled we report the full table content height as
+    /// the view's intrinsic size, so Auto Layout hosts get a self-sizing feed
+    /// for free. When scrolling is enabled we defer to the default behaviour.
+    public override var intrinsicContentSize: CGSize {
+        guard !scrollEnabled else { return super.intrinsicContentSize }
+        return CGSize(width: UIView.noIntrinsicMetric, height: tableView.contentSize.height)
+    }
+
+    private func contentSizeDidChange() {
+        let height = tableView.contentSize.height
+        guard height != lastReportedHeight else { return }
+        lastReportedHeight = height
+        // Keep the self-sizing intrinsic size in sync when scroll is off.
+        if !scrollEnabled { invalidateIntrinsicContentSize() }
+        delegate?.sellwildFeed(self, didChangeContentHeight: height)
+    }
+
+    deinit {
+        contentSizeObservation?.invalidate()
+    }
+
     // MARK: Setup
 
     private func setupTableView() {
@@ -129,6 +185,11 @@ public final class SellwildFeedView: UIView {
         tableView.register(AdRowCell.self, forCellReuseIdentifier: AdRowCell.reuseId)
         tableView.refreshControl = refreshControl
         refreshControl.addTarget(self, action: #selector(refresh), for: .valueChanged)
+        // Observe content size so we can report height changes to the host
+        // and self-size when scrolling is disabled.
+        contentSizeObservation = tableView.observe(\.contentSize, options: [.new]) { [weak self] _, _ in
+            self?.contentSizeDidChange()
+        }
         addSubview(tableView)
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: topAnchor),

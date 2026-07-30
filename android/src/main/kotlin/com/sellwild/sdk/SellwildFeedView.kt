@@ -75,9 +75,53 @@ class SellwildFeedView @JvmOverloads constructor(
         fun onAdClicked(zoneId: String) {}
         fun onLoad() {}
         fun onError(message: String) {}
+        /**
+         * Called whenever the feed's rendered content height changes (deduped
+         * against the last reported value). Use this to size the feed's
+         * container when embedding it inside a parent scroll view with
+         * `scrollEnabled = false`. [heightDp] is in density-independent pixels.
+         */
+        fun onContentHeightChanged(feedView: SellwildFeedView, heightDp: Int) {}
     }
 
     var listener: Listener? = null
+
+    /**
+     * Disable the feed's own scrolling so it can be embedded inside a parent
+     * scroll view (single-scroll pages, e.g. alongside a Taboola feed). When
+     * `false` the recycler switches to `WRAP_CONTENT` and renders every row
+     * (no virtualization), and pull-to-refresh is disabled (it needs the
+     * scroll gesture), so the host must drive refresh. Defaults to `true` —
+     * existing full-screen integrations are unaffected.
+     */
+    var scrollEnabled: Boolean = true
+        set(value) {
+            field = value
+            recycler.isNestedScrollingEnabled = value
+            refreshLayout.isEnabled = value
+            // A MATCH_PARENT recycler clips to the viewport and virtualizes
+            // rows; when embedded we want it to wrap its content so the parent
+            // can scroll it fully. A LinearLayoutManager recycler with
+            // WRAP_CONTENT height measures and lays out all items.
+            val h = if (value) {
+                ViewGroup.LayoutParams.MATCH_PARENT
+            } else {
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+            recycler.layoutParams = recycler.layoutParams.also { it.height = h }
+            refreshLayout.layoutParams = refreshLayout.layoutParams.also { it.height = h }
+            recycler.requestLayout()
+        }
+
+    /**
+     * The feed's current rendered content height in dp, for imperative reads.
+     * Also surfaced push-style via [Listener.onContentHeightChanged].
+     */
+    val contentHeightDp: Int
+        get() = (recycler.measuredHeight / context.resources.displayMetrics.density).toInt()
+
+    /** Last height reported to the listener, so we dedupe repeated values. */
+    private var lastReportedHeightDp: Int = -1
 
     private var config: SellwildConfig? = null
     private var schedule: String = DEFAULT_SCHEDULE
@@ -115,8 +159,22 @@ class SellwildFeedView @JvmOverloads constructor(
             clipToPadding = false
         }
 
+        // Report content-height changes to the host so it can size the feed's
+        // container when embedded (scrollEnabled = false). Fires on any layout
+        // pass where the measured height differs; the report itself dedupes.
+        recycler.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            if (bottom - top != oldBottom - oldTop) reportContentHeight()
+        }
+
         refreshLayout.addView(recycler)
         addView(refreshLayout)
+    }
+
+    private fun reportContentHeight() {
+        val heightDp = contentHeightDp
+        if (heightDp == lastReportedHeightDp) return
+        lastReportedHeightDp = heightDp
+        listener?.onContentHeightChanged(this, heightDp)
     }
 
     /** Attach a [SellwildConfig] without kicking off a fetch. */
