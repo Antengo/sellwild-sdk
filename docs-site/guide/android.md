@@ -229,6 +229,10 @@ The feed respects these CDN config keys:
 | `BG_COLOR` | Background color (hex, e.g., `"#F5F5F5"`) |
 | `MOBILE_ZIDS` | Array of zone IDs for interleaved ads |
 
+### Per-platform ad zones
+
+`MOBILE_ZID` (feed zones) and `MOBILE_BANNER_ZID` (320×50 banner) can resolve to Android-specific Prebid stored-impression IDs. On Android the SDK uses `MOBILE_ZID_ANDROID` / `MOBILE_BANNER_ZID_ANDROID` when present and non-empty, otherwise it falls back to the unsuffixed key. The pick is made in the native Kotlin mapper keyed on the runtime OS, so React Native and Flutter apps running on Android resolve the `_ANDROID` keys automatically. If no suffixed key is set, behavior is unchanged. See [Configuration → Per-platform ad zones](/guide/configuration#per-platform-ad-zones).
+
 ---
 
 ## AndroidManifest Configuration

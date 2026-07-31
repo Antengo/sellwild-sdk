@@ -102,8 +102,20 @@ object SellwildSDK {
             // Ad zones
             bannerZid = raw.optStringOrNull("BANNER_ZID") ?: base.bannerZid,
             bottomBannerZid = raw.optStringOrNull("BOTTOM_BANNER_ZID") ?: base.bottomBannerZid,
-            mobileBannerZid = raw.optStringOrNull("MOBILE_BANNER_ZID") ?: base.mobileBannerZid,
-            mobileZids = raw.optStringListOrNull("MOBILE_ZID") ?: base.mobileZids,
+            // Per-platform placement resolution (this mapper only ever runs on
+            // Android — the Kotlin SDK — so RN / Flutter hosts on Android resolve
+            // here too). Three tiers, most specific first, per placement:
+            //   1. per-placement per-platform (MOBILE_ZID_ANDROID / MOBILE_BANNER_ZID_ANDROID)
+            //   2. platform-wide "ALL" (MOBILE_ZID_ALL_ANDROID — one value every
+            //      mobile placement on this OS falls back to)
+            //   3. shared base (MOBILE_ZID / MOBILE_BANNER_ZID)
+            // Backward compatible: no suffixed key = today's behavior unchanged.
+            mobileBannerZid = raw.optStringNonEmptyOrNull("MOBILE_BANNER_ZID_ANDROID")
+                ?: raw.optStringNonEmptyOrNull("MOBILE_ZID_ALL_ANDROID")
+                ?: raw.optStringOrNull("MOBILE_BANNER_ZID") ?: base.mobileBannerZid,
+            mobileZids = raw.optStringListNonEmptyOrNull("MOBILE_ZID_ANDROID")
+                ?: raw.optStringNonEmptyOrNull("MOBILE_ZID_ALL_ANDROID")?.let { listOf(it) }
+                ?: raw.optStringListOrNull("MOBILE_ZID") ?: base.mobileZids,
             hideBannerTop = raw.optBooleanOrNull("HIDE_BANNER_TOP") ?: base.hideBannerTop,
             hideBannerBottom = raw.optBooleanOrNull("HIDE_BANNER_BOTTOM") ?: base.hideBannerBottom,
             gamTag = raw.optStringOrNull("GAM") ?: base.gamTag,
@@ -165,3 +177,11 @@ private fun JSONObject.optStringListOrNull(key: String): List<String>? {
     val arr = optJSONArray(key) ?: return null
     return List(arr.length()) { i -> arr.optString(i) }
 }
+
+/** Like [optStringOrNull] but also treats an empty string as absent. */
+private fun JSONObject.optStringNonEmptyOrNull(key: String): String? =
+    optStringOrNull(key)?.ifEmpty { null }
+
+/** Like [optStringListOrNull] but also treats an empty list as absent. */
+private fun JSONObject.optStringListNonEmptyOrNull(key: String): List<String>? =
+    optStringListOrNull(key)?.ifEmpty { null }

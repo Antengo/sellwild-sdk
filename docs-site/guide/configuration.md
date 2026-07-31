@@ -417,7 +417,10 @@ The CDN may carry any subset of these keys. Unknown keys are ignored, so the CMS
 | `OVERLAY_TITLE`, `WATERMARK` | matching camelCase | bool |
 | `WATERMARK_TITLE` | `watermarkTitle` | string |
 | `BANNER_ZID`, `BOTTOM_BANNER_ZID`, `MOBILE_BANNER_ZID` | matching camelCase | string |
+| `MOBILE_BANNER_ZID_IOS`, `MOBILE_BANNER_ZID_ANDROID` | `mobileBannerZid` (per-OS) | string |
 | `MOBILE_ZID` | `mobileZids` | string[] |
+| `MOBILE_ZID_IOS`, `MOBILE_ZID_ANDROID` | `mobileZids` (per-OS) | string[] |
+| `MOBILE_ZID_ALL_IOS`, `MOBILE_ZID_ALL_ANDROID` | platform-wide fallback for all mobile placements | string |
 | `HIDE_BANNER_TOP`, `HIDE_BANNER_BOTTOM`, `DISABLE_GPT`, `AD_DISABLE_DISPLAY` | matching camelCase | bool |
 | `GAM` | `gamTag` | string |
 | `AD_REFRESH_MAX`, `AD_REFRESH_MAX_MOBILE`, `MAX_FAILED_AUCTIONS` | matching camelCase | int |
@@ -429,6 +432,37 @@ The CDN may carry any subset of these keys. Unknown keys are ignored, so the CMS
 | `INTERSTITIALS_PER_SESSION`, `VIDEO_TAKEOVERS_PER_SESSION` | matching camelCase | int |
 | `BOLTIVE`, `LOTAME` | matching camelCase | bool |
 | `BOLTIVE_CLIENT_ID` | `boltiveClientId` | string |
+
+---
+
+## Per-platform ad zones
+
+The two mobile zone keys — `MOBILE_ZID` (interleaved feed ad zones) and `MOBILE_BANNER_ZID` (the mobile banner) — can resolve to **different Prebid Server stored-impression IDs on iOS and Android**. Resolution is **three tiers, most specific first**, per placement:
+
+| Tier | Key(s) | Scope |
+|---|---|---|
+| 1 — per-placement, per-OS | `MOBILE_ZID_IOS` / `_ANDROID`, `MOBILE_BANNER_ZID_IOS` / `_ANDROID` | one placement on one OS |
+| 2 — platform-wide "ALL" | `MOBILE_ZID_ALL_IOS` / `MOBILE_ZID_ALL_ANDROID` | every mobile placement (feed + banner) on one OS |
+| 3 — shared base | `MOBILE_ZID` / `MOBILE_BANNER_ZID` | all platforms (today's behavior) |
+
+For each placement on the device's OS: use the tier-1 per-placement key if set & non-empty; else the tier-2 platform-wide `*_ALL_*` value; else the tier-3 shared base. So you can set **one `*_ALL_*` value and every placement on that OS uses it**, and still override any individual placement — "all the same per platform, or per-placement when you want."
+
+The pick happens in the native mapper (Swift on iOS, Kotlin on Android), so it is keyed on the **runtime OS, not the SDK type**. React Native and Flutter inherit their host OS — an RN app on an iPhone resolves the iOS keys; the same app on Android resolves the Android keys.
+
+**Backward compatible**: with no suffixed/ALL keys, resolution falls through to the unsuffixed base, so existing CDN documents behave exactly as before.
+
+**Naming**: placements are dynamic-/multi-size now, so the size no longer belongs in the stored-imp id — name the per-platform imps **size-less** (e.g. `weatherbug-mobile`, `weatherbug-mobile-ios`, `weatherbug-mobile-android`). The legacy `…-300x250` imp keeps working for placements not yet migrated.
+
+```json
+{
+  "MOBILE_ZID": ["weatherbug-mobile-300x250"],
+  "MOBILE_ZID_ALL_IOS": "weatherbug-mobile-ios",
+  "MOBILE_ZID_ALL_ANDROID": "weatherbug-mobile-android",
+  "MOBILE_BANNER_ZID_IOS": "weatherbug-banner-ios"
+}
+```
+
+With the document above — **iOS**: the feed uses `weatherbug-mobile-ios` (tier-2 ALL) and the banner uses `weatherbug-banner-ios` (tier-1 override wins). **Android**: feed + banner both use `weatherbug-mobile-android` (tier-2 ALL). Neither OS falls to the shared `MOBILE_ZID`, because an ALL value is set for both.
 
 ---
 

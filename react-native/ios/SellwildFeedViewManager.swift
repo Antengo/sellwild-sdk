@@ -159,8 +159,17 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
         if let v = map["priceColor"] as? String { cfg.priceColor = v }
         if let v = map["bannerZid"] as? String { cfg.bannerZid = v }
         if let v = map["bottomBannerZid"] as? String { cfg.bottomBannerZid = v }
-        if let v = map["mobileBannerZid"] as? String { cfg.mobileBannerZid = v }
-        if let v = map["mobileZids"] as? [String] { cfg.mobileZids = v }
+
+        // mobileZids / mobileBannerZid are resolved per-platform (iOS here) by
+        // SellwildSDK.apply(_:to:) above, which reads the OS-suffixed CDN keys
+        // (MOBILE_ZID_IOS / MOBILE_BANNER_ZID_IOS) out of `remote`. Only fall
+        // back to the flat JS-passed values when there was no `remote` payload
+        // to resolve from — otherwise the iOS-resolved zones would be clobbered
+        // by the unsuffixed values the JS core mapped (which are OS-agnostic).
+        if map["remote"] == nil {
+            if let v = map["mobileBannerZid"] as? String { cfg.mobileBannerZid = v }
+            if let v = map["mobileZids"] as? [String] { cfg.mobileZids = v }
+        }
 
         // JS bridge passes ms; iOS API is seconds (TimeInterval).
         if let v = map["adRefreshIntervalMs"] as? NSNumber {

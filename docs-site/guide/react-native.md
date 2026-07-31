@@ -150,6 +150,10 @@ export default function MarketplaceScreen() {
 
 If you're currently using `<SellwildWidget>` (the WebView-based component), see the [Migration Guide](./migration-widget-to-feed.md) for step-by-step instructions.
 
+### Per-platform ad zones
+
+The feed's interleaved ad zones (`MOBILE_ZID`) and the mobile banner zone (`MOBILE_BANNER_ZID`) can resolve to different Prebid stored-impression IDs per OS. Because the resolution happens in the native mapper — not in JavaScript — a React Native app **inherits the OS it is running on**: the same JS bundle resolves `MOBILE_ZID_IOS` / `MOBILE_BANNER_ZID_IOS` on an iPhone and `MOBILE_ZID_ANDROID` / `MOBILE_BANNER_ZID_ANDROID` on an Android device. When a suffixed key is absent or blank, resolution falls back to the unsuffixed key, so existing configs are unaffected. See [Configuration → Per-platform ad zones](/guide/configuration#per-platform-ad-zones).
+
 ---
 
 ## Native banner path (1.3.0+)

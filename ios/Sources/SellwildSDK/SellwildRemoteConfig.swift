@@ -110,8 +110,30 @@ public enum SellwildSDK {
         // Ad zones
         if let v = raw["BANNER_ZID"]         as? String   { c.bannerZid = v }
         if let v = raw["BOTTOM_BANNER_ZID"]  as? String   { c.bottomBannerZid = v }
-        if let v = raw["MOBILE_BANNER_ZID"]  as? String   { c.mobileBannerZid = v }
-        if let v = raw["MOBILE_ZID"]         as? [String] { c.mobileZids = v }
+
+        // Per-platform placement resolution (this mapper only ever runs on iOS
+        // — the Swift SDK — so RN / Flutter hosts on iOS resolve here too).
+        // Three tiers, most specific first, per placement:
+        //   1. per-placement per-platform  (MOBILE_ZID_IOS / MOBILE_BANNER_ZID_IOS)
+        //   2. platform-wide "ALL"         (MOBILE_ZID_ALL_IOS — one value every
+        //      mobile placement on this OS falls back to)
+        //   3. shared base                 (MOBILE_ZID / MOBILE_BANNER_ZID)
+        // Backward compatible: no suffixed key = today's behavior unchanged.
+        let allIOS = (raw["MOBILE_ZID_ALL_IOS"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        if let v = raw["MOBILE_BANNER_ZID_IOS"] as? String, !v.isEmpty {
+            c.mobileBannerZid = v
+        } else if let v = allIOS {
+            c.mobileBannerZid = v
+        } else if let v = raw["MOBILE_BANNER_ZID"] as? String {
+            c.mobileBannerZid = v
+        }
+        if let v = raw["MOBILE_ZID_IOS"] as? [String], !v.isEmpty {
+            c.mobileZids = v
+        } else if let v = allIOS {
+            c.mobileZids = [v]
+        } else if let v = raw["MOBILE_ZID"] as? [String] {
+            c.mobileZids = v
+        }
         if let v = raw["HIDE_BANNER_TOP"]    as? Bool     { c.hideBannerTop = v }
         if let v = raw["HIDE_BANNER_BOTTOM"] as? Bool     { c.hideBannerBottom = v }
         if let v = raw["GAM"]                as? String   { c.gamTag = v }
