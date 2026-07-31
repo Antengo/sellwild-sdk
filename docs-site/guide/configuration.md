@@ -417,7 +417,9 @@ The CDN may carry any subset of these keys. Unknown keys are ignored, so the CMS
 | `OVERLAY_TITLE`, `WATERMARK` | matching camelCase | bool |
 | `WATERMARK_TITLE` | `watermarkTitle` | string |
 | `BANNER_ZID`, `BOTTOM_BANNER_ZID`, `MOBILE_BANNER_ZID` | matching camelCase | string |
+| `MOBILE_BANNER_ZID_IOS`, `MOBILE_BANNER_ZID_ANDROID` | `mobileBannerZid` (per-OS) | string |
 | `MOBILE_ZID` | `mobileZids` | string[] |
+| `MOBILE_ZID_IOS`, `MOBILE_ZID_ANDROID` | `mobileZids` (per-OS) | string[] |
 | `HIDE_BANNER_TOP`, `HIDE_BANNER_BOTTOM`, `DISABLE_GPT`, `AD_DISABLE_DISPLAY` | matching camelCase | bool |
 | `GAM` | `gamTag` | string |
 | `AD_REFRESH_MAX`, `AD_REFRESH_MAX_MOBILE`, `MAX_FAILED_AUCTIONS` | matching camelCase | int |
@@ -429,6 +431,37 @@ The CDN may carry any subset of these keys. Unknown keys are ignored, so the CMS
 | `INTERSTITIALS_PER_SESSION`, `VIDEO_TAKEOVERS_PER_SESSION` | matching camelCase | int |
 | `BOLTIVE`, `LOTAME` | matching camelCase | bool |
 | `BOLTIVE_CLIENT_ID` | `boltiveClientId` | string |
+
+---
+
+## Per-platform ad zones
+
+The two mobile zone keys — `MOBILE_ZID` (interleaved feed ad zones) and `MOBILE_BANNER_ZID` (the 320×50 banner) — can resolve to **different Prebid Server stored-impression IDs on iOS and Android** via OS-suffixed keys:
+
+| Base key | iOS override | Android override |
+|---|---|---|
+| `MOBILE_ZID` | `MOBILE_ZID_IOS` | `MOBILE_ZID_ANDROID` |
+| `MOBILE_BANNER_ZID` | `MOBILE_BANNER_ZID_IOS` | `MOBILE_BANNER_ZID_ANDROID` |
+
+**Resolution rule** (applied natively, keyed on the device's runtime OS):
+
+- On **iOS**: use `*_IOS` if present and non-empty, otherwise fall back to the unsuffixed key.
+- On **Android**: use `*_ANDROID` if present and non-empty, otherwise fall back to the unsuffixed key.
+
+The pick happens in the native mapper (Swift on iOS, Kotlin on Android), so it is keyed on the **runtime OS, not the SDK type**. React Native and Flutter apps inherit their host OS automatically — a React Native app running on an iPhone resolves `MOBILE_ZID_IOS`; the same app on an Android device resolves `MOBILE_ZID_ANDROID`.
+
+**Backward compatible**: if the suffixed key is absent or blank, resolution falls through to the existing unsuffixed key, so existing CDN documents behave exactly as before. Only add the suffixed keys when iOS and Android need distinct zones.
+
+```json
+{
+  "MOBILE_ZID": ["101", "102"],
+  "MOBILE_ZID_IOS": ["201", "202"],
+  "MOBILE_BANNER_ZID": "50",
+  "MOBILE_BANNER_ZID_ANDROID": "60"
+}
+```
+
+With the document above: iOS feed uses `["201","202"]` and banner `"50"` (no iOS banner override → unsuffixed); Android feed uses `["101","102"]` (no Android feed override → unsuffixed) and banner `"60"`.
 
 ---
 

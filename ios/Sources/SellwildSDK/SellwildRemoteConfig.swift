@@ -110,8 +110,23 @@ public enum SellwildSDK {
         // Ad zones
         if let v = raw["BANNER_ZID"]         as? String   { c.bannerZid = v }
         if let v = raw["BOTTOM_BANNER_ZID"]  as? String   { c.bottomBannerZid = v }
-        if let v = raw["MOBILE_BANNER_ZID"]  as? String   { c.mobileBannerZid = v }
-        if let v = raw["MOBILE_ZID"]         as? [String] { c.mobileZids = v }
+
+        // Per-platform placement resolution. This mapper only ever runs on
+        // iOS (the Swift SDK), so RN / Flutter hosts running on iOS resolve
+        // here too. Prefer the iOS-suffixed key when present & non-empty;
+        // otherwise fall back to the unsuffixed key with the exact same
+        // parsing as before (backward compatible — no suffixed key means
+        // today's behavior unchanged).
+        if let v = raw["MOBILE_BANNER_ZID_IOS"] as? String, !v.isEmpty {
+            c.mobileBannerZid = v
+        } else if let v = raw["MOBILE_BANNER_ZID"] as? String {
+            c.mobileBannerZid = v
+        }
+        if let v = raw["MOBILE_ZID_IOS"] as? [String], !v.isEmpty {
+            c.mobileZids = v
+        } else if let v = raw["MOBILE_ZID"] as? [String] {
+            c.mobileZids = v
+        }
         if let v = raw["HIDE_BANNER_TOP"]    as? Bool     { c.hideBannerTop = v }
         if let v = raw["HIDE_BANNER_BOTTOM"] as? Bool     { c.hideBannerBottom = v }
         if let v = raw["GAM"]                as? String   { c.gamTag = v }
