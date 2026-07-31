@@ -102,15 +102,19 @@ object SellwildSDK {
             // Ad zones
             bannerZid = raw.optStringOrNull("BANNER_ZID") ?: base.bannerZid,
             bottomBannerZid = raw.optStringOrNull("BOTTOM_BANNER_ZID") ?: base.bottomBannerZid,
-            // Per-platform placement resolution. This mapper only ever runs on
-            // Android (the Kotlin SDK), so RN / Flutter hosts running on Android
-            // resolve here too. Prefer the Android-suffixed key when present &
-            // non-empty; otherwise fall back to the unsuffixed key with the exact
-            // same parsing as before (backward compatible — no suffixed key means
-            // today's behavior unchanged).
+            // Per-platform placement resolution (this mapper only ever runs on
+            // Android — the Kotlin SDK — so RN / Flutter hosts on Android resolve
+            // here too). Three tiers, most specific first, per placement:
+            //   1. per-placement per-platform (MOBILE_ZID_ANDROID / MOBILE_BANNER_ZID_ANDROID)
+            //   2. platform-wide "ALL" (MOBILE_ZID_ALL_ANDROID — one value every
+            //      mobile placement on this OS falls back to)
+            //   3. shared base (MOBILE_ZID / MOBILE_BANNER_ZID)
+            // Backward compatible: no suffixed key = today's behavior unchanged.
             mobileBannerZid = raw.optStringNonEmptyOrNull("MOBILE_BANNER_ZID_ANDROID")
+                ?: raw.optStringNonEmptyOrNull("MOBILE_ZID_ALL_ANDROID")
                 ?: raw.optStringOrNull("MOBILE_BANNER_ZID") ?: base.mobileBannerZid,
             mobileZids = raw.optStringListNonEmptyOrNull("MOBILE_ZID_ANDROID")
+                ?: raw.optStringNonEmptyOrNull("MOBILE_ZID_ALL_ANDROID")?.let { listOf(it) }
                 ?: raw.optStringListOrNull("MOBILE_ZID") ?: base.mobileZids,
             hideBannerTop = raw.optBooleanOrNull("HIDE_BANNER_TOP") ?: base.hideBannerTop,
             hideBannerBottom = raw.optBooleanOrNull("HIDE_BANNER_BOTTOM") ?: base.hideBannerBottom,

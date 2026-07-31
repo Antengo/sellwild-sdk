@@ -420,6 +420,7 @@ The CDN may carry any subset of these keys. Unknown keys are ignored, so the CMS
 | `MOBILE_BANNER_ZID_IOS`, `MOBILE_BANNER_ZID_ANDROID` | `mobileBannerZid` (per-OS) | string |
 | `MOBILE_ZID` | `mobileZids` | string[] |
 | `MOBILE_ZID_IOS`, `MOBILE_ZID_ANDROID` | `mobileZids` (per-OS) | string[] |
+| `MOBILE_ZID_ALL_IOS`, `MOBILE_ZID_ALL_ANDROID` | platform-wide fallback for all mobile placements | string |
 | `HIDE_BANNER_TOP`, `HIDE_BANNER_BOTTOM`, `DISABLE_GPT`, `AD_DISABLE_DISPLAY` | matching camelCase | bool |
 | `GAM` | `gamTag` | string |
 | `AD_REFRESH_MAX`, `AD_REFRESH_MAX_MOBILE`, `MAX_FAILED_AUCTIONS` | matching camelCase | int |
@@ -436,32 +437,32 @@ The CDN may carry any subset of these keys. Unknown keys are ignored, so the CMS
 
 ## Per-platform ad zones
 
-The two mobile zone keys — `MOBILE_ZID` (interleaved feed ad zones) and `MOBILE_BANNER_ZID` (the 320×50 banner) — can resolve to **different Prebid Server stored-impression IDs on iOS and Android** via OS-suffixed keys:
+The two mobile zone keys — `MOBILE_ZID` (interleaved feed ad zones) and `MOBILE_BANNER_ZID` (the mobile banner) — can resolve to **different Prebid Server stored-impression IDs on iOS and Android**. Resolution is **three tiers, most specific first**, per placement:
 
-| Base key | iOS override | Android override |
+| Tier | Key(s) | Scope |
 |---|---|---|
-| `MOBILE_ZID` | `MOBILE_ZID_IOS` | `MOBILE_ZID_ANDROID` |
-| `MOBILE_BANNER_ZID` | `MOBILE_BANNER_ZID_IOS` | `MOBILE_BANNER_ZID_ANDROID` |
+| 1 — per-placement, per-OS | `MOBILE_ZID_IOS` / `_ANDROID`, `MOBILE_BANNER_ZID_IOS` / `_ANDROID` | one placement on one OS |
+| 2 — platform-wide "ALL" | `MOBILE_ZID_ALL_IOS` / `MOBILE_ZID_ALL_ANDROID` | every mobile placement (feed + banner) on one OS |
+| 3 — shared base | `MOBILE_ZID` / `MOBILE_BANNER_ZID` | all platforms (today's behavior) |
 
-**Resolution rule** (applied natively, keyed on the device's runtime OS):
+For each placement on the device's OS: use the tier-1 per-placement key if set & non-empty; else the tier-2 platform-wide `*_ALL_*` value; else the tier-3 shared base. So you can set **one `*_ALL_*` value and every placement on that OS uses it**, and still override any individual placement — "all the same per platform, or per-placement when you want."
 
-- On **iOS**: use `*_IOS` if present and non-empty, otherwise fall back to the unsuffixed key.
-- On **Android**: use `*_ANDROID` if present and non-empty, otherwise fall back to the unsuffixed key.
+The pick happens in the native mapper (Swift on iOS, Kotlin on Android), so it is keyed on the **runtime OS, not the SDK type**. React Native and Flutter inherit their host OS — an RN app on an iPhone resolves the iOS keys; the same app on Android resolves the Android keys.
 
-The pick happens in the native mapper (Swift on iOS, Kotlin on Android), so it is keyed on the **runtime OS, not the SDK type**. React Native and Flutter apps inherit their host OS automatically — a React Native app running on an iPhone resolves `MOBILE_ZID_IOS`; the same app on an Android device resolves `MOBILE_ZID_ANDROID`.
+**Backward compatible**: with no suffixed/ALL keys, resolution falls through to the unsuffixed base, so existing CDN documents behave exactly as before.
 
-**Backward compatible**: if the suffixed key is absent or blank, resolution falls through to the existing unsuffixed key, so existing CDN documents behave exactly as before. Only add the suffixed keys when iOS and Android need distinct zones.
+**Naming**: placements are dynamic-/multi-size now, so the size no longer belongs in the stored-imp id — name the per-platform imps **size-less** (e.g. `weatherbug-mobile`, `weatherbug-mobile-ios`, `weatherbug-mobile-android`). The legacy `…-300x250` imp keeps working for placements not yet migrated.
 
 ```json
 {
-  "MOBILE_ZID": ["101", "102"],
-  "MOBILE_ZID_IOS": ["201", "202"],
-  "MOBILE_BANNER_ZID": "50",
-  "MOBILE_BANNER_ZID_ANDROID": "60"
+  "MOBILE_ZID": ["weatherbug-mobile-300x250"],
+  "MOBILE_ZID_ALL_IOS": "weatherbug-mobile-ios",
+  "MOBILE_ZID_ALL_ANDROID": "weatherbug-mobile-android",
+  "MOBILE_BANNER_ZID_IOS": "weatherbug-banner-ios"
 }
 ```
 
-With the document above: iOS feed uses `["201","202"]` and banner `"50"` (no iOS banner override → unsuffixed); Android feed uses `["101","102"]` (no Android feed override → unsuffixed) and banner `"60"`.
+With the document above — **iOS**: the feed uses `weatherbug-mobile-ios` (tier-2 ALL) and the banner uses `weatherbug-banner-ios` (tier-1 override wins). **Android**: feed + banner both use `weatherbug-mobile-android` (tier-2 ALL). Neither OS falls to the shared `MOBILE_ZID`, because an ALL value is set for both.
 
 ---
 
