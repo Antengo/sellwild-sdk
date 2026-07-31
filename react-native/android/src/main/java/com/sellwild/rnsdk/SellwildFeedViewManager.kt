@@ -12,6 +12,7 @@ import com.facebook.react.uimanager.events.RCTEventEmitter
 import com.sellwild.sdk.SellwildConfig
 import com.sellwild.sdk.SellwildFeedView
 import com.sellwild.sdk.SellwildListing
+import com.sellwild.sdk.SellwildLocalizedListingsConfig
 import com.sellwild.sdk.SellwildSDK
 import org.json.JSONObject
 
@@ -178,6 +179,25 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
             if (map.hasKey("adRefreshMax")) config = config.copy(adRefreshMax = map.getInt("adRefreshMax"))
             if (map.hasKey("adRefreshMaxMobile")) config = config.copy(adRefreshMaxMobile = map.getInt("adRefreshMaxMobile"))
             if (map.hasKey("adRefreshIntervalMs")) config = config.copy(adRefreshIntervalMs = map.getDouble("adRefreshIntervalMs").toLong())
+
+            // Local override for the localized (geo-based) secondary-listings
+            // integration; the remote LOCALIZED_LISTINGS object rides `remote`.
+            if (map.hasKey("localizedListings") && !map.isNull("localizedListings")) {
+                val ll = map.getMap("localizedListings")!!
+                fun bool(k: String): Boolean? = if (ll.hasKey(k) && !ll.isNull(k)) ll.getBoolean(k) else null
+                fun str(k: String): String? = if (ll.hasKey(k) && !ll.isNull(k)) ll.getString(k) else null
+                fun int(k: String): Int? = if (ll.hasKey(k) && !ll.isNull(k)) ll.getInt(k) else null
+                config = config.copy(
+                    localizedListings = SellwildLocalizedListingsConfig(
+                        enabled = bool("enabled"),
+                        source = str("source"),
+                        baseUrl = str("baseUrl"),
+                        urlTemplate = str("urlTemplate"),
+                        frequency = int("frequency"),
+                        forceState = str("forceState"),
+                    ),
+                )
+            }
 
             return config
         }

@@ -284,6 +284,10 @@ export interface SellwildConfig {
   // Distinct from the legacy web `growthcode` string above (the partner.js tag).
   growthCode?: GrowthCodeConfig
 
+  // Localized (geo-based) secondary listings — local override for the remote
+  // `LOCALIZED_LISTINGS` integration object. Each set field wins over remote.
+  localizedListings?: LocalizedListingsConfig
+
   // Mobile app identity — used to populate ortb2.app when Prebid.js runs in a native WebView.
   // Without these, Prebid.js sends bids as web (ortb2.site) traffic instead of in-app traffic,
   // which suppresses fill from DSPs that buy app inventory differently and breaks app-ads.txt enforcement.
@@ -365,6 +369,28 @@ export interface GrowthCodeConfig {
   sendMaid?: boolean
   /** Minimum hours between syncs. Default 48. */
   ttlHours?: number
+}
+
+/**
+ * Localized (geo-based) secondary-listings integration. When enabled, the SDK
+ * loads a SECOND listings cache keyed by the user's state and disperses those
+ * listings into the primary feed at `frequency` (every Nth slot). Designed to
+ * generalize beyond geo later (more template tokens / factors). First use case:
+ * SportServer. Local config wins over the remote `LOCALIZED_LISTINGS` object.
+ */
+export interface LocalizedListingsConfig {
+  /** Master on/off. Absent-but-present-object counts as on; `false` disables. */
+  enabled?: boolean
+  /** Optional label for the source, e.g. "sportserver". */
+  source?: string
+  /** Cache base URL, e.g. "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/". */
+  baseUrl?: string
+  /** Filename template with a `{state}` token, e.g. "sports-img-data-sm-webp-{state}.json". */
+  urlTemplate?: string
+  /** Dispersion percent: 25 → every 4th feed slot is a localized listing. */
+  frequency?: number
+  /** Force a state (2-letter), overriding geo resolution — e.g. a known-Alabama site. */
+  forceState?: string
 }
 
 export type PartialSellwildConfig = Partial<SellwildConfig> & {

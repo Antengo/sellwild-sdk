@@ -157,6 +157,12 @@ data class SellwildConfig(
     // entirely from the CMS.
     val growthCode: SellwildGrowthCodeConfig? = null,
 
+    // Localized (geo-based) secondary listings — local override for the remote
+    // `LOCALIZED_LISTINGS` integration object. When set, it wins entirely over
+    // the remote value; otherwise the remote value applies. Leave null to drive
+    // entirely from the CMS.
+    val localizedListings: SellwildLocalizedListingsConfig? = null,
+
     // Debug
     val debug: Boolean = false,
     /**
@@ -229,6 +235,27 @@ data class SellwildGrowthCodeConfig(
     val sendMaid: Boolean? = null,
     /** Minimum hours between syncs. Default 48. */
     val ttlHours: Int? = null,
+)
+
+/**
+ * Local, code-supplied localized-listings settings. When this object is set it
+ * takes precedence over the remote `LOCALIZED_LISTINGS` object as a whole (not
+ * field-by-field). `enabled == false` disables; an absent `enabled` on a present
+ * object counts as on. Requires `baseUrl` + `urlTemplate` to activate.
+ */
+data class SellwildLocalizedListingsConfig(
+    /** Master on/off. Absent (null) on a present object counts as on; `false` disables. */
+    val enabled: Boolean? = null,
+    /** Optional label for the source, e.g. "sportserver". */
+    val source: String? = null,
+    /** Cache base URL, e.g. "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/". */
+    val baseUrl: String? = null,
+    /** Filename template with a `{state}` token, e.g. "sports-img-data-sm-webp-{state}.json". */
+    val urlTemplate: String? = null,
+    /** Dispersion percent: 25 → every 4th feed slot is a localized listing. */
+    val frequency: Int? = null,
+    /** Force a state (2-letter), overriding geo resolution — e.g. a known-Alabama site. */
+    val forceState: String? = null,
 )
 
 data class IxConfig(

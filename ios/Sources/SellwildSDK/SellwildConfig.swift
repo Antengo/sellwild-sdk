@@ -173,6 +173,12 @@ public struct SellwildConfig: Codable {
     /// (or a default) applies. Leave nil to drive entirely from the CMS.
     public var growthCode: SellwildGrowthCodeConfig? = nil
 
+    // MARK: Localized (geo-based) secondary listings
+    /// Local override for the localized-listings integration. When set, it wins
+    /// entirely over the remote `LOCALIZED_LISTINGS` object; otherwise the
+    /// remote value applies. Leave nil to drive entirely from the CMS.
+    public var localizedListings: SellwildLocalizedListingsConfig? = nil
+
     // MARK: Widget override
     /// Override the widget JS bundle URL. Leave nil to use the default generic bundle
     /// at https://widget.sellwild.com/partner.js, which reads all config from element attributes.
@@ -313,6 +319,43 @@ public struct SellwildGrowthCodeConfig: Codable {
         self.syncUrl = syncUrl
         self.sendMaid = sendMaid
         self.ttlHours = ttlHours
+    }
+}
+
+// MARK: - Localized Listings Configuration
+
+/// Local, code-supplied localized-listings settings. When this object is set it
+/// takes precedence over the remote `LOCALIZED_LISTINGS` object as a whole (not
+/// field-by-field). `enabled == false` disables; an absent `enabled` on a
+/// present object counts as on. Requires `baseUrl` + `urlTemplate` to activate.
+public struct SellwildLocalizedListingsConfig: Codable {
+    /// Master on/off. Absent (nil) on a present object counts as on; `false` disables.
+    public var enabled: Bool?
+    /// Optional label for the source, e.g. "sportserver".
+    public var source: String?
+    /// Cache base URL, e.g. "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/".
+    public var baseUrl: String?
+    /// Filename template with a `{state}` token, e.g. "sports-img-data-sm-webp-{state}.json".
+    public var urlTemplate: String?
+    /// Dispersion percent: 25 → every 4th feed slot is a localized listing.
+    public var frequency: Int?
+    /// Force a state (2-letter), overriding geo resolution — e.g. a known-Alabama site.
+    public var forceState: String?
+
+    public init(
+        enabled: Bool? = nil,
+        source: String? = nil,
+        baseUrl: String? = nil,
+        urlTemplate: String? = nil,
+        frequency: Int? = nil,
+        forceState: String? = nil
+    ) {
+        self.enabled = enabled
+        self.source = source
+        self.baseUrl = baseUrl
+        self.urlTemplate = urlTemplate
+        self.frequency = frequency
+        self.forceState = forceState
     }
 }
 

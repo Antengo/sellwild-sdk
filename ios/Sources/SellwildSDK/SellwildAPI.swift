@@ -222,6 +222,13 @@ public final class SellwildAPIClient {
                 DispatchQueue.main.async { completion(.failure(SellwildError.noData)) }
                 return
             }
+            // Seed the geo state from CloudFront's viewer-country-region header
+            // when the partner hasn't supplied one, so the localized-listings
+            // path can key a per-state cache. Mirrors the web widget's
+            // appendViewerHeaders seeding userLocation.state.
+            if let http = response as? HTTPURLResponse {
+                Self.seedGeoStateIfEmpty(from: http)
+            }
             do {
                 let parsed = try self?.parseListingsResponse(data: data)
                     ?? SellwildListingsResponse(listings: [], config: [:], widgetCacheVersionId: nil)
@@ -244,6 +251,58 @@ public final class SellwildAPIClient {
                 continuation.resume(with: result)
             }
         }
+    }
+
+    // MARK: Fetch Cache Listings (localized secondary cache)
+
+    /// GET a state-keyed secondary listings cache and reuse the primary listing
+    /// parser. The payload shape is identical to the primary feed
+    /// (`result.rs`), so the same decoder applies. A non-200 (e.g. a 404 for a
+    /// state with no data) resolves to `.failure` — the caller treats that as a
+    /// skip and renders the primary feed unchanged.
+    public func fetchCacheListings(
+        url: URL,
+        completion: @escaping (Result<[SellwildListing], Error>) -> Void
+    ) {
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let task = session.dataTask(with: request) { [weak self] data, response, error in
+            if let error = error {
+                DispatchQueue.main.async { completion(.failure(error)) }
+                return
+            }
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                DispatchQueue.main.async { completion(.failure(SellwildError.invalidResponse)) }
+                return
+            }
+            guard let data = data else {
+                DispatchQueue.main.async { completion(.failure(SellwildError.noData)) }
+                return
+            }
+            do {
+                let parsed = try self?.parseListingsResponse(data: data)
+                    ?? SellwildListingsResponse(listings: [], config: [:], widgetCacheVersionId: nil)
+                DispatchQueue.main.async { completion(.success(parsed.listings)) }
+            } catch {
+                DispatchQueue.main.async { completion(.failure(error)) }
+            }
+        }
+        task.resume()
+    }
+
+    /// Seed `SellwildGeoStore` state from the CloudFront viewer-country-region
+    /// header (case-insensitive) only when no state is already set. Never
+    /// overwrites a partner-supplied or previously-seeded state.
+    private static func seedGeoStateIfEmpty(from response: HTTPURLResponse) {
+        let current = SellwildGeoStore.current
+        if let existing = current?.state, !existing.isEmpty { return }
+        guard let region = response.value(forHTTPHeaderField: "CloudFront-Viewer-Country-Region"),
+              !region.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        var geo = current ?? SellwildGeo()
+        geo.state = region
+        SellwildGeoStore.current = geo
     }
 
     // MARK: Send Analytics Event

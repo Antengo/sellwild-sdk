@@ -156,6 +156,8 @@ export function SellwildFeed({
     adRefreshMaxMobile: config.adRefreshMaxMobile,
     adRefreshIntervalMs: config.adRefreshInterval,
     prebidServer: config.prebidServer,
+    // Local localized-listings overrides (remote LOCALIZED_LISTINGS rides `remote`).
+    localizedListings: config.localizedListings,
     remote: config.remote,
     listingsUrl: config.listingsUrl,
     priceColor: config.priceColor,
