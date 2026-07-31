@@ -80,6 +80,11 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
                 val payload = Arguments.createMap().apply { putString("message", message) }
                 emit(reactContext, view, "onFeedError", payload)
             }
+
+            override fun onContentHeightChanged(feedView: SellwildFeedView, heightDp: Int) {
+                val payload = Arguments.createMap().apply { putInt("height", heightDp) }
+                emit(reactContext, view, "onContentSizeChange", payload)
+            }
         }
         return view
     }
@@ -87,6 +92,11 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
     @ReactProp(name = "config")
     fun setConfig(view: SellwildFeedView, value: ReadableMap?) {
         pendingFor(view).config = value
+    }
+
+    @ReactProp(name = "scrollEnabled", defaultBoolean = true)
+    fun setScrollEnabled(view: SellwildFeedView, value: Boolean) {
+        view.scrollEnabled = value
     }
 
     override fun onAfterUpdateTransaction(view: SellwildFeedView) {
@@ -119,6 +129,7 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
             .put("onAdImpression", MapBuilder.of("registrationName", "onAdImpression"))
             .put("onAdClicked", MapBuilder.of("registrationName", "onAdClicked"))
             .put("onFeedError", MapBuilder.of("registrationName", "onFeedError"))
+            .put("onContentSizeChange", MapBuilder.of("registrationName", "onContentSizeChange"))
             .build()
     }
 

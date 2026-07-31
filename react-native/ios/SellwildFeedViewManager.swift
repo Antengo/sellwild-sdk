@@ -38,6 +38,9 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
     // MARK: RN-set props
 
     @objc var config: NSDictionary? { didSet { needsApply = true } }
+    /// Disable the feed's internal scrolling so it can be embedded inside a
+    /// parent scroll view. Applied live and on feed creation.
+    @objc var scrollEnabled: Bool = true { didSet { feedView?.scrollEnabled = scrollEnabled } }
 
     // MARK: RN events
 
@@ -46,6 +49,9 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
     @objc var onAdImpression: RCTDirectEventBlock?
     @objc var onAdClicked: RCTDirectEventBlock?
     @objc var onFeedError: RCTDirectEventBlock?
+    /// Emitted whenever the feed's content height changes so JS can size the
+    /// host container when embedding with `scrollEnabled={false}`.
+    @objc var onContentSizeChange: RCTDirectEventBlock?
 
     // MARK: Internals
 
@@ -83,6 +89,7 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
 
         let view = SellwildFeedView(config: sellwildConfig)
         view.delegate = self
+        view.scrollEnabled = scrollEnabled
         view.translatesAutoresizingMaskIntoConstraints = false
         addSubview(view)
         NSLayoutConstraint.activate([
@@ -124,6 +131,10 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
 
     func sellwildFeed(_ feed: SellwildFeedView, didFailWithError message: String) {
         onFeedError?(["message": message])
+    }
+
+    func sellwildFeed(_ feed: SellwildFeedView, didChangeContentHeight height: CGFloat) {
+        onContentSizeChange?(["height": height])
     }
 
     // MARK: Config marshalling

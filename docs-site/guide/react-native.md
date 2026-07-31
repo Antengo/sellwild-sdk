@@ -135,6 +135,7 @@ export default function MarketplaceScreen() {
 |------|------|-------------|
 | `config` | `SellwildConfig` | Resolved config from `configure(partnerCode, slug)`. |
 | `style` | `ViewStyle?` | Optional style override. Feed expands to fill container by default. |
+| `scrollEnabled` | `boolean?` | Defaults to `true`. Set `false` to embed inside a parent `ScrollView` — see [Embedding in a ScrollView](#embedding-in-a-scrollview-140). |
 
 ### Events
 
@@ -144,7 +145,24 @@ export default function MarketplaceScreen() {
 | `onListingTap` | `(listing: SellwildListing) => boolean \| void` | User taps a listing card. Return `true` to consume (handle yourself); return `false`/omit to let SDK open the URL in-app browser. |
 | `onAdImpression` | `(zoneId: string) => void` | A native ad row records an impression. |
 | `onAdClicked` | `(zoneId: string) => void` | A native ad row is clicked. |
+| `onContentSizeChange` | `(e: { width?: number; height: number }) => void` | The feed's content height changes. `height` is in points/dp. |
 | `onError` | `(error: Error) => void` | Listings fetch fails or a row fails to render. |
+
+### Embedding in a ScrollView (1.4.0+)
+
+To place the feed inside a parent `ScrollView` (a single-scroll page — e.g. alongside a Taboola feed), pass `scrollEnabled={false}`:
+
+```tsx
+<ScrollView>
+  <SomeHeaderContent />
+  <SellwildFeed config={config} scrollEnabled={false} />
+  <TaboolaFeed />
+</ScrollView>
+```
+
+When `scrollEnabled={false}`, the component sizes its **own** container from the native content-height callback (you don't need to set a `height`), so the parent `ScrollView` owns scrolling. You can still observe `onContentSizeChange` yourself if you need the height for your own layout.
+
+> **Caveats.** Disabling scroll turns **off** pull-to-refresh (it needs the scroll gesture) — the host must drive refresh. The feed also renders **all** rows (no virtualization), so keep embedded feeds reasonably sized. `scrollEnabled` defaults to `true`; existing full-screen integrations are unaffected.
 
 ### Migrating from SellwildWidget
 

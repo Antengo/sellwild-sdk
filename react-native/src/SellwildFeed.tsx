@@ -29,12 +29,14 @@ const NATIVE_NAME = 'SellwildFeedView'
 
 interface NativeFeedProps {
   config: object
+  scrollEnabled?: boolean
   style?: StyleProp<ViewStyle>
   onFeedLoaded?: (e: NativeSyntheticEvent<{}>) => void
   onListingTap?: (e: NativeSyntheticEvent<{ listing: SellwildListing }>) => void
   onAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
   onAdClicked?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
   onFeedError?: (e: NativeSyntheticEvent<{ message: string }>) => void
+  onContentSizeChange?: (e: NativeSyntheticEvent<{ width?: number; height: number }>) => void
 }
 
 const NativeFeed = (() => {
@@ -60,6 +62,24 @@ export interface SellwildFeedProps {
   /** Optional style override. The feed expands to its container by default. */
   style?: ViewStyle
 
+  /**
+   * When `false`, the feed's own scrolling is disabled and the component
+   * sizes its own container from the reported content height, so it can be
+   * embedded inside a parent `ScrollView` (single-scroll pages, e.g.
+   * alongside a Taboola feed). The feed then renders every row (no
+   * virtualization) and pull-to-refresh is disabled — the host drives
+   * refresh. Defaults to `true`; existing full-screen integrations are
+   * unaffected.
+   */
+  scrollEnabled?: boolean
+
+  /**
+   * Fired whenever the feed's content height changes. Use it to size the
+   * feed's container when embedding with `scrollEnabled={false}`; when
+   * scroll is disabled the component also applies the height itself.
+   */
+  onContentSizeChange?: (e: { width?: number; height: number }) => void
+
   /** Fired once after the initial listings fetch resolves successfully. */
   onLoad?: () => void
 
@@ -83,18 +103,29 @@ export interface SellwildFeedProps {
 export function SellwildFeed({
   config,
   style,
+  scrollEnabled = true,
+  onContentSizeChange,
   onLoad,
   onListingTap,
   onAdImpression,
   onAdClicked,
   onError,
 }: SellwildFeedProps) {
+  // When embedded (scrollEnabled === false) the parent ScrollView owns
+  // scrolling, so we size our own container from the native-reported content
+  // height rather than filling with flex:1.
+  const [contentHeight, setContentHeight] = React.useState<number | null>(null)
+  const embedded = scrollEnabled === false
+  const containerStyle: StyleProp<ViewStyle> = embedded
+    ? [contentHeight != null ? { height: contentHeight } : undefined, style]
+    : [styles.fill, style]
+
   if (!NativeFeed) {
     // Native module not registered. Most common cause: the host app was
     // built before the @sellwild/react-native-sdk autolink ran, or this
     // is being rendered in a JS-only test environment.
     return (
-      <View style={[styles.fill, style, __DEV__ ? styles.devPlaceholder : undefined]}>
+      <View style={[containerStyle, __DEV__ ? styles.devPlaceholder : undefined]}>
         {__DEV__ ? (
           <Text style={styles.devText}>
             Sellwild native feed not available on {Platform.OS} (yet)
@@ -136,8 +167,16 @@ export function SellwildFeed({
 
   return (
     <NativeFeed
-      style={[styles.fill, style]}
+      style={containerStyle}
       config={nativeConfig}
+      scrollEnabled={scrollEnabled}
+      onContentSizeChange={(e: NativeSyntheticEvent<{ width?: number; height: number }>) => {
+        const { width, height } = e.nativeEvent ?? { height: 0 }
+        // Only size our own container when embedded; a scrolling feed fills
+        // its parent via flex:1 and doesn't need a measured height.
+        if (embedded && height > 0) setContentHeight(height)
+        onContentSizeChange?.({ width, height })
+      }}
       onFeedLoaded={() => onLoad?.()}
       onListingTap={(e: NativeSyntheticEvent<{ listing: SellwildListing }>) => {
         onListingTap?.(e.nativeEvent.listing)

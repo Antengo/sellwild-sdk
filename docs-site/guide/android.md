@@ -217,6 +217,26 @@ The `onListingTap` listener method returns a `Boolean`:
 - **Return `false`** (recommended): The SDK opens the listing URL in Chrome Custom Tabs. This matches the WebView widget behavior.
 - **Return `true`**: You handle navigation yourself. The SDK does nothing.
 
+### Embedding in a Scroll View (1.4.0+)
+
+To place the feed inside a parent scroll view (a single-scroll page — e.g. alongside a Taboola feed), disable the feed's own scrolling and let the host size its container from the content-height callback:
+
+```kotlin
+feedView.scrollEnabled = false
+
+feedView.listener = object : SellwildFeedView.Listener {
+    override fun onContentHeightChanged(feedView: SellwildFeedView, heightDp: Int) {
+        // Size the feed's container (heightDp is in dp).
+        feedView.updateLayoutParams { height = dpToPx(heightDp) }
+    }
+    // ... other Listener methods
+}
+```
+
+With `scrollEnabled = false` the recycler switches to `WRAP_CONTENT` so the parent can scroll it fully. You can also read the current height imperatively via `feedView.contentHeightDp`.
+
+> **Caveats.** Disabling scroll turns **off** pull-to-refresh (it needs the scroll gesture) — the host must drive refresh (e.g. call `feedView.refresh()`). The feed also renders **all** rows (no `RecyclerView` virtualization), so keep embedded feeds reasonably sized. `scrollEnabled` defaults to `true`; full-screen integrations are unaffected.
+
 ### Feed Configuration
 
 The feed respects these CDN config keys:
