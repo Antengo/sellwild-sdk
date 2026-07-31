@@ -151,6 +151,12 @@ data class SellwildConfig(
     // Leave null to use the default Prebid.js client-side mode.
     val prebidServer: PrebidServerConfig? = null,
 
+    // GrowthCode Signal Resolve (identity) — local overrides for the GrowthCode
+    // sync. Each set field wins over the corresponding remote `GROWTHCODE_*` key;
+    // otherwise the remote value (or a default) applies. Leave null to drive
+    // entirely from the CMS.
+    val growthCode: SellwildGrowthCodeConfig? = null,
+
     // Debug
     val debug: Boolean = false,
     /**
@@ -203,6 +209,27 @@ data class SellwildConfig(
         put("debug", debug)
     }
 }
+
+/**
+ * Local, code-supplied GrowthCode settings. Each field, when set, takes
+ * precedence over the corresponding remote `GROWTHCODE_*` key. Leave fields
+ * null to drive them from the CMS.
+ */
+data class SellwildGrowthCodeConfig(
+    /** Master on/off. When set, wins over remote `GROWTHCODE_ENABLED`. */
+    val enabled: Boolean? = null,
+    /** GrowthCode PartnerID — the `pid` query param. Required for the sync to run. */
+    val partnerId: String? = null,
+    /** Sync endpoint. Defaults to the GrowthCode hosted endpoint. */
+    val endpoint: String? = null,
+    /** Publisher domain sent as `u`/`h` (a native app has no page URL). */
+    val syncUrl: String? = null,
+    /** Send the device advertising id (GAID) when available. Default true. When
+     *  false, the SDK skips the call entirely for devices with no usable id. */
+    val sendMaid: Boolean? = null,
+    /** Minimum hours between syncs. Default 48. */
+    val ttlHours: Int? = null,
+)
 
 data class IxConfig(
     val disabled: Boolean = false,

@@ -167,6 +167,8 @@ export function SellwildBanner({
     adRefreshMaxMobile: config.adRefreshMaxMobile,
     adRefreshIntervalMs: config.adRefreshInterval,
     prebidServer: config.prebidServer,
+    // Local GrowthCode overrides (remote GROWTHCODE_* keys ride `remote`).
+    growthCode: config.growthCode,
     remote: config.remote,
   }
 

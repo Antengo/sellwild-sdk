@@ -13,14 +13,15 @@ This document covers the Sellwild managed Prebid Server instance at `prebid.sell
 5. [Supported Bidders](#supported-bidders)
 6. [GDPR Enforcement](#gdpr-enforcement)
 7. [External User IDs (eids)](#external-user-ids-eids)
-8. [Outstream Video](#outstream-video)
-9. [Native Ad Format](#native-ad-format)
-10. [Multi-Size Banners](#multi-size-banners)
-11. [Dynamic Slot Sizing](#dynamic-slot-sizing)
-12. [Auction Telemetry](#auction-telemetry)
-13. [Testing](#testing)
-14. [House Ads and No-Fill Handling](#house-ads-and-no-fill-handling)
-12. [Troubleshooting](#troubleshooting)
+8. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
+9. [Outstream Video](#outstream-video)
+10. [Native Ad Format](#native-ad-format)
+11. [Multi-Size Banners](#multi-size-banners)
+12. [Dynamic Slot Sizing](#dynamic-slot-sizing)
+13. [Auction Telemetry](#auction-telemetry)
+14. [Testing](#testing)
+15. [House Ads and No-Fill Handling](#house-ads-and-no-fill-handling)
+16. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -298,7 +299,45 @@ Use the value your ID provider specifies; for an authenticated login-based ID, `
 ### Who Supplies What
 
 - **You (partner):** authenticated IDs (UID2 / ID5 / RampID) — the SDK cannot mint them.
-- **Sellwild (planned):** device-graph IDs (e.g. Lotame Panorama) resolved server-side; until then, pass any resolved ID through `setExternalUserIds`.
+- **Sellwild (SDK-resolved):** device-graph IDs via **[GrowthCode Signal Resolve](#growthcode-signal-resolve)** — the SDK resolves and merges these for you; your `setExternalUserIds` still win on conflict.
+
+---
+
+## GrowthCode Signal Resolve
+
+**GrowthCode Signal Resolve** is the SDK-resolved counterpart to partner-supplied eids: when enabled, the SDK syncs with GrowthCode, persists the returned **GCID**, and merges GrowthCode's returned eids into every native Prebid auction. **OFF by default**, controlled entirely from the CMS — no app release to enable/disable. Wired identically across iOS, Android, and React Native; the platform-neutral logic (request/parse/merge/throttle) lives in `@sellwild/sdk-core` (`growthcode.ts`) for a future web build.
+
+### How it works
+
+1. On the first ad load of a launch (once per launch, throttled), the SDK POSTs to `{endpoint}?pid={partnerId}&u={syncUrl}` with a form body carrying any stored `gcid`, the publisher host `h`, and — subject to the MAID policy — the device advertising id.
+2. GrowthCode returns `gc_id` (persisted on device) and `eb` (a serialized EID blob). The SDK parses `eb` and injects the eids through the same `user.ext.eids` rail as partner-supplied eids.
+3. **Merge:** GrowthCode eids are combined with your `setExternalUserIds` eids; **on a source conflict your explicitly-set eids win**.
+4. **Throttle:** GrowthCode is called only when there is **no stored GCID** or when **`GROWTHCODE_TTL_HOURS` (default 48)** have elapsed. Inside the window the SDK re-injects the **cached** eids with no billed call.
+
+### Enabling
+
+Remote-first (CMS), with an optional per-field local override (precedence: **local → remote `GROWTHCODE_*` → default**):
+
+| Remote key | Local field (`growthCode.*`) | Purpose |
+|---|---|---|
+| `GROWTHCODE_ENABLED` / `_BY_ZONE` | `enabled` | master on/off (global forces on; else per-zone map) |
+| `GROWTHCODE_PARTNER_ID` | `partnerId` | the `pid` — **required** |
+| `GROWTHCODE_ENDPOINT` | `endpoint` | sync endpoint (default `https://ids.api.gcprivacy.id/v4/sync/api`) |
+| `GROWTHCODE_SYNC_URL` | `syncUrl` | publisher domain sent as `u`/`h` |
+| `GROWTHCODE_SEND_MAID` | `sendMaid` | send device id when available; **off = skip signal-less calls** |
+| `GROWTHCODE_TTL_HOURS` | `ttlHours` | min hours between billed syncs (default 48) |
+
+### MAID policy (IDFA / GAID)
+
+The SDK never prompts for the device advertising id and takes on none of the host app's ad-tracking regulatory surface:
+
+- **iOS** reads only the IDFA the system already grants (no `requestTrackingAuthorization`; zeroed id when ATT isn't authorized → treated as "no device id").
+- **Android** reads the GAID by **reflection** with **no added Play Services dependency**; absent the client, there's simply no GAID. Limit-ad-tracking is respected.
+- **`GROWTHCODE_SEND_MAID` off** → the call is **skipped entirely** for devices with no usable id (GrowthCode bills per call). On → the call runs without a MAID.
+
+### Server-side
+
+No stored-impression change is required — GrowthCode eids ride the **existing** auction (unlike the native ad *format*, which needs its own stored imp). Which bidders receive which eid sources is still governed by `ext.prebid.data.eidpermissions` as for any eid.
 
 ---
 

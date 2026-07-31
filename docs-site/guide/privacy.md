@@ -13,22 +13,23 @@ This page covers privacy regulation compliance for the Sellwild SDK, including G
 5. [GPP Framework](#gpp-framework)
 6. [iOS App Tracking Transparency](#ios-app-tracking-transparency)
 7. [Android GAID](#android-gaid)
-8. [app-ads.txt](#app-adstxt)
-9. [Data Flow Diagram](#data-flow-diagram)
+8. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
+9. [app-ads.txt](#app-adstxt)
+10. [Data Flow Diagram](#data-flow-diagram)
 
 ---
 
 ## Overview
 
-The Sellwild SDK does not independently collect, store, or process personal data. All user data handling occurs through the Prebid Server auction flow, where consent enforcement is applied server-side.
+By default the Sellwild SDK does not independently collect, store, or process personal data — all user data handling occurs through the Prebid Server auction flow, where consent enforcement is applied server-side. The one exception is the optional, off-by-default **[GrowthCode Signal Resolve](#growthcode-signal-resolve)** feature: when a partner enables it, the SDK reads the device advertising id (only when already permitted — see below), stores a GrowthCode id (GCID) on device, and calls GrowthCode.
 
 | Privacy Framework | Responsibility | Where Enforced |
 |-------------------|---------------|----------------|
 | GDPR / TCF v2 | Host app collects consent via CMP | Prebid Server (`regs.ext.gdpr`) |
 | CCPA / US Privacy | Host app determines opt-out status | Prebid Server (`regs.ext.us_privacy`) |
 | GPP | Host app passes GPP string | Prebid Server (`regs.gpp`) |
-| ATT (iOS IDFA) | Host app presents ATT prompt | OS-level; IDFA passed via `ortb2.user.eids` |
-| GAID (Android) | Host app reads advertising ID | OS-level; not read by the SDK |
+| ATT (iOS IDFA) | Host app presents ATT prompt | OS-level; IDFA passed via `ortb2.user.eids`, and — if GrowthCode is enabled — read (never prompted) for the GrowthCode sync |
+| GAID (Android) | Host app reads advertising ID | OS-level; read by the SDK **only** when GrowthCode is enabled, via reflection, with no added dependency (see [GrowthCode Signal Resolve](#growthcode-signal-resolve)) |
 
 ---
 
@@ -318,7 +319,7 @@ The Google Advertising ID (GAID, also called AAID) is the Android equivalent of 
 
 ### SDK Behavior
 
-The Sellwild SDK does not read or store the GAID. The SDK operates without device advertising identifiers by default.
+By default the Sellwild SDK does not read or store the GAID and operates without device advertising identifiers. The exception is the opt-in **[GrowthCode Signal Resolve](#growthcode-signal-resolve)** feature: when a partner enables it, the SDK reads the GAID **by reflection** (no `play-services-ads-identifier` dependency is added) to send with the GrowthCode sync. If the host app doesn't already bundle the Play Services ad-identifier client, the SDK gets no GAID and GrowthCode runs without one. Limit-ad-tracking is respected, and `GROWTHCODE_SEND_MAID=false` skips the GrowthCode call entirely for devices with no usable id.
 
 ### Passing GAID to Prebid Server
 
@@ -348,6 +349,38 @@ On Android, users can reset or disable their advertising ID in **Settings > Priv
 - `AdvertisingIdClient.Info.isLimitAdTrackingEnabled()` returns `true`.
 - Set `device.lmt: 1` in the OpenRTB request. SSPs will suppress personalized bidding.
 - On Android 12+, the GAID is replaced with a zeroed-out string when the user opts out.
+
+---
+
+## GrowthCode Signal Resolve
+
+**GrowthCode Signal Resolve** is an opt-in, off-by-default identity feature. When a partner enables it from the CMS, the SDK syncs with GrowthCode to resolve device-graph eids that lift addressability. Because it is the one path where the SDK itself touches a device advertising id and stores an identity token, its privacy posture is called out here. Full behavior: [prebid-server.md#growthcode-signal-resolve](./prebid-server.md#growthcode-signal-resolve).
+
+### What is collected and sent
+
+When enabled, the SDK POSTs to the GrowthCode endpoint with:
+
+| Field | Source | Notes |
+|-------|--------|-------|
+| `pid` | `GROWTHCODE_PARTNER_ID` | partner identifier |
+| `u` / `h` | `GROWTHCODE_SYNC_URL` | publisher domain (a native app has no page URL) |
+| `gcid` | on-device store | omitted on the first sync |
+| `maid` + `maid_type` | device IDFA / GAID | **only when already permitted** — omitted otherwise |
+
+GrowthCode returns a **GCID** and an EID blob. The SDK stores the GCID, last-sync timestamp, and last EID blob in `UserDefaults` / `SharedPreferences("sellwild_sdk")`, keyed per Partner ID. These are advertising identifiers, not PHI, and the store is unencrypted.
+
+### Device advertising id — no prompt, no new permission surface
+
+The SDK never presents the ATT prompt and adds no advertising-id dependency:
+
+- **iOS** reads the IDFA only when the host app **already holds** ATT authorization (it never calls `requestTrackingAuthorization`). Without authorization iOS returns the zeroed id, which the SDK treats as "no device id."
+- **Android** reads the GAID by **reflection**; if the host app doesn't bundle `play-services-ads-identifier`, there is no GAID. Limit-ad-tracking is honored.
+- **`GROWTHCODE_SEND_MAID=false`** skips the GrowthCode call entirely for devices with no usable id.
+
+### Host-app responsibilities
+
+- If you enable GrowthCode and your app already presents ATT, the IDFA flows to GrowthCode as a data recipient — reflect GrowthCode in your **App Privacy** answers and **privacy manifest** (`PrivacyInfo.xcprivacy`) and in your consent disclosures.
+- Turning GrowthCode off in the CMS stops all of the above with no app release.
 
 ---
 

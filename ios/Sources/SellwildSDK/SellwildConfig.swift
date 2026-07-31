@@ -167,6 +167,12 @@ public struct SellwildConfig: Codable {
     /// Leave nil to use the default Prebid.js client-side mode.
     public var prebidServer: PrebidServerConfig?
 
+    // MARK: GrowthCode Signal Resolve (identity)
+    /// Local overrides for GrowthCode Signal Resolve. Each set field wins over
+    /// the corresponding remote `GROWTHCODE_*` key; otherwise the remote value
+    /// (or a default) applies. Leave nil to drive entirely from the CMS.
+    public var growthCode: SellwildGrowthCodeConfig? = nil
+
     // MARK: Widget override
     /// Override the widget JS bundle URL. Leave nil to use the default generic bundle
     /// at https://widget.sellwild.com/partner.js, which reads all config from element attributes.
@@ -269,6 +275,44 @@ public struct PrebidServerConfig: Codable {
         self.bidders = bidders
         self.timeout = timeout
         self.syncEndpoint = syncEndpoint
+    }
+}
+
+// MARK: - GrowthCode Signal Resolve Configuration
+
+/// Local, code-supplied GrowthCode settings. Each field, when set, takes
+/// precedence over the corresponding remote `GROWTHCODE_*` key. Leave fields
+/// nil to drive them from the CMS.
+public struct SellwildGrowthCodeConfig: Codable {
+    /// Master on/off. When set, wins over remote `GROWTHCODE_ENABLED`.
+    public var enabled: Bool?
+    /// GrowthCode PartnerID — the `pid` query param. Required for the sync to run.
+    public var partnerId: String?
+    /// Sync endpoint. Defaults to the GrowthCode hosted endpoint.
+    public var endpoint: String?
+    /// Publisher domain sent as `u`/`h` (a native app has no page URL).
+    public var syncUrl: String?
+    /// Send the device advertising id (IDFA) when the host app holds ATT
+    /// authorization. Default true. When false, the SDK skips the call entirely
+    /// for devices with no usable id.
+    public var sendMaid: Bool?
+    /// Minimum hours between syncs. Default 48.
+    public var ttlHours: Int?
+
+    public init(
+        enabled: Bool? = nil,
+        partnerId: String? = nil,
+        endpoint: String? = nil,
+        syncUrl: String? = nil,
+        sendMaid: Bool? = nil,
+        ttlHours: Int? = nil
+    ) {
+        self.enabled = enabled
+        self.partnerId = partnerId
+        self.endpoint = endpoint
+        self.syncUrl = syncUrl
+        self.sendMaid = sendMaid
+        self.ttlHours = ttlHours
     }
 }
 

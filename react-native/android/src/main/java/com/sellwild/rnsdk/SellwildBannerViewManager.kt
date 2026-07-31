@@ -11,6 +11,7 @@ import com.sellwild.sdk.AdSize
 import com.sellwild.sdk.SellwildAdStack
 import com.sellwild.sdk.SellwildAdView
 import com.sellwild.sdk.SellwildConfig
+import com.sellwild.sdk.SellwildGrowthCodeConfig
 import org.json.JSONObject
 
 /**
@@ -209,6 +210,23 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
                 null
             }
 
+            val growthCode = if (map.hasKey("growthCode") && !map.isNull("growthCode")) {
+                val gc = map.getMap("growthCode")!!
+                fun bool(k: String): Boolean? = if (gc.hasKey(k) && !gc.isNull(k)) gc.getBoolean(k) else null
+                fun str(k: String): String? = if (gc.hasKey(k) && !gc.isNull(k)) gc.getString(k) else null
+                fun int(k: String): Int? = if (gc.hasKey(k) && !gc.isNull(k)) gc.getInt(k) else null
+                SellwildGrowthCodeConfig(
+                    enabled = bool("enabled"),
+                    partnerId = str("partnerId"),
+                    endpoint = str("endpoint"),
+                    syncUrl = str("syncUrl"),
+                    sendMaid = bool("sendMaid"),
+                    ttlHours = int("ttlHours"),
+                )
+            } else {
+                null
+            }
+
             return SellwildConfig(
                 partnerCode = partnerCode ?: "",
                 appBundleId = appBundleId,
@@ -221,6 +239,7 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
                 adRefreshMaxMobile = adRefreshMaxMobile,
                 adRefreshIntervalMs = adRefreshIntervalMs,
                 remoteJson = remoteJson,
+                growthCode = growthCode,
             )
         }
     }
