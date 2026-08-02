@@ -25,7 +25,9 @@ final class SellwildRemoteConfigTests: XCTestCase {
         let base = SellwildConfig(partnerCode: "weatherbug")
         let raw: [String: Any] = [
             "MOBILE_ZID": ["12345", "67890"],
-            "AD_REFRESH_INTERVAL": 30.0,
+            // AD_REFRESH_INTERVAL is milliseconds (matches web + CMS); iOS stores
+            // it as seconds, so 30000 ms → 30.0 s.
+            "AD_REFRESH_INTERVAL": 30000.0,
             "ENABLE_INTERSTITIAL": true,
             "INTERSTITIALS_PER_SESSION": 2,
         ]
