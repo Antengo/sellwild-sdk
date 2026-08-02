@@ -380,9 +380,15 @@ class SellwildFeedView @JvmOverloads constructor(
     }
 
     private fun openUrl(url: String?) {
-        if (url.isNullOrEmpty()) return
+        // http/https only — listing/CMS URLs are untrusted; don't launch an
+        // arbitrary scheme via ACTION_VIEW.
+        val uri = SellwildSafeUrl.external(url)
+        if (uri == null) {
+            if (!url.isNullOrEmpty()) listener?.onError("Refused to open non-http(s) URL")
+            return
+        }
         try {
-            CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
+            CustomTabsIntent.Builder().build().launchUrl(context, uri)
         } catch (t: Throwable) {
             listener?.onError("Failed to open URL: ${t.message}")
         }
@@ -612,6 +618,11 @@ class SellwildFeedView @JvmOverloads constructor(
             adView?.houseFallbackListing = houseListing
             if (boundZoneId == zoneId && adView != null) return
             boundZoneId = zoneId
+            // Destroy the outgoing ad view before replacing it. This holder is
+            // being rebound to a DIFFERENT zone, so the old view is finished —
+            // without destroy() its refresh Handler keeps auctioning/impressing
+            // for the old zone on a detached view (a leak + invalid traffic).
+            adView?.destroy()
             removeAllViews()
             val ad = SellwildAdView(context).apply {
                 layoutParams = LayoutParams(

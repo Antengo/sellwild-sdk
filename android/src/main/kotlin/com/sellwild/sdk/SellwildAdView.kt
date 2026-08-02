@@ -101,6 +101,15 @@ class SellwildAdView @JvmOverloads constructor(
     private var refreshHandler: Handler? = null
     private var refreshCount = 0
 
+    /**
+     * Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
+     * when set, else the shared `AD_REFRESH_MAX` (matches iOS + web). Used to
+     * gate both the GAM refresh timer and the prebidOnly auto-refresh so a
+     * partner who sets only `AD_REFRESH_MAX` still gets refresh on both paths.
+     */
+    private val effectiveRefreshMax: Int
+        get() = if (config.adRefreshMaxMobile > 0) config.adRefreshMaxMobile else config.adRefreshMax
+
     // Cold-start guard: Prebid Mobile init is async and races the first load().
     // Wait up to ~1.2s (8 × 150ms) for init before falling back to GAM-only, so
     // the first impression isn't silently downgraded and loses Prebid demand.
@@ -241,8 +250,10 @@ class SellwildAdView @JvmOverloads constructor(
     }
 
     private fun openHouseUrl(url: String?) {
-        if (url.isNullOrEmpty()) return
-        runCatching { CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url)) }
+        // http/https only — the click URL is remote CMS config; never hand an
+        // arbitrary scheme (intent:/market:/deep link) to an ACTION_VIEW intent.
+        val uri = SellwildSafeUrl.external(url) ?: return
+        runCatching { CustomTabsIntent.Builder().build().launchUrl(context, uri) }
     }
 
     // ── GAM path (.both / .gamOnly) ──────────────────────────────────────────
@@ -359,7 +370,7 @@ class SellwildAdView @JvmOverloads constructor(
         ).apply {
             setBannerListener(prebidBannerListener())
             // Prebid's rendering banner owns its own auto-refresh.
-            if (config.adRefreshMaxMobile > 0) {
+            if (effectiveRefreshMax > 0) {
                 setAutoRefreshDelay((config.adRefreshIntervalMs / 1000L).toInt())
             }
             // Prebid-rendered outstream video (no GAM) is not supported on the
@@ -514,7 +525,7 @@ class SellwildAdView @JvmOverloads constructor(
     }
 
     private fun scheduleRefresh() {
-        val maxRefresh = if (config.adRefreshMaxMobile > 0) config.adRefreshMaxMobile else config.adRefreshMax
+        val maxRefresh = effectiveRefreshMax
         if (maxRefresh <= 0 || refreshCount >= maxRefresh) return
 
         val handler = Handler(Looper.getMainLooper())
