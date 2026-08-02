@@ -446,4 +446,5 @@ The Sellwild SDK does not read, store, or transmit:
 
 - **Prebid Server:** Auction requests are processed in real-time and not persisted. Per-bidder response telemetry is aggregated for monitoring (no PII).
 - **Sellwild Analytics:** Event data (impressions, clicks) is retained for reporting. Events include zone ID, partner code, and session ID -- no user-level PII.
+- **House-ad images (mobile):** House-ad creatives configured via the `MOBILE_HOUSE_AD_*` remote keys are cached on-device — in-memory and on-disk in the app's caches directory — so each image is fetched at most once per device. These are ad creatives, not personal data; no PII is involved.
 - **SSPs:** Each SSP has its own data retention policy. Consent signals in the bid request govern what SSPs are permitted to store.

@@ -352,6 +352,14 @@ public final class SellwildFeedView: UIView {
         return zones[idx % zones.count]
     }
 
+    /// Pick a listing to house-backfill an ad slot with when no CMS house image
+    /// is configured. Rotates by row so adjacent ad slots don't show the same
+    /// listing. Returns nil when there are no listings to draw from.
+    private func houseListing(for row: Int) -> SellwildListing? {
+        guard !listings.isEmpty else { return nil }
+        return listings[row % listings.count]
+    }
+
     fileprivate static func parseColor(_ hex: String?) -> UIColor? {
         guard var s = hex?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return nil }
         if s.hasPrefix("#") { s.removeFirst() }
@@ -397,11 +405,15 @@ extension SellwildFeedView: UITableViewDataSource, UITableViewDelegate {
             return cell
         case .gamAd(let zone), .directAd(let zone):
             let cell = tableView.dequeueReusableCell(withIdentifier: AdRowCell.reuseId, for: indexPath) as! AdRowCell
-            cell.configure(config: config, adSize: .mrec300x250, zoneId: zone, owner: self)
+            // MREC can house-backfill with a listing when no CMS image is set.
+            cell.configure(config: config, adSize: .mrec300x250, zoneId: zone, owner: self,
+                           houseListing: houseListing(for: indexPath.row))
             return cell
         case .banner(let zone):
             let cell = tableView.dequeueReusableCell(withIdentifier: AdRowCell.reuseId, for: indexPath) as! AdRowCell
-            cell.configure(config: config, adSize: .banner320x50, zoneId: zone, owner: self)
+            // 320x50 is too small for a listing card — CMS house image only.
+            cell.configure(config: config, adSize: .banner320x50, zoneId: zone, owner: self,
+                           houseListing: nil)
             return cell
         }
     }
@@ -645,13 +657,18 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
 
     required init?(coder: NSCoder) { fatalError() }
 
-    func configure(config: SellwildConfig, adSize: AdSize, zoneId: String, owner: SellwildFeedView) {
+    func configure(config: SellwildConfig, adSize: AdSize, zoneId: String, owner: SellwildFeedView,
+                   houseListing: SellwildListing?) {
         self.owner = owner
+        // Keep the house-backfill listing fresh even when the ad view is reused,
+        // so the next refresh's backdrop can render it.
+        adView?.houseFallbackListing = houseListing
         if boundZoneId == zoneId, adView != nil { return }
         boundZoneId = zoneId
         adView?.removeFromSuperview()
 
         let ad = SellwildAdView(config: config, adSize: adSize, zoneId: zoneId)
+        ad.houseFallbackListing = houseListing
         // Inherit ad-stack from CDN config so feed ads respect AD_STACK / AD_STACK_BY_ZONE
         ad.adStackOverride = SellwildAdStack.resolve(
             remoteValues: config.remoteValues,

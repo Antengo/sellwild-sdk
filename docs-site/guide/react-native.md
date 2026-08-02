@@ -18,11 +18,12 @@ Server-side header bidding for React Native applications, powered by Prebid Serv
 10. [Direct Prebid Server Auction](#direct-prebid-server-auction)
 11. [Prebid Server Configuration](#prebid-server-configuration)
 12. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
-13. [Metro Configuration](#metro-configuration)
-14. [GDPR and Privacy](#gdpr-and-privacy)
-15. [TypeScript Reference](#typescript-reference)
-16. [Troubleshooting](#troubleshooting)
-17. [Migration Guide: Widget → Feed](#migration-guide)
+13. [House ads](#house-ads)
+14. [Metro Configuration](#metro-configuration)
+15. [GDPR and Privacy](#gdpr-and-privacy)
+16. [TypeScript Reference](#typescript-reference)
+17. [Troubleshooting](#troubleshooting)
+18. [Migration Guide: Widget → Feed](#migration-guide)
 
 ---
 
@@ -995,6 +996,16 @@ The remote `GROWTHCODE_*` keys ride the CMS/remote passthrough automatically —
 The MAID policy is handled natively per platform: iOS reads the IDFA only when the app already has ATT authorization; Android reads the GAID by reflection with no added dependency. The SDK never prompts for tracking and adds no new dependency.
 
 See **[GrowthCode Signal Resolve](./prebid-server.md#growthcode-signal-resolve)** for the sync flow, remote keys, throttle/TTL, and MAID policy.
+
+---
+
+## House ads
+
+House ads work **automatically** in React Native — **no extra JS wiring**. `<SellwildBanner>` and `<SellwildFeed>` are backed by the native iOS/Android views, which render a house-ad backdrop behind the ad slot that shows through only when a paid creative is absent (a no-fill, or the transient blank while a `prebidOnly` slot refreshes). When a real creative renders it covers the backdrop, so the slot auto-reverts to the paid ad. This removes the "ad goes blank then pops back" flash on the `prebidOnly` refresh path and backfills no-fills with your own inventory.
+
+Everything is driven by the `MOBILE_HOUSE_AD_*` remote keys, which ride the CMS/remote passthrough automatically, and the native feed supplies the MREC listing fallback itself. Nothing to install or configure in JS. See [Configuration → House ads](./configuration#house-ads-mobile) for the keys, precedence, and kill switch.
+
+> **Known follow-up.** The native house-impression event (`didRecordHouseImpressionForZoneId` on iOS, `onHouseAdImpression` on Android) is **not yet forwarded to JS** — there is no `onHouseAdImpression` prop on `<SellwildBanner>` / `<SellwildFeed>` today. The backdrop still renders; only the JS-side event is pending.
 
 ---
 

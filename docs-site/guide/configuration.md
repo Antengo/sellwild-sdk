@@ -421,6 +421,10 @@ The CDN may carry any subset of these keys. Unknown keys are ignored, so the CMS
 | `MOBILE_ZID` | `mobileZids` | string[] |
 | `MOBILE_ZID_IOS`, `MOBILE_ZID_ANDROID` | `mobileZids` (per-OS) | string[] |
 | `MOBILE_ZID_ALL_IOS`, `MOBILE_ZID_ALL_ANDROID` | platform-wide fallback for all mobile placements | string |
+| `MOBILE_HOUSE_AD_ENABLED` | house-ad master kill switch (mobile only) | bool |
+| `MOBILE_HOUSE_AD_IMAGE`, `MOBILE_HOUSE_AD_URL` | app-wide house creative + click-through (mobile only) | string |
+| `MOBILE_HOUSE_AD_BY_SIZE` | per-size house overrides, keyed `"<w>x<h>"` (mobile only) | object |
+| `MOBILE_HOUSE_AD_BY_ZONE` | per-zone house overrides, keyed by zone id (mobile only) | object |
 | `HIDE_BANNER_TOP`, `HIDE_BANNER_BOTTOM`, `DISABLE_GPT`, `AD_DISABLE_DISPLAY` | matching camelCase | bool |
 | `GAM` | `gamTag` | string |
 | `AD_REFRESH_MAX`, `AD_REFRESH_MAX_MOBILE`, `MAX_FAILED_AUCTIONS` | matching camelCase | int |
@@ -463,6 +467,59 @@ The pick happens in the native mapper (Swift on iOS, Kotlin on Android), so it i
 ```
 
 With the document above — **iOS**: the feed uses `weatherbug-mobile-ios` (tier-2 ALL) and the banner uses `weatherbug-banner-ios` (tier-1 override wins). **Android**: feed + banner both use `weatherbug-mobile-android` (tier-2 ALL). Neither OS falls to the shared `MOBILE_ZID`, because an ALL value is set for both.
+
+---
+
+## House ads (mobile)
+
+A **house-ad backdrop** renders *behind* every mobile ad slot and shows through only when a paid creative is absent — a no-fill, or the transient blank while a `prebidOnly` slot tears down one creative and renders the next on refresh. When a real creative renders it covers the backdrop, so the slot auto-reverts to the paid ad. This removes the "ad goes blank then pops back" flash on the `prebidOnly` refresh path and backfills no-fills with your own inventory (an advertisement shown only when a paid ad is absent).
+
+It is **mobile-only** — the web widget ignores every `MOBILE_HOUSE_AD_*` key. Everything is resolved from remote CDN config, so you change creatives, click-throughs, and the kill switch **without an app release**.
+
+### Content precedence (per placement)
+
+1. **CMS house image** — a creative you configure via the `MOBILE_HOUSE_AD_*` keys below, with a click-through URL.
+2. **A Sellwild listing** — used **only in the feed**, **only for the MREC (300×250)** slot (a 320×50 banner is too small for a listing card), and only when no image is configured for that placement. The feed supplies it automatically.
+3. **Nothing** — the slot stays blank (today's behavior).
+
+### Remote keys
+
+| CDN key | Type | Default | Description |
+|---|---|---|---|
+| `MOBILE_HOUSE_AD_ENABLED` | bool | `true` | **Master kill switch.** `false` = no backfill at all (image *or* listing); slots stay blank. Fully remote. |
+| `MOBILE_HOUSE_AD_IMAGE` | string (URL) | — | App-wide house creative, sized to the slot. |
+| `MOBILE_HOUSE_AD_URL` | string | — | Click-through URL for the image. |
+| `MOBILE_HOUSE_AD_BY_SIZE` | object | — | Per-size overrides, keyed `"<w>x<h>"` — e.g. `{"300x250":{"image":"…","url":"…"},"320x50":{"image":"…","url":"…"}}`. |
+| `MOBILE_HOUSE_AD_BY_ZONE` | object | — | Per-zone overrides (most specific), keyed by zone id — e.g. `{"weatherbug-mobile-300x250":{"image":"…","url":"…"}}`. |
+
+### Image resolution precedence
+
+For a given placement, the image (and its click-through URL) resolves **most specific first**:
+
+`MOBILE_HOUSE_AD_BY_ZONE[zoneId]` → `MOBILE_HOUSE_AD_BY_SIZE["<w>x<h>"]` → `MOBILE_HOUSE_AD_IMAGE` / `MOBILE_HOUSE_AD_URL`.
+
+If none resolve, the SDK falls to the listing fallback (feed MREC only) and then to a blank slot. When `MOBILE_HOUSE_AD_ENABLED` is `false`, none of this runs.
+
+### Local image caching
+
+House images are cached on-device — **in-memory plus on-disk in the app's caches directory** — so each image is fetched **at most once per device**. This is a deliberate request-saving measure; no personal data is involved (see [Privacy & Consent](/guide/privacy)).
+
+```json
+{
+  "MOBILE_HOUSE_AD_ENABLED": true,
+  "MOBILE_HOUSE_AD_IMAGE": "https://cdn.sellwild.com/house/weatherbug-default.png",
+  "MOBILE_HOUSE_AD_URL": "https://weatherbug.com/app",
+  "MOBILE_HOUSE_AD_BY_SIZE": {
+    "300x250": { "image": "https://cdn.sellwild.com/house/wb-mrec.png",   "url": "https://weatherbug.com/mrec" },
+    "320x50":  { "image": "https://cdn.sellwild.com/house/wb-banner.png", "url": "https://weatherbug.com/banner" }
+  },
+  "MOBILE_HOUSE_AD_BY_ZONE": {
+    "weatherbug-mobile-300x250": { "image": "https://cdn.sellwild.com/house/wb-weather-mrec.png", "url": "https://weatherbug.com/weather" }
+  }
+}
+```
+
+The native SDKs also expose an impression callback for house backfills so you can report them **separately from paid impressions** — see [iOS → House ads](/guide/ios#house-ads), [Android → House ads](/guide/android#house-ads), and the [API Reference](/guide/api-reference).
 
 ---
 
