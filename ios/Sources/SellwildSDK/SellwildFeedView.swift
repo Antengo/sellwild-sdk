@@ -41,11 +41,15 @@ public protocol SellwildFeedViewDelegate: AnyObject {
     /// container when embedding it inside a parent scroll view with
     /// `scrollEnabled = false`. `height` is in points.
     func sellwildFeed(_ feed: SellwildFeedView, didChangeContentHeight height: CGFloat)
+    /// A house ad backfilled an empty ad slot in the feed (a no-fill). NOT a
+    /// paid impression — report it separately. See `SellwildHouseAd`.
+    func sellwildFeed(_ feed: SellwildFeedView, didRecordHouseAdImpressionForZoneId zoneId: String)
 }
 
 public extension SellwildFeedViewDelegate {
     func sellwildFeed(_ feed: SellwildFeedView, didTapListing listing: SellwildListing) -> Bool { false }
     func sellwildFeed(_ feed: SellwildFeedView, didRecordAdImpressionForZoneId zoneId: String) {}
+    func sellwildFeed(_ feed: SellwildFeedView, didRecordHouseAdImpressionForZoneId zoneId: String) {}
     func sellwildFeed(_ feed: SellwildFeedView, didRecordAdClickForZoneId zoneId: String) {}
     func sellwildFeedDidLoad(_ feed: SellwildFeedView) {}
     func sellwildFeed(_ feed: SellwildFeedView, didFailWithError message: String) {}
@@ -323,6 +327,10 @@ public final class SellwildFeedView: UIView {
 
     fileprivate func handleAdImpression(_ zoneId: String) {
         delegate?.sellwildFeed(self, didRecordAdImpressionForZoneId: zoneId)
+    }
+
+    fileprivate func handleHouseAdImpression(_ zoneId: String) {
+        delegate?.sellwildFeed(self, didRecordHouseAdImpressionForZoneId: zoneId)
     }
 
     fileprivate func handleAdClick(_ zoneId: String) {
@@ -693,6 +701,10 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
 
     func sellwildAdView(_ adView: SellwildAdView, didReceiveImpressionForZoneId zoneId: String) {
         owner?.handleAdImpression(zoneId)
+    }
+
+    func sellwildAdView(_ adView: SellwildAdView, didRecordHouseImpressionForZoneId zoneId: String) {
+        owner?.handleHouseAdImpression(zoneId)
     }
 
     func sellwildAdView(_ adView: SellwildAdView, didFailWithError error: Error) { /* swallow */ }

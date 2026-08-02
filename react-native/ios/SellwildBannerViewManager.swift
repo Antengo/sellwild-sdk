@@ -47,6 +47,8 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
 
     @objc var onAdLoaded: RCTDirectEventBlock?
     @objc var onAdImpression: RCTDirectEventBlock?
+    /// A house ad backfilled an empty slot (no-fill). Not a paid impression.
+    @objc var onHouseAdImpression: RCTDirectEventBlock?
     @objc var onAdClicked: RCTDirectEventBlock?
     @objc var onAdFailed: RCTDirectEventBlock?
     /// Emitted with the rendered creative size so JS can resize the slot.
@@ -122,6 +124,10 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
 
     func sellwildAdView(_ adView: SellwildAdView, didReceiveImpressionForZoneId zoneId: String) {
         onAdImpression?(["zoneId": zoneId])
+    }
+
+    func sellwildAdView(_ adView: SellwildAdView, didRecordHouseImpressionForZoneId zoneId: String) {
+        onHouseAdImpression?(["zoneId": zoneId])
     }
 
     func sellwildAdViewDidRecordClick(_ adView: SellwildAdView) {

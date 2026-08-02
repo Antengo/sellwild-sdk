@@ -1005,7 +1005,22 @@ House ads work **automatically** in React Native — **no extra JS wiring**. `<S
 
 Everything is driven by the `MOBILE_HOUSE_AD_*` remote keys, which ride the CMS/remote passthrough automatically, and the native feed supplies the MREC listing fallback itself. Nothing to install or configure in JS. See [Configuration → House ads](./configuration#house-ads-mobile) for the keys, precedence, and kill switch.
 
-> **Known follow-up.** The native house-impression event (`didRecordHouseImpressionForZoneId` on iOS, `onHouseAdImpression` on Android) is **not yet forwarded to JS** — there is no `onHouseAdImpression` prop on `<SellwildBanner>` / `<SellwildFeed>` today. The backdrop still renders; only the JS-side event is pending.
+### House-fill events
+
+When a house ad backfills an empty slot (a no-fill), both components emit a callback so you can track house fills separately from paid impressions:
+
+- `<SellwildBanner onHouseImpression={(zoneId) => …} />`
+- `<SellwildFeed onHouseAdImpression={(zoneId) => …} />`
+
+```tsx
+<SellwildFeed
+  config={config}
+  onAdImpression={(zoneId) => track('paid_impression', { zoneId })}
+  onHouseAdImpression={(zoneId) => track('house_impression', { zoneId })}
+/>
+```
+
+> These fire only on a no-fill (when the backdrop is actually visible), not for the transient `prebidOnly` refresh gap. A house fill is **not** a paid impression — report it separately.
 
 ---
 

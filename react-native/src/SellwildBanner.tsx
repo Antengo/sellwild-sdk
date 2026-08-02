@@ -62,6 +62,7 @@ interface NativeBannerProps {
   style?: ViewStyle
   onAdLoaded?: (e: NativeSyntheticEvent<{}>) => void
   onAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
+  onHouseAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
   onAdClicked?: (e: NativeSyntheticEvent<{}>) => void
   onAdFailed?: (e: NativeSyntheticEvent<{ message: string }>) => void
   onAdResize?: (e: NativeSyntheticEvent<{ width: number; height: number }>) => void
@@ -86,6 +87,11 @@ export interface SellwildBannerProps {
   zoneId: number | string
   style?: ViewStyle
   onImpression?: () => void
+  /**
+   * Fired when a house ad backfilled an empty slot (a no-fill). NOT a paid
+   * impression — track it separately. See the `MOBILE_HOUSE_AD_*` config keys.
+   */
+  onHouseImpression?: (zoneId: string) => void
   onClick?: () => void
   onError?: (error: Error) => void
 }
@@ -96,6 +102,7 @@ export function SellwildBanner({
   zoneId,
   style,
   onImpression,
+  onHouseImpression,
   onClick,
   onError,
 }: SellwildBannerProps) {
@@ -185,6 +192,7 @@ export function SellwildBanner({
         // No-op event hook today; surfaced for future fill metrics.
       }}
       onAdImpression={() => onImpression?.()}
+      onHouseAdImpression={(e: NativeSyntheticEvent<{ zoneId: string }>) => onHouseImpression?.(e.nativeEvent?.zoneId)}
       onAdClicked={() => onClick?.()}
       onAdFailed={(e: NativeSyntheticEvent<{ message: string }>) => {
         const msg = e.nativeEvent?.message ?? 'Ad failed'

@@ -34,6 +34,7 @@ interface NativeFeedProps {
   onFeedLoaded?: (e: NativeSyntheticEvent<{}>) => void
   onListingTap?: (e: NativeSyntheticEvent<{ listing: SellwildListing }>) => void
   onAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
+  onHouseAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
   onAdClicked?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
   onFeedError?: (e: NativeSyntheticEvent<{ message: string }>) => void
   onContentSizeChange?: (e: NativeSyntheticEvent<{ width?: number; height: number }>) => void
@@ -93,6 +94,12 @@ export interface SellwildFeedProps {
   /** Fired when a native ad row records an impression. */
   onAdImpression?: (zoneId: string) => void
 
+  /**
+   * Fired when a house ad backfilled an empty ad row (a no-fill). NOT a paid
+   * impression — track it separately. See the `MOBILE_HOUSE_AD_*` config keys.
+   */
+  onHouseAdImpression?: (zoneId: string) => void
+
   /** Fired when a native ad row is clicked. */
   onAdClicked?: (zoneId: string) => void
 
@@ -108,6 +115,7 @@ export function SellwildFeed({
   onLoad,
   onListingTap,
   onAdImpression,
+  onHouseAdImpression,
   onAdClicked,
   onError,
 }: SellwildFeedProps) {
@@ -185,6 +193,9 @@ export function SellwildFeed({
       }}
       onAdImpression={(e: NativeSyntheticEvent<{ zoneId: string }>) => {
         onAdImpression?.(e.nativeEvent.zoneId)
+      }}
+      onHouseAdImpression={(e: NativeSyntheticEvent<{ zoneId: string }>) => {
+        onHouseAdImpression?.(e.nativeEvent.zoneId)
       }}
       onAdClicked={(e: NativeSyntheticEvent<{ zoneId: string }>) => {
         onAdClicked?.(e.nativeEvent.zoneId)

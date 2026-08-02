@@ -72,6 +72,11 @@ class SellwildFeedView @JvmOverloads constructor(
          */
         fun onListingTap(listing: SellwildListing): Boolean = false
         fun onAdImpression(zoneId: String) {}
+        /**
+         * A house ad backfilled an empty ad slot in the feed (a no-fill). NOT a
+         * paid impression — report it separately. See [SellwildHouseAd].
+         */
+        fun onHouseAdImpression(zoneId: String) {}
         fun onAdClicked(zoneId: String) {}
         fun onLoad() {}
         fun onError(message: String) {}
@@ -351,9 +356,9 @@ class SellwildFeedView @JvmOverloads constructor(
                 }
                 // MREC can house-backfill with a listing when no CMS image is set;
                 // a 320x50 banner is too small for a card, so it gets none.
-                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onAdClick, houseListingFor(position))
-                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onAdClick, houseListingFor(position))
-                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onAdClick, null)
+                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position))
+                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position))
+                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null)
             }
         }
     }
@@ -364,6 +369,10 @@ class SellwildFeedView @JvmOverloads constructor(
 
     private fun onAdImpression(zoneId: String) {
         listener?.onAdImpression(zoneId)
+    }
+
+    private fun onHouseAdImpression(zoneId: String) {
+        listener?.onHouseAdImpression(zoneId)
     }
 
     private fun onAdClick(zoneId: String) {
@@ -594,6 +603,7 @@ class SellwildFeedView @JvmOverloads constructor(
             config: SellwildConfig,
             zoneId: String,
             onImpression: (String) -> Unit,
+            onHouseImpression: (String) -> Unit,
             onClick: (String) -> Unit,
             houseListing: SellwildListing?,
         ) {
@@ -616,6 +626,9 @@ class SellwildFeedView @JvmOverloads constructor(
                     override fun onAdLoaded(adView: SellwildAdView) {}
                     override fun onAdImpression(adView: SellwildAdView, zoneId: String) {
                         onImpression(zoneId)
+                    }
+                    override fun onHouseAdImpression(adView: SellwildAdView, zoneId: String) {
+                        onHouseImpression(zoneId)
                     }
                     override fun onAdClicked(adView: SellwildAdView) { onClick(zoneId) }
                     override fun onAdFailed(adView: SellwildAdView, message: String) {}
