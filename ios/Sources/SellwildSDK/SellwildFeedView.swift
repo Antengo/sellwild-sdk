@@ -313,7 +313,9 @@ public final class SellwildFeedView: UIView {
     // MARK: Helpers
 
     fileprivate func openURL(_ urlString: String?) {
-        guard let s = urlString, let url = URL(string: s), let vc = nearestViewController() else { return }
+        // http/https only — SFSafariViewController throws (crashes) on any other
+        // scheme, and these URLs come from remote listing/CMS data.
+        guard let url = SellwildSafeURL.external(urlString), let vc = nearestViewController() else { return }
         let safari = SFSafariViewController(url: url)
         vc.present(safari, animated: true)
     }

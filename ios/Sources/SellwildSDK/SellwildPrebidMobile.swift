@@ -22,6 +22,18 @@ public enum SellwildPrebidMobile {
     private static var didBootstrap = false
     private static let lock = NSLock()
 
+    /// `true` once Prebid's async `initializeSDK` completion has fired without
+    /// error. Distinct from `didBootstrap` (which is set synchronously when init
+    /// is *kicked off*). `SellwildAdView` polls this to avoid firing the first
+    /// auction before Prebid is ready and silently downgrading it to GAM-only.
+    private static var initialized = false
+
+    /// Whether Prebid Mobile has finished initializing and can run an auction.
+    public static func isReady() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return initialized
+    }
+
     /// Initialize PrebidMobile + GMA SDK from a `SellwildConfig`.
     ///
     /// Idempotent: safe to call from every `SellwildSDK.configure(...)` result
@@ -100,6 +112,10 @@ public enum SellwildPrebidMobile {
                     log("SellwildPrebid SDK init error: \(error.localizedDescription)")
                 } else {
                     log("SellwildPrebid SDK init status: \(status)")
+                    // Ready = completed without error. Deliberately not matched
+                    // against a status enum token (brittle against the shaded
+                    // fork's naming); a clean completion means auctions can run.
+                    lock.lock(); initialized = true; lock.unlock()
                 }
             }
         } catch {

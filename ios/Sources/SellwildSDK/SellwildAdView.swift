@@ -88,6 +88,23 @@ public final class SellwildAdView: UIView {
     private var refreshTimer: Timer?
     private var refreshCount = 0
 
+    /// Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
+    /// when set, else the shared `AD_REFRESH_MAX` (matches Android + web). iOS
+    /// previously honored only the mobile key, silently disabling refresh — and
+    /// its refresh revenue — for partners who set only `AD_REFRESH_MAX`.
+    private var effectiveRefreshMax: Int {
+        config.adRefreshMaxMobile > 0 ? config.adRefreshMaxMobile : config.adRefreshMax
+    }
+
+    // Cold-start guard: Prebid init is async and can race the first load(). Wait
+    // up to ~1.2s (8 × 0.15s) for readiness before running the first auction so
+    // the first impression isn't silently downgraded to GAM-only. Mirrors the
+    // Android `prebidWait` loop.
+    private var prebidWaitTimer: Timer?
+    private var prebidWaitAttempts = 0
+    private let maxPrebidWaitAttempts = 8
+    private let prebidWaitIntervalSec: TimeInterval = 0.15
+
     // MARK: Init
 
     public init(config: SellwildConfig, adSize: AdSize, zoneId: String? = nil) {
@@ -109,6 +126,7 @@ public final class SellwildAdView: UIView {
 
     deinit {
         refreshTimer?.invalidate()
+        prebidWaitTimer?.invalidate()
         prebidBanner?.stopRefresh()
     }
 
@@ -154,6 +172,8 @@ public final class SellwildAdView: UIView {
     public func pause() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+        prebidWaitTimer?.invalidate()
+        prebidWaitTimer = nil
         prebidBanner?.stopRefresh()
     }
 
@@ -171,6 +191,22 @@ public final class SellwildAdView: UIView {
             banner.load(AdManagerRequest())
             return
         }
+
+        // Cold-start guard: Prebid init is async and races the first load(). Wait
+        // briefly for readiness, then run the auction regardless — runBannerAuction
+        // falls back to GAM on a Prebid miss, so the wait can only *add* Prebid
+        // demand to the first impression, never drop fill.
+        if !SellwildPrebidMobile.isReady(), prebidWaitAttempts < maxPrebidWaitAttempts {
+            prebidWaitAttempts += 1
+            prebidWaitTimer?.invalidate()
+            prebidWaitTimer = Timer.scheduledTimer(
+                withTimeInterval: prebidWaitIntervalSec, repeats: false
+            ) { [weak self] _ in
+                self?.loadGAM(runAuction: runAuction)
+            }
+            return
+        }
+        prebidWaitAttempts = 0
 
         // Bidder params are configured server-side in the stored imp. Don't send
         // CMS config inline — it includes non-bidder keys that PBS rejects.
@@ -228,7 +264,7 @@ public final class SellwildAdView: UIView {
         let banner = ensurePrebidBanner(configId: configId)
         // Prebid's rendering banner owns its own auto-refresh; mirror the GAM
         // refresh cadence when one is configured.
-        if config.adRefreshMaxMobile > 0 {
+        if effectiveRefreshMax > 0 {
             banner.refreshInterval = config.adRefreshInterval
         }
         banner.loadAd()
@@ -385,15 +421,17 @@ public final class SellwildAdView: UIView {
     }
 
     private func openHouseURL(_ urlString: String?) {
-        guard let s = urlString, let url = URL(string: s) else { return }
+        // http/https only — the click URL is remote CMS config; never hand an
+        // arbitrary scheme (tel:/mailto:/deep link) to UIApplication.open.
+        guard let url = SellwildSafeURL.external(urlString) else { return }
         UIApplication.shared.open(url)
     }
 
     // MARK: Refresh (GAM path only — Prebid path self-refreshes)
 
     private func scheduleRefresh() {
-        guard config.adRefreshMaxMobile > 0 else { return }
-        guard refreshCount < config.adRefreshMaxMobile else { return }
+        guard effectiveRefreshMax > 0 else { return }
+        guard refreshCount < effectiveRefreshMax else { return }
         refreshTimer = Timer.scheduledTimer(
             withTimeInterval: config.adRefreshInterval,
             repeats: false
