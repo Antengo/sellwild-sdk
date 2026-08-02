@@ -197,6 +197,55 @@ class SellwildAdView @JvmOverloads constructor(
 
     fun resume() {
         bannerView?.resume()
+        // Restart the refresh cadence paused by pause(): our timer on the GAM
+        // path; best-effort re-enable of Prebid's internal auto-refresh on
+        // prebidOnly. The currently displayed creative stays put.
+        when (resolvedAdStack) {
+            SellwildAdStack.BOTH, SellwildAdStack.GAM_ONLY -> scheduleRefresh()
+            SellwildAdStack.PREBID_ONLY ->
+                if (effectiveRefreshMax > 0 && !nativeEnabled) {
+                    prebidBanner?.setAutoRefreshDelay((config.adRefreshIntervalMs / 1000L).toInt())
+                }
+        }
+    }
+
+    // ── Detached-refresh pause (prototype, default OFF) ──────────────────────
+    // When MOBILE_PAUSE_REFRESH_DETACHED is truthy in remote config, pause the
+    // refresh cadence while this view is fully detached from the window
+    // (recycled / in the RecyclerView pool) and resume on re-attach. This trims
+    // never-rendered "detached view" refreshes — the invalid-traffic edge and the
+    // handler leak — while KEEPING off-screen-but-attached refreshes (the
+    // off-screen revenue). Off by default: behavior is unchanged unless enabled.
+
+    private var isPausedForDetach = false
+
+    private val pausesRefreshWhenDetached: Boolean
+        get() {
+            if (!::config.isInitialized) return false
+            val obj = config.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
+            if (!obj.has("MOBILE_PAUSE_REFRESH_DETACHED") || obj.isNull("MOBILE_PAUSE_REFRESH_DETACHED")) return false
+            return when (val v = obj.get("MOBILE_PAUSE_REFRESH_DETACHED")) {
+                is Boolean -> v
+                is Number -> v.toInt() != 0
+                is String -> v.lowercase() in setOf("1", "true", "yes", "on")
+                else -> false
+            }
+        }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        if (pausesRefreshWhenDetached && !isPausedForDetach) {
+            isPausedForDetach = true
+            pause()
+        }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (pausesRefreshWhenDetached && isPausedForDetach) {
+            isPausedForDetach = false
+            resume()
+        }
     }
 
     fun destroy() {

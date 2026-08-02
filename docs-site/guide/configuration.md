@@ -478,6 +478,8 @@ It is **mobile-only** — the web widget ignores every `MOBILE_HOUSE_AD_*` key. 
 
 > **`prebidOnly` refresh.** The `prebidOnly` path uses Prebid's own in-place auto-refresh, which briefly tears the current creative down before the next renders; the house-ad backdrop shows through that gap (and any no-fill), so the slot never flashes empty when a house creative or listing fallback is configured. `AD_REFRESH_INTERVAL` is in **milliseconds**.
 
+> **`MOBILE_PAUSE_REFRESH_DETACHED`** (bool, default `false`, mobile SDK only). Prototype toggle for A/B testing. When `true`, an ad view pauses its refresh cadence while it is **fully detached** from the window (a recycled/pooled feed cell) and resumes on re-attach — trimming refreshes on views that are never on screen (the invalid-traffic edge), while **keeping** off-screen-but-attached refreshes. The first auction (fired at bind) is unaffected. Leave `false` to keep today's behavior.
+
 ### Content precedence (per placement)
 
 1. **CMS house image** — a creative you configure via the `MOBILE_HOUSE_AD_*` keys below, with a click-through URL.
