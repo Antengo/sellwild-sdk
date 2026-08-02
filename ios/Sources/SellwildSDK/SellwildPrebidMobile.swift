@@ -96,6 +96,10 @@ public enum SellwildPrebidMobile {
         // for the duration of bootstrap. applyGlobalORTB() takes a snapshot
         // under the same lock, so a concurrent setGeo() can't race the emit.
         resolvedPublisherId = resolvePublisherId(from: config)
+        // IAB content categories (IAB_CATS) → ORTB app.cat, so DSPs get content
+        // taxonomy / brand-safety context on the bid request. Content signal, not
+        // consent — safe to always attach when the CMS provides it.
+        resolvedCats = config.iabCats.isEmpty ? nil : config.iabCats
         if SellwildGeoStore.current == nil { SellwildGeoStore.current = config.geo }
         applyGlobalORTB()
 
@@ -267,6 +271,7 @@ public enum SellwildPrebidMobile {
     /// Publisher id resolved at bootstrap, retained so `applyGlobalORTB()` can
     /// re-emit it alongside geo without re-reading config. Protected by `lock`.
     private static var resolvedPublisherId: String?
+    private static var resolvedCats: [String]?
 
     /// Emit one combined global ORTB config carrying `app.publisher.id` and
     /// `device.geo`. `setGlobalORTBConfig` is last-write-wins, so both live in a
@@ -279,12 +284,16 @@ public enum SellwildPrebidMobile {
     private static func applyGlobalORTB() {
         lock.lock()
         let pid = resolvedPublisherId
+        let cats = resolvedCats
         let geoDict = SellwildGeoStore.current?.ortbGeoDict
         lock.unlock()
 
         var app: [String: Any] = [:]
         if let pid, !pid.isEmpty {
             app["publisher"] = ["id": pid]
+        }
+        if let cats, !cats.isEmpty {
+            app["cat"] = cats
         }
         var device: [String: Any] = [:]
         if let geoDict, !geoDict.isEmpty {

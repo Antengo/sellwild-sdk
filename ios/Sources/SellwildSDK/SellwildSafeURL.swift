@@ -15,4 +15,14 @@ enum SellwildSafeURL {
               scheme == "http" || scheme == "https" else { return nil }
         return url
     }
+
+    /// Max bytes accepted for a remotely-fetched (or base64 `data:`) image, a
+    /// guard against a hostile oversized creative causing an OOM. 8 MB is
+    /// generous for any banner/MREC/native creative.
+    static let maxImageBytes = 8 * 1024 * 1024
+
+    /// A network image URL: `http`/`https` only. Reuses `external` so a `file://`
+    /// value from remote config/listing data can't turn an image fetch into a
+    /// local-file read. (`data:` is decoded inline by callers, size-capped.)
+    static func imageURL(_ string: String?) -> URL? { external(string) }
 }

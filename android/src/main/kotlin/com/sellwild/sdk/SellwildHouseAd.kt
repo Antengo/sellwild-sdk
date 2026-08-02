@@ -35,7 +35,6 @@ import android.os.Looper
 import android.util.LruCache
 import org.json.JSONObject
 import java.io.File
-import java.net.URL
 
 internal object SellwildHouseAd {
 
@@ -115,7 +114,10 @@ internal object SellwildHouseAd {
                 if (disk.exists()) {
                     BitmapFactory.decodeFile(disk.absolutePath)
                 } else {
-                    val bytes = URL(url).openStream().use { it.readBytes() }
+                    // http/https only (reject file:// — URL is remote config) + cap.
+                    val safe = SellwildSafeUrl.imageUrl(url) ?: return@runCatching null
+                    val bytes = safe.openStream().use { it.readBytes() }
+                    if (bytes.size > SellwildSafeUrl.MAX_IMAGE_BYTES) return@runCatching null
                     disk.writeBytes(bytes)
                     BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                 }

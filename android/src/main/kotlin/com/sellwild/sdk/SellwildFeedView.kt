@@ -32,7 +32,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.URL
 
 /**
  * All-in-one native feed surface. As of 1.4.0 this view renders a
@@ -563,9 +562,12 @@ class SellwildFeedView @JvmOverloads constructor(
                 if (comma < 0) return null
                 val payload = url.substring(comma + 1)
                 val bytes = android.util.Base64.decode(payload, android.util.Base64.DEFAULT)
+                if (bytes.size > SellwildSafeUrl.MAX_IMAGE_BYTES) return null
                 return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
             }
-            return URL(url).openStream().use { BitmapFactory.decodeStream(it) }
+            // http/https only — reject file:// (listing photo URLs are remote data).
+            val safe = SellwildSafeUrl.imageUrl(url) ?: return null
+            return safe.openStream().use { BitmapFactory.decodeStream(it) }
         }
 
         private fun formatPrice(currency: String?, price: String?): String {
