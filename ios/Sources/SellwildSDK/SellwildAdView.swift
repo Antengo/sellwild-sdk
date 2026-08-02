@@ -82,12 +82,6 @@ public final class SellwildAdView: UIView {
     private var gamBanner: AdManagerBannerView?
     // Prebid render path (.prebidOnly). Created lazily on first Prebid load.
     private var prebidBanner: PrebidBannerView?
-    // Double-buffer partner for the .prebidOnly refresh: the next creative loads
-    // into this hidden banner (on top of, but transparent over, the current one)
-    // and is swapped in only once it renders — so the slot never flashes blank
-    // between creatives the way Prebid's in-place auto-refresh does. See
-    // startPrebidBufferLoad() / schedulePrebidRefresh().
-    private var prebidBufferBanner: PrebidBannerView?
     // Prebid native render path (.prebidOnly + NATIVE_ENABLED). Lazily created.
     private var nativeAdView: SellwildNativeAdView?
 
@@ -161,9 +155,6 @@ public final class SellwildAdView: UIView {
         refreshTimer?.invalidate()
         refreshTimer = nil
         prebidBanner?.stopRefresh()
-        // Drop any in-flight double-buffer so a pending swap can't fire later.
-        prebidBufferBanner?.removeFromSuperview()
-        prebidBufferBanner = nil
     }
 
     // MARK: GAM path (.both / .gamOnly)
@@ -235,12 +226,11 @@ public final class SellwildAdView: UIView {
         }
 
         let banner = ensurePrebidBanner(configId: configId)
-        // We drive refresh ourselves via a double-buffer (schedulePrebidRefresh)
-        // so the slot never flashes blank between creatives — instead of Prebid's
-        // in-place auto-refresh, which tears the current creative down before the
-        // next one renders. Keep the internal auto-refresh OFF.
-        banner.refreshInterval = 0
-        refreshCount = 0
+        // Prebid's rendering banner owns its own auto-refresh; mirror the GAM
+        // refresh cadence when one is configured.
+        if config.adRefreshMaxMobile > 0 {
+            banner.refreshInterval = config.adRefreshInterval
+        }
         banner.loadAd()
     }
 
@@ -399,7 +389,7 @@ public final class SellwildAdView: UIView {
         UIApplication.shared.open(url)
     }
 
-    // MARK: Refresh (GAM path: reload in place — Prebid path: double-buffer swap)
+    // MARK: Refresh (GAM path only — Prebid path self-refreshes)
 
     private func scheduleRefresh() {
         guard config.adRefreshMaxMobile > 0 else { return }
@@ -411,44 +401,6 @@ public final class SellwildAdView: UIView {
             self?.refreshCount += 1
             self?.load()
         }
-    }
-
-    /// Schedule the next `.prebidOnly` refresh. Unlike the GAM path we never
-    /// reload the visible banner — we load a hidden buffer and swap it in on
-    /// render (see `startPrebidBufferLoad`), so the slot never flashes blank.
-    private func schedulePrebidRefresh() {
-        guard config.adRefreshMaxMobile > 0, refreshCount < config.adRefreshMaxMobile else { return }
-        refreshTimer?.invalidate()
-        refreshTimer = Timer.scheduledTimer(
-            withTimeInterval: config.adRefreshInterval,
-            repeats: false
-        ) { [weak self] _ in
-            self?.refreshCount += 1
-            self?.startPrebidBufferLoad()
-        }
-    }
-
-    /// Load the next `.prebidOnly` creative into a buffer banner layered on top
-    /// of the current one. It's transparent until it renders, so the current
-    /// creative stays visible beneath it; `didReceiveAdWithAdSize` swaps it in
-    /// once it fills (or `didFailToReceiveAdWith` discards it, keeping current).
-    private func startPrebidBufferLoad() {
-        guard let configId = zoneId, !configId.isEmpty, prebidBanner != nil else { return }
-        let v = PrebidBannerView(
-            frame: CGRect(origin: .zero, size: adSize.cgSize),
-            configID: configId,
-            adSize: adSize.cgSize
-        )
-        SellwildAdSizes.applyRendering(resolvedAdSizes, to: v)
-        v.translatesAutoresizingMaskIntoConstraints = false
-        v.refreshInterval = 0
-        v.backgroundColor = .clear // transparent until it renders, so current shows through
-        v.isUserInteractionEnabled = false // don't intercept taps while empty
-        v.delegate = self
-        prebidBufferBanner?.removeFromSuperview() // drop any stale buffer
-        prebidBufferBanner = v
-        addPinned(v)
-        v.loadAd()
     }
 
     // Google-provided test ad units. /6499/example/banner only fills 320x50;
@@ -560,18 +512,9 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         #if DEBUG
         print("[SellwildAdView][prebidOnly] ✅ rendered — size \(adSize), zone \(zoneId ?? "?")")
         #endif
-        if bannerView === prebidBufferBanner {
-            // The double-buffered next creative rendered — swap it in. The old
-            // creative stayed visible right up to this instant, so no blank gap.
-            prebidBanner?.removeFromSuperview()
-            prebidBanner = prebidBufferBanner
-            prebidBufferBanner = nil
-            prebidBanner?.isUserInteractionEnabled = true
-        }
         delegate?.sellwildAdViewDidLoad?(self)
         delegate?.sellwildAdView?(self, didRenderWithSize: adSize)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
-        schedulePrebidRefresh()
     }
 
     public func bannerView(_ bannerView: PrebidBannerView,
@@ -581,14 +524,6 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         print("[SellwildAdView][prebidOnly] ❌ failed to render — zone \(zoneId ?? "?"): "
             + "\(error.localizedDescription)")
         #endif
-        if bannerView === prebidBufferBanner {
-            // A buffered refresh no-filled: discard the buffer, keep the current
-            // creative on screen, and try again on the next interval.
-            prebidBufferBanner?.removeFromSuperview()
-            prebidBufferBanner = nil
-            schedulePrebidRefresh()
-            return
-        }
         delegate?.sellwildAdView?(self, didFailWithError: error)
         recordHouseImpressionIfShowing()
     }

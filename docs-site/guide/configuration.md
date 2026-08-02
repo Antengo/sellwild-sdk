@@ -476,7 +476,7 @@ A **house-ad backdrop** renders *behind* every mobile ad slot and shows through 
 
 It is **mobile-only** — the web widget ignores every `MOBILE_HOUSE_AD_*` key. Everything is resolved from remote CDN config, so you change creatives, click-throughs, and the kill switch **without an app release**.
 
-> **Seamless `prebidOnly` refresh.** The SDK drives the `prebidOnly` refresh with a **double-buffer**: the next creative loads into a hidden banner and is swapped in only once it renders, so the current creative stays visible with no blank gap (rather than Prebid's in-place auto-refresh, which tears the creative down first). House ads still backdrop any true no-fill. `AD_REFRESH_INTERVAL` is in **milliseconds**.
+> **`prebidOnly` refresh.** The `prebidOnly` path uses Prebid's own in-place auto-refresh, which briefly tears the current creative down before the next renders; the house-ad backdrop shows through that gap (and any no-fill), so the slot never flashes empty when a house creative or listing fallback is configured. `AD_REFRESH_INTERVAL` is in **milliseconds**.
 
 ### Content precedence (per placement)
 
