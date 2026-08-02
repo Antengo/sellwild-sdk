@@ -143,8 +143,10 @@ public enum SellwildSDK {
         // Refresh
         if let v = raw["AD_REFRESH_MAX"]        as? Int { c.adRefreshMax = v }
         if let v = raw["AD_REFRESH_MAX_MOBILE"] as? Int { c.adRefreshMaxMobile = v }
+        // AD_REFRESH_INTERVAL is milliseconds (matches web + TS core); the iOS
+        // API (`adRefreshInterval`, a TimeInterval) is seconds — convert.
         if let v = raw["AD_REFRESH_INTERVAL"]   as? Double {
-            c.adRefreshInterval = v
+            c.adRefreshInterval = v / 1000.0
         }
         if let v = raw["MAX_FAILED_AUCTIONS"] as? Int { c.maxFailedAuctions = v }
 

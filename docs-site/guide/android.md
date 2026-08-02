@@ -814,7 +814,7 @@ The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your
 
 **Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode = ...)` with deterministic defaults, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
 
-> The CDN's `AD_REFRESH_INTERVAL` is in **seconds**, while Android's `adRefreshIntervalMs` is in **milliseconds**. `SellwildSDK.configure()` handles the conversion.
+> The CDN's `AD_REFRESH_INTERVAL` is in **milliseconds** (matching the web widget and TS core), and Android's `adRefreshIntervalMs` is milliseconds too. `SellwildSDK.configure()` stores it as-is; iOS's `adRefreshInterval` (seconds) is converted from it.
 
 See [Configuration → Remote Config](./configuration#remote-config) for the full CDN field reference.
 

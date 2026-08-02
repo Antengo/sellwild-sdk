@@ -97,6 +97,12 @@ class SellwildAdView @JvmOverloads constructor(
     // when the slot is empty (no-fill, or the transient PREBID_ONLY refresh gap).
     private var houseView: SellwildHouseAdView? = null
     private var prebidBanner: PrebidBannerView? = null
+    // Double-buffer partner for the PREBID_ONLY refresh: the next creative loads
+    // into this hidden banner (layered on top of, but transparent over, the
+    // current one) and is swapped in only once it renders — so the slot never
+    // flashes blank between creatives the way Prebid's in-place auto-refresh
+    // does. See startPrebidBufferLoad() / schedulePrebidRefresh().
+    private var prebidBufferBanner: PrebidBannerView? = null
     private var nativeAdView: SellwildNativeAdView? = null
     private var refreshHandler: Handler? = null
     private var refreshCount = 0
@@ -184,6 +190,9 @@ class SellwildAdView @JvmOverloads constructor(
         prebidWaitAttempts = 0
         bannerView?.pause()
         prebidBanner?.stopRefresh()
+        // Drop any in-flight double-buffer so a pending swap can't fire later.
+        prebidBufferBanner?.let { removeView(it); it.destroy() }
+        prebidBufferBanner = null
     }
 
     fun resume() {
@@ -358,10 +367,10 @@ class SellwildAdView @JvmOverloads constructor(
             PrebidAdSize(size.width, size.height),
         ).apply {
             setBannerListener(prebidBannerListener())
-            // Prebid's rendering banner owns its own auto-refresh.
-            if (config.adRefreshMaxMobile > 0) {
-                setAutoRefreshDelay((config.adRefreshIntervalMs / 1000L).toInt())
-            }
+            // Keep Prebid's in-place auto-refresh OFF — we drive refresh via a
+            // double-buffer (schedulePrebidRefresh) so the slot never flashes
+            // blank between creatives.
+            setAutoRefreshDelay(0)
             // Prebid-rendered outstream video (no GAM) is not supported on the
             // rendering BannerView in the current shaded fork — it has no
             // videoParameters setter (unlike iOS PrebidBannerView). The GAM
@@ -403,6 +412,7 @@ class SellwildAdView @JvmOverloads constructor(
             )
             return
         }
+        refreshCount = 0
         prebid.loadAd()
     }
 
@@ -487,12 +497,20 @@ class SellwildAdView @JvmOverloads constructor(
         override fun onAdLoaded(bannerView: PrebidBannerView?) {
             val self = this@SellwildAdView
             if (self.config.debug) android.util.Log.d("SellwildAdView", "[prebidOnly] rendered — zone ${self.zoneId.orEmpty()}")
+            if (bannerView != null && bannerView === self.prebidBufferBanner) {
+                // Buffered next creative rendered — swap it in. The old creative
+                // stayed visible right up to this instant, so no blank gap.
+                self.prebidBanner?.let { self.removeView(it); it.destroy() }
+                self.prebidBanner = self.prebidBufferBanner
+                self.prebidBufferBanner = null
+            }
             self.listener?.onAdLoaded(self)
             // Best-effort: the rendering BannerView doesn't surface the winning
             // creative size to this callback, so report the primary. Multi-size
             // prebidOnly fallbacks won't shrink the slot — a known limitation.
             self.listener?.onAdResize(self, self.adSize.width, self.adSize.height)
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
+            self.schedulePrebidRefresh()
         }
 
         override fun onAdDisplayed(bannerView: PrebidBannerView?) {}
@@ -501,6 +519,14 @@ class SellwildAdView @JvmOverloads constructor(
             val self = this@SellwildAdView
             // Loud on purpose: this is how we diagnose why .prebidOnly renders blank.
             if (self.config.debug) android.util.Log.w("SellwildAdView", "[prebidOnly] failed to render — zone ${self.zoneId.orEmpty()}: ${exception?.message}")
+            if (bannerView != null && bannerView === self.prebidBufferBanner) {
+                // A buffered refresh no-filled: discard the buffer, keep the
+                // current creative on screen, and try again on the next interval.
+                self.prebidBufferBanner?.let { self.removeView(it); it.destroy() }
+                self.prebidBufferBanner = null
+                self.schedulePrebidRefresh()
+                return
+            }
             self.listener?.onAdFailed(self, exception?.message ?: "Prebid ad failed")
             self.recordHouseImpressionIfShowing()
         }
@@ -523,6 +549,53 @@ class SellwildAdView @JvmOverloads constructor(
             refreshCount++
             load()
         }, config.adRefreshIntervalMs)
+    }
+
+    /**
+     * Schedule the next PREBID_ONLY refresh. Unlike the GAM path we never reload
+     * the visible banner — we load a hidden buffer and swap it in on render (see
+     * [startPrebidBufferLoad]), so the slot never flashes blank.
+     */
+    private fun schedulePrebidRefresh() {
+        val maxRefresh = if (config.adRefreshMaxMobile > 0) config.adRefreshMaxMobile else config.adRefreshMax
+        if (maxRefresh <= 0 || refreshCount >= maxRefresh) return
+
+        val handler = Handler(Looper.getMainLooper())
+        refreshHandler = handler
+        handler.postDelayed({
+            refreshCount++
+            startPrebidBufferLoad()
+        }, config.adRefreshIntervalMs)
+    }
+
+    /**
+     * Load the next PREBID_ONLY creative into a buffer banner layered on top of
+     * the current one. It's transparent until it renders, so the current
+     * creative stays visible beneath it; the listener swaps it in once it fills
+     * (or discards it on no-fill, keeping the current creative on screen).
+     */
+    private fun startPrebidBufferLoad() {
+        val configId = zoneId
+        if (configId.isNullOrEmpty() || prebidBanner == null) return
+        val size = adSize
+        val buffer = PrebidBannerView(
+            context,
+            configId,
+            PrebidAdSize(size.width, size.height),
+        ).apply {
+            setBannerListener(prebidBannerListener())
+            setAutoRefreshDelay(0)
+            // Transparent until it renders, so the current creative shows through.
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            SellwildAdSizes.applyRendering(resolvedAdSizes, this)
+        }
+        prebidBufferBanner?.let { removeView(it); it.destroy() } // drop any stale buffer
+        prebidBufferBanner = buffer
+
+        val bound = SellwildAdSizes.boundingSize(resolvedAdSizes)
+        val dp = context.resources.displayMetrics.density
+        addView(buffer, LayoutParams((bound.width * dp).toInt(), (bound.height * dp).toInt()))
+        buffer.loadAd()
     }
 
     /**
