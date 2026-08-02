@@ -186,6 +186,9 @@ class SellwildAdView @JvmOverloads constructor(
     }
 
     fun pause() {
+        // Paused mid cold-start wait → the pending first auction is cancelled;
+        // flag it so resume() re-issues load() instead of only restarting refresh.
+        if (prebidWaitAttempts > 0) needsReloadOnResume = true
         refreshHandler?.removeCallbacksAndMessages(null)
         refreshHandler = null
         prebidWaitHandler?.removeCallbacksAndMessages(null)
@@ -196,6 +199,11 @@ class SellwildAdView @JvmOverloads constructor(
     }
 
     fun resume() {
+        if (needsReloadOnResume) {
+            needsReloadOnResume = false
+            load() // the first auction never completed (paused mid cold-start)
+            return
+        }
         bannerView?.resume()
         // Restart the refresh cadence paused by pause(): our timer on the GAM
         // path; best-effort re-enable of Prebid's internal auto-refresh on
@@ -218,6 +226,9 @@ class SellwildAdView @JvmOverloads constructor(
     // off-screen revenue). Off by default: behavior is unchanged unless enabled.
 
     private var isPausedForDetach = false
+    // Set when pause() interrupts an in-flight first auction (cold-start wait);
+    // resume() then re-issues load() so the first impression isn't lost.
+    private var needsReloadOnResume = false
 
     private val pausesRefreshWhenDetached: Boolean
         get() {
@@ -577,12 +588,15 @@ class SellwildAdView @JvmOverloads constructor(
         val maxRefresh = effectiveRefreshMax
         if (maxRefresh <= 0 || refreshCount >= maxRefresh) return
 
-        val handler = Handler(Looper.getMainLooper())
-        refreshHandler = handler
+        val handler = refreshHandler ?: Handler(Looper.getMainLooper()).also { refreshHandler = it }
+        handler.removeCallbacksAndMessages(null) // never stack refresh callbacks (resume()/re-load)
+        // Floor the interval so a mis-scaled AD_REFRESH_INTERVAL (a seconds value
+        // read as ms) can't fire a sub-second refresh storm.
+        val interval = config.adRefreshIntervalMs.coerceAtLeast(MIN_REFRESH_INTERVAL_MS)
         handler.postDelayed({
             refreshCount++
             load()
-        }, config.adRefreshIntervalMs)
+        }, interval)
     }
 
     /**
@@ -596,6 +610,10 @@ class SellwildAdView @JvmOverloads constructor(
 
     companion object {
         private const val TAG = "SellwildAdView"
+
+        /** Floor for the GAM manual-refresh timer — storm guard against a
+         *  mis-scaled AD_REFRESH_INTERVAL (a seconds value read as ms). */
+        private const val MIN_REFRESH_INTERVAL_MS = 10_000L
 
         // Google-provided test ad units. /6499/example/banner only fills 320x50;
         // mrec / leaderboard / etc. need their own test units or they no-fill.

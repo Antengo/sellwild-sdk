@@ -170,6 +170,10 @@ public final class SellwildAdView: UIView {
 
     /// Stop refresh. The currently displayed ad (if any) stays.
     public func pause() {
+        // Paused mid cold-start wait → the pending first auction is cancelled;
+        // flag it so resume() re-issues load() instead of only restarting refresh.
+        if prebidWaitAttempts > 0 { needsReloadOnResume = true }
+        prebidWaitAttempts = 0
         refreshTimer?.invalidate()
         refreshTimer = nil
         prebidWaitTimer?.invalidate()
@@ -181,6 +185,11 @@ public final class SellwildAdView: UIView {
     /// current creative stays); prebidOnly best-effort re-enables Prebid's
     /// internal auto-refresh. (Also closes the iOS↔Android lifecycle-API gap.)
     public func resume() {
+        if needsReloadOnResume {
+            needsReloadOnResume = false
+            load() // the first auction never completed (paused mid cold-start)
+            return
+        }
         switch resolvedAdStack {
         case .both, .gamOnly:
             scheduleRefresh()
@@ -196,6 +205,9 @@ public final class SellwildAdView: UIView {
     // keeping off-screen-but-attached refreshes. Off = today's behavior.
 
     private var isPausedForDetach = false
+    // Set when pause() interrupts an in-flight first auction (cold-start wait);
+    // resume() then re-issues load() so the first impression isn't lost.
+    private var needsReloadOnResume = false
 
     private var pausesRefreshWhenDetached: Bool {
         switch config.remoteValues?["MOBILE_PAUSE_REFRESH_DETACHED"] {
@@ -239,11 +251,12 @@ public final class SellwildAdView: UIView {
         if !SellwildPrebidMobile.isReady(), prebidWaitAttempts < maxPrebidWaitAttempts {
             prebidWaitAttempts += 1
             prebidWaitTimer?.invalidate()
-            prebidWaitTimer = Timer.scheduledTimer(
-                withTimeInterval: prebidWaitIntervalSec, repeats: false
-            ) { [weak self] _ in
+            // .common mode so the cold-start retry still fires while scrolling.
+            let waitTimer = Timer(timeInterval: prebidWaitIntervalSec, repeats: false) { [weak self] _ in
                 self?.loadGAM(runAuction: runAuction)
             }
+            RunLoop.main.add(waitTimer, forMode: .common)
+            prebidWaitTimer = waitTimer
             return
         }
         prebidWaitAttempts = 0
@@ -469,16 +482,23 @@ public final class SellwildAdView: UIView {
 
     // MARK: Refresh (GAM path only — Prebid path self-refreshes)
 
+    /// Floor for the GAM manual-refresh timer so a mis-scaled `AD_REFRESH_INTERVAL`
+    /// (e.g. a seconds value misread as ms) can't fire a sub-second refresh storm.
+    private static let minRefreshIntervalSec: TimeInterval = 10
+
     private func scheduleRefresh() {
         guard effectiveRefreshMax > 0 else { return }
         guard refreshCount < effectiveRefreshMax else { return }
-        refreshTimer = Timer.scheduledTimer(
-            withTimeInterval: config.adRefreshInterval,
-            repeats: false
-        ) { [weak self] _ in
+        refreshTimer?.invalidate() // never stack refresh timers (resume()/re-load)
+        let interval = max(config.adRefreshInterval, Self.minRefreshIntervalSec)
+        // .common mode so a due refresh still fires while the table view is being
+        // scrolled (default-mode timers are paused during scroll tracking).
+        let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
             self?.refreshCount += 1
             self?.load()
         }
+        RunLoop.main.add(timer, forMode: .common)
+        refreshTimer = timer
     }
 
     // Google-provided test ad units. /6499/example/banner only fills 320x50;

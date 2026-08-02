@@ -30,9 +30,10 @@ class SellwildSDKTest {
     }
 
     @Test
-    fun `apply converts AD_REFRESH_INTERVAL seconds to milliseconds`() {
+    fun `apply reads AD_REFRESH_INTERVAL as milliseconds`() {
         val base = SellwildConfig(partnerCode = "weatherbug")
-        val raw = JSONObject(mapOf("AD_REFRESH_INTERVAL" to 30.0))
+        // AD_REFRESH_INTERVAL is milliseconds (matches web + CMS); stored as-is.
+        val raw = JSONObject(mapOf("AD_REFRESH_INTERVAL" to 30000.0))
 
         val merged = SellwildSDK.apply(raw, base)
 
