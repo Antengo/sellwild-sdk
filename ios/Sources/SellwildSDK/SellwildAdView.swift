@@ -177,6 +177,46 @@ public final class SellwildAdView: UIView {
         prebidBanner?.stopRefresh()
     }
 
+    /// Resume refresh after `pause()`. GAM restarts our refresh timer (the
+    /// current creative stays); prebidOnly best-effort re-enables Prebid's
+    /// internal auto-refresh. (Also closes the iOS↔Android lifecycle-API gap.)
+    public func resume() {
+        switch resolvedAdStack {
+        case .both, .gamOnly:
+            scheduleRefresh()
+        case .prebidOnly:
+            if effectiveRefreshMax > 0 { prebidBanner?.refreshInterval = config.adRefreshInterval }
+        }
+    }
+
+    // MARK: Detached-refresh pause (prototype, default OFF)
+    // MOBILE_PAUSE_REFRESH_DETACHED truthy → pause refresh while this view is
+    // fully detached from the window (pooled cell) and resume on re-attach. Trims
+    // never-rendered detached-view refreshes (the invalid-traffic edge) while
+    // keeping off-screen-but-attached refreshes. Off = today's behavior.
+
+    private var isPausedForDetach = false
+
+    private var pausesRefreshWhenDetached: Bool {
+        switch config.remoteValues?["MOBILE_PAUSE_REFRESH_DETACHED"] {
+        case let b as Bool: return b
+        case let n as NSNumber: return n.boolValue
+        case let s as String: return ["1", "true", "yes", "on"].contains(s.lowercased())
+        default: return false
+        }
+    }
+
+    public override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard pausesRefreshWhenDetached else { return }
+        if window == nil {
+            if !isPausedForDetach { isPausedForDetach = true; pause() }
+        } else if isPausedForDetach {
+            isPausedForDetach = false
+            resume()
+        }
+    }
+
     // MARK: GAM path (.both / .gamOnly)
 
     private func loadGAM(runAuction: Bool) {
