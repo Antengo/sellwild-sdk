@@ -53,6 +53,7 @@ object SellwildPrebidMobile {
     // Publisher id resolved at bootstrap + partner-supplied geo, retained so
     // applyGlobalOrtb() re-emits both in one combined config (setGeo updates geo).
     @Volatile private var resolvedPublisherId: String? = null
+    @Volatile private var resolvedCats: List<String>? = null
 
     /** True once Prebid Mobile has reported a successful init. */
     @JvmStatic
@@ -112,14 +113,23 @@ object SellwildPrebidMobile {
             // setGlobalOrtbConfig is last-write-wins, so both live in a single
             // object; a later setGeo(...) re-emits it with updated geo.
             resolvedPublisherId = resolvePublisherId(remoteRoot)
+            // IAB content categories (IAB_CATS) → ORTB app.cat (content taxonomy /
+            // brand-safety context, not consent). Safe to attach when set.
+            resolvedCats = config.iabCats.takeIf { it.isNotEmpty() }
             if (SellwildGeoStore.current == null) SellwildGeoStore.current = config.geo
             applyGlobalOrtb()
 
             try {
                 SellwildPrebid.initializeSdk(context.applicationContext, resolved.url) { status ->
                     Log.d(TAG, "SellwildPrebid.initializeSdk status: $status")
-                    // Status enum values are SUCCEEDED / FAILED in Prebid 3.x.
-                    prebidReady = status.toString().equals("SUCCEEDED", ignoreCase = true)
+                    // Ready = the init completion fired at all (init finished),
+                    // NOT an exact status-token match. Matching "SUCCEEDED" was
+                    // brittle: if the shaded fork renames that enum token, the
+                    // flag would never flip true and EVERY .both auction would
+                    // silently fall back to GAM-only — total Prebid-demand loss.
+                    // A genuinely failed init self-corrects: the auction runs,
+                    // Prebid misses, and it falls back to GAM anyway.
+                    prebidReady = true
                 }
             } catch (e: Throwable) {
                 Log.e(TAG, "SellwildPrebid.initializeSdk threw", e)
@@ -236,11 +246,14 @@ object SellwildPrebidMobile {
      */
     private fun applyGlobalOrtb() {
         val root = JSONObject()
+        val app = JSONObject()
         resolvedPublisherId?.takeIf { it.isNotEmpty() }?.let { pid ->
-            root.put("app", JSONObject().apply {
-                put("publisher", JSONObject().apply { put("id", pid) })
-            })
+            app.put("publisher", JSONObject().apply { put("id", pid) })
         }
+        resolvedCats?.takeIf { it.isNotEmpty() }?.let { cats ->
+            app.put("cat", org.json.JSONArray(cats))
+        }
+        if (app.length() > 0) root.put("app", app)
         SellwildGeoStore.current?.toOrtbGeo()?.let { geo ->
             root.put("device", JSONObject().apply { put("geo", geo) })
         }

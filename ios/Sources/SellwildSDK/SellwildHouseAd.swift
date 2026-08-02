@@ -129,8 +129,11 @@ public enum SellwildHouseAd {
                 DispatchQueue.main.async { completion(image) }
                 return
             }
-            guard let url = URL(string: urlString),
+            // http/https only (reject file:// etc. — the URL is remote config)
+            // and cap the payload so a hostile oversized creative can't OOM.
+            guard let url = SellwildSafeURL.imageURL(urlString),
                   let data = try? Data(contentsOf: url),
+                  data.count <= SellwildSafeURL.maxImageBytes,
                   let image = UIImage(data: data) else {
                 DispatchQueue.main.async { completion(nil) }
                 return

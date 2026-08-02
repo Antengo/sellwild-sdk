@@ -148,7 +148,9 @@ public final class SellwildNativeAdView: UIView {
         ctaButton.setTitleColor(.white, for: .normal)
         ctaButton.layer.cornerRadius = 8
         ctaButton.setContentHuggingPriority(.required, for: .horizontal)
-        ctaButton.addTarget(self, action: #selector(ctaTapped), for: .touchUpInside)
+        // No addTarget here: the CTA is registered in `registerView(clickableViews:)`,
+        // so Prebid's click tracker fires `adWasClicked` → `onClick` on tap. A
+        // mirror action here would double-count every CTA click.
 
         // Header row: icon + (title / sponsored)
         let titleStack = UIStackView(arrangedSubviews: [titleLabel, sponsoredLabel])
@@ -193,16 +195,12 @@ public final class SellwildNativeAdView: UIView {
         ])
     }
 
-    @objc private func ctaTapped() {
-        // registerView drives the real click tracker; this mirrors the tap to
-        // the host delegate for analytics parity with the banner path.
-        onClick?()
-    }
-
     private func loadImage(_ urlString: String?, into imageView: UIImageView) {
-        guard let urlString, let url = URL(string: urlString) else { return }
+        // http/https only (reject file://) + payload cap; native asset URLs are
+        // bidder-supplied.
+        guard let url = SellwildSafeURL.imageURL(urlString) else { return }
         let task = URLSession.shared.dataTask(with: url) { data, _, _ in
-            guard let data, let image = UIImage(data: data) else { return }
+            guard let data, data.count <= SellwildSafeURL.maxImageBytes, let image = UIImage(data: data) else { return }
             DispatchQueue.main.async { imageView.image = image }
         }
         imageTasks.append(task)

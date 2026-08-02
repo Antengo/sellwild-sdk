@@ -20,4 +20,18 @@ internal object SellwildSafeUrl {
             else -> null
         }
     }
+
+    /** Max bytes accepted for a remotely-fetched (or base64 `data:`) image. */
+    const val MAX_IMAGE_BYTES = 8 * 1024 * 1024
+
+    /**
+     * A network image URL: `http`/`https` only, so a `file://` value from remote
+     * config/listing data can't turn an image fetch into a local-file read.
+     * (`data:` is decoded inline by callers, size-capped.)
+     */
+    fun imageUrl(url: String?): java.net.URL? {
+        if (url.isNullOrEmpty()) return null
+        val u = runCatching { java.net.URL(url) }.getOrNull() ?: return null
+        return if (u.protocol?.lowercase() in setOf("http", "https")) u else null
+    }
 }
