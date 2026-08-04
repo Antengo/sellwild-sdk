@@ -91,36 +91,24 @@ const config = buildConfig({
 });
 ```
 
-### How the SDK Passes `regs.ext.gdpr` in ortb2
+### How consent reaches the native auction
 
-When `gdprApplies` and `tcString` are configured, the SDK injects the following into the Prebid.js pre-configuration script within the WebView:
+The native ad path (banner, feed, native — Prebid Mobile + GMA, **no WebView**) does not take consent through a Sellwild API. Prebid Mobile and the Google Mobile Ads SDK **automatically read** the IAB-standard consent keys your CMP writes to device storage and forward them server-side in the OpenRTB `regs` / `user` fields:
 
-```js
-pbjs.setConfig({
-    ortb2: {
-        regs: {
-            ext: { gdpr: 1 }
-        },
-        user: {
-            ext: {
-                consent: 'CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA'
-            }
-        }
-    }
-});
-```
+| Signal | Key (iOS `UserDefaults` / Android `SharedPreferences`) |
+|---|---|
+| GDPR applies | `IABTCF_gdprApplies` |
+| TCF v2 consent string | `IABTCF_TCString` |
+| GPP string / section ids | `IABGPP_HDR_GppString`, `IABGPP_GppSID` |
+| US Privacy (CCPA) | `IABUSPrivacy_String` |
 
-Prebid.js forwards these fields in the OpenRTB request body to Prebid Server. The server then includes them in each outbound bid request to SSPs.
+So the requirement is simply: **initialize your CMP before the first ad request** and these signals flow automatically. The `gppEnabled` / `tcfVersion` fields on `SellwildConfig` (and the `GPP_ENABLED` / `TCF_VERSION` CDN keys) configure only the **deprecated WebView widget** surface — they do **not** drive the native auction, and setting them is neither required nor sufficient for native consent.
 
-### Native CMP Bridging
+> **`IAB_CATS` is content taxonomy, not consent.** When set, it is attached to the native auction as ORTB `app.cat` (brand-safety / contextual signal) — independent of the consent keys above.
 
-Prebid.js running in a WebView looks for `window.__tcfapi` to read consent. In a native app WebView, no CMP is running inside the WebView context, so `__tcfapi` does not exist.
+#### Deprecated WebView widget only
 
-**Mitigation strategies:**
-
-1. **Prebid Server S2S mode (recommended).** When using `PrebidServerConfig`, consent is passed server-side via the OpenRTB `regs` and `user` fields. The WebView CMP API is not needed.
-2. **Manual injection.** Read the TC string from native storage and inject it into the WebView before Prebid.js loads. This requires access to the WebView controller, which is not currently exposed by the SDK.
-3. **In-widget CMP.** The web widget may implement its own CMP flow. Set `tcfVersion: 2` to enable this path.
+The legacy WebView widget passes consent by injecting `pbjs.setConfig({ ortb2: { regs, user } })` before Prebid.js loads and by bridging `window.__tcfapi`. This path is **not** used by the native SDK and is retained only for the deprecated widget surface.
 
 ### Best Practices
 

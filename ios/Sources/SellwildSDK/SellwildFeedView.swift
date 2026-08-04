@@ -313,7 +313,9 @@ public final class SellwildFeedView: UIView {
     // MARK: Helpers
 
     fileprivate func openURL(_ urlString: String?) {
-        guard let s = urlString, let url = URL(string: s), let vc = nearestViewController() else { return }
+        // http/https only — SFSafariViewController throws (crashes) on any other
+        // scheme, and these URLs come from remote listing/CMS data.
+        guard let url = SellwildSafeURL.external(urlString), let vc = nearestViewController() else { return }
         let safari = SFSafariViewController(url: url)
         vc.present(safari, animated: true)
     }
@@ -588,9 +590,10 @@ private final class ListingCardCell: UITableViewCell {
             return
         }
         if s.hasPrefix("data:") {
-            // data: URI — decode synchronously off-thread.
+            // data: URI — decode synchronously off-thread, size-capped.
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                guard let bytes = Self.decodeDataURI(s), let image = UIImage(data: bytes) else { return }
+                guard let bytes = Self.decodeDataURI(s), bytes.count <= SellwildSafeURL.maxImageBytes,
+                      let image = UIImage(data: bytes) else { return }
                 Self.cache.setObject(image, forKey: s as NSString)
                 DispatchQueue.main.async {
                     guard let self = self, self.currentImageURL == s else { return }
@@ -599,9 +602,10 @@ private final class ListingCardCell: UITableViewCell {
             }
             return
         }
-        guard let url = URL(string: s) else { return }
+        // http/https only (reject file://) — listing photo URLs are remote data.
+        guard let url = SellwildSafeURL.imageURL(s) else { return }
         let task = URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
-            guard let data = data, let image = UIImage(data: data) else { return }
+            guard let data = data, data.count <= SellwildSafeURL.maxImageBytes, let image = UIImage(data: data) else { return }
             Self.cache.setObject(image, forKey: s as NSString)
             DispatchQueue.main.async {
                 guard let self = self, self.currentImageURL == s else { return }

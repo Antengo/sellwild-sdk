@@ -32,7 +32,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.URL
 
 /**
  * All-in-one native feed surface. As of 1.4.0 this view renders a
@@ -380,9 +379,15 @@ class SellwildFeedView @JvmOverloads constructor(
     }
 
     private fun openUrl(url: String?) {
-        if (url.isNullOrEmpty()) return
+        // http/https only — listing/CMS URLs are untrusted; don't launch an
+        // arbitrary scheme via ACTION_VIEW.
+        val uri = SellwildSafeUrl.external(url)
+        if (uri == null) {
+            if (!url.isNullOrEmpty()) listener?.onError("Refused to open non-http(s) URL")
+            return
+        }
         try {
-            CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
+            CustomTabsIntent.Builder().build().launchUrl(context, uri)
         } catch (t: Throwable) {
             listener?.onError("Failed to open URL: ${t.message}")
         }
@@ -557,9 +562,12 @@ class SellwildFeedView @JvmOverloads constructor(
                 if (comma < 0) return null
                 val payload = url.substring(comma + 1)
                 val bytes = android.util.Base64.decode(payload, android.util.Base64.DEFAULT)
+                if (bytes.size > SellwildSafeUrl.MAX_IMAGE_BYTES) return null
                 return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
             }
-            return URL(url).openStream().use { BitmapFactory.decodeStream(it) }
+            // http/https only — reject file:// (listing photo URLs are remote data).
+            val safe = SellwildSafeUrl.imageUrl(url) ?: return null
+            return safe.openStream().use { BitmapFactory.decodeStream(it) }
         }
 
         private fun formatPrice(currency: String?, price: String?): String {
@@ -612,6 +620,11 @@ class SellwildFeedView @JvmOverloads constructor(
             adView?.houseFallbackListing = houseListing
             if (boundZoneId == zoneId && adView != null) return
             boundZoneId = zoneId
+            // Destroy the outgoing ad view before replacing it. This holder is
+            // being rebound to a DIFFERENT zone, so the old view is finished —
+            // without destroy() its refresh Handler keeps auctioning/impressing
+            // for the old zone on a detached view (a leak + invalid traffic).
+            adView?.destroy()
             removeAllViews()
             val ad = SellwildAdView(context).apply {
                 layoutParams = LayoutParams(

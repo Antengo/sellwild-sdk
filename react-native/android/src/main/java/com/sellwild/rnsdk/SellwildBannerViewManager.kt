@@ -253,6 +253,12 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
                 null
             }
 
+            // Custom Prebid Server (S2S) config — mirror the iOS bridge so the
+            // same RN app auctions against the partner's PBS on both platforms.
+            val prebidServer = RnPrebidServer.fromMap(
+                if (map.hasKey("prebidServer") && !map.isNull("prebidServer")) map.getMap("prebidServer") else null
+            )
+
             return SellwildConfig(
                 partnerCode = partnerCode ?: "",
                 appBundleId = appBundleId,
@@ -267,6 +273,7 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
                 remoteJson = remoteJson,
                 growthCode = growthCode,
                 localizedListings = localizedListings,
+                prebidServer = prebidServer,
             )
         }
     }

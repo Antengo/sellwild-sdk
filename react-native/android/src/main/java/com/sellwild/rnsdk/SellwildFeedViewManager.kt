@@ -185,6 +185,10 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
             if (map.hasKey("adRefreshMax")) config = config.copy(adRefreshMax = map.getInt("adRefreshMax"))
             if (map.hasKey("adRefreshMaxMobile")) config = config.copy(adRefreshMaxMobile = map.getInt("adRefreshMaxMobile"))
             if (map.hasKey("adRefreshIntervalMs")) config = config.copy(adRefreshIntervalMs = map.getDouble("adRefreshIntervalMs").toLong())
+            // Custom Prebid Server (S2S) config — mirror the iOS feed bridge.
+            if (map.hasKey("prebidServer") && !map.isNull("prebidServer")) {
+                config = config.copy(prebidServer = RnPrebidServer.fromMap(map.getMap("prebidServer")))
+            }
 
             // Local override for the localized (geo-based) secondary-listings
             // integration; the remote LOCALIZED_LISTINGS object rides `remote`.
