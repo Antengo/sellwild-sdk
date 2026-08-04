@@ -2,7 +2,10 @@ package com.sellwild.sdk
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -288,6 +291,27 @@ class SellwildEventQueue(context: Context) {
             OutputStreamWriter(conn.outputStream).use { it.write(json.toString()) }
             conn.responseCode // trigger send
         }
+    }
+
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    /**
+     * Fire-and-forget: queue one event and flush immediately. Mirrors iOS
+     * `SellwildAPIClient.sendEvent` — call sites don't need their own scope.
+     */
+    fun track(event: String, action: String? = null, label: String? = null) {
+        push(event, action, label)
+        scope.launch { flush() }
+    }
+
+    companion object {
+        @Volatile private var instance: SellwildEventQueue? = null
+
+        /** Process-wide queue, keyed to the application context. */
+        fun shared(context: Context): SellwildEventQueue =
+            instance ?: synchronized(this) {
+                instance ?: SellwildEventQueue(context.applicationContext).also { instance = it }
+            }
     }
 }
 

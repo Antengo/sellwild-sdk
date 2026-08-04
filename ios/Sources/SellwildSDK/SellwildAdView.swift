@@ -388,14 +388,17 @@ public final class SellwildAdView: UIView {
             // resizes to the template rather than clipping.
             self.delegate?.sellwildAdView?(self, didRenderWithSize: CGSize(width: self.adSize.cgSize.width, height: cap))
             self.delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: self.zoneId ?? "")
+            SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adRenderSucceeded", label: self.zoneId ?? ""))
         }
         v.onClick = { [weak self] in
             guard let self else { return }
             self.delegate?.sellwildAdViewDidRecordClick?(self)
+            SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "click", label: self.zoneId ?? ""))
         }
         v.onFailed = { [weak self] error in
             guard let self else { return }
             self.delegate?.sellwildAdView?(self, didFailWithError: error)
+            SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adError", action: error.localizedDescription, label: self.zoneId ?? ""))
         }
         nativeAdView = v
         // Pin top/leading/trailing, but bottom is `<=` so the native view can
@@ -574,18 +577,21 @@ extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
         // a 320x50 win in a 300x250 request) resize the host slot.
         delegate?.sellwildAdView?(self, didRenderWithSize: bannerView.adSize.size)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
+        SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adRenderSucceeded", label: zoneId ?? ""))
         scheduleRefresh()
     }
 
     public func bannerView(_ bannerView: GoogleMobileAds.BannerView,
                            didFailToReceiveAdWithError error: Error) {
         delegate?.sellwildAdView?(self, didFailWithError: error)
+        SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adError", action: error.localizedDescription, label: zoneId ?? ""))
         recordHouseImpressionIfShowing()
         scheduleRefresh()
     }
 
     public func bannerViewDidRecordClick(_ bannerView: GoogleMobileAds.BannerView) {
         delegate?.sellwildAdViewDidRecordClick?(self)
+        SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "click", label: zoneId ?? ""))
     }
 }
 
@@ -613,6 +619,7 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         delegate?.sellwildAdViewDidLoad?(self)
         delegate?.sellwildAdView?(self, didRenderWithSize: adSize)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
+        SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adRenderSucceeded", label: zoneId ?? ""))
     }
 
     public func bannerView(_ bannerView: PrebidBannerView,
@@ -623,6 +630,7 @@ extension SellwildAdView: PrebidBannerViewDelegate {
             + "\(error.localizedDescription)")
         #endif
         delegate?.sellwildAdView?(self, didFailWithError: error)
+        SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adError", action: error.localizedDescription, label: zoneId ?? ""))
         recordHouseImpressionIfShowing()
     }
 }
