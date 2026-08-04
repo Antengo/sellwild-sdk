@@ -48,7 +48,7 @@ class SellwildAPIClient {
     String? label,
     required String uid,
   }) async {
-    const url = 'https://tbd4rmdvjk.execute-api.us-east-1.amazonaws.com/dev/events/queue';
+    const url = 'https://events.sellwild.com/events/queue';
     final payload = jsonEncode([
       {
         'event': event,
