@@ -308,7 +308,7 @@ public final class SellwildAPIClient {
     // MARK: Send Analytics Event
 
     public func sendEvent(_ event: SellwildEvent) {
-        let url = URL(string: "https://tbd4rmdvjk.execute-api.us-east-1.amazonaws.com/dev/events/queue")!
+        let url = URL(string: "https://events.sellwild.com/events/queue")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

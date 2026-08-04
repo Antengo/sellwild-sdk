@@ -4,7 +4,7 @@ import { fetchRemoteConfig, type RemoteConfigOptions } from './remote-config'
 export const API_BASE_URL = 'https://api.sellwild.com'
 export const WIDGET_BASE_URL = 'https://widget.sellwild.com'
 export const SELLWILD_URL = 'https://sellwild.com'
-export const EVENTS_URL = 'https://tbd4rmdvjk.execute-api.us-east-1.amazonaws.com/dev/events/queue'
+export const EVENTS_URL = 'https://events.sellwild.com/events/queue'
 
 const defaultConfig: Omit<SellwildConfig, 'partnerCode'> = {
   slug: '',
