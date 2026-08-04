@@ -1,0 +1,130 @@
+// SellwildHouseAd.kt — client-side house-ad backfill.
+//
+// When a paid creative is absent — a no-fill, or the transient blank while a
+// PREBID_ONLY slot tears down one creative and renders the next on refresh —
+// the ad slot would otherwise flash empty. House ads fill that gap with our own
+// inventory, entirely client-side (no GAM house line items, which don't exist
+// on the PREBID_ONLY path anyway).
+//
+// The mechanism is a BACKDROP: a house view sits *behind* the paid creative and
+// shows through only when the slot is empty. When a real creative renders on
+// top it covers the house ad, so the slot auto-reverts to the paid ad with no
+// explicit "blank detected" event (there isn't one for the refresh gap).
+//
+// Content precedence, resolved per placement from remote config (no release):
+//   1. CMS house image  — MOBILE_HOUSE_AD_IMAGE / MOBILE_HOUSE_AD_URL, with optional
+//      per-size (MOBILE_HOUSE_AD_BY_SIZE) and per-zone (MOBILE_HOUSE_AD_BY_ZONE) overrides.
+//   2. A Sellwild listing — supplied by the feed when no image is configured
+//      (MREC only; a 320x50 banner is too small for a card).
+//   3. Nothing — the slot stays empty, today's behavior.
+//
+// Master switch: MOBILE_HOUSE_AD_ENABLED (default true) kills all backfill, image and
+// listing alike, so ops can revert to the plain-blank behavior remotely.
+//
+// Images are cached locally — in-memory plus an on-disk copy in the app cache
+// directory — so a house image is fetched from the network at most once per
+// device, not once per empty slot. This is a deliberate request-saving measure.
+
+package com.sellwild.sdk
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.os.Handler
+import android.os.Looper
+import android.util.LruCache
+import org.json.JSONObject
+import java.io.File
+import java.net.URL
+
+internal object SellwildHouseAd {
+
+    /** A resolved house-ad creative: an image to render and an optional tap URL. */
+    data class Creative(val imageUrl: String, val clickUrl: String?)
+
+    /**
+     * Whether house-ad backfill is enabled for this app. Defaults to `true`; set
+     * `MOBILE_HOUSE_AD_ENABLED: false` in the CDN config to disable all backfill (image
+     * and listing) and restore the plain-blank behavior.
+     */
+    fun isEnabled(remoteJson: String?): Boolean {
+        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return true
+        val v = obj.optAny("MOBILE_HOUSE_AD_ENABLED") ?: return true
+        return when (v) {
+            is Boolean -> v
+            is Number -> v.toInt() != 0
+            is String -> v.lowercase() !in setOf("0", "false", "no", "off")
+            else -> true
+        }
+    }
+
+    /**
+     * Resolve the house image creative for a placement, most specific first:
+     *   1. MOBILE_HOUSE_AD_BY_ZONE[zoneId]      — { "image": ..., "url": ... }
+     *   2. MOBILE_HOUSE_AD_BY_SIZE["<w>x<h>"]   — { "image": ..., "url": ... }
+     *   3. MOBILE_HOUSE_AD_IMAGE + MOBILE_HOUSE_AD_URL — the app-wide default
+     * Returns null when disabled or no image is configured (the caller then
+     * falls back to a listing, or leaves the slot empty).
+     */
+    fun resolve(remoteJson: String?, zoneId: String?, widthDp: Int, heightDp: Int): Creative? {
+        if (!isEnabled(remoteJson)) return null
+        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return null
+
+        if (zoneId != null) {
+            obj.optJSONObject("MOBILE_HOUSE_AD_BY_ZONE")?.optJSONObject(zoneId)?.let { creative(it)?.let { c -> return c } }
+        }
+        val sizeKey = "${widthDp}x${heightDp}"
+        obj.optJSONObject("MOBILE_HOUSE_AD_BY_SIZE")?.optJSONObject(sizeKey)?.let { creative(it)?.let { c -> return c } }
+
+        nonEmpty(obj.optString("MOBILE_HOUSE_AD_IMAGE"))?.let {
+            return Creative(it, nonEmpty(obj.optString("MOBILE_HOUSE_AD_URL")))
+        }
+        return null
+    }
+
+    private fun creative(obj: JSONObject): Creative? {
+        val image = nonEmpty(obj.optString("image")) ?: return null
+        return Creative(image, nonEmpty(obj.optString("url")))
+    }
+
+    private fun nonEmpty(s: String?): String? = s?.trim()?.takeIf { it.isNotEmpty() }
+
+    // ── Local image cache (memory + disk) ────────────────────────────────────
+
+    private val memory = LruCache<String, Bitmap>(8)
+
+    private fun diskFile(context: Context, url: String): File {
+        val dir = File(context.cacheDir, "sellwild_house").apply { mkdirs() }
+        // Stable (launch-independent) filename: djb2 hashed to hex.
+        var hash = 5381L
+        for (b in url.toByteArray()) hash = hash * 33 + b
+        return File(dir, java.lang.Long.toHexString(hash))
+    }
+
+    /**
+     * Load a house image: memory cache → disk cache → network (populating both).
+     * [callback] is always invoked on the main thread; null on failure.
+     */
+    fun loadImage(context: Context, url: String, callback: (Bitmap?) -> Unit) {
+        memory.get(url)?.let { callback(it); return }
+        val appContext = context.applicationContext
+        val main = Handler(Looper.getMainLooper())
+        Thread {
+            val bitmap = runCatching {
+                val disk = diskFile(appContext, url)
+                if (disk.exists()) {
+                    BitmapFactory.decodeFile(disk.absolutePath)
+                } else {
+                    val bytes = URL(url).openStream().use { it.readBytes() }
+                    disk.writeBytes(bytes)
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                }
+            }.getOrNull()
+            if (bitmap != null) memory.put(url, bitmap)
+            main.post { callback(bitmap) }
+        }.start()
+    }
+
+    private fun JSONObject.optAny(key: String): Any? =
+        if (has(key) && !isNull(key)) get(key) else null
+}

@@ -125,8 +125,10 @@ object SellwildSDK {
             // Refresh
             adRefreshMax = raw.optIntOrNull("AD_REFRESH_MAX") ?: base.adRefreshMax,
             adRefreshMaxMobile = raw.optIntOrNull("AD_REFRESH_MAX_MOBILE") ?: base.adRefreshMaxMobile,
+            // AD_REFRESH_INTERVAL is milliseconds (matches web + TS core), and
+            // `adRefreshIntervalMs` is milliseconds — store as-is (was ×1000).
             adRefreshIntervalMs = raw.optDoubleOrNull("AD_REFRESH_INTERVAL")
-                ?.let { (it * 1000).toLong() } ?: base.adRefreshIntervalMs,
+                ?.let { it.toLong() } ?: base.adRefreshIntervalMs,
             maxFailedAuctions = raw.optIntOrNull("MAX_FAILED_AUCTIONS") ?: base.maxFailedAuctions,
 
             // Compliance

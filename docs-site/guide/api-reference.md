@@ -82,6 +82,7 @@ public init(config: SellwildConfig, adSize: AdSize, zoneId: String? = nil)
 | Property | Type | Description |
 |----------|------|-------------|
 | `delegate` | `SellwildAdViewDelegate?` | Delegate for ad lifecycle callbacks. |
+| `houseFallbackListing` | `SellwildListing?` | House-ad fallback listing for the backdrop. Used in the feed for MREC (300×250) slots only; `SellwildFeedView` sets it automatically. Public, but external callers rarely need it. |
 
 **Methods:**
 
@@ -107,6 +108,8 @@ public init(config: SellwildConfig, adSize: AdSize, zoneId: String? = nil)
     @objc optional func sellwildAdViewDidRecordClick(_ adView: SellwildAdView)
     @objc optional func sellwildAdView(_ adView: SellwildAdView,
                                        didFailWithError error: Error)
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didRecordHouseImpressionForZoneId zoneId: String)
 }
 ```
 
@@ -116,6 +119,7 @@ public init(config: SellwildConfig, adSize: AdSize, zoneId: String? = nil)
 | `sellwildAdView(_:didReceiveImpressionForZoneId:)` | A viewable impression has been recorded (MRC standard). |
 | `sellwildAdViewDidRecordClick(_:)` | The user tapped the ad creative. |
 | `sellwildAdView(_:didFailWithError:)` | The auction returned no fill, or an error occurred during rendering. |
+| `sellwildAdView(_:didRecordHouseImpressionForZoneId:)` | A house ad backfilled an empty slot (a no-fill). **Not** a paid impression — report it separately. See [House ads](/guide/ios#house-ads). |
 
 All callbacks are dispatched on the main thread. All methods are optional (`@objc optional`).
 
@@ -300,6 +304,7 @@ adView.setup(config: SellwildConfig, adSize: AdSize, zoneId: String? = null)
 | Property | Type | Description |
 |----------|------|-------------|
 | `listener` | `SellwildAdView.Listener?` | Listener for ad lifecycle callbacks. |
+| `houseFallbackListing` | `SellwildListing?` | House-ad fallback listing for the backdrop (`var`). Used in the feed for MREC (300×250) slots only; `SellwildFeedView` sets it automatically. Public, but external callers rarely need it. |
 
 **Methods:**
 
@@ -321,6 +326,7 @@ interface Listener {
     fun onAdImpression(adView: SellwildAdView, zoneId: String) {}
     fun onAdClicked(adView: SellwildAdView) {}
     fun onAdFailed(adView: SellwildAdView, message: String) {}
+    fun onHouseAdImpression(adView: SellwildAdView, zoneId: String) {}
 }
 ```
 
@@ -330,6 +336,7 @@ interface Listener {
 | `onAdImpression(adView, zoneId)` | Viewable impression recorded. |
 | `onAdClicked(adView)` | User tapped the ad. |
 | `onAdFailed(adView, message)` | No fill or render error. |
+| `onHouseAdImpression(adView, zoneId)` | A house ad backfilled an empty slot (a no-fill). **Not** a paid impression — report it separately. See [House ads](/guide/android#house-ads). |
 
 All callbacks are dispatched on the main thread. All methods have default (empty) implementations -- override only what you need.
 

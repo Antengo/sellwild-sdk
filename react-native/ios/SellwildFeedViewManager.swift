@@ -47,6 +47,8 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
     @objc var onFeedLoaded: RCTDirectEventBlock?
     @objc var onListingTap: RCTDirectEventBlock?
     @objc var onAdImpression: RCTDirectEventBlock?
+    /// A house ad backfilled an empty feed slot (no-fill). Not a paid impression.
+    @objc var onHouseAdImpression: RCTDirectEventBlock?
     @objc var onAdClicked: RCTDirectEventBlock?
     @objc var onFeedError: RCTDirectEventBlock?
     /// Emitted whenever the feed's content height changes so JS can size the
@@ -123,6 +125,10 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
 
     func sellwildFeed(_ feed: SellwildFeedView, didRecordAdImpressionForZoneId zoneId: String) {
         onAdImpression?(["zoneId": zoneId])
+    }
+
+    func sellwildFeed(_ feed: SellwildFeedView, didRecordHouseAdImpressionForZoneId zoneId: String) {
+        onHouseAdImpression?(["zoneId": zoneId])
     }
 
     func sellwildFeed(_ feed: SellwildFeedView, didRecordAdClickForZoneId zoneId: String) {

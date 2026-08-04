@@ -1,11 +1,13 @@
 package com.sellwild.sdk
 
 import android.content.Context
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
 import android.util.Log
 import android.widget.FrameLayout
+import androidx.browser.customtabs.CustomTabsIntent
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdSize as GmaAdSize
 import com.google.android.gms.ads.LoadAdError
@@ -62,6 +64,13 @@ class SellwildAdView @JvmOverloads constructor(
          * Native especially).
          */
         fun onAdResize(adView: SellwildAdView, width: Int, height: Int) {}
+
+        /**
+         * A house ad backfilled an empty slot (no-fill). NOT a paid impression —
+         * report it separately. Fires only when the house backdrop is actually
+         * visible. See [SellwildHouseAd].
+         */
+        fun onHouseAdImpression(adView: SellwildAdView, zoneId: String) {}
     }
 
     var listener: Listener? = null
@@ -72,11 +81,21 @@ class SellwildAdView @JvmOverloads constructor(
      */
     var adStackOverride: SellwildAdStack? = null
 
+    /**
+     * A listing the feed supplies as house-ad backfill when no CMS house image
+     * (`HOUSE_AD_IMAGE`) is configured. Rendered only in the MREC slot — a
+     * 320x50 banner is too small for a card. See [SellwildHouseAd].
+     */
+    var houseFallbackListing: SellwildListing? = null
+
     private lateinit var config: SellwildConfig
     private lateinit var adSize: AdSize
     private var zoneId: String? = null
 
     private var bannerView: AdManagerAdView? = null
+    // House-ad backdrop. Sits behind the paid creative and shows through only
+    // when the slot is empty (no-fill, or the transient PREBID_ONLY refresh gap).
+    private var houseView: SellwildHouseAdView? = null
     private var prebidBanner: PrebidBannerView? = null
     private var nativeAdView: SellwildNativeAdView? = null
     private var refreshHandler: Handler? = null
@@ -139,6 +158,12 @@ class SellwildAdView @JvmOverloads constructor(
         // unless enabled with a partner id; injects/merges eids into the auction.
         SellwildGrowthCode.resolveIfNeeded(context, config, zoneId)
 
+        // Put the house-ad backdrop behind the slot before the paid creative
+        // loads, so an empty slot (no-fill, or the PREBID_ONLY refresh teardown
+        // gap) shows house inventory instead of a blank. The paid creative renders
+        // on top and covers it, so the slot auto-reverts when fill returns.
+        installHouseBackdrop()
+
         if (nativeEnabled) {
             loadPrebidNative()
             return
@@ -173,6 +198,51 @@ class SellwildAdView @JvmOverloads constructor(
         prebidBanner = null
         nativeAdView?.destroy()
         nativeAdView = null
+    }
+
+    // ── House ad backdrop ────────────────────────────────────────────────────
+
+    /**
+     * Create (once) and populate the house-ad backdrop for this slot. Content
+     * precedence: CMS house image → feed-supplied listing (MREC only) → nothing.
+     * Called on every [load]; content is refreshed but the view is reused.
+     */
+    private fun installHouseBackdrop() {
+        val creative = SellwildHouseAd.resolve(config.remoteJson, zoneId, adSize.width, adSize.height)
+        val listing = houseFallbackListing
+        val isMrec = adSize.width >= 300 && adSize.height >= 250
+        if (!SellwildHouseAd.isEnabled(config.remoteJson) ||
+            (creative == null && !(listing != null && isMrec))
+        ) {
+            houseView?.visibility = GONE
+            return
+        }
+
+        val view = houseView ?: SellwildHouseAdView(context).also {
+            houseView = it
+            addView(it, 0) // behind any paid creative
+        }
+        view.visibility = VISIBLE
+
+        if (creative != null) {
+            view.onTap = { openHouseUrl(creative.clickUrl) }
+            view.showImage(creative)
+        } else if (listing != null) {
+            view.onTap = { openHouseUrl(listing.tapUrl(config.partnerCode, config.bhTag)) }
+            view.showListing(listing, config)
+        }
+    }
+
+    /** Fire the house-impression callback when the backdrop is actually visible. */
+    private fun recordHouseImpressionIfShowing() {
+        val v = houseView ?: return
+        if (v.visibility != VISIBLE) return
+        listener?.onHouseAdImpression(this, zoneId.orEmpty())
+    }
+
+    private fun openHouseUrl(url: String?) {
+        if (url.isNullOrEmpty()) return
+        runCatching { CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url)) }
     }
 
     // ── GAM path (.both / .gamOnly) ──────────────────────────────────────────
@@ -403,6 +473,7 @@ class SellwildAdView @JvmOverloads constructor(
         override fun onAdFailedToLoad(error: LoadAdError) {
             val self = this@SellwildAdView
             self.listener?.onAdFailed(self, error.message)
+            self.recordHouseImpressionIfShowing()
             scheduleRefresh()
         }
 
@@ -431,6 +502,7 @@ class SellwildAdView @JvmOverloads constructor(
             // Loud on purpose: this is how we diagnose why .prebidOnly renders blank.
             if (self.config.debug) android.util.Log.w("SellwildAdView", "[prebidOnly] failed to render — zone ${self.zoneId.orEmpty()}: ${exception?.message}")
             self.listener?.onAdFailed(self, exception?.message ?: "Prebid ad failed")
+            self.recordHouseImpressionIfShowing()
         }
 
         override fun onAdClicked(bannerView: PrebidBannerView?) {

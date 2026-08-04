@@ -68,6 +68,11 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
                 emit(reactContext, view, "onAdImpression", payload)
             }
 
+            override fun onHouseAdImpression(zoneId: String) {
+                val payload = Arguments.createMap().apply { putString("zoneId", zoneId) }
+                emit(reactContext, view, "onHouseAdImpression", payload)
+            }
+
             override fun onAdClicked(zoneId: String) {
                 val payload = Arguments.createMap().apply { putString("zoneId", zoneId) }
                 emit(reactContext, view, "onAdClicked", payload)
@@ -128,6 +133,7 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
             .put("onFeedLoaded", MapBuilder.of("registrationName", "onFeedLoaded"))
             .put("onListingTap", MapBuilder.of("registrationName", "onListingTap"))
             .put("onAdImpression", MapBuilder.of("registrationName", "onAdImpression"))
+            .put("onHouseAdImpression", MapBuilder.of("registrationName", "onHouseAdImpression"))
             .put("onAdClicked", MapBuilder.of("registrationName", "onAdClicked"))
             .put("onFeedError", MapBuilder.of("registrationName", "onFeedError"))
             .put("onContentSizeChange", MapBuilder.of("registrationName", "onContentSizeChange"))

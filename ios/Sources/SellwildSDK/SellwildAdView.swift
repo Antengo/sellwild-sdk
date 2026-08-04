@@ -48,6 +48,11 @@ public final class SellwildAdView: UIView {
 
     public weak var delegate: SellwildAdViewDelegate?
 
+    /// A listing the feed supplies as house-ad backfill when no CMS house image
+    /// (`HOUSE_AD_IMAGE`) is configured. Rendered only in the MREC slot — a
+    /// 320x50 banner is too small for a card. See `SellwildHouseAd`.
+    public var houseFallbackListing: SellwildListing?
+
     /// The ad stack this view resolves to, given the current config + override.
     public var resolvedAdStack: SellwildAdStack {
         SellwildAdStack.resolve(
@@ -68,6 +73,10 @@ public final class SellwildAdView: UIView {
     }
 
     // MARK: Private
+
+    // House-ad backdrop. Sits behind the paid creative and shows through only
+    // when the slot is empty (no-fill, or the transient .prebidOnly refresh gap).
+    private var houseView: SellwildHouseAdView?
 
     // GAM render path (.both / .gamOnly). Created lazily on first GAM load.
     private var gamBanner: AdManagerBannerView?
@@ -110,6 +119,12 @@ public final class SellwildAdView: UIView {
     public func load() {
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(with: config)
+
+        // Put the house-ad backdrop behind the slot before the paid creative
+        // loads, so an empty slot (no-fill, or the .prebidOnly refresh teardown
+        // gap) shows house inventory instead of a white flash. The paid creative
+        // renders on top and covers it, so the slot auto-reverts when fill returns.
+        installHouseBackdrop()
 
         // Resolve GrowthCode identity (once per launch, throttled). No-op unless
         // enabled with a partner id; injects/merges eids into the auction async.
@@ -319,6 +334,61 @@ public final class SellwildAdView: UIView {
         ])
     }
 
+    // MARK: House ad backdrop
+
+    /// Create (once) and populate the house-ad backdrop for this slot. Content
+    /// precedence: CMS house image → feed-supplied listing (MREC only) → nothing.
+    /// Called on every `load()`; content is refreshed but the view is reused.
+    private func installHouseBackdrop() {
+        let creative = SellwildHouseAd.resolve(
+            remoteValues: config.remoteValues, zoneId: zoneId, size: adSize.cgSize
+        )
+        let listing = houseFallbackListing
+        let isMREC = adSize.cgSize.width >= 300 && adSize.cgSize.height >= 250
+        guard SellwildHouseAd.isEnabled(remoteValues: config.remoteValues),
+              creative != nil || (listing != nil && isMREC) else {
+            houseView?.isHidden = true
+            return
+        }
+
+        let view = houseView ?? {
+            let v = SellwildHouseAdView(frame: bounds)
+            v.translatesAutoresizingMaskIntoConstraints = false
+            insertSubview(v, at: 0) // behind any paid creative
+            NSLayoutConstraint.activate([
+                v.topAnchor.constraint(equalTo: topAnchor),
+                v.bottomAnchor.constraint(equalTo: bottomAnchor),
+                v.leadingAnchor.constraint(equalTo: leadingAnchor),
+                v.trailingAnchor.constraint(equalTo: trailingAnchor),
+            ])
+            houseView = v
+            return v
+        }()
+        view.isHidden = false
+
+        if let creative {
+            view.onTap = { [weak self] in self?.openHouseURL(creative.clickURL) }
+            view.showImage(creative)
+        } else if let listing {
+            view.onTap = { [weak self] in
+                guard let self else { return }
+                self.openHouseURL(listing.tapURL(partnerCode: self.config.partnerCode, bhTag: self.config.bhTag))
+            }
+            view.showListing(listing, config: config)
+        }
+    }
+
+    /// Fire the house-impression callback when the backdrop is actually visible.
+    private func recordHouseImpressionIfShowing() {
+        guard let houseView, !houseView.isHidden else { return }
+        delegate?.sellwildAdView?(self, didRecordHouseImpressionForZoneId: zoneId ?? "")
+    }
+
+    private func openHouseURL(_ urlString: String?) {
+        guard let s = urlString, let url = URL(string: s) else { return }
+        UIApplication.shared.open(url)
+    }
+
     // MARK: Refresh (GAM path only — Prebid path self-refreshes)
 
     private func scheduleRefresh() {
@@ -412,6 +482,7 @@ extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
     public func bannerView(_ bannerView: GoogleMobileAds.BannerView,
                            didFailToReceiveAdWithError error: Error) {
         delegate?.sellwildAdView?(self, didFailWithError: error)
+        recordHouseImpressionIfShowing()
         scheduleRefresh()
     }
 
@@ -454,6 +525,7 @@ extension SellwildAdView: PrebidBannerViewDelegate {
             + "\(error.localizedDescription)")
         #endif
         delegate?.sellwildAdView?(self, didFailWithError: error)
+        recordHouseImpressionIfShowing()
     }
 }
 
@@ -473,4 +545,9 @@ public protocol SellwildAdViewDelegate: AnyObject {
     /// sizing where the slot isn't a fixed banner (React Native especially).
     @objc optional func sellwildAdView(_ adView: SellwildAdView,
                                        didRenderWithSize size: CGSize)
+    /// A house ad backfilled an empty slot (no-fill). NOT a paid impression —
+    /// report it separately. Fires only when the house backdrop is actually
+    /// visible. See `SellwildHouseAd`.
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didRecordHouseImpressionForZoneId zoneId: String)
 }

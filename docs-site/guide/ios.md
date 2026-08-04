@@ -18,12 +18,13 @@ Integration guide for the Sellwild native ad SDK. The SDK runs server-side heade
 10. [App Tracking Transparency](#app-tracking-transparency)
 11. [Remote Config](#remote-config)
 12. [Prebid Server Configuration](#prebid-server-configuration)
-13. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
-14. [GDPR and Privacy](#gdpr-and-privacy)
-15. [Ad Refresh](#ad-refresh)
-16. [Lifecycle Management](#lifecycle-management)
-17. [Troubleshooting](#troubleshooting)
-18. [API Reference](#api-reference)
+13. [House ads](#house-ads)
+14. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
+15. [GDPR and Privacy](#gdpr-and-privacy)
+16. [Ad Refresh](#ad-refresh)
+17. [Lifecycle Management](#lifecycle-management)
+18. [Troubleshooting](#troubleshooting)
+19. [API Reference](#api-reference)
 
 ---
 
@@ -892,6 +893,38 @@ A placement can request additional banner sizes (`BANNER_SIZES` / `BANNER_SIZES_
 
 See **[Multi-Size Banners](./prebid-server.md#multi-size-banners)** for the config format and per-stack behavior.
 
+## House ads
+
+`SellwildAdView` renders a **house-ad backdrop** behind the ad slot. It shows through only when a paid creative is absent — a no-fill, or the transient blank while a `prebidOnly` slot tears down one creative and renders the next on refresh. When a real creative renders it covers the backdrop, so the slot auto-reverts to the paid ad. In practice this **removes the "ad goes blank then pops back" flash on the `prebidOnly` refresh path** and **backfills no-fills** with your own inventory.
+
+The backdrop is driven entirely from remote config (`MOBILE_HOUSE_AD_*`) — a CMS house image with a click-through, resolved per zone → per size → app-wide, and gated by the `MOBILE_HOUSE_AD_ENABLED` kill switch. In the native feed, an MREC (300×250) slot with no configured image can instead fall back to a Sellwild listing. No app release is needed to change any of this. See [Configuration → House ads](./configuration#house-ads-mobile) for the keys and precedence.
+
+```swift
+// Turn everything on/off remotely; no code changes required.
+// MOBILE_HOUSE_AD_ENABLED = false  → no backfill, slots stay blank.
+```
+
+### House impression callback
+
+When a house ad backfills an **empty** slot (a no-fill), the SDK fires a dedicated delegate method. This is **not** a paid impression — report it separately from `didReceiveImpressionForZoneId`.
+
+```swift
+extension AdViewController: SellwildAdViewDelegate {
+    func sellwildAdView(_ adView: SellwildAdView,
+                        didRecordHouseImpressionForZoneId zoneId: String) {
+        print("[Sellwild] House ad backfilled zone: \(zoneId)")
+    }
+}
+```
+
+### Feed listing fallback
+
+In `SellwildFeedView`, the feed sets `SellwildAdView.houseFallbackListing` on MREC slots automatically, so the listing fallback works with no wiring. The property is public but external callers rarely need to set it:
+
+```swift
+public var houseFallbackListing: SellwildListing?
+```
+
 ## GrowthCode Signal Resolve
 
 **GrowthCode Signal Resolve** is the SDK-resolved counterpart to the eids above: when enabled, the SDK syncs with GrowthCode, persists the returned **GCID**, and merges GrowthCode's eids into every native Prebid auction. It is **OFF by default** and controlled entirely from the CMS (remote `GROWTHCODE_*` keys) — no app release to enable it. Requires **SDK 1.6+**. Your explicitly-set `setExternalUserIds` eids still win on a source conflict.
@@ -1107,6 +1140,9 @@ adView.delegate = self
 // Methods
 adView.load()    // Load or reload the ad
 adView.pause()   // Stop the refresh timer
+
+// House-ad fallback listing (feed MREC only; set by SellwildFeedView).
+adView.houseFallbackListing = listing   // public; external callers rarely need this
 ```
 
 ### SellwildAdViewDelegate
@@ -1119,6 +1155,10 @@ adView.pause()   // Stop the refresh timer
     @objc optional func sellwildAdViewDidRecordClick(_ adView: SellwildAdView)
     @objc optional func sellwildAdView(_ adView: SellwildAdView,
                                        didFailWithError error: Error)
+    // Fires when a house ad backfilled an empty slot (a no-fill). NOT a paid
+    // impression — report it separately.
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didRecordHouseImpressionForZoneId zoneId: String)
 }
 ```
 

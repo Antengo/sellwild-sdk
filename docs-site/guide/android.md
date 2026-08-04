@@ -20,12 +20,13 @@ As of 1.3.0, banner ads render natively through `AdManagerAdView` (Google Mobile
 10. [Coroutines API](#coroutines-api)
 11. [Remote Config](#remote-config)
 12. [Prebid Server Configuration](#prebid-server-configuration)
-13. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
-14. [GDPR and Privacy](#gdpr-and-privacy)
-15. [Lifecycle Management](#lifecycle-management)
-16. [Ad Refresh](#ad-refresh)
-17. [ProGuard and R8](#proguard-and-r8)
-18. [Troubleshooting](#troubleshooting)
+13. [House ads](#house-ads)
+14. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
+15. [GDPR and Privacy](#gdpr-and-privacy)
+16. [Lifecycle Management](#lifecycle-management)
+17. [Ad Refresh](#ad-refresh)
+18. [ProGuard and R8](#proguard-and-r8)
+19. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -490,6 +491,7 @@ class AdActivity : AppCompatActivity() {
 | `onAdImpression(adView, zoneId)` | A viewable impression has been recorded. Use this for internal analytics. |
 | `onAdClicked(adView)` | The user tapped on the ad creative. |
 | `onAdFailed(adView, message)` | The auction returned no fill, or an error occurred during rendering. |
+| `onHouseAdImpression(adView, zoneId)` | A house ad backfilled an empty slot (a no-fill). **Not** a paid impression — report it separately. See [House ads](#house-ads). |
 
 All callbacks are dispatched on the main thread.
 
@@ -812,7 +814,7 @@ The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your
 
 **Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode = ...)` with deterministic defaults, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
 
-> The CDN's `AD_REFRESH_INTERVAL` is in **seconds**, while Android's `adRefreshIntervalMs` is in **milliseconds**. `SellwildSDK.configure()` handles the conversion.
+> The CDN's `AD_REFRESH_INTERVAL` is in **milliseconds** (matching the web widget and TS core), and Android's `adRefreshIntervalMs` is milliseconds too. `SellwildSDK.configure()` stores it as-is; iOS's `adRefreshInterval` (seconds) is converted from it.
 
 See [Configuration → Remote Config](./configuration#remote-config) for the full CDN field reference.
 
@@ -884,6 +886,33 @@ See **[Native Ad Format](./prebid-server.md#native-ad-format)** for assets, the 
 A placement can request additional banner sizes (`BANNER_SIZES` / `BANNER_SIZES_BY_ZONE`) so demand falls back to a smaller creative when the primary doesn't fill — one unified auction, applied on all three stacks. Remember the winning size can change the rendered height; give the slot a container that tolerates the size set.
 
 See **[Multi-Size Banners](./prebid-server.md#multi-size-banners)** for the config format and per-stack behavior.
+
+## House ads
+
+`SellwildAdView` renders a **house-ad backdrop** behind the ad slot. It shows through only when a paid creative is absent — a no-fill, or the transient blank while a `prebidOnly` slot tears down one creative and renders the next on refresh. When a real creative renders it covers the backdrop, so the slot auto-reverts to the paid ad. In practice this **removes the "ad goes blank then pops back" flash on the `prebidOnly` refresh path** and **backfills no-fills** with your own inventory.
+
+The backdrop is driven entirely from remote config (`MOBILE_HOUSE_AD_*`) — a CMS house image with a click-through, resolved per zone → per size → app-wide, and gated by the `MOBILE_HOUSE_AD_ENABLED` kill switch. In the native feed, an MREC (300×250) slot with no configured image can instead fall back to a Sellwild listing. No app release is needed to change any of this. See [Configuration → House ads](./configuration#house-ads-mobile) for the keys and precedence.
+
+### House impression callback
+
+When a house ad backfills an **empty** slot (a no-fill), the SDK invokes a dedicated listener method. This is **not** a paid impression — report it separately from `onAdImpression`.
+
+```kotlin
+mrecAdView.listener = object : SellwildAdView.Listener {
+    override fun onHouseAdImpression(adView: SellwildAdView, zoneId: String) {
+        Log.d("SellwildAd", "House ad backfilled zone: $zoneId")
+    }
+    // ... other Listener methods
+}
+```
+
+### Feed listing fallback
+
+In `SellwildFeedView`, the feed sets `SellwildAdView.houseFallbackListing` on MREC slots automatically, so the listing fallback works with no wiring. The property is a public `var` but external callers rarely need to set it:
+
+```kotlin
+var houseFallbackListing: SellwildListing? = null
+```
 
 ## GrowthCode Signal Resolve
 

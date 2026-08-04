@@ -72,6 +72,11 @@ class SellwildFeedView @JvmOverloads constructor(
          */
         fun onListingTap(listing: SellwildListing): Boolean = false
         fun onAdImpression(zoneId: String) {}
+        /**
+         * A house ad backfilled an empty ad slot in the feed (a no-fill). NOT a
+         * paid impression — report it separately. See [SellwildHouseAd].
+         */
+        fun onHouseAdImpression(zoneId: String) {}
         fun onAdClicked(zoneId: String) {}
         fun onLoad() {}
         fun onError(message: String) {}
@@ -299,6 +304,16 @@ class SellwildFeedView @JvmOverloads constructor(
         return z.takeIf { it.isNotEmpty() }
     }
 
+    /**
+     * Pick a listing to house-backfill an ad slot with when no CMS house image
+     * is configured. Rotates by position so adjacent ad slots don't show the
+     * same listing. Null when there are no listings to draw from.
+     */
+    private fun houseListingFor(position: Int): SellwildListing? {
+        if (listings.isEmpty()) return null
+        return listings[position % listings.size]
+    }
+
     // -----------------------------------------------------------------
     // Adapter
     // -----------------------------------------------------------------
@@ -339,9 +354,11 @@ class SellwildFeedView @JvmOverloads constructor(
                     val handled = listener?.onListingTap(listing) ?: false
                     if (!handled) openUrl(listing.tapUrl(cfg.partnerCode, cfg.bhTag))
                 }
-                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onAdClick)
-                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onAdClick)
-                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onAdClick)
+                // MREC can house-backfill with a listing when no CMS image is set;
+                // a 320x50 banner is too small for a card, so it gets none.
+                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position))
+                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position))
+                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null)
             }
         }
     }
@@ -352,6 +369,10 @@ class SellwildFeedView @JvmOverloads constructor(
 
     private fun onAdImpression(zoneId: String) {
         listener?.onAdImpression(zoneId)
+    }
+
+    private fun onHouseAdImpression(zoneId: String) {
+        listener?.onHouseAdImpression(zoneId)
     }
 
     private fun onAdClick(zoneId: String) {
@@ -582,8 +603,13 @@ class SellwildFeedView @JvmOverloads constructor(
             config: SellwildConfig,
             zoneId: String,
             onImpression: (String) -> Unit,
+            onHouseImpression: (String) -> Unit,
             onClick: (String) -> Unit,
+            houseListing: SellwildListing?,
         ) {
+            // Keep the house-backfill listing fresh even when the ad view is
+            // reused, so the next refresh's backdrop can render it.
+            adView?.houseFallbackListing = houseListing
             if (boundZoneId == zoneId && adView != null) return
             boundZoneId = zoneId
             removeAllViews()
@@ -593,12 +619,16 @@ class SellwildFeedView @JvmOverloads constructor(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     Gravity.CENTER_HORIZONTAL,
                 )
+                houseFallbackListing = houseListing
                 // Inherit ad-stack from CDN config so feed ads respect AD_STACK / AD_STACK_BY_ZONE
                 adStackOverride = SellwildAdStack.resolve(config.remoteJson, zoneId, null)
                 listener = object : SellwildAdView.Listener {
                     override fun onAdLoaded(adView: SellwildAdView) {}
                     override fun onAdImpression(adView: SellwildAdView, zoneId: String) {
                         onImpression(zoneId)
+                    }
+                    override fun onHouseAdImpression(adView: SellwildAdView, zoneId: String) {
+                        onHouseImpression(zoneId)
                     }
                     override fun onAdClicked(adView: SellwildAdView) { onClick(zoneId) }
                     override fun onAdFailed(adView: SellwildAdView, message: String) {}
