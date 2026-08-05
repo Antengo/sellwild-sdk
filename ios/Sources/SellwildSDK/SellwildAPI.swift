@@ -153,6 +153,11 @@ public final class SellwildAPIClient {
     private let session: URLSession
     private let listingCache = NSCache<NSString, ListingsCacheEntry>()
 
+    /// Analytics kill switch. Defaults on; `SellwildAdView` sets this from the
+    /// resolved remote config (EVENTS_ENABLED) so events can be stopped via CMS
+    /// without an app release. When off, `sendEvent` is a no-op.
+    public var eventsEnabled: Bool = true
+
     public static let shared = SellwildAPIClient()
 
     public init(session: URLSession = .shared) {
@@ -308,6 +313,7 @@ public final class SellwildAPIClient {
     // MARK: Send Analytics Event
 
     public func sendEvent(_ event: SellwildEvent) {
+        guard eventsEnabled else { return }
         let url = URL(string: "https://events.sellwild.com/events/queue")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -364,6 +370,23 @@ public struct SellwildEvent: Codable {
         self.label = label
         self.uid = SellwildSession.shared.uid
         self.createdTime = Int64(Date().timeIntervalSince1970 * 1000)
+    }
+}
+
+// MARK: - Analytics kill switch
+
+/// Resolves the analytics kill switch from remote config. Events are enabled
+/// unless the CMS explicitly disables them (EVENTS_ENABLED = false / "false" /
+/// 0). An absent key leaves events ON so analytics are never silently dropped.
+public enum SellwildEvents {
+    public static func isEnabled(remoteValues: [String: Any]?) -> Bool {
+        guard let raw = remoteValues?["EVENTS_ENABLED"] else { return true }
+        switch raw {
+        case let b as Bool: return b
+        case let n as NSNumber: return n.boolValue
+        case let s as String: return !["false", "0", "no", "off"].contains(s.trimmingCharacters(in: .whitespaces).lowercased())
+        default: return true
+        }
     }
 }
 

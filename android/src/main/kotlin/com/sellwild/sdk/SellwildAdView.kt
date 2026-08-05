@@ -148,6 +148,9 @@ class SellwildAdView @JvmOverloads constructor(
         this.adSize = adSize
         this.zoneId = zoneId
 
+        // Honor the CMS analytics kill switch (EVENTS_ENABLED) before any emit.
+        SellwildEventQueue.shared(context).enabled = SellwildEvents.isEnabled(config.remoteJson)
+
         when {
             nativeEnabled -> ensureNativeAdView()
             resolvedAdStack == SellwildAdStack.PREBID_ONLY -> ensurePrebidBanner()

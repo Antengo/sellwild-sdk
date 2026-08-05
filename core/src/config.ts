@@ -81,6 +81,9 @@ const defaultConfig: Omit<SellwildConfig, 'partnerCode'> = {
   growthcode: '',
   bhTag: '',
 
+  // Analytics — events on by default; CMS EVENTS_ENABLED=false is the kill switch
+  eventsEnabled: true,
+
   // Debug
   debug: false,
   membershipType: '',
