@@ -151,6 +151,15 @@ class EventQueue {
   private readonly interval = 10000
   private readonly maxBatch = 100
   private uid: string = ''
+  // Kill switch. Defaults on; call setEnabled(config.eventsEnabled) after
+  // configure() to honor the CMS EVENTS_ENABLED flag. When off, events are
+  // neither queued nor sent (and any pending batch is dropped on flush).
+  private enabled = true
+
+  /** Toggle event sending. Pass `config.eventsEnabled` from a resolved config. */
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled
+  }
 
   getUid(): string {
     if (this.uid) return this.uid
@@ -163,6 +172,7 @@ class EventQueue {
   }
 
   push(event: SdkEvent): void {
+    if (!this.enabled) return
     this.events.push({ ...event, uid: this.getUid(), createdTime: Date.now() })
     this.schedule()
   }
@@ -181,6 +191,10 @@ class EventQueue {
     if (this.timer) {
       clearTimeout(this.timer)
       this.timer = null
+    }
+    if (!this.enabled) {
+      this.events.length = 0
+      return
     }
     const batch = this.events.splice(0, this.maxBatch)
     if (!batch.length) return

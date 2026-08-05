@@ -109,6 +109,9 @@ const KEY_MAP: Record<string, keyof SellwildConfig> = {
   ENABLE_FULLSCREEN_VIDEO: 'enableFullscreenVideo',
   INTERSTITIALS_PER_SESSION: 'interstitialsPerSession',
   VIDEO_TAKEOVERS_PER_SESSION: 'videoTakeoversPerSession',
+
+  // Analytics kill switch
+  EVENTS_ENABLED: 'eventsEnabled',
 }
 
 // ── Transform ───��───────────────────────────────────────────────────────────
@@ -143,6 +146,17 @@ export function mapRemoteConfig(raw: Record<string, unknown>): Partial<SellwildC
  * downstream code can rely on the typed contract.
  */
 function coerceConfigValue(configKey: string, value: unknown): unknown {
+  if (configKey === 'eventsEnabled') {
+    // Kill switch: enabled unless the CMS ships an explicitly falsy value.
+    // The CMS may store booleans as real JSON booleans OR strings, so coerce
+    // both. Anything else (unexpected shape) leaves events ON.
+    if (typeof value === 'boolean') return value
+    if (typeof value === 'number') return value !== 0
+    if (typeof value === 'string') {
+      return !['false', '0', 'no', 'off'].includes(value.trim().toLowerCase())
+    }
+    return true
+  }
   if (configKey === 'iabCats') {
     if (Array.isArray(value)) return value
     if (typeof value === 'string') {

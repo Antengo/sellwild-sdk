@@ -305,6 +305,11 @@ export interface SellwildConfig {
   interstitialsPerSession?: number   // Max interstitials per user session (default: 1)
   videoTakeoversPerSession?: number  // Max fullscreen video takeovers per session (default: 0)
 
+  // Analytics event kill switch (CMS EVENTS_ENABLED). Defaults ON so analytics
+  // are never silently dropped; set false in remote config to stop all SDK
+  // event POSTs to events.sellwild.com without an app release.
+  eventsEnabled: boolean
+
   // Debug
   debug: boolean
   // Server-side auction debug — adds ext.prebid.debug=1 + returnallbidstatus to

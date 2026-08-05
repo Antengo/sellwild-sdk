@@ -256,6 +256,14 @@ class SellwildEventQueue(context: Context) {
     private val eventsUrl = "https://events.sellwild.com/events/queue"
     private val queue = mutableListOf<SellwildEvent>()
 
+    /**
+     * Analytics kill switch. Defaults on; [SellwildAdView] sets this from the
+     * resolved remote config (EVENTS_ENABLED) so events can be stopped via CMS
+     * without an app release. When off, [track] is a no-op.
+     */
+    @Volatile
+    var enabled: Boolean = true
+
     val uid: String by lazy {
         prefs.getString("_sw_uid", null) ?: UUID.randomUUID().toString().also { id ->
             prefs.edit().putString("_sw_uid", id).apply()
@@ -300,6 +308,7 @@ class SellwildEventQueue(context: Context) {
      * `SellwildAPIClient.sendEvent` — call sites don't need their own scope.
      */
     fun track(event: String, action: String? = null, label: String? = null) {
+        if (!enabled) return
         push(event, action, label)
         scope.launch { flush() }
     }
@@ -312,6 +321,26 @@ class SellwildEventQueue(context: Context) {
             instance ?: synchronized(this) {
                 instance ?: SellwildEventQueue(context.applicationContext).also { instance = it }
             }
+    }
+}
+
+// MARK: - Analytics kill switch
+
+/**
+ * Resolves the analytics kill switch from remote config. Events are enabled
+ * unless the CMS explicitly disables them (EVENTS_ENABLED = false / "false" /
+ * 0). An absent key leaves events ON so analytics are never silently dropped.
+ */
+object SellwildEvents {
+    fun isEnabled(remoteJson: String?): Boolean {
+        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return true
+        if (!obj.has("EVENTS_ENABLED")) return true
+        return when (val v = obj.opt("EVENTS_ENABLED")) {
+            is Boolean -> v
+            is Number -> v.toInt() != 0
+            is String -> v.trim().lowercase() !in setOf("false", "0", "no", "off")
+            else -> true
+        }
     }
 }
 

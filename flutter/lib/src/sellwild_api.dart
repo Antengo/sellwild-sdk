@@ -47,7 +47,11 @@ class SellwildAPIClient {
     String? action,
     String? label,
     required String uid,
+    // Analytics kill switch. Defaults on; pass the resolved remote-config
+    // EVENTS_ENABLED so events can be stopped via CMS without an app release.
+    bool enabled = true,
   }) async {
+    if (!enabled) return;
     const url = 'https://events.sellwild.com/events/queue';
     final payload = jsonEncode([
       {

@@ -111,6 +111,8 @@ public final class SellwildAdView: UIView {
         self.config = config
         self.adSize = adSize
         self.zoneId = zoneId
+        // Honor the CMS analytics kill switch (EVENTS_ENABLED) before any emit.
+        SellwildAPIClient.shared.eventsEnabled = SellwildEvents.isEnabled(remoteValues: config.remoteValues)
         super.init(frame: CGRect(origin: .zero, size: adSize.cgSize))
         // Reserve the widest/tallest size the auction may return (primary + any
         // BANNER_SIZES fallbacks) so a wider/taller fallback creative doesn't
