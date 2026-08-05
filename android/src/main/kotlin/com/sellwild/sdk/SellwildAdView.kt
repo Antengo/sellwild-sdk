@@ -500,14 +500,17 @@ class SellwildAdView @JvmOverloads constructor(
                 // slot resizes to the template rather than clipping.
                 self.listener?.onAdResize(self, adSize.width, cap)
                 self.listener?.onAdImpression(self, self.zoneId.orEmpty())
+                SellwildEventQueue.shared(self.context).track("adRenderSucceeded", label = self.zoneId.orEmpty())
             }
             onClick = {
                 val self = this@SellwildAdView
                 self.listener?.onAdClicked(self)
+                SellwildEventQueue.shared(self.context).track("click", label = self.zoneId.orEmpty())
             }
             onFailed = { message ->
                 val self = this@SellwildAdView
                 self.listener?.onAdFailed(self, message)
+                SellwildEventQueue.shared(self.context).track("adError", action = message, label = self.zoneId.orEmpty())
             }
         }
         nativeAdView = native
@@ -538,12 +541,14 @@ class SellwildAdView @JvmOverloads constructor(
             // (e.g. a 320x50 win in a 300x250 request) resize the host slot.
             self.bannerView?.adSize?.let { self.listener?.onAdResize(self, it.width, it.height) }
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
+            SellwildEventQueue.shared(self.context).track("adRenderSucceeded", label = self.zoneId.orEmpty())
             scheduleRefresh()
         }
 
         override fun onAdFailedToLoad(error: LoadAdError) {
             val self = this@SellwildAdView
             self.listener?.onAdFailed(self, error.message)
+            SellwildEventQueue.shared(self.context).track("adError", action = error.message, label = self.zoneId.orEmpty())
             self.recordHouseImpressionIfShowing()
             scheduleRefresh()
         }
@@ -551,6 +556,7 @@ class SellwildAdView @JvmOverloads constructor(
         override fun onAdClicked() {
             val self = this@SellwildAdView
             self.listener?.onAdClicked(self)
+            SellwildEventQueue.shared(self.context).track("click", label = self.zoneId.orEmpty())
         }
     }
 
@@ -564,6 +570,7 @@ class SellwildAdView @JvmOverloads constructor(
             // prebidOnly fallbacks won't shrink the slot — a known limitation.
             self.listener?.onAdResize(self, self.adSize.width, self.adSize.height)
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
+            SellwildEventQueue.shared(self.context).track("adRenderSucceeded", label = self.zoneId.orEmpty())
         }
 
         override fun onAdDisplayed(bannerView: PrebidBannerView?) {}
@@ -573,12 +580,14 @@ class SellwildAdView @JvmOverloads constructor(
             // Loud on purpose: this is how we diagnose why .prebidOnly renders blank.
             if (self.config.debug) android.util.Log.w("SellwildAdView", "[prebidOnly] failed to render — zone ${self.zoneId.orEmpty()}: ${exception?.message}")
             self.listener?.onAdFailed(self, exception?.message ?: "Prebid ad failed")
+            SellwildEventQueue.shared(self.context).track("adError", action = exception?.message, label = self.zoneId.orEmpty())
             self.recordHouseImpressionIfShowing()
         }
 
         override fun onAdClicked(bannerView: PrebidBannerView?) {
             val self = this@SellwildAdView
             self.listener?.onAdClicked(self)
+            SellwildEventQueue.shared(self.context).track("click", label = self.zoneId.orEmpty())
         }
 
         override fun onAdClosed(bannerView: PrebidBannerView?) {}
