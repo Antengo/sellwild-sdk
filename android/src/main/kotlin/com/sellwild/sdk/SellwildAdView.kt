@@ -436,18 +436,23 @@ class SellwildAdView @JvmOverloads constructor(
             if (effectiveRefreshMax > 0) {
                 setAutoRefreshDelay((config.adRefreshIntervalMs / 1000L).toInt())
             }
-            // Prebid-rendered outstream video (no GAM) is not supported on the
-            // rendering BannerView in the current shaded fork — it has no
-            // videoParameters setter (unlike iOS PrebidBannerView). The GAM
-            // path (runBannerAuction with video=true) still delivers outstream
-            // via a multiformat BannerAdUnit + GAM outstream line item, so
-            // prebidOnly is the only surface losing video here.
+            // prebidOnly banner+video is intentionally NOT wired on Android —
+            // shipping WITHOUT it (see SDK_ROLLOUT_FLAGS §D). Verified against the
+            // shadow fork com.sellwild:PrebidMobile 3.3.2 (the LATEST fork tag —
+            // not pinned low, a bump won't help): the rendering BannerView keeps
+            // `adUnitConfig` private and setVideoPlacementType() REPLACES banner
+            // with VAST (video-only). There is no public multiformat setter, so
+            // banner+video can't compete (iOS can, via adUnitConfig.adFormats).
+            // Video-only is possible but sacrifices banner fill, so we don't
+            // enable it. To reach iOS parity later: patch the fork to expose a
+            // multiformat setter on BannerView (the imp-builder already supports
+            // both formats), cut 3.3.3, then set adFormats=[banner,video] here.
             if (SellwildVideo.isEnabled(config.remoteJson, zoneId)) {
                 Log.w(
                     TAG,
-                    "prebidOnly outstream video requested but rendering " +
-                        "BannerView has no videoParameters setter in the " +
-                        "shaded fork — falling back to banner-only.",
+                    "prebidOnly outstream video requested but Android rendering " +
+                        "BannerView (fork 3.3.2) is single-format — shipping " +
+                        "banner-only; banner+video needs fork 3.3.3 (see §D).",
                 )
             }
             // Multi-size fallback for the Prebid-rendered banner (primary above).
