@@ -127,7 +127,9 @@ class SellwildNativeAdView(
 
     /** Request native demand and, on a win, bind + register the assets. */
     fun load() {
-        val unit = SellwildNative.makeRequest(zoneId)
+        // Native may use a dedicated placement id (NATIVE_ZID*); resolve it with
+        // the mobile-mirroring precedence, falling back to this slot's zoneId.
+        val unit = SellwildNative.makeRequest(SellwildNative.resolveConfigId(config.remoteJson, zoneId))
         nativeAdUnit = unit
         // Pass a Bundle as the ad object so the fork writes the winning cache
         // id into `BUNDLE_KEY_CACHE_ID` (Util.saveCacheId Bundle path). We
