@@ -45,6 +45,17 @@ public enum SellwildVideo {
     /// shaded `SellwildPrebidSDK` fork.
     static func outstreamParameters() -> VideoParameters {
         let params = VideoParameters(mimes: ["video/mp4"])
+        applyOutstream(to: params)
+        return params
+    }
+
+    /// Configure an existing `VideoParameters` in place. Used on the `.prebidOnly`
+    /// rendering path: the rendering `BannerView.videoParameters` is a get-only
+    /// *property*, but `VideoParameters` is a reference type, so mutating its
+    /// fields is the supported way to set outstream params there (the "get-only"
+    /// property is not a blocker — only `adUnitConfig.adFormats` gates video).
+    static func applyOutstream(to params: VideoParameters) {
+        params.mimes = ["video/mp4"]
         params.protocols = [
             Signals.Protocols.VAST_2_0,
             Signals.Protocols.VAST_3_0,
@@ -55,7 +66,6 @@ public enum SellwildVideo {
         // NOTE: Prebid Mobile 3.x shaded fork doesn't expose `plcmt` (OpenRTB 2.6);
         // `placement = InBanner` covers the intent for buyers still on the 2.5 signal.
         params.api = [Signals.Api.OMID_1, Signals.Api.MRAID_3]
-        return params
     }
 
     private static func truthy(_ value: Any?) -> Bool {
