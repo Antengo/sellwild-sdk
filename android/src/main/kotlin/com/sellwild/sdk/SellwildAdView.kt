@@ -437,16 +437,18 @@ class SellwildAdView @JvmOverloads constructor(
                 setAutoRefreshDelay((config.adRefreshIntervalMs / 1000L).toInt())
             }
             // prebidOnly banner+video is intentionally NOT wired on Android —
-            // shipping WITHOUT it (see SDK_ROLLOUT_FLAGS §D). Verified against the
-            // shadow fork com.sellwild:PrebidMobile 3.3.2 (the LATEST fork tag —
-            // not pinned low, a bump won't help): the rendering BannerView keeps
-            // `adUnitConfig` private and setVideoPlacementType() REPLACES banner
-            // with VAST (video-only). There is no public multiformat setter, so
-            // banner+video can't compete (iOS can, via adUnitConfig.adFormats).
-            // Video-only is possible but sacrifices banner fill, so we don't
-            // enable it. To reach iOS parity later: patch the fork to expose a
-            // multiformat setter on BannerView (the imp-builder already supports
-            // both formats), cut 3.3.3, then set adFormats=[banner,video] here.
+            // shipping WITHOUT it (see SDK_ROLLOUT_FLAGS §D). Confirmed against the
+            // official Prebid Mobile Android API ref: the rendering BannerView has
+            // only 3 constructors (none multiformat) + setVideoPlacementType(),
+            // which REPLACES banner with VAST (video-only). `adUnitConfig` is
+            // private; no public multiformat setter. iOS differs (its BannerView
+            // exposes adUnitConfig.adFormats) — a separate-codebase API asymmetry,
+            // not a capability gap: the Android imp-builder already emits both
+            // banner+video on one imp; only the public API hides it. A version
+            // bump won't help (our fork 3.3.2; upstream 3.3.3 doesn't add it
+            // either). Parity = fork patch exposing a multiformat setter on
+            // BannerView, cut under a non-colliding version (e.g. 3.3.3-sw1),
+            // then set adFormats=[banner,video] here like iOS.
             if (SellwildVideo.isEnabled(config.remoteJson, zoneId)) {
                 Log.w(
                     TAG,
