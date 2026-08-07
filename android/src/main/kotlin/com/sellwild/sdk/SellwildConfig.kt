@@ -10,14 +10,13 @@ data class SellwildConfig(
     // Identity
     val partnerCode: String,
     /**
-     * URL of the listings API. Optional in 1.2.0+ — typically populated from
-     * remote config. When null, [effectiveListingsUrl] derives a default of
-     * `"$apiBaseUrl/widget/listings?partner=$partnerCode"`.
+     * URL of the listings data. Optional in 1.2.0+ — typically populated from
+     * remote config. When null, [effectiveListingsUrl] falls back to the
+     * general listings cache, [DEFAULT_LISTINGS_URL].
      */
     val listingsUrl: String? = null,
     val slug: String = "",
     val name: String = "",
-    val apiBaseUrl: String = "https://api.sellwild.com",
 
     // Display
     val title: String? = null,
@@ -174,19 +173,18 @@ data class SellwildConfig(
     val pbsDebug: Boolean = false,
 ) {
     /**
-     * Effective listings URL. Returns [listingsUrl] when set, otherwise derives
-     * a deterministic default from [partnerCode].
+     * Effective listings URL. Returns [listingsUrl] when set, otherwise falls
+     * back to the general listings cache, [DEFAULT_LISTINGS_URL].
      */
     val effectiveListingsUrl: String
         get() = listingsUrl?.takeIf { it.isNotEmpty() }
-            ?: "$apiBaseUrl/widget/listings?partner=$partnerCode"
+            ?: DEFAULT_LISTINGS_URL
 
     fun toJson(): JSONObject = JSONObject().apply {
         put("partnerCode", partnerCode)
         put("listingsUrl", effectiveListingsUrl)
         put("slug", slug)
         put("name", name)
-        put("apiBaseUrl", apiBaseUrl)
         title?.let { put("title", it) }
         linkText?.let { put("linkText", it) }
         buyNowText?.let { put("buyNowText", it) }
@@ -213,6 +211,14 @@ data class SellwildConfig(
         put("interstitialsPerSession", interstitialsPerSession)
         put("videoTakeoversPerSession", videoTakeoversPerSession)
         put("debug", debug)
+    }
+
+    companion object {
+        /**
+         * Fallback listings source used when [listingsUrl] is null or empty.
+         * Points at the general (non-partner-specific) listings cache blob.
+         */
+        const val DEFAULT_LISTINGS_URL = "https://cache.sellwild.com/listings-img-data-sm"
     }
 }
 

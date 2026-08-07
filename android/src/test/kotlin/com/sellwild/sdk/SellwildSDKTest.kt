@@ -14,7 +14,7 @@ class SellwildSDKTest {
                 "CODE" to "weatherbug",
                 "SLUG" to "weatherbug-main",
                 "NAME" to "WeatherBug",
-                "LISTINGS" to "https://api.sellwild.com/widget/listings?partner=weatherbug",
+                "LISTINGS" to "https://cache.sellwild.com/listings-img-data-sm",
             )
         )
 
@@ -24,7 +24,7 @@ class SellwildSDKTest {
         assertEquals("weatherbug-main", merged.slug)
         assertEquals("WeatherBug", merged.name)
         assertEquals(
-            "https://api.sellwild.com/widget/listings?partner=weatherbug",
+            "https://cache.sellwild.com/listings-img-data-sm",
             merged.listingsUrl,
         )
     }
@@ -75,7 +75,7 @@ class SellwildSDKTest {
 
         assertNull(config.listingsUrl)
         assertEquals(
-            "https://api.sellwild.com/widget/listings?partner=weatherbug",
+            "https://cache.sellwild.com/listings-img-data-sm",
             config.effectiveListingsUrl,
         )
     }
@@ -98,9 +98,10 @@ class SellwildSDKTest {
     }
 
     /**
-     * Validates that when the remote config provides LISTINGS pointing to
-     * cache.sellwild.com, the SDK uses that URL instead of the api.sellwild.com
-     * fallback. This is the WeatherBug production scenario.
+     * Validates that when the remote config provides a partner-specific LISTINGS
+     * URL, the SDK uses that URL instead of the general listings cache fallback
+     * (SellwildConfig.DEFAULT_LISTINGS_URL). This is the WeatherBug production
+     * scenario.
      */
     @Test
     fun `apply uses cache_sellwild_com LISTINGS from remote config`() {
@@ -132,13 +133,13 @@ class SellwildSDKTest {
     }
 
     /**
-     * Validates the failure case: when a developer uses SellwildConfig directly
-     * without calling configure(), listingsUrl is null and effectiveListingsUrl
-     * falls back to api.sellwild.com — which returns 404.
+     * Validates the no-remote-fetch case: when a developer uses SellwildConfig
+     * directly without calling configure(), listingsUrl is null and
+     * effectiveListingsUrl falls back to the general listings cache
+     * (SellwildConfig.DEFAULT_LISTINGS_URL).
      */
     @Test
-    fun `static config without remote fetch uses api_sellwild_com fallback`() {
-        // This is the WRONG pattern that caused WeatherBug's 404 issue
+    fun `static config without remote fetch uses general cache fallback`() {
         val config = SellwildConfig(
             partnerCode = "weatherbug",
             slug = "weatherbug-weatherbug",
@@ -146,9 +147,9 @@ class SellwildSDKTest {
 
         // listingsUrl is null because remote config was never fetched
         assertNull(config.listingsUrl)
-        // effectiveListingsUrl falls back to the deprecated endpoint
+        // effectiveListingsUrl falls back to the general listings cache
         assertEquals(
-            "https://api.sellwild.com/widget/listings?partner=weatherbug",
+            "https://cache.sellwild.com/listings-img-data-sm",
             config.effectiveListingsUrl,
         )
     }

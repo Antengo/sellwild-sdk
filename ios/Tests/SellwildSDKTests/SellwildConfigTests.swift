@@ -6,7 +6,7 @@ final class SellwildConfigTests: XCTestCase {
     func testDefaultConfigValues() {
         let config = SellwildConfig(
             partnerCode: "test_partner",
-            listingsUrl: "https://api.sellwild.com/widget/listings?partner=test"
+            listingsUrl: "https://cache.sellwild.com/listings-img-data-sm"
         )
 
         XCTAssertEqual(config.partnerCode, "test_partner")
@@ -23,7 +23,7 @@ final class SellwildConfigTests: XCTestCase {
     func testConfigCodable() throws {
         var config = SellwildConfig(
             partnerCode: "mypartner",
-            listingsUrl: "https://api.sellwild.com/widget/listings?partner=mypartner"
+            listingsUrl: "https://cache.sellwild.com/listings-img-data-sm"
         )
         config.title = "Shop Now"
         config.debug = true

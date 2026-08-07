@@ -38,7 +38,7 @@ const origFetch = globalThis.fetch
   clearRemoteConfigCache()
   const mock = makeFetch({
     CODE: 'weatherbug',
-    LISTINGS: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+    LISTINGS: 'https://cache.sellwild.com/listings-img-data-sm',
     MOBILE_ZID: ['12345', '67890'],
     AD_REFRESH_INTERVAL: 30,
     APP_BUNDLE_ID: 'com.aws.android',
@@ -52,7 +52,7 @@ const origFetch = globalThis.fetch
   check('slug preserved', config.slug === 'weatherbug-main')
   check(
     'listingsUrl from CDN',
-    config.listingsUrl === 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+    config.listingsUrl === 'https://cache.sellwild.com/listings-img-data-sm',
   )
   check(
     'mobileZids from CDN',
@@ -74,8 +74,8 @@ const origFetch = globalThis.fetch
   check('404 → partnerCode set', config.partnerCode === 'newpartner')
   check('404 → listingsUrl undefined', config.listingsUrl === undefined)
   check(
-    '404 → resolveListingsUrl gives deterministic default',
-    resolveListingsUrl(config) === 'https://api.sellwild.com/widget/listings?partner=newpartner',
+    '404 → resolveListingsUrl gives general listings cache default',
+    resolveListingsUrl(config) === 'https://cache.sellwild.com/listings-img-data-sm',
   )
 }
 
@@ -108,7 +108,7 @@ const origFetch = globalThis.fetch
   clearRemoteConfigCache()
   const raw = {
     CODE: 'weatherbug',
-    LISTINGS: 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+    LISTINGS: 'https://cache.sellwild.com/listings-img-data-sm',
     // Unmapped CMS keys (no entry in KEY_MAP) — must still flow through:
     MEDIANET: { cid: '8CU123ABC' },
     AMX: { tagId: 'amx-tag-1' },

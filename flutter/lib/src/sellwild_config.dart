@@ -5,12 +5,15 @@ class SellwildConfig {
   final String partnerCode;
 
   /// URL of the listings API. Optional in 1.2.0+ — typically populated from
-  /// remote config. When null, [effectiveListingsUrl] derives a default of
-  /// `'$apiBaseUrl/widget/listings?partner=$partnerCode'`.
+  /// remote config. When null, [effectiveListingsUrl] falls back to the general
+  /// listings cache [defaultListingsUrl].
   final String? listingsUrl;
+
+  /// General listings cache blob used when no explicit [listingsUrl] is set.
+  static const String defaultListingsUrl =
+      'https://cache.sellwild.com/listings-img-data-sm';
   final String slug;
   final String name;
-  final String apiBaseUrl;
 
   // Display
   final String? title;
@@ -105,7 +108,6 @@ class SellwildConfig {
     this.listingsUrl,
     this.slug = '',
     this.name = '',
-    this.apiBaseUrl = 'https://api.sellwild.com',
     this.title,
     this.linkText = 'View all',
     this.buyNowText = 'Buy now',
@@ -157,12 +159,12 @@ class SellwildConfig {
     this.remoteJson,
   });
 
-  /// Effective listings URL. Returns [listingsUrl] when set, otherwise derives
-  /// a deterministic default from [partnerCode].
+  /// Effective listings URL. Returns [listingsUrl] when set, otherwise falls
+  /// back to the general listings cache [defaultListingsUrl].
   String get effectiveListingsUrl {
     final url = listingsUrl;
     if (url != null && url.isNotEmpty) return url;
-    return '$apiBaseUrl/widget/listings?partner=$partnerCode';
+    return defaultListingsUrl;
   }
 
   Map<String, dynamic> toJson() => {
@@ -170,7 +172,6 @@ class SellwildConfig {
         'listingsUrl': effectiveListingsUrl,
         'slug': slug,
         'name': name,
-        'apiBaseUrl': apiBaseUrl,
         if (title != null) 'title': title,
         if (linkText != null) 'linkText': linkText,
         if (buyNowText != null) 'buyNowText': buyNowText,

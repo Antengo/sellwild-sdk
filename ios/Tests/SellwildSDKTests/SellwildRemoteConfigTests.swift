@@ -9,7 +9,7 @@ final class SellwildRemoteConfigTests: XCTestCase {
             "CODE": "weatherbug",
             "SLUG": "weatherbug-main",
             "NAME": "WeatherBug",
-            "LISTINGS": "https://api.sellwild.com/widget/listings?partner=weatherbug",
+            "LISTINGS": "https://cache.sellwild.com/listings-img-data-sm",
         ]
         let merged = SellwildSDK.apply(raw, to: base)
         XCTAssertEqual(merged.partnerCode, "weatherbug")
@@ -17,7 +17,7 @@ final class SellwildRemoteConfigTests: XCTestCase {
         XCTAssertEqual(merged.name, "WeatherBug")
         XCTAssertEqual(
             merged.listingsUrl,
-            "https://api.sellwild.com/widget/listings?partner=weatherbug"
+            "https://cache.sellwild.com/listings-img-data-sm"
         )
     }
 
@@ -59,10 +59,13 @@ final class SellwildRemoteConfigTests: XCTestCase {
     func testEffectiveListingsUrlFallsBackWhenUnset() {
         let config = SellwildConfig(partnerCode: "weatherbug")
         XCTAssertNil(config.listingsUrl)
+        // With no explicit listingsUrl, the SDK falls back to the general
+        // listings cache (not a partner-scoped URL).
         XCTAssertEqual(
             config.effectiveListingsUrl,
-            "https://api.sellwild.com/widget/listings?partner=weatherbug"
+            "https://cache.sellwild.com/listings-img-data-sm"
         )
+        XCTAssertEqual(config.effectiveListingsUrl, SellwildConfig.defaultListingsCacheURL)
     }
 
     func testEffectiveListingsUrlPrefersExplicitValue() {

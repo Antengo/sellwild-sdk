@@ -140,12 +140,11 @@ export interface SellwildConfig {
 
   // API
   /**
-   * URL of the listings API. When unset, the SDK derives a default of
-   * `${apiBaseUrl}/widget/listings?partner=${partnerCode}`.
+   * URL of the listings API. When unset, the SDK falls back to the general
+   * listings cache (`DEFAULT_LISTINGS_URL`, `https://cache.sellwild.com/listings-img-data-sm`).
    * Optional in 1.2.0+ — typically populated from remote config.
    */
   listingsUrl?: string
-  apiBaseUrl: string
 
   // Display
   title?: string

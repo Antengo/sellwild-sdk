@@ -85,7 +85,6 @@ class SellwildSDK {
       slug: str('SLUG') ?? base.slug,
       name: str('NAME') ?? base.name,
       listingsUrl: str('LISTINGS') ?? base.listingsUrl,
-      apiBaseUrl: base.apiBaseUrl,
 
       // Display
       title: str('TITLE') ?? base.title,

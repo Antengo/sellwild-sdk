@@ -6,7 +6,7 @@ void main() {
     test('has correct defaults', () {
       const config = SellwildConfig(
         partnerCode: 'test',
-        listingsUrl: 'https://api.sellwild.com/widget/listings?partner=test',
+        listingsUrl: 'https://cache.sellwild.com/listings-img-data-sm',
       );
 
       expect(config.partnerCode, 'test');
@@ -22,12 +22,12 @@ void main() {
     test('toJson includes partnerCode and listingsUrl', () {
       const config = SellwildConfig(
         partnerCode: 'mypartner',
-        listingsUrl: 'https://api.sellwild.com/widget/listings?partner=mypartner',
+        listingsUrl: 'https://cache.sellwild.com/listings-img-data-sm',
       );
 
       final json = config.toJson();
       expect(json['partnerCode'], 'mypartner');
-      expect(json['listingsUrl'], contains('mypartner'));
+      expect(json['listingsUrl'], 'https://cache.sellwild.com/listings-img-data-sm');
     });
   });
 
