@@ -342,21 +342,15 @@ public final class SellwildAdView: UIView {
             configID: configId,
             adSize: adSize.cgSize
         )
-        // Prebid-rendered outstream (in-banner) video, no GAM. Enable multiformat
-        // so banner HTML and outstream video compete in one imp — the rendering
-        // BannerView renders whichever wins. The real enable switch is
-        // `adUnitConfig.adFormats` (a settable Set); `videoParameters` is a get-only
-        // property but a reference type, so we tune it in place. (Android's public
-        // rendering BannerView can't hold both formats — that side needs a fork
-        // patch (banner-only on Android for now; see SellwildAdView.kt).)
+        // Prebid-rendered outstream (in-banner) video, no GAM: request banner +
+        // video in one imp so the rendering BannerView renders whichever wins,
+        // muted by default (VIDEO_SOUND_ENABLED opts a zone into sound).
+        // SellwildVideo writes the fork's stored config directly (adFormats /
+        // videoParameters / videoControlsConfig) — the path its own mediation
+        // adapters use. Android's public rendering BannerView can't hold both
+        // formats (banner-only there for now; see SellwildAdView.kt).
         if SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId) {
-            v.adUnitConfig.adFormats = [.banner, .video]
-            SellwildVideo.applyOutstream(to: v.videoParameters)
-            // Mute the rendering player unless a zone opts into sound. The fork
-            // defaults `videoControlsConfig.isMuted` to false (sound ON), so
-            // without this the outstream autoplays with audio. Request-side
-            // playbackMethod=SoundOff is only advisory; this is the enforced mute.
-            SellwildVideo.applyMuteState(to: v, remoteValues: config.remoteValues, zoneId: zoneId)
+            SellwildVideo.enableOutstream(on: v, remoteValues: config.remoteValues, zoneId: zoneId)
         }
         // Multi-size fallback for the Prebid-rendered banner (primary set above).
         SellwildAdSizes.applyRendering(resolvedAdSizes, to: v)

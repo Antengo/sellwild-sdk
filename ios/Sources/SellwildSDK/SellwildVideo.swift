@@ -64,17 +64,6 @@ public enum SellwildVideo {
     /// shaded `SellwildPrebidSDK` fork.
     static func outstreamParameters() -> VideoParameters {
         let params = VideoParameters(mimes: ["video/mp4"])
-        applyOutstream(to: params)
-        return params
-    }
-
-    /// Configure an existing `VideoParameters` in place. Used on the `.prebidOnly`
-    /// rendering path: the rendering `BannerView.videoParameters` is a get-only
-    /// *property*, but `VideoParameters` is a reference type, so mutating its
-    /// fields is the supported way to set outstream params there (the "get-only"
-    /// property is not a blocker — only `adUnitConfig.adFormats` gates video).
-    static func applyOutstream(to params: VideoParameters) {
-        params.mimes = ["video/mp4"]
         params.protocols = [
             Signals.Protocols.VAST_2_0,
             Signals.Protocols.VAST_3_0,
@@ -85,23 +74,29 @@ public enum SellwildVideo {
         // NOTE: Prebid Mobile 3.x shaded fork doesn't expose `plcmt` (OpenRTB 2.6);
         // `placement = InBanner` covers the intent for buyers still on the 2.5 signal.
         params.api = [Signals.Api.OMID_1, Signals.Api.MRAID_3]
+        return params
     }
 
-    /// Force the rendering player's initial mute state on the `.prebidOnly`
-    /// path. The rendering `BannerView` exposes
-    /// `adUnitConfig.adConfiguration.videoControlsConfig` (a settable reference);
-    /// its `isMuted` defaults to `false` (sound ON) in the shaded fork, so
-    /// outstream would autoplay with sound unless we set it here. Muted by
-    /// default; a truthy remote `VIDEO_SOUND_ENABLED[_BY_ZONE]` opts a zone into
-    /// sound. (Request-side `playbackMethod = AutoPlaySoundOff` is only an
-    /// advisory auction signal — this is the enforced player mute.)
+    /// Enable outstream (in-banner) video on a `.prebidOnly` rendering
+    /// `BannerView`: request banner + video in one imp and apply the outstream
+    /// params, muted unless the zone opts into sound (`VIDEO_SOUND_ENABLED`).
     ///
-    /// NOTE (verify on build): `adConfiguration.videoControlsConfig.isMuted` is
-    /// the Prebid Mobile 3.x rendering mute switch; confirm it resolves in the
-    /// shaded `SellwildPrebidSDK` fork.
-    static func applyMuteState(to bannerView: PrebidBannerView, remoteValues: [String: Any]?, zoneId: String?) {
-        bannerView.adUnitConfig.adConfiguration.videoControlsConfig.isMuted =
-            !soundEnabled(remoteValues: remoteValues, zoneId: zoneId)
+    /// All three are **direct writes** to the fork's stored, non-optional config
+    /// (`adUnitConfig.adFormats`, `adConfiguration.videoParameters`,
+    /// `adConfiguration.videoControlsConfig.isMuted`) — the same path the fork's
+    /// own mediation adapters use — so there's no reliance on mutating a get-only
+    /// proxy in place. `videoControlsConfig.isMuted` defaults to `false` (sound
+    /// ON) in the fork, so the mute write is what keeps autoplay silent (the
+    /// request-side `playbackMethod = AutoPlaySoundOff` is only an advisory
+    /// auction signal).
+    ///
+    /// NOTE (verify on build): these `AdConfiguration` members are Prebid Mobile
+    /// 3.x; confirm they resolve in the shaded `SellwildPrebidSDK` fork.
+    static func enableOutstream(on bannerView: PrebidBannerView, remoteValues: [String: Any]?, zoneId: String?) {
+        let cfg = bannerView.adUnitConfig
+        cfg.adFormats = [.banner, .video]
+        cfg.adConfiguration.videoParameters = outstreamParameters()
+        cfg.adConfiguration.videoControlsConfig.isMuted = !soundEnabled(remoteValues: remoteValues, zoneId: zoneId)
     }
 
     private static func truthy(_ value: Any?) -> Bool {
