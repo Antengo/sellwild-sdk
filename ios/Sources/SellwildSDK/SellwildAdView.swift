@@ -348,7 +348,7 @@ public final class SellwildAdView: UIView {
         // `adUnitConfig.adFormats` (a settable Set); `videoParameters` is a get-only
         // property but a reference type, so we tune it in place. (Android's public
         // rendering BannerView can't hold both formats — that side needs a fork
-        // patch; see SDK_ROLLOUT_FLAGS §D.)
+        // patch (banner-only on Android for now; see SellwildAdView.kt).)
         if SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId) {
             v.adUnitConfig.adFormats = [.banner, .video]
             SellwildVideo.applyOutstream(to: v.videoParameters)

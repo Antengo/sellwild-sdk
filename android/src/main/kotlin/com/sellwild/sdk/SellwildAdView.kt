@@ -437,7 +437,7 @@ class SellwildAdView @JvmOverloads constructor(
                 setAutoRefreshDelay((config.adRefreshIntervalMs / 1000L).toInt())
             }
             // prebidOnly banner+video is intentionally NOT wired on Android —
-            // shipping WITHOUT it (see SDK_ROLLOUT_FLAGS §D). Confirmed against the
+            // shipping WITHOUT it (banner-only). Confirmed against the
             // official Prebid Mobile Android API ref: the rendering BannerView has
             // only 3 constructors (none multiformat) + setVideoPlacementType(),
             // which REPLACES banner with VAST (video-only). `adUnitConfig` is
@@ -454,7 +454,7 @@ class SellwildAdView @JvmOverloads constructor(
                     TAG,
                     "prebidOnly outstream video requested but Android rendering " +
                         "BannerView (fork 3.3.2) is single-format — shipping " +
-                        "banner-only; banner+video needs fork 3.3.3 (see §D).",
+                        "banner-only; banner+video needs a fork patch (3.3.x-sw).",
                 )
             }
             // Multi-size fallback for the Prebid-rendered banner (primary above).
