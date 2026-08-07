@@ -352,6 +352,11 @@ public final class SellwildAdView: UIView {
         if SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId) {
             v.adUnitConfig.adFormats = [.banner, .video]
             SellwildVideo.applyOutstream(to: v.videoParameters)
+            // Mute the rendering player unless a zone opts into sound. The fork
+            // defaults `videoControlsConfig.isMuted` to false (sound ON), so
+            // without this the outstream autoplays with audio. Request-side
+            // playbackMethod=SoundOff is only advisory; this is the enforced mute.
+            SellwildVideo.applyMuteState(to: v, remoteValues: config.remoteValues, zoneId: zoneId)
         }
         // Multi-size fallback for the Prebid-rendered banner (primary set above).
         SellwildAdSizes.applyRendering(resolvedAdSizes, to: v)
