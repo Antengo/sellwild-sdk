@@ -612,4 +612,3 @@ Mode C requires adding the `PrebidMobile` dependency and calling `SellwildPrebid
 - [Prebid Mobile iOS SDK](https://docs.prebid.org/prebid-mobile/pbm-api/ios/pbm-api-ios.html)
 - [Prebid Mobile Android SDK](https://docs.prebid.org/prebid-mobile/pbm-api/android/pbm-api-android.html)
 - [ortb2.app specification (OpenRTB 2.6)](https://www.iab.com/wp-content/uploads/2022/04/OpenRTB-2-6_FINAL.pdf)
-- [sdk/VALIDATION.md](./VALIDATION.md) — full correctness report including WebView caveats
