@@ -95,7 +95,7 @@ function ListingsScreen() {
 
 **Swift Package Manager** — add to `Package.swift`:
 ```swift
-.package(url: "https://github.com/sellwild/sdk-ios.git", from: "1.0.0")
+.package(url: "https://github.com/Antengo/sellwild-sdk.git", from: "1.7.0")
 ```
 
 **CocoaPods:**
@@ -345,5 +345,5 @@ flutter/lib/
 | [README.md](./README.md) | This file — overview, quick-start, config reference |
 | [SETUP.md](./SETUP.md) | Per-platform integration instructions |
 | [PREBID.md](./PREBID.md) | Prebid integration guide — Modes A/B/C, S2S setup, Prebid Mobile SDK |
-| [VALIDATION.md](./VALIDATION.md) | Correctness report — all bugs found and fixed |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | How to publish each platform package |
+| [RELEASING.md](./RELEASING.md) | Release checklist + publish verification (Definition of Done) |
