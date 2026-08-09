@@ -67,13 +67,13 @@
 
 <script setup lang="ts">
 const steps = [
-  { num: '1', text: 'WebView loads Prebid.js with s2sConfig' },
+  { num: '1', text: 'Prebid Mobile builds the OpenRTB request natively (no WebView)' },
   { num: '2', text: 'POST single OpenRTB request (imp[], app{}, regs{})' },
   { num: '3', text: 'Server fans out parallel bid requests to each SSP' },
   { num: '4', text: 'SSPs return bids (or no-bid) within timeout window' },
   { num: '5', text: 'Server runs auction: floors, GDPR, winner selection' },
   { num: '6', text: 'Response with seatbid[] and responsetimemillis' },
-  { num: '7', text: 'Prebid.js renders winning creative in ad slot' },
+  { num: '7', text: 'AdManagerBannerView renders the winning creative' },
 ]
 </script>
 

@@ -24,21 +24,21 @@
 </template>
 
 <script setup lang="ts">
-const columns = ['App', 'SDK WebView', 'Prebid Server', 'SSPs']
+const columns = ['App', 'SDK (Prebid Mobile)', 'Prebid Server', 'SSPs']
 
 const steps = [
   { num: '1', from: 'app', to: 'sdk', action: 'load()', detail: 'App triggers ad request', dir: 'right', dirLabel: '→' },
-  { num: '2', from: 'sdk', to: 'sdk', action: 'Build HTML', detail: 's2sConfig, ortb2.app, userSync filters', dir: 'self', dirLabel: '⟳' },
-  { num: '3', from: 'sdk', to: 'sdk', action: 'Load Prebid.js', detail: 'From CDN or custom prebidSrc URL', dir: 'self', dirLabel: '⟳' },
+  { num: '2', from: 'sdk', to: 'sdk', action: 'Collect device signals', detail: 'IDFV / AAID, ATT status, CMP consent', dir: 'self', dirLabel: '⟳' },
+  { num: '3', from: 'sdk', to: 'sdk', action: 'fetchDemand()', detail: 'Prebid Mobile builds the OpenRTB request natively', dir: 'self', dirLabel: '⟳' },
   { num: '4', from: 'sdk', to: 'pbs', action: 'POST /openrtb2/auction', detail: 'imp[], app{}, device{}, regs{}, tmax', dir: 'right', dirLabel: '→' },
   { num: '5', from: 'pbs', to: 'ssp', action: 'Parallel bid requests', detail: 'Fan out to each configured SSP', dir: 'right', dirLabel: '→' },
   { num: '6', from: 'ssp', to: 'pbs', action: 'Bids returned', detail: 'Or no-bid, within timeout window', dir: 'left', dirLabel: '←' },
   { num: '7', from: 'pbs', to: 'pbs', action: 'Run auction', detail: 'Apply floors, enforce consent, pick winner(s)', dir: 'self', dirLabel: '⟳' },
-  { num: '8', from: 'pbs', to: 'sdk', action: 'BidResponse', detail: 'seatbid[], ext{}', dir: 'left', dirLabel: '←' },
-  { num: '9', from: 'sdk', to: 'sdk', action: 'Render creative', detail: 'Winning adm in WebView ad slot', dir: 'self', dirLabel: '⟳' },
-  { num: '10', from: 'sdk', to: 'app', action: 'AD_LOADED callback', detail: 'JS bridge fires', dir: 'left', dirLabel: '←' },
-  { num: '11', from: 'sdk', to: 'sdk', action: 'Impression pixel fires', detail: 'Viewability tracking', dir: 'self', dirLabel: '⟳' },
-  { num: '12', from: 'sdk', to: 'app', action: 'AD_IMPRESSION callback', detail: 'JS bridge fires', dir: 'left', dirLabel: '←' },
+  { num: '8', from: 'pbs', to: 'sdk', action: 'BidResponse', detail: 'seatbid[], ext{} — targeting keywords', dir: 'left', dirLabel: '←' },
+  { num: '9', from: 'sdk', to: 'sdk', action: 'Render creative', detail: 'Winning adm renders in AdManagerBannerView (GMA)', dir: 'self', dirLabel: '⟳' },
+  { num: '10', from: 'sdk', to: 'app', action: 'AD_LOADED callback', detail: 'delegate / listener fires', dir: 'left', dirLabel: '←' },
+  { num: '11', from: 'sdk', to: 'sdk', action: 'Impression fires', detail: 'GMA viewability tracking', dir: 'self', dirLabel: '⟳' },
+  { num: '12', from: 'sdk', to: 'app', action: 'AD_IMPRESSION callback', detail: 'delegate / listener fires', dir: 'left', dirLabel: '←' },
 ]
 </script>
 

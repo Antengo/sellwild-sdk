@@ -434,14 +434,14 @@ jobs:
 
 ## What `widget.sellwild.com` needs to serve
 
-The SDK WebViews load two scripts from the CDN:
+The marketplace **widget** surface (`SellwildWidget`, plus the Flutter legacy ad track) loads two scripts from the CDN:
 
 | File | Purpose |
 |------|---------|
 | `https://widget.sellwild.com/widget.js` | The compiled sellwild-widget bundle |
 | `https://widget.sellwild.com/prebid.js` | Prebid.js with configured bidder adapters |
 
-These are already built and deployed by the existing `sellwild-widget` deploy pipeline (`npm run deploy`). The SDK's WebViews simply load whatever is live at that URL.
+These are already built and deployed by the existing `sellwild-widget` deploy pipeline (`npm run deploy`); the widget WebView simply loads whatever is live at that URL. **Native banner ads do not load these bundles** — they run Prebid Mobile in-process, so the CDN scripts are irrelevant to the native ad path.
 
 **To use a staging version**, set `prebidSrc` and override the widget URL via the `__SELLWILD_SDK_CONFIG__` window object injected into the WebView HTML (see `htmlBuilder.ts`, `SellwildWidgetView.swift`, `SellwildWidgetView.kt`).
 

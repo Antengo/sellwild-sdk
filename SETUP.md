@@ -406,35 +406,34 @@ SellwildBanner(
 
 ## Zone IDs and Ad Delivery
 
-The SDK supports two ad delivery mechanisms:
+The native banner path (Prebid Mobile → Google Mobile Ads) supports two demand mechanisms:
 
 | Mechanism | Config Key | Notes |
 |-----------|-----------|-------|
-| Google Ad Manager (GPT) | `gamTag` | Full header bidding via Prebid.js |
+| Google Ad Manager | `gamTag` | Header-bidding auction runs in-process via Prebid Mobile; the winner renders in `AdManagerBannerView` / `AdManagerAdView` (GMA). |
 | Zone-based (Bidstream) | `bannerZid`, `mobileZids`, etc. | Direct zone ID delivery |
 
-**You must set at least one** of `gamTag` or a zone ID for ads to render. If both are set, GPT takes priority unless `disableGpt: true`.
+**You must set at least one** of `gamTag` or a zone ID for ads to render. If both are set, GAM takes priority unless `disableGpt: true`.
 
-### Prebid.js (header bidding)
+### Prebid.js bundle (`prebidSrc`) — marketplace widget only
 
-The web widget bundles its own Prebid.js. If you have a custom build (with your specific bidders), set `prebidSrc` to your hosted URL:
+`prebidSrc` and the bundled Prebid.js apply **only** to the deprecated `SellwildWidget` marketplace surface, which renders listings in a WebView. They do **not** affect native banner ads — those run Prebid Mobile in-process, with no Prebid.js. If you use the widget and have a custom Prebid.js build, point `prebidSrc` at your hosted URL:
 ```
 prebidSrc: 'https://cdn.yoursite.com/prebid.js'
 ```
-
-Otherwise the SDK will load the default bundle from `https://widget.sellwild.com/prebid.js`.
+Otherwise the widget loads the default bundle from `https://widget.sellwild.com/prebid.js`.
 
 ---
 
-## Prebid in Native WebViews
+## In-app signals (native path)
 
-The SDK automatically addresses known Prebid.js + WebView issues:
+Prebid Mobile builds the OpenRTB request in-process and forwards real in-app signals automatically — there is no WebView injection to configure:
 
-1. **ortb2.app** — Prebid.js running in a native WebView sends `ortb2.site` (browser traffic) by default. The SDK injects `pbjs.setConfig({ ortb2: { app: {...} } })` before `prebid.js` loads. Set `appBundleId` (your iOS bundle ID or Android package name) in `SellwildConfig` to populate `ortb2.app.bundle`.
+1. **ortb2.app** — set `appBundleId` (your iOS bundle ID or Android package name) and `appStoreUrl` in `SellwildConfig` so the auction carries `app.bundle` / `app.storeurl`. Prebid Mobile sends `app{}` (not `site{}`) natively.
 
-2. **userSync iframe** — Iframe-based cookie syncs always fail in native WebViews (no 3rd-party cookies). The SDK disables them and sets a 5-second delay for pixel syncs.
+2. **Device + consent** — IDFV / AAID, ATT status, and the IAB consent strings your CMP writes to device storage are read and forwarded by Prebid Mobile / GMA automatically. Initialize your CMP **before** the first ad request.
 
-3. **Prebid Server S2S** — To solve cookie/IDFA limitations completely, set `prebidServer` in your config to route all Prebid bids through a Prebid Server instance server-side.
+3. **Prebid Server S2S** — the auction resolves server-to-server through `prebid.sellwild.com`, which sidesteps the cookie/IDFA limits a client-side WebView auction would hit.
 
 **Full Prebid documentation:** [PREBID.md](./PREBID.md)
 

@@ -242,7 +242,7 @@ When no SSP returns a winning bid, the SDK walks through a fallback chain to ens
 | 2. GAM Passback           |
 |    (if gamTag is set)      |
 |                           |
-|    GPT requests the GAM   |
+|    GMA SDK requests GAM   |
 |    ad unit. GAM can serve  |
 |    house line items at     |
 |    $0.00 CPM floor.        |

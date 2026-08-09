@@ -15,9 +15,9 @@
         </div>
         <div class="arch-node">
           <div class="node-header">
-            <span class="node-title">SellwildWidget</span>
+            <span class="node-title">SellwildFeed</span>
           </div>
-          <div class="node-detail">listing carousel + embedded ads</div>
+          <div class="node-detail">native listings + interleaved ads</div>
         </div>
         <div class="arch-node">
           <div class="node-header">
@@ -29,27 +29,27 @@
 
       <div class="connector-down"></div>
 
-      <div class="arch-node webview-node">
+      <div class="arch-node prebid-node">
         <div class="node-header">
-          <span class="node-title">Managed WebView</span>
-          <span class="node-badge muted">WKWebView / Android WebView</span>
+          <span class="node-title">Prebid Mobile SDK</span>
+          <span class="node-badge muted">native, in-process — no WebView</span>
         </div>
         <div class="node-items">
           <div class="node-item">
             <span class="item-dot blue"></span>
-            <span>Prebid.js (S2S mode)</span>
+            <span>Builds the OpenRTB 2.6 request natively</span>
           </div>
           <div class="node-item">
             <span class="item-dot green"></span>
-            <span>ortb2.app signals injected</span>
+            <span>Real device signals: IDFV / AAID, ATT status</span>
           </div>
           <div class="node-item">
             <span class="item-dot green"></span>
-            <span>iframe syncs disabled</span>
+            <span>CMP consent → regs{} / user{} (GPP / TCF)</span>
           </div>
           <div class="node-item">
             <span class="item-dot green"></span>
-            <span>s2sConfig → prebid.sellwild.com</span>
+            <span>S2S → prebid.sellwild.com; winner renders in AdManagerBannerView</span>
           </div>
         </div>
       </div>
@@ -168,7 +168,7 @@ const ssps = ['AppNexus', 'PubMatic', 'IX', 'Rubicon', 'OpenX']
   min-width: 140px;
 }
 
-.webview-node {
+.prebid-node {
   width: 100%;
   max-width: 640px;
 }
