@@ -62,7 +62,7 @@ String _buildPrebidPreConfigScript(SellwildConfig c) {
 /// SellwildWidget(
 ///   config: SellwildConfig(
 ///     partnerCode: 'mysite',
-///     listingsUrl: 'https://api.sellwild.com/widget/listings?partner=mysite',
+///     listingsUrl: 'https://cache.sellwild.com/listings-img-data-sm',
 ///   ),
 ///   onListingTap: (listing) {
 ///     // Navigate to listing detail

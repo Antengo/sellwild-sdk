@@ -13,16 +13,19 @@ public struct SellwildConfig: Codable {
 
     // MARK: API
     /// URL of the listings API. Optional in 1.2.0+ — typically populated from
-    /// remote config. When unset, the SDK derives a default of
-    /// `"\(apiBaseUrl)/widget/listings?partner=\(partnerCode)"`.
+    /// remote config. When unset, the SDK falls back to the general listings
+    /// cache at `defaultListingsCacheURL`.
     public var listingsUrl: String?
-    public var apiBaseUrl: String
 
-    /// Effective listings URL. Returns `listingsUrl` when set, otherwise
-    /// derives a deterministic default from `partnerCode`.
+    /// General listings cache — a generic image-data blob served from the CDN
+    /// (not partner-scoped). Used as the fallback when no `listingsUrl` is set.
+    public static let defaultListingsCacheURL = "https://cache.sellwild.com/listings-img-data-sm"
+
+    /// Effective listings URL. Returns `listingsUrl` when set, otherwise falls
+    /// back to the general listings cache (`defaultListingsCacheURL`).
     public var effectiveListingsUrl: String {
         if let url = listingsUrl, !url.isEmpty { return url }
-        return "\(apiBaseUrl)/widget/listings?partner=\(partnerCode)"
+        return SellwildConfig.defaultListingsCacheURL
     }
 
     // MARK: Display
@@ -197,13 +200,11 @@ public struct SellwildConfig: Codable {
     public init(
         partnerCode: String,
         listingsUrl: String? = nil,
-        apiBaseUrl: String = "https://api.sellwild.com",
         slug: String = "",
         name: String = ""
     ) {
         self.partnerCode = partnerCode
         self.listingsUrl = listingsUrl
-        self.apiBaseUrl = apiBaseUrl
         self.slug = slug
         self.name = name
 

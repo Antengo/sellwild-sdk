@@ -1,5 +1,5 @@
 import { SellwildConfig, SellwildListingsResponse, SellwildListing, SdkEvent } from './types'
-import { EVENTS_URL } from './config'
+import { EVENTS_URL, DEFAULT_LISTINGS_URL } from './config'
 
 // Cached listing fetches keyed by URL
 const listingCache = new Map<string, Promise<SellwildListingsResponse>>()
@@ -11,12 +11,13 @@ export interface FetchOptions {
 
 /**
  * Resolves the effective listings URL for a config. Uses `config.listingsUrl`
- * when set, otherwise derives a deterministic default from the partner code
- * so 1.2.0 callers using `configure(partnerCode, slug)` don't have to set it.
+ * when set, otherwise falls back to the general listings cache
+ * (`DEFAULT_LISTINGS_URL`) so 1.2.0 callers using `configure(partnerCode, slug)`
+ * don't have to set it.
  */
 export function resolveListingsUrl(config: SellwildConfig): string {
   if (config.listingsUrl) return config.listingsUrl
-  return `${config.apiBaseUrl}/widget/listings?partner=${config.partnerCode}`
+  return DEFAULT_LISTINGS_URL
 }
 
 export async function fetchListings(
@@ -74,73 +75,6 @@ export async function fetchTagCacheListings(
     .then(res => res.json())
     .then(data => Array.isArray(data) ? data.slice(0, count) : [])
     .catch(() => [])
-}
-
-export interface RemoteSession {
-  lotameId?: string
-  panoramaId?: string
-  widgetCacheVersionId?: string
-  userId?: string
-}
-
-const sessionCache = new Map<string, string>()
-
-export async function createRemoteSession(session: RemoteSession): Promise<string | undefined> {
-  const { lotameId, panoramaId, widgetCacheVersionId } = session
-  if (!lotameId || !panoramaId || !widgetCacheVersionId) return undefined
-
-  const key = [lotameId, panoramaId, widgetCacheVersionId].join('_')
-
-  if (sessionCache.has(key)) {
-    session.userId = sessionCache.get(key)
-    return sessionCache.get(key)
-  }
-
-  const userId = await fetch('https://api.sellwild.com/session/rpc', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      method: 'createRemoteSession',
-      params: {
-        trackingData: { lotameId, panoramaId },
-        widgetCacheVersionId,
-      },
-      id: '0',
-    }),
-  })
-    .then(res => res.json())
-    .then(data => data?.result?.rs?.userId)
-    .catch(() => undefined)
-
-  if (userId) {
-    session.userId = userId
-    sessionCache.set(key, userId)
-  }
-
-  return userId
-}
-
-export interface ListingAction {
-  trackingData: { lotameId?: string; panoramaId?: string; userId?: string }
-  listingId: number
-  membershipType: string
-}
-
-export async function sendListingAction(action: ListingAction): Promise<void> {
-  await fetch('https://api.sellwild.com/session/rpc', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      method: 'listingAction',
-      params: {
-        trackingData: action.trackingData,
-        listingId: action.listingId,
-        membershipType: String(action.membershipType),
-        actionType: '1',
-      },
-      id: '0',
-    }),
-  })
 }
 
 // Event analytics queue

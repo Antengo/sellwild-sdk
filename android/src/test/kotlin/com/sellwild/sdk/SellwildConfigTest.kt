@@ -9,7 +9,7 @@ class SellwildConfigTest {
     fun `default config has expected values`() {
         val config = SellwildConfig(
             partnerCode = "test_partner",
-            listingsUrl = "https://api.sellwild.com/widget/listings?partner=test"
+            listingsUrl = "https://cache.sellwild.com/listings-img-data-sm"
         )
 
         assertEquals("test_partner", config.partnerCode)
@@ -27,7 +27,7 @@ class SellwildConfigTest {
     fun `toJson includes required fields`() {
         val config = SellwildConfig(
             partnerCode = "mypartner",
-            listingsUrl = "https://api.sellwild.com/widget/listings?partner=mypartner",
+            listingsUrl = "https://cache.sellwild.com/listings-img-data-sm",
             boltive = true,
             boltiveClientId = "antengo",
             debug = true,

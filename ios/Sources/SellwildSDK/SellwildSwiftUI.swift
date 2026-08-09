@@ -190,7 +190,7 @@ struct SellwildWidget_Previews: PreviewProvider {
     static var previews: some View {
         let config = SellwildConfig(
             partnerCode: "demo",
-            listingsUrl: "https://api.sellwild.com/widget/listings?partner=demo"
+            listingsUrl: "https://cache.sellwild.com/listings-img-data-sm"
         )
         SellwildWidget(config: config)
             .frame(height: 400)

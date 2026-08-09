@@ -9,7 +9,7 @@ void main() {
         'CODE': 'weatherbug',
         'SLUG': 'weatherbug-main',
         'NAME': 'WeatherBug',
-        'LISTINGS': 'https://api.sellwild.com/widget/listings?partner=weatherbug',
+        'LISTINGS': 'https://cache.sellwild.com/listings-img-data-sm',
       };
 
       final merged = SellwildSDK.apply(raw, base);
@@ -19,7 +19,7 @@ void main() {
       expect(merged.name, 'WeatherBug');
       expect(
         merged.listingsUrl,
-        'https://api.sellwild.com/widget/listings?partner=weatherbug',
+        'https://cache.sellwild.com/listings-img-data-sm',
       );
     });
 
@@ -101,7 +101,7 @@ void main() {
       expect(config.listingsUrl, isNull);
       expect(
         config.effectiveListingsUrl,
-        'https://api.sellwild.com/widget/listings?partner=weatherbug',
+        'https://cache.sellwild.com/listings-img-data-sm',
       );
     });
 
