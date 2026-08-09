@@ -15,7 +15,6 @@
 package com.sellwild.sdk
 
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
@@ -27,7 +26,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import java.net.URL
 import com.sellwild.prebid.NativeAdUnit
 import com.sellwild.prebid.PrebidNativeAd
 import com.sellwild.prebid.PrebidNativeAdEventListener
@@ -59,6 +57,7 @@ class SellwildNativeAdView(
     private val ctaButton: Button
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var destroyed = false
 
     init {
         val dp = resources.displayMetrics.density
@@ -181,16 +180,20 @@ class SellwildNativeAdView(
 
     private fun loadImage(urlString: String?, target: ImageView) {
         val url = urlString?.takeIf { it.isNotEmpty() } ?: return
-        Thread {
-            val bmp = runCatching {
-                URL(url).openStream().use { BitmapFactory.decodeStream(it) }
-            }.getOrNull() ?: return@Thread
-            mainHandler.post { target.setImageBitmap(bmp) }
-        }.start()
+        // Delegate to the vetted loader: http/https only (SellwildSafeUrl.imageUrl
+        // rejects a bidder-supplied file:// asset URL — no local-file read) +
+        // MAX_IMAGE_BYTES cap (guards a decompression-bomb OOM) + disk/memory
+        // cache. Guard the late main-thread callback so a bitmap can't land on a
+        // destroyed view.
+        SellwildHouseAd.loadImage(context, url) { bmp ->
+            if (!destroyed && bmp != null) target.setImageBitmap(bmp)
+        }
     }
 
     fun destroy() {
         // Native ad units are one-shot (no auto-refresh to stop); just release.
+        // `destroyed` gates any late image callback from touching a dead view.
+        destroyed = true
         nativeAd = null
         nativeAdUnit = null
     }
