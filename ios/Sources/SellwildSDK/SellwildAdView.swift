@@ -396,6 +396,21 @@ public final class SellwildAdView: UIView {
             delegate?.sellwildAdView?(self, didFailWithError: SellwildAdError.missingZoneIdForPrebidOnly)
             return
         }
+        // Cold-start guard (mirrors loadPrebidOnly): native fetchDemand can race
+        // Prebid init, and native is one-shot (no auto-refresh/retry) — a premature
+        // no-fill strands the slot on house/blank for its lifetime. Wait briefly
+        // for readiness, then load regardless once the wait budget is spent.
+        if !SellwildPrebidMobile.isReady(), prebidWaitAttempts < maxPrebidWaitAttempts {
+            prebidWaitAttempts += 1
+            prebidWaitTimer?.invalidate()
+            let waitTimer = Timer(timeInterval: prebidWaitIntervalSec, repeats: false) { [weak self] _ in
+                self?.loadPrebidNative()
+            }
+            RunLoop.main.add(waitTimer, forMode: .common)
+            prebidWaitTimer = waitTimer
+            return
+        }
+        prebidWaitAttempts = 0
         ensureNativeAdView(configId: configId).load()
     }
 

@@ -74,6 +74,11 @@ public enum SellwildVideo {
         // NOTE: Prebid Mobile 3.x shaded fork doesn't expose `plcmt` (OpenRTB 2.6);
         // `placement = InBanner` covers the intent for buyers still on the 2.5 signal.
         params.api = [Signals.Api.OMID_1, Signals.Api.MRAID_3]
+        // Duration bounds — parity with Android (SellwildVideo.kt). Several video
+        // DSPs filter on / require maxduration; without bounds the iOS outstream
+        // imp was a weaker demand signal than Android for the same zone.
+        params.minDuration = 5
+        params.maxDuration = 30
         return params
     }
 
