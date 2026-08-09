@@ -818,6 +818,24 @@ The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your
 
 See [Configuration → Remote Config](./configuration#remote-config) for the full CDN field reference.
 
+### Pre-warming (optional)
+
+The Prebid Mobile + Google Mobile Ads stack initializes lazily on the first `SellwildAdView.load()`, guarded by a short readiness wait. On a slow cold start that wait may expire before init finishes, so the **first** impression can fall back to GAM-only (losing header-bidding demand). To recover it, pre-initialize the stack once at app launch:
+
+```kotlin
+class MyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        applicationScope.launch {
+            val config = SellwildSDK.configure(partnerCode = "weatherbug", slug = "weatherbug-weatherbug")
+            SellwildSDK.prewarm(applicationContext, config)
+        }
+    }
+}
+```
+
+`prewarm(context, config)` is **fully optional and non-breaking** — skip it and the SDK still initializes lazily exactly as before. It is idempotent (first call initializes; later calls are a cheap no-op). This mirrors iOS, which pre-warms automatically inside `configure()` (Swift needs no `Context`); Android's `configure()` takes no `Context`, so pre-warming is the explicit opt-in.
+
 ---
 
 ## Prebid Server Configuration

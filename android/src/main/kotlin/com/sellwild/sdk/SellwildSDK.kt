@@ -1,5 +1,6 @@
 package com.sellwild.sdk
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -66,6 +67,28 @@ object SellwildSDK {
         overrides?.let { config = it(config) }
         config
     }
+
+    /**
+     * Optional cold-start optimization. Call once at app launch (e.g. from
+     * `Application.onCreate()`) to pre-initialize the Prebid Mobile + Google
+     * Mobile Ads stack, so the first `SellwildAdView.load()` doesn't have to
+     * absorb SDK init latency during its readiness wait — recovering the first
+     * impression's header-bidding demand on a slow cold start.
+     *
+     * Fully optional and non-breaking: if you skip it, the SDK still initializes
+     * lazily on the first ad load (behind the built-in readiness wait), exactly
+     * as before — no integration change required. Idempotent: the first call
+     * initializes; later calls are a cheap no-op.
+     *
+     * (iOS pre-warms automatically inside `configure()`; Android's `configure()`
+     * takes no `Context`, so this is the explicit opt-in for parity.)
+     *
+     * @param context Any Context; the application context is used internally.
+     * @param config The config returned by [configure].
+     * @return true if the ad stack is initialized (now or already), else false.
+     */
+    fun prewarm(context: Context, config: SellwildConfig): Boolean =
+        SellwildPrebidMobile.bootstrap(context, config)
 
     /**
      * Maps CONSTANT_CASE CDN keys onto the corresponding [SellwildConfig]
