@@ -559,6 +559,17 @@ class SellwildAdView @JvmOverloads constructor(
             )
             return
         }
+        // Cold-start guard (mirrors loadPrebidOnly): native fetchDemand can race
+        // Prebid init, and native is one-shot (no auto-refresh/retry) — a premature
+        // no-fill strands the slot on house/blank for its lifetime. Wait briefly
+        // for readiness, then load regardless once the wait budget is spent.
+        if (!SellwildPrebidMobile.isReady() && prebidWaitAttempts < maxPrebidWaitAttempts) {
+            prebidWaitAttempts++
+            val h = prebidWaitHandler ?: Handler(Looper.getMainLooper()).also { prebidWaitHandler = it }
+            h.postDelayed({ loadPrebidNative() }, prebidWaitIntervalMs)
+            return
+        }
+        prebidWaitAttempts = 0
         native.load()
     }
 
