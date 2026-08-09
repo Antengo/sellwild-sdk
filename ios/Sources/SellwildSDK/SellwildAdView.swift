@@ -87,6 +87,9 @@ public final class SellwildAdView: UIView {
 
     private var refreshTimer: Timer?
     private var refreshCount = 0
+    // .prebidOnly renders (initial + auto-refreshes). Caps Prebid's internal
+    // auto-refresh at effectiveRefreshMax, which it otherwise ignores.
+    private var prebidRefreshCount = 0
 
     /// Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
     /// when set, else the shared `AD_REFRESH_MAX` (matches Android + web). iOS
@@ -316,12 +319,31 @@ public final class SellwildAdView: UIView {
             return
         }
 
+        // Cold-start guard (mirrors the GAM path): Prebid init is async and races
+        // the first load(). Unlike GAM we can't fall back to a GAM request, so a
+        // premature loadAd() would no-fill and leave the slot blank. Wait briefly
+        // for readiness, then load regardless once the wait budget is spent.
+        if !SellwildPrebidMobile.isReady(), prebidWaitAttempts < maxPrebidWaitAttempts {
+            prebidWaitAttempts += 1
+            prebidWaitTimer?.invalidate()
+            let waitTimer = Timer(timeInterval: prebidWaitIntervalSec, repeats: false) { [weak self] _ in
+                self?.loadPrebidOnly()
+            }
+            RunLoop.main.add(waitTimer, forMode: .common)
+            prebidWaitTimer = waitTimer
+            return
+        }
+        prebidWaitAttempts = 0
+
         let banner = ensurePrebidBanner(configId: configId)
         // Prebid's rendering banner owns its own auto-refresh; mirror the GAM
-        // refresh cadence when one is configured.
+        // cadence when configured — floored like the GAM timer so a mis-scaled
+        // AD_REFRESH_INTERVAL can't drive a sub-second refresh storm. The refresh
+        // COUNT is capped in the didReceiveAdWithAdSize delegate.
         if effectiveRefreshMax > 0 {
-            banner.refreshInterval = config.adRefreshInterval
+            banner.refreshInterval = max(config.adRefreshInterval, Self.minRefreshIntervalSec)
         }
+        prebidRefreshCount = 0
         banner.loadAd()
     }
 
@@ -619,6 +641,15 @@ extension SellwildAdView: PrebidBannerViewDelegate {
 
     public func bannerView(_ bannerView: PrebidBannerView,
                            didReceiveAdWithAdSize adSize: CGSize) {
+        // Cap .prebidOnly auto-refresh at effectiveRefreshMax. Prebid's internal
+        // auto-refresh is otherwise unbounded (unlike the counted GAM path). This
+        // fires on the initial render plus each refresh, so stop once the refresh
+        // budget is spent. Fails safe: if the fork ever stopped firing this on
+        // refresh, behavior is just today's (uncapped) — never a regression.
+        if effectiveRefreshMax > 0 {
+            prebidRefreshCount += 1
+            if prebidRefreshCount > effectiveRefreshMax { bannerView.stopRefresh() }
+        }
         #if DEBUG
         print("[SellwildAdView][prebidOnly] ✅ rendered — size \(adSize), zone \(zoneId ?? "?")")
         #endif
