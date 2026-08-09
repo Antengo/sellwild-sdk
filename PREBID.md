@@ -1,6 +1,6 @@
 # Prebid Integration Guide
 
-The Sellwild SDK supports three Prebid integration modes. Choose the one that fits your needs.
+The Sellwild SDK supports three Prebid integration modes. On iOS, Android, and React Native the SDK **defaults to Mode C (native Prebid Mobile)** — bundled, no wiring required. **Mode A (Prebid.js in a WebView)** is the Flutter / legacy WebView track. **Mode B (Prebid Server S2S)** is an opt-in routing choice that layers on either.
 
 ---
 
@@ -8,17 +8,17 @@ The Sellwild SDK supports three Prebid integration modes. Choose the one that fi
 
 | Mode | Where Bidding Runs | IDFA/GAID | 3rd-party Cookies | Extra Dependency |
 |------|--------------------|-----------|-------------------|------------------|
-| **A — Prebid.js in WebView** | Inside WebView (client) | ✗ | ✗ | None |
+| **A — Prebid.js in WebView** | Inside WebView (client) | ✗ | ✗ | None (Flutter / legacy track) |
 | **B — Prebid Server S2S** | Prebid Server (server-side) | ✗ | N/A (server call) | Self-hosted or managed Prebid Server |
-| **C — Prebid Mobile SDK** | Native iOS/Android SDK | ✓ (with ATT) | N/A | `PrebidMobile` pod / gradle dependency |
+| **C — Prebid Mobile SDK** *(default: iOS/Android/RN)* | Native SDK | ✓ (with ATT) | N/A | Bundled — no extra dependency |
 
 All three modes inject `ortb2.app` into Prebid.js (Modes A & B) or set the app context natively (Mode C) so DSPs receive correct in-app traffic signals.
 
 ---
 
-## Mode A — Prebid.js in WebView (default)
+## Mode A — Prebid.js in WebView
 
-This is the default. No additional configuration is needed beyond the base `SellwildConfig`.
+The WebView ad track — used by Flutter today, and by any surface that renders ads through the marketplace WebView. No additional configuration is needed beyond the base `SellwildConfig`. On iOS, Android, and React Native the SDK renders ads natively (Mode C) instead — see below.
 
 **Required fields to enable proper in-app signals:**
 
