@@ -67,7 +67,10 @@ public enum SellwildSDK {
         // call after that is a cheap lock + early return. Doing it here means
         // partners get a fully-initialized native ad stack just by calling
         // `configure(...)`; no extra wiring required at the call site.
-        SellwildPrebidMobile.bootstrap(with: config)
+        // ...on the main actor: GMA `MobileAds.start`, Prebid `initializeSDK`, and
+        // `Targeting` mutations are main-thread-sensitive, but this continuation
+        // can resume off-main after the URLSession await above.
+        await MainActor.run { SellwildPrebidMobile.bootstrap(with: config) }
 
         return config
     }
