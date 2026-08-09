@@ -448,6 +448,10 @@ public final class SellwildAdView: UIView {
             guard let self else { return }
             self.delegate?.sellwildAdView?(self, didFailWithError: error)
             SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adError", action: error.localizedDescription, label: self.zoneId ?? ""))
+            // Native no-fill — the house backdrop (installed in load()) is still
+            // showing, so record it as a house impression, matching the banner
+            // no-fill callbacks. No-op unless the house view is actually visible.
+            self.recordHouseImpressionIfShowing()
         }
         nativeAdView = v
         // Pin top/leading/trailing, but bottom is `<=` so the native view can

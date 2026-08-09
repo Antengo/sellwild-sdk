@@ -542,6 +542,10 @@ class SellwildAdView @JvmOverloads constructor(
                 val self = this@SellwildAdView
                 self.listener?.onAdFailed(self, message)
                 SellwildEventQueue.shared(self.context).track("adError", action = message, label = self.zoneId.orEmpty())
+                // Native no-fill — the house backdrop (installed in load()) is
+                // still showing, so record it as a house impression, matching the
+                // banner no-fill callbacks. No-op unless the house view is visible.
+                self.recordHouseImpressionIfShowing()
             }
         }
         nativeAdView = native
