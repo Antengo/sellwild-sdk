@@ -199,7 +199,10 @@ public final class SellwildAdView: UIView {
         case .both, .gamOnly:
             scheduleRefresh()
         case .prebidOnly:
-            if effectiveRefreshMax > 0 { prebidBanner?.refreshInterval = config.adRefreshInterval }
+            // Setting refreshInterval alone doesn't re-arm: pause()'s stopRefresh()
+            // latched the banner (the fork clears that only on a new bid request),
+            // so re-issue the load to actually resume the auto-refresh cadence.
+            if effectiveRefreshMax > 0 { prebidBanner?.loadAd() }
         }
     }
 
@@ -411,6 +414,9 @@ public final class SellwildAdView: UIView {
         v.translatesAutoresizingMaskIntoConstraints = false
         v.onLoaded = { [weak self] in
             guard let self else { return }
+            // Native filled — hide the house backdrop so it can't show through the
+            // transparent native template (otherwise: two overlapping ads).
+            self.houseView?.isHidden = true
             self.delegate?.sellwildAdViewDidLoad?(self)
             // Native fills to the (capped) height; report it so the host slot
             // resizes to the template rather than clipping.
