@@ -19,17 +19,18 @@ Multi-platform SDK for embedding Sellwild marketplace listings and ad units in m
 ```
 sdk/
 ├── core/               # Shared TypeScript: types, API client, config, ad logic
-├── react-native/       # React Native package (WebView + native listing cards)
-├── ios/                # Swift Package + CocoaPod (WKWebView + UIKit views)
-├── android/            # Gradle library (WebView + Kotlin views)
-└── flutter/            # Flutter plugin (webview_flutter + Dart models)
+├── react-native/       # React Native package (native ad views + WebView marketplace widget)
+├── ios/                # Swift Package + CocoaPod (native ad views + WKWebView widget)
+├── android/            # Gradle library (native ad views + WebView widget)
+└── flutter/            # Flutter plugin (webview_flutter — ad + widget; legacy)
 ```
 
 All four platform SDKs:
 1. Load listings from the Sellwild API
-2. Render ad units (GPT/GAM, zone-based, or Prebid) via a thin WebView layer
-3. Bridge listing clicks and ad impressions back to native callbacks
-4. Support the full `SellwildConfig` customization system from the web widget
+2. Render ad units natively via a Prebid Mobile → Google Mobile Ads auction (iOS, Android, React Native — **no WebView in the ad path**). Flutter still renders ads through a WebView (legacy track).
+3. Render the marketplace **widget** surface (listings) in a WebView
+4. Bridge listing clicks and ad impressions back to native callbacks
+5. Support the full `SellwildConfig` customization system from the web widget
 
 ---
 
@@ -100,7 +101,7 @@ function ListingsScreen() {
 
 **CocoaPods:**
 ```ruby
-pod 'SellwildSDK', '~> 1.0'
+pod 'SellwildSDK', '~> 1.7'
 ```
 
 **UIKit:**
@@ -154,7 +155,7 @@ struct ContentView: View {
 Add to `build.gradle.kts`:
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.0.0")
+    implementation("com.sellwild:sdk:1.7.0")
 }
 ```
 
@@ -204,7 +205,7 @@ viewModelScope.launch {
 Add to `pubspec.yaml`:
 ```yaml
 dependencies:
-  sellwild_sdk: ^1.0.0
+  sellwild_sdk: ^1.3.0
 ```
 
 ```dart
@@ -271,9 +272,9 @@ The SDK supports three Prebid integration modes:
 
 | Mode | Description |
 |------|-------------|
-| **A — Prebid.js in WebView** (default) | Client-side bidding inside the WebView. Set `appBundleId` for proper in-app signals. |
+| **A — Prebid.js in WebView** | Client-side bidding inside a WebView. Used by the Flutter legacy ad track. Set `appBundleId` for proper in-app signals. |
 | **B — Prebid Server S2S** | All bids routed through a Prebid Server instance. Solves cookie/IDFA WebView limitations. Set `prebidServer` in config. |
-| **C — Prebid Mobile SDK** | True native bidding (iOS/Android only). Supports IDFA/GAID. Requires `PrebidMobile` dependency. |
+| **C — Prebid Mobile SDK** (default on iOS, Android, React Native) | True native bidding via a bundled Prebid Mobile → Google Mobile Ads auction. Supports IDFA/GAID. No WebView in the ad path. |
 
 See **[PREBID.md](./PREBID.md)** for full setup instructions, comparison table, and migration guide.
 
@@ -281,17 +282,20 @@ See **[PREBID.md](./PREBID.md)** for full setup instructions, comparison table, 
 
 ## Ad Delivery Flow
 
+Native ad path (iOS / Android / React Native):
+
 ```
 App opens
-  └─> SellwildConfig loaded (partnerCode, ad config)
-        └─> API fetch: listings + widgetCacheVersionId
-              └─> WebView renders widget HTML
-                    ├─> Prebid.js runs header bidding auction
-                    │     └─> Winning bid rendered via GPT or direct
-                    ├─> Boltive wraps ad (if enabled)
-                    ├─> Impression → JS bridge → native callback
-                    └─> Ad refresh timer (adRefreshInterval)
+  └─> SellwildSDK.configure(partnerCode, slug)   # remote config fetched from the Sellwild CDN
+        └─> Prebid Mobile + Google Mobile Ads bootstrap (idempotent)
+              └─> SellwildAdView.load()
+                    ├─> Prebid Mobile runs the header-bidding auction (native, no WebView)
+                    │     └─> Winning bid rendered via GAM (.both) or Prebid's own renderer (.prebidOnly)
+                    ├─> Impression → delegate / listener → native callback
+                    └─> Refresh (GAM: capped timer; .prebidOnly: internal auto-refresh — both floored + capped)
 ```
+
+The marketplace **widget** surface (`SellwildWidget` / `SellwildWidgetView`) renders listings in a WebView; ad units above render natively.
 
 ---
 
