@@ -11,6 +11,7 @@ import com.facebook.react.uimanager.annotations.ReactProp
 import com.facebook.react.uimanager.events.RCTEventEmitter
 import com.sellwild.sdk.SellwildConfig
 import com.sellwild.sdk.SellwildFeedView
+import com.sellwild.sdk.SellwildGrowthCodeConfig
 import com.sellwild.sdk.SellwildListing
 import com.sellwild.sdk.SellwildLocalizedListingsConfig
 import com.sellwild.sdk.SellwildSDK
@@ -185,9 +186,50 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
             if (map.hasKey("adRefreshMax")) config = config.copy(adRefreshMax = map.getInt("adRefreshMax"))
             if (map.hasKey("adRefreshMaxMobile")) config = config.copy(adRefreshMaxMobile = map.getInt("adRefreshMaxMobile"))
             if (map.hasKey("adRefreshIntervalMs")) config = config.copy(adRefreshIntervalMs = map.getDouble("adRefreshIntervalMs").toLong())
+
+            // Flat identity/display/zone fields — mirror the iOS feed bridge so
+            // static buildConfig() and overrides land identically. SellwildSDK.apply
+            // (above) resolves these from `remote` when present; these overlay on top.
+            if (map.hasKey("slug")) config = config.copy(slug = map.getString("slug") ?: config.slug)
+            if (map.hasKey("listingsUrl")) config = config.copy(listingsUrl = map.getString("listingsUrl"))
+            if (map.hasKey("priceColor")) config = config.copy(priceColor = map.getString("priceColor") ?: config.priceColor)
+            if (map.hasKey("bannerZid")) config = config.copy(bannerZid = map.getString("bannerZid"))
+            if (map.hasKey("bottomBannerZid")) config = config.copy(bottomBannerZid = map.getString("bottomBannerZid"))
+            // mobileZids / mobileBannerZid are OS-suffix-resolved by SellwildSDK.apply
+            // when `remote` is present; only fall back to the flat (OS-agnostic) JS
+            // values when there was no remote payload to resolve from (parity w/ iOS).
+            if (!map.hasKey("remote") || map.isNull("remote")) {
+                if (map.hasKey("mobileBannerZid")) config = config.copy(mobileBannerZid = map.getString("mobileBannerZid"))
+                if (map.hasKey("mobileZids") && !map.isNull("mobileZids")) {
+                    val arr = map.getArray("mobileZids")
+                    if (arr != null) config = config.copy(mobileZids = (0 until arr.size()).mapNotNull { arr.getString(it) })
+                }
+            }
+
             // Custom Prebid Server (S2S) config — mirror the iOS feed bridge.
             if (map.hasKey("prebidServer") && !map.isNull("prebidServer")) {
                 config = config.copy(prebidServer = RnPrebidServer.fromMap(map.getMap("prebidServer")))
+            }
+
+            // Local GrowthCode override — parity with the banner bridge and the
+            // iOS feed bridge. Without it the feed's ad rows only see remote
+            // GROWTHCODE_* keys; a code-supplied partnerId never reaches the
+            // auction, so the identity sync never fires for feed ad rows.
+            if (map.hasKey("growthCode") && !map.isNull("growthCode")) {
+                val gc = map.getMap("growthCode")!!
+                fun bool(k: String): Boolean? = if (gc.hasKey(k) && !gc.isNull(k)) gc.getBoolean(k) else null
+                fun str(k: String): String? = if (gc.hasKey(k) && !gc.isNull(k)) gc.getString(k) else null
+                fun int(k: String): Int? = if (gc.hasKey(k) && !gc.isNull(k)) gc.getInt(k) else null
+                config = config.copy(
+                    growthCode = SellwildGrowthCodeConfig(
+                        enabled = bool("enabled"),
+                        partnerId = str("partnerId"),
+                        endpoint = str("endpoint"),
+                        syncUrl = str("syncUrl"),
+                        sendMaid = bool("sendMaid"),
+                        ttlHours = int("ttlHours"),
+                    ),
+                )
             }
 
             // Local override for the localized (geo-based) secondary-listings
