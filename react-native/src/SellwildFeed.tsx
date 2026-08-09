@@ -166,6 +166,9 @@ export function SellwildFeed({
     prebidServer: config.prebidServer,
     // Local localized-listings overrides (remote LOCALIZED_LISTINGS rides `remote`).
     localizedListings: config.localizedListings,
+    // Local GrowthCode overrides (remote GROWTHCODE_* rides `remote`) — parity
+    // with SellwildBanner so the feed's native auctions honor local overrides too.
+    growthCode: config.growthCode,
     remote: config.remote,
     listingsUrl: config.listingsUrl,
     priceColor: config.priceColor,

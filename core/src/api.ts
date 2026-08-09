@@ -84,6 +84,8 @@ class EventQueue {
   private readonly url = EVENTS_URL
   private readonly interval = 10000
   private readonly maxBatch = 100
+  // Hard cap so a persistently-failing endpoint can't grow the queue unbounded.
+  private readonly maxQueue = 1000
   private uid: string = ''
   // Kill switch. Defaults on; call setEnabled(config.eventsEnabled) after
   // configure() to honor the CMS EVENTS_ENABLED flag. When off, events are
@@ -108,6 +110,9 @@ class EventQueue {
   push(event: SdkEvent): void {
     if (!this.enabled) return
     this.events.push({ ...event, uid: this.getUid(), createdTime: Date.now() })
+    if (this.events.length > this.maxQueue) {
+      this.events.splice(0, this.events.length - this.maxQueue) // drop oldest over the cap
+    }
     this.schedule()
   }
 
@@ -138,8 +143,13 @@ class EventQueue {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(batch),
     }).catch(() => {
-      // Re-queue on failure
+      // Re-queue on failure, capped, and reschedule so a transient outage
+      // recovers without waiting for the next push() — and can't grow unbounded.
       this.events.unshift(...batch)
+      if (this.events.length > this.maxQueue) {
+        this.events.splice(0, this.events.length - this.maxQueue) // drop oldest over the cap
+      }
+      this.schedule()
     })
   }
 }
