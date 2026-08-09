@@ -77,7 +77,8 @@ class SellwildSDK {
       return null;
     }
 
-    final refreshSec = dbl('AD_REFRESH_INTERVAL');
+    // AD_REFRESH_INTERVAL is milliseconds (matches iOS/Android/core), not seconds.
+    final refreshMs = dbl('AD_REFRESH_INTERVAL');
 
     return SellwildConfig(
       // Identity
@@ -133,8 +134,8 @@ class SellwildSDK {
       adRefreshMax: integer('AD_REFRESH_MAX') ?? base.adRefreshMax,
       adRefreshMaxMobile:
           integer('AD_REFRESH_MAX_MOBILE') ?? base.adRefreshMaxMobile,
-      adRefreshInterval: refreshSec != null
-          ? Duration(milliseconds: (refreshSec * 1000).round())
+      adRefreshInterval: refreshMs != null
+          ? Duration(milliseconds: refreshMs.round())
           : base.adRefreshInterval,
       maxFailedAuctions: integer('MAX_FAILED_AUCTIONS') ?? base.maxFailedAuctions,
       prebidSrc: base.prebidSrc,
