@@ -212,13 +212,15 @@ class SellwildAdView @JvmOverloads constructor(
         }
         bannerView?.resume()
         // Restart the refresh cadence paused by pause(): our timer on the GAM
-        // path; best-effort re-enable of Prebid's internal auto-refresh on
-        // prebidOnly. The currently displayed creative stays put.
+        // path. On prebidOnly, setting the delay alone doesn't re-arm — pause()'s
+        // stopRefresh() latched the banner (the fork clears that only on a new bid
+        // request), so re-issue loadAd() to actually resume the auto-refresh
+        // cadence (parity with iOS resume()).
         when (resolvedAdStack) {
             SellwildAdStack.BOTH, SellwildAdStack.GAM_ONLY -> scheduleRefresh()
             SellwildAdStack.PREBID_ONLY ->
                 if (effectiveRefreshMax > 0 && !nativeEnabled) {
-                    prebidBanner?.setAutoRefreshDelay((config.adRefreshIntervalMs.coerceAtLeast(MIN_REFRESH_INTERVAL_MS) / 1000L).toInt())
+                    prebidBanner?.loadAd()
                 }
         }
     }
@@ -520,6 +522,10 @@ class SellwildAdView @JvmOverloads constructor(
         val native = SellwildNativeAdView(context, config, configId, cap).apply {
             onLoaded = {
                 val self = this@SellwildAdView
+                // Native creative filled — hide the house backdrop so it can't
+                // bleed through the transparent native template (parity with the
+                // GAM/prebid banner paths, whose opaque creatives cover it).
+                self.houseView?.visibility = GONE
                 self.listener?.onAdLoaded(self)
                 // Native fills to the (capped) height; report it so the host
                 // slot resizes to the template rather than clipping.

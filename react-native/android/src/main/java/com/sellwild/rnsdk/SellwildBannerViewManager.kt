@@ -152,6 +152,10 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
     }
 
     override fun onDropViewInstance(view: SellwildAdView) {
+        // Tear down the native ad view on unmount so its GMA / Prebid banners are
+        // released deterministically. Without this the views leak until GC (iOS
+        // RN gets this for free via ARC deinit). Mirrors SellwildFeedView cleanup.
+        view.destroy()
         pending.remove(view)
         super.onDropViewInstance(view)
     }
