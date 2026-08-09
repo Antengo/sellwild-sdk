@@ -271,12 +271,20 @@ class SellwildEventQueue(context: Context) {
     }
 
     fun push(event: String, action: String? = null, label: String? = null) {
-        queue.add(SellwildEvent(event = event, action = action, label = label, uid = uid))
+        // track() pushes on the caller (main) thread while flush() drains on an
+        // IO coroutine — guard the shared list so concurrent ad callbacks can't
+        // trigger a ConcurrentModificationException / drop events.
+        synchronized(queue) {
+            queue.add(SellwildEvent(event = event, action = action, label = label, uid = uid))
+        }
     }
 
     suspend fun flush() = withContext(Dispatchers.IO) {
-        val batch = queue.toList()
-        queue.clear()
+        val batch = synchronized(queue) {
+            val snapshot = queue.toList()
+            queue.clear()
+            snapshot
+        }
         if (batch.isEmpty()) return@withContext
 
         runCatching {
