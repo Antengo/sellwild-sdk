@@ -207,6 +207,21 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
             )
         }
 
+        // Local GrowthCode override — parity with the banner bridge. Without
+        // this the feed's ad rows only see remote GROWTHCODE_* keys (via
+        // remoteJSON); a code-supplied partnerId never reaches the auction, so
+        // the identity sync never fires and feed ad rows lose eids enrichment.
+        if let gc = map["growthCode"] as? NSDictionary {
+            cfg.growthCode = SellwildGrowthCodeConfig(
+                enabled: gc["enabled"] as? Bool,
+                partnerId: gc["partnerId"] as? String,
+                endpoint: gc["endpoint"] as? String,
+                syncUrl: gc["syncUrl"] as? String,
+                sendMaid: gc["sendMaid"] as? Bool,
+                ttlHours: gc["ttlHours"] as? Int
+            )
+        }
+
         // Local override for the localized (geo-based) secondary-listings
         // integration; remote LOCALIZED_LISTINGS rides `remote` verbatim.
         if let ll = map["localizedListings"] as? NSDictionary {
