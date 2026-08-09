@@ -100,6 +100,9 @@ class SellwildAdView @JvmOverloads constructor(
     private var nativeAdView: SellwildNativeAdView? = null
     private var refreshHandler: Handler? = null
     private var refreshCount = 0
+    // prebidOnly renders (initial + auto-refreshes). Caps Prebid's internal
+    // auto-refresh at effectiveRefreshMax, which it otherwise ignores.
+    private var prebidRefreshCount = 0
 
     /**
      * Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
@@ -215,18 +218,18 @@ class SellwildAdView @JvmOverloads constructor(
             SellwildAdStack.BOTH, SellwildAdStack.GAM_ONLY -> scheduleRefresh()
             SellwildAdStack.PREBID_ONLY ->
                 if (effectiveRefreshMax > 0 && !nativeEnabled) {
-                    prebidBanner?.setAutoRefreshDelay((config.adRefreshIntervalMs / 1000L).toInt())
+                    prebidBanner?.setAutoRefreshDelay((config.adRefreshIntervalMs.coerceAtLeast(MIN_REFRESH_INTERVAL_MS) / 1000L).toInt())
                 }
         }
     }
 
-    // ── Detached-refresh pause (prototype, default OFF) ──────────────────────
-    // When MOBILE_PAUSE_REFRESH_DETACHED is truthy in remote config, pause the
-    // refresh cadence while this view is fully detached from the window
-    // (recycled / in the RecyclerView pool) and resume on re-attach. This trims
-    // never-rendered "detached view" refreshes — the invalid-traffic edge and the
-    // handler leak — while KEEPING off-screen-but-attached refreshes (the
-    // off-screen revenue). Off by default: behavior is unchanged unless enabled.
+    // ── Detached-refresh pause (default ON) ──────────────────────────────────
+    // Pause the refresh cadence while this view is fully detached from the window
+    // (recycled / in the RecyclerView pool) and resume on re-attach. A detached
+    // view that keeps posting refresh load()s leaks the view/Activity and burns
+    // never-rendered auctions (invalid traffic). ON by default; set
+    // MOBILE_PAUSE_REFRESH_DETACHED = false to opt out. Off-screen-but-ATTACHED
+    // refreshes are unaffected — this only gates FULLY-detached views.
 
     private var isPausedForDetach = false
     // Set when pause() interrupts an in-flight first auction (cold-start wait);
@@ -236,13 +239,13 @@ class SellwildAdView @JvmOverloads constructor(
     private val pausesRefreshWhenDetached: Boolean
         get() {
             if (!::config.isInitialized) return false
-            val obj = config.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
-            if (!obj.has("MOBILE_PAUSE_REFRESH_DETACHED") || obj.isNull("MOBILE_PAUSE_REFRESH_DETACHED")) return false
+            val obj = config.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return true
+            if (!obj.has("MOBILE_PAUSE_REFRESH_DETACHED") || obj.isNull("MOBILE_PAUSE_REFRESH_DETACHED")) return true
             return when (val v = obj.get("MOBILE_PAUSE_REFRESH_DETACHED")) {
                 is Boolean -> v
                 is Number -> v.toInt() != 0
                 is String -> v.lowercase() in setOf("1", "true", "yes", "on")
-                else -> false
+                else -> true
             }
         }
 
@@ -434,7 +437,7 @@ class SellwildAdView @JvmOverloads constructor(
             setBannerListener(prebidBannerListener())
             // Prebid's rendering banner owns its own auto-refresh.
             if (effectiveRefreshMax > 0) {
-                setAutoRefreshDelay((config.adRefreshIntervalMs / 1000L).toInt())
+                setAutoRefreshDelay((config.adRefreshIntervalMs.coerceAtLeast(MIN_REFRESH_INTERVAL_MS) / 1000L).toInt())
             }
             // prebidOnly banner+video is intentionally NOT wired on Android —
             // shipping WITHOUT it (banner-only). Confirmed against the
@@ -484,6 +487,18 @@ class SellwildAdView @JvmOverloads constructor(
             )
             return
         }
+        // Cold-start guard (mirrors loadGam): Prebid init is async and races the
+        // first load(). Unlike GAM we can't fall back to a GAM request, so a
+        // premature loadAd() no-fills and leaves the slot blank. Wait briefly for
+        // readiness, then load regardless once the wait budget is spent.
+        if (!SellwildPrebidMobile.isReady() && prebidWaitAttempts < maxPrebidWaitAttempts) {
+            prebidWaitAttempts++
+            val h = prebidWaitHandler ?: Handler(Looper.getMainLooper()).also { prebidWaitHandler = it }
+            h.postDelayed({ loadPrebidOnly() }, prebidWaitIntervalMs)
+            return
+        }
+        prebidWaitAttempts = 0
+        prebidRefreshCount = 0
         prebid.loadAd()
     }
 
@@ -573,6 +588,14 @@ class SellwildAdView @JvmOverloads constructor(
     private fun prebidBannerListener() = object : BannerViewListener {
         override fun onAdLoaded(bannerView: PrebidBannerView?) {
             val self = this@SellwildAdView
+            // Cap prebidOnly auto-refresh at effectiveRefreshMax. Prebid's internal
+            // auto-refresh is otherwise unbounded (unlike the counted GAM path).
+            // Fires on the initial render + each refresh; stop once the budget is
+            // spent. Fails safe: if this stops firing on refresh, behavior is today's.
+            if (self.effectiveRefreshMax > 0) {
+                self.prebidRefreshCount++
+                if (self.prebidRefreshCount > self.effectiveRefreshMax) bannerView?.stopRefresh()
+            }
             if (self.config.debug) android.util.Log.d("SellwildAdView", "[prebidOnly] rendered — zone ${self.zoneId.orEmpty()}")
             self.listener?.onAdLoaded(self)
             // Best-effort: the rendering BannerView doesn't surface the winning
