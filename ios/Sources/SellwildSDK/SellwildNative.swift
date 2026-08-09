@@ -97,6 +97,29 @@ public enum SellwildNative {
         return request
     }
 
+    /// Resolve the Prebid `configId` for the native request.
+    ///
+    /// Some partners issue a dedicated native placement id, distinct from the
+    /// banner/video id. Mirrors the mobile zone precedence (per-placement
+    /// per-platform → platform-wide → shared) for the native keys, then falls
+    /// back to `zoneId` — which is itself the already-resolved mobile zone
+    /// (MOBILE_ZID_IOS → MOBILE_ZID_ALL_IOS → MOBILE_ZID). Full chain:
+    ///   NATIVE_ZID_IOS → NATIVE_ZID_ALL_IOS → NATIVE_ZID → <mobile zoneId>.
+    static func resolveConfigId(remoteValues: [String: Any]?, zoneId: String) -> String {
+        firstNonEmpty(remoteValues?["NATIVE_ZID_IOS"])
+            ?? firstNonEmpty(remoteValues?["NATIVE_ZID_ALL_IOS"])
+            ?? firstNonEmpty(remoteValues?["NATIVE_ZID"])
+            ?? zoneId
+    }
+
+    /// A single non-empty id from a remote value that may be a String or [String]
+    /// (the CDN ships native zones either way, matching MOBILE_ZID).
+    private static func firstNonEmpty(_ value: Any?) -> String? {
+        if let s = value as? String, !s.isEmpty { return s }
+        if let a = value as? [String] { return a.first { !$0.isEmpty } }
+        return nil
+    }
+
     private static func truthy(_ value: Any?) -> Bool {
         switch value {
         case let b as Bool: return b

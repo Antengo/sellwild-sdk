@@ -160,4 +160,34 @@ class SellwildAdViewTest {
 
         assertEquals(setOf("MEDIANET"), params.keys)
     }
+
+    @Test
+    fun `bidderParamsFromRemote skips per-platform zone ids and format toggles`() {
+        // Regression guard (#28): per-platform / _ALL variants of zone-id keys —
+        // and the video-sound toggles — must NOT leak into the auction ext as
+        // bogus imp.ext.prebid.bidder.* params. Caught via the base-key strip.
+        val raw = JSONObject(
+            mapOf(
+                "NATIVE_ZID" to "n0",
+                "NATIVE_ZID_ANDROID" to "n1",
+                "NATIVE_ZID_ALL_ANDROID" to "n2",
+                "NATIVE_ZID_IOS" to "n3",
+                "MOBILE_ZID_ANDROID" to "m1",
+                "MOBILE_ZID_ALL_IOS" to "m2",
+                "MOBILE_BANNER_ZID_ANDROID" to "b1",
+                "VIDEO_SOUND_ENABLED" to true,
+                "VIDEO_SOUND_ENABLED_BY_ZONE" to JSONObject(mapOf("43" to true)),
+                "MEDIANET" to JSONObject(mapOf("cid" to "8CU9V99R6")),
+            )
+        )
+        val config = SellwildConfig(
+            partnerCode = "weatherbug",
+            remoteJson = raw.toString(),
+        )
+
+        val params = SellwildAdView.bidderParamsFromRemote(config)
+
+        // Only the real bidder survives; every zone-id/toggle variant is denied.
+        assertEquals(setOf("MEDIANET"), params.keys)
+    }
 }

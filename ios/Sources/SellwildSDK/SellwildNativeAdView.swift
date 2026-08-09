@@ -65,7 +65,10 @@ public final class SellwildNativeAdView: UIView {
 
     /// Request native demand and, on a win, bind + register the assets.
     public func load() {
-        let request = SellwildNative.makeRequest(configId: zoneId)
+        // Native may use a dedicated placement id (NATIVE_ZID*); resolve it with
+        // the mobile-mirroring precedence, falling back to this slot's zoneId.
+        let configId = SellwildNative.resolveConfigId(remoteValues: config.remoteValues, zoneId: zoneId)
+        let request = SellwildNative.makeRequest(configId: configId)
         // `fetchDemand`'s completion is single-arg (`BidInfo`) in the shaded
         // Prebid Mobile 3.x fork. The winning bid's local cache id is exposed
         // via `bidInfo.targetingKeywords?[PrebidLocalCacheIdKey]` and inflated

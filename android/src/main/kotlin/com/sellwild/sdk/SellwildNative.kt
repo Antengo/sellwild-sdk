@@ -123,6 +123,32 @@ internal object SellwildNative {
         return unit
     }
 
+    /**
+     * Resolve the Prebid `configId` for the native request.
+     *
+     * Some partners issue a dedicated native placement id, distinct from the
+     * banner/video id. Mirrors the mobile zone precedence (per-placement
+     * per-platform -> platform-wide -> shared) for the native keys, then falls
+     * back to [zoneId] — itself the already-resolved mobile zone
+     * (MOBILE_ZID_ANDROID -> MOBILE_ZID_ALL_ANDROID -> MOBILE_ZID). Full chain:
+     *   NATIVE_ZID_ANDROID -> NATIVE_ZID_ALL_ANDROID -> NATIVE_ZID -> <mobile zoneId>.
+     */
+    fun resolveConfigId(remoteJson: String?, zoneId: String): String {
+        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return zoneId
+        return firstNonEmpty(obj.optAny("NATIVE_ZID_ANDROID"))
+            ?: firstNonEmpty(obj.optAny("NATIVE_ZID_ALL_ANDROID"))
+            ?: firstNonEmpty(obj.optAny("NATIVE_ZID"))
+            ?: zoneId
+    }
+
+    /** A single non-empty id from a value that may be a String or JSONArray of strings. */
+    private fun firstNonEmpty(v: Any?): String? = when (v) {
+        is String -> v.takeIf { it.isNotEmpty() }
+        is org.json.JSONArray -> (0 until v.length()).asSequence()
+            .map { v.optString(it) }.firstOrNull { it.isNotEmpty() }
+        else -> null
+    }
+
     private fun truthy(v: Any?): Boolean = when (v) {
         is Boolean -> v
         is Number -> v.toInt() != 0
