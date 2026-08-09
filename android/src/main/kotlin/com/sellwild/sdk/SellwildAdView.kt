@@ -684,7 +684,12 @@ class SellwildAdView @JvmOverloads constructor(
                 // CDN ships bidder params as CONSTANT_CASE; non-bidder typed
                 // keys are skipped via the static deny list.
                 if (key != key.uppercase()) continue
-                if (NON_BIDDER_REMOTE_KEYS.contains(key)) continue
+                // Zone/config keys can carry a platform/ALL suffix (…_ANDROID,
+                // _IOS, _ALL_ANDROID, _ALL_IOS); deny the base key too so
+                // per-platform variants (NATIVE_ZID_ANDROID, MOBILE_ZID_ALL_IOS…)
+                // never leak into the auction ext as bogus bidder params.
+                val base = key.removeSuffix("_ANDROID").removeSuffix("_IOS").removeSuffix("_ALL")
+                if (NON_BIDDER_REMOTE_KEYS.contains(key) || NON_BIDDER_REMOTE_KEYS.contains(base)) continue
                 params[key] = obj.opt(key)
             }
             return params
@@ -709,8 +714,13 @@ class SellwildAdView @JvmOverloads constructor(
             // Ad-format toggles: read directly by SellwildVideo / SellwildNative,
             // not bidder params — keep them out of the .both auction ext.
             "VIDEO_ENABLED", "VIDEO_ENABLED_BY_ZONE",
+            "VIDEO_SOUND_ENABLED", "VIDEO_SOUND_ENABLED_BY_ZONE",
             "NATIVE_ENABLED", "NATIVE_ENABLED_BY_ZONE",
             "NATIVE_MAX_HEIGHT", "NATIVE_MAX_HEIGHT_BY_ZONE",
+            // Native placement id — read by SellwildNative.resolveConfigId. The
+            // per-platform/ALL variants (NATIVE_ZID_ANDROID, _ALL_ANDROID, …) are
+            // caught by the base-key strip in bidderParamsFromRemote.
+            "NATIVE_ZID",
             "BANNER_SIZES", "BANNER_SIZES_BY_ZONE",
             // GrowthCode identity: read directly by SellwildGrowthCode, not
             // bidder params.
