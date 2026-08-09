@@ -206,11 +206,12 @@ public final class SellwildAdView: UIView {
         }
     }
 
-    // MARK: Detached-refresh pause (prototype, default OFF)
-    // MOBILE_PAUSE_REFRESH_DETACHED truthy → pause refresh while this view is
-    // fully detached from the window (pooled cell) and resume on re-attach. Trims
-    // never-rendered detached-view refreshes (the invalid-traffic edge) while
-    // keeping off-screen-but-attached refreshes. Off = today's behavior.
+    // MARK: Detached-refresh pause (default ON — parity with Android)
+    // Pause refresh while this view is fully detached from the window (pooled
+    // cell) and resume on re-attach. Trims never-rendered detached-view refreshes
+    // (the invalid-traffic edge + wasted auctions/CPU/battery) while keeping
+    // off-screen-but-attached refreshes. ON by default; set
+    // MOBILE_PAUSE_REFRESH_DETACHED = false to opt out.
 
     private var isPausedForDetach = false
     // Set when pause() interrupts an in-flight first auction (cold-start wait);
@@ -222,7 +223,7 @@ public final class SellwildAdView: UIView {
         case let b as Bool: return b
         case let n as NSNumber: return n.boolValue
         case let s as String: return ["1", "true", "yes", "on"].contains(s.lowercased())
-        default: return false
+        default: return true
         }
     }
 
