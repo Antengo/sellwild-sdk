@@ -342,11 +342,15 @@ public final class SellwildAdView: UIView {
             configID: configId,
             adSize: adSize.cgSize
         )
-        // Prebid-rendered outstream video (no GAM). The rendering `PrebidBannerView`
-        // in the shaded fork exposes `videoParameters` as get-only, so we can't set
-        // outstream params on this path yet — matches the Android limitation.
+        // Prebid-rendered outstream (in-banner) video, no GAM: request banner +
+        // video in one imp so the rendering BannerView renders whichever wins,
+        // muted by default (VIDEO_SOUND_ENABLED opts a zone into sound).
+        // SellwildVideo writes the fork's stored config directly (adFormats /
+        // videoParameters / videoControlsConfig) — the path its own mediation
+        // adapters use. Android's public rendering BannerView can't hold both
+        // formats (banner-only there for now; see SellwildAdView.kt).
         if SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId) {
-            print("[SellwildSDK] Outstream video not yet supported on the prebidOnly rendering path")
+            SellwildVideo.enableOutstream(on: v, remoteValues: config.remoteValues, zoneId: zoneId)
         }
         // Multi-size fallback for the Prebid-rendered banner (primary set above).
         SellwildAdSizes.applyRendering(resolvedAdSizes, to: v)

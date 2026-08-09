@@ -436,18 +436,25 @@ class SellwildAdView @JvmOverloads constructor(
             if (effectiveRefreshMax > 0) {
                 setAutoRefreshDelay((config.adRefreshIntervalMs / 1000L).toInt())
             }
-            // Prebid-rendered outstream video (no GAM) is not supported on the
-            // rendering BannerView in the current shaded fork — it has no
-            // videoParameters setter (unlike iOS PrebidBannerView). The GAM
-            // path (runBannerAuction with video=true) still delivers outstream
-            // via a multiformat BannerAdUnit + GAM outstream line item, so
-            // prebidOnly is the only surface losing video here.
+            // prebidOnly banner+video is intentionally NOT wired on Android —
+            // shipping WITHOUT it (banner-only). Confirmed against the
+            // official Prebid Mobile Android API ref: the rendering BannerView has
+            // only 3 constructors (none multiformat) + setVideoPlacementType(),
+            // which REPLACES banner with VAST (video-only). `adUnitConfig` is
+            // private; no public multiformat setter. iOS differs (its BannerView
+            // exposes adUnitConfig.adFormats) — a separate-codebase API asymmetry,
+            // not a capability gap: the Android imp-builder already emits both
+            // banner+video on one imp; only the public API hides it. A version
+            // bump won't help (our fork 3.3.2; upstream 3.3.3 doesn't add it
+            // either). Parity = fork patch exposing a multiformat setter on
+            // BannerView, cut under a non-colliding version (e.g. 3.3.3-sw1),
+            // then set adFormats=[banner,video] here like iOS.
             if (SellwildVideo.isEnabled(config.remoteJson, zoneId)) {
                 Log.w(
                     TAG,
-                    "prebidOnly outstream video requested but rendering " +
-                        "BannerView has no videoParameters setter in the " +
-                        "shaded fork — falling back to banner-only.",
+                    "prebidOnly outstream video requested but Android rendering " +
+                        "BannerView (fork 3.3.2) is single-format — shipping " +
+                        "banner-only; banner+video needs a fork patch (3.3.x-sw).",
                 )
             }
             // Multi-size fallback for the Prebid-rendered banner (primary above).
