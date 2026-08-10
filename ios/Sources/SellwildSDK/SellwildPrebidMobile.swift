@@ -20,7 +20,11 @@ public enum SellwildPrebidMobile {
     /// initialization for both PrebidMobile and the GMA SDK. Subsequent calls
     /// become no-ops.
     private static var didBootstrap = false
-    private static let lock = NSLock()
+    // Recursive: `bootstrap()` holds the lock while calling `applyGlobalORTB()`
+    // (which re-acquires it for a snapshot), and `initializeSDK`'s completion
+    // handler may fire synchronously on the same thread and also needs to
+    // re-enter. NSLock would deadlock in either path.
+    private static let lock = NSRecursiveLock()
 
     /// `true` once Prebid's async `initializeSDK` completion has fired without
     /// error. Distinct from `didBootstrap` (which is set synchronously when init
