@@ -78,6 +78,16 @@ class SellwildFeedView @JvmOverloads constructor(
         fun onHouseAdImpression(zoneId: String) {}
         fun onAdClicked(zoneId: String) {}
         fun onLoad() {}
+        /**
+         * Fires after a successful fetch with the number of listings bound to the
+         * feed adapter. `count == 0` means an empty / header-only render — the
+         * fetch succeeded but returned no listings (e.g. a config that resolved to
+         * the wrong/empty listings source). Unlike [onLoad] (a "fetch completed"
+         * signal that also fires on empty), this reliably reflects whether listings
+         * were attached. RecyclerView lays the item views out on the next frame;
+         * this fires when the rows are bound to the adapter.
+         */
+        fun onFeedReady(listingCount: Int) {}
         fun onError(message: String) {}
         /**
          * Called whenever the feed's rendered content height changes (deduped
@@ -130,6 +140,11 @@ class SellwildFeedView @JvmOverloads constructor(
     private var config: SellwildConfig? = null
     private var schedule: String = DEFAULT_SCHEDULE
     private var listings: List<SellwildListing> = emptyList()
+    // True once a fetch has succeeded (even with zero listings). Gates the
+    // auto-reload on re-attach: a load cancelled by a detach (fast scroll) is
+    // retried, but a legitimately-empty successful feed is not re-fetched on
+    // every scroll-back.
+    private var loadSucceeded = false
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var loadJob: Job? = null
@@ -208,8 +223,11 @@ class SellwildFeedView @JvmOverloads constructor(
                 // fails/404s, the primary feed renders unchanged.
                 listings = applyLocalizedDispersion(cfg, client, response.listings)
                 refreshLayout.isRefreshing = false
+                loadSucceeded = true
                 adapter.rebuild()
                 listener?.onLoad()
+                // Reliable "listings bound" signal (count == 0 ⇒ empty/header-only).
+                listener?.onFeedReady(listings.size)
             }.onFailure { t ->
                 refreshLayout.isRefreshing = false
                 listener?.onError(t.message ?: "Failed to load listings")
@@ -242,9 +260,26 @@ class SellwildFeedView @JvmOverloads constructor(
     /** Force a re-fetch. Wired to SwipeRefreshLayout. */
     fun refresh() = load()
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        // Self-heal the "config arrived late / detached mid-load during a fast
+        // scroll" race: if we have a config but no successful load yet (and none
+        // in flight), (re)start the load on re-attach. Deduped by load()'s own
+        // loadJob cancel, so a normal setup()+load() isn't double-fetched.
+        if (config != null && !loadSucceeded && loadJob?.isActive != true) {
+            load()
+        }
+    }
+
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        scope.cancel()
+        // Cancel only the in-flight fetch — NOT the whole scope. `scope.cancel()`
+        // is terminal (the scope is a val, never recreated), so cancelling it on a
+        // transient detach during fast scroll permanently killed the loader: the
+        // in-flight load was dropped with no onLoad/onError, and every later
+        // load()/refresh() no-op'd on the dead scope. onAttachedToWindow re-drives
+        // an incomplete load instead.
+        loadJob?.cancel()
     }
 
     private fun applyBackground(config: SellwildConfig) {

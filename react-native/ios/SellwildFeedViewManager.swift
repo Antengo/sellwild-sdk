@@ -45,6 +45,9 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
     // MARK: RN events
 
     @objc var onFeedLoaded: RCTDirectEventBlock?
+    /// Fires after a successful fetch with the bound listing count
+    /// (`listingCount == 0` ⇒ empty / header-only). Reliable "ready" signal.
+    @objc var onFeedReady: RCTDirectEventBlock?
     @objc var onListingTap: RCTDirectEventBlock?
     @objc var onAdImpression: RCTDirectEventBlock?
     /// A house ad backfilled an empty feed slot (no-fill). Not a paid impression.
@@ -108,6 +111,10 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
 
     func sellwildFeedDidLoad(_ feed: SellwildFeedView) {
         onFeedLoaded?([:])
+    }
+
+    func sellwildFeed(_ feed: SellwildFeedView, didBecomeReadyWithListingCount count: Int) {
+        onFeedReady?(["listingCount": count])
     }
 
     func sellwildFeed(_ feed: SellwildFeedView, didTapListing listing: SellwildListing) -> Bool {

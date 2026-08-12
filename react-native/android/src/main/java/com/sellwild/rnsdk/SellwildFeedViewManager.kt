@@ -83,6 +83,11 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
                 emit(reactContext, view, "onFeedLoaded", null)
             }
 
+            override fun onFeedReady(listingCount: Int) {
+                val payload = Arguments.createMap().apply { putInt("listingCount", listingCount) }
+                emit(reactContext, view, "onFeedReady", payload)
+            }
+
             override fun onError(message: String) {
                 val payload = Arguments.createMap().apply { putString("message", message) }
                 emit(reactContext, view, "onFeedError", payload)
@@ -132,6 +137,7 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
     override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
         return MapBuilder.builder<String, Any>()
             .put("onFeedLoaded", MapBuilder.of("registrationName", "onFeedLoaded"))
+            .put("onFeedReady", MapBuilder.of("registrationName", "onFeedReady"))
             .put("onListingTap", MapBuilder.of("registrationName", "onListingTap"))
             .put("onAdImpression", MapBuilder.of("registrationName", "onAdImpression"))
             .put("onHouseAdImpression", MapBuilder.of("registrationName", "onHouseAdImpression"))

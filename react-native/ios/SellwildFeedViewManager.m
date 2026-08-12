@@ -16,6 +16,7 @@ RCT_EXPORT_VIEW_PROPERTY(scrollEnabled, BOOL)
 
 // Direct events emitted to JS callbacks.
 RCT_EXPORT_VIEW_PROPERTY(onFeedLoaded, RCTDirectEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onFeedReady, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onListingTap, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onAdImpression, RCTDirectEventBlock)
 RCT_EXPORT_VIEW_PROPERTY(onHouseAdImpression, RCTDirectEventBlock)

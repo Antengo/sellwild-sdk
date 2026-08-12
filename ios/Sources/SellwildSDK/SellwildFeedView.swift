@@ -35,6 +35,11 @@ public protocol SellwildFeedViewDelegate: AnyObject {
     func sellwildFeed(_ feed: SellwildFeedView, didRecordAdImpressionForZoneId zoneId: String)
     func sellwildFeed(_ feed: SellwildFeedView, didRecordAdClickForZoneId zoneId: String)
     func sellwildFeedDidLoad(_ feed: SellwildFeedView)
+    /// Fires after a successful fetch with the number of listings bound to the
+    /// feed. `count == 0` ⇒ empty / header-only render. Unlike `sellwildFeedDidLoad`
+    /// (which also fires on empty), this reliably reflects whether listings were
+    /// attached. Parity with Android `Listener.onFeedReady(listingCount)`.
+    func sellwildFeed(_ feed: SellwildFeedView, didBecomeReadyWithListingCount count: Int)
     func sellwildFeed(_ feed: SellwildFeedView, didFailWithError message: String)
     /// Called whenever the feed's rendered content height changes (deduped
     /// against the last reported value). Use this to size the feed's
@@ -52,6 +57,7 @@ public extension SellwildFeedViewDelegate {
     func sellwildFeed(_ feed: SellwildFeedView, didRecordHouseAdImpressionForZoneId zoneId: String) {}
     func sellwildFeed(_ feed: SellwildFeedView, didRecordAdClickForZoneId zoneId: String) {}
     func sellwildFeedDidLoad(_ feed: SellwildFeedView) {}
+    func sellwildFeed(_ feed: SellwildFeedView, didBecomeReadyWithListingCount count: Int) {}
     func sellwildFeed(_ feed: SellwildFeedView, didFailWithError message: String) {}
     func sellwildFeed(_ feed: SellwildFeedView, didChangeContentHeight height: CGFloat) {}
 }
@@ -214,6 +220,8 @@ public final class SellwildFeedView: UIView {
         self.rebuildRows()
         NSLog("[Sellwild] rebuildRows -> rowCount=%d", self.rows.count)
         self.delegate?.sellwildFeedDidLoad(self)
+        // Reliable "listings bound" signal (count == 0 ⇒ empty/header-only).
+        self.delegate?.sellwildFeed(self, didBecomeReadyWithListingCount: self.listings.count)
     }
 
     // MARK: Setup

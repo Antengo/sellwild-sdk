@@ -32,6 +32,7 @@ interface NativeFeedProps {
   scrollEnabled?: boolean
   style?: StyleProp<ViewStyle>
   onFeedLoaded?: (e: NativeSyntheticEvent<{}>) => void
+  onFeedReady?: (e: NativeSyntheticEvent<{ listingCount: number }>) => void
   onListingTap?: (e: NativeSyntheticEvent<{ listing: SellwildListing }>) => void
   onAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
   onHouseAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
@@ -85,6 +86,14 @@ export interface SellwildFeedProps {
   onLoad?: () => void
 
   /**
+   * Fired after a successful fetch with the number of listings bound to the
+   * feed. `listingCount === 0` means an empty / header-only render. Prefer this
+   * over `onLoad` when you need to know the feed is actually populated — `onLoad`
+   * also fires on an empty result.
+   */
+  onFeedReady?: (listingCount: number) => void
+
+  /**
    * Fired when a listing card is tapped. Return `true` to consume the
    * event; return `false` (or omit) to let the SDK open `listing.url`
    * in the platform in-app browser (Custom Tabs / SFSafariViewController).
@@ -113,6 +122,7 @@ export function SellwildFeed({
   scrollEnabled = true,
   onContentSizeChange,
   onLoad,
+  onFeedReady,
   onListingTap,
   onAdImpression,
   onHouseAdImpression,
@@ -191,6 +201,9 @@ export function SellwildFeed({
         onContentSizeChange?.({ width, height })
       }}
       onFeedLoaded={() => onLoad?.()}
+      onFeedReady={(e: NativeSyntheticEvent<{ listingCount: number }>) => {
+        onFeedReady?.(e.nativeEvent.listingCount)
+      }}
       onListingTap={(e: NativeSyntheticEvent<{ listing: SellwildListing }>) => {
         onListingTap?.(e.nativeEvent.listing)
       }}
