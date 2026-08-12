@@ -153,6 +153,12 @@ public final class SellwildAdView: UIView {
         // enabled with a partner id; injects/merges eids into the auction async.
         SellwildGrowthCode.resolveIfNeeded(config: config, zoneId: zoneId)
 
+        // Resolve ID5 identity (auto, once per launch, throttled). No-op unless
+        // ID5_ENABLED + ID5_PARTNER_ID are set in remote config. ID5 mints from a
+        // partner id (no login), so it's SDK-resolved like GrowthCode and its eid
+        // (source id5-sync.com) coexists in the same registry.
+        SellwildID5.resolveIfNeeded(config: config, zoneId: zoneId)
+
         // Native reuses the slot on .prebidOnly only: Prebid fetches demand and
         // we render the assets. On .both/.gamOnly a native creative would need
         // GAM native line items + a GADNativeAd renderer (ad-ops), so we fall

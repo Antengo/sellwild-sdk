@@ -173,6 +173,12 @@ class SellwildAdView @JvmOverloads constructor(
         // unless enabled with a partner id; injects/merges eids into the auction.
         SellwildGrowthCode.resolveIfNeeded(context, config, zoneId)
 
+        // Resolve ID5 identity (auto, once per launch, throttled, off-main). No-op
+        // unless ID5_ENABLED + ID5_PARTNER_ID are set in remote config. ID5 mints
+        // from a partner id (no login), so it's SDK-resolved like GrowthCode; its
+        // eid (source id5-sync.com) coexists in the same registry.
+        SellwildID5.resolveIfNeeded(context, config, zoneId)
+
         // Put the house-ad backdrop behind the slot before the paid creative
         // loads, so an empty slot (no-fill, or the PREBID_ONLY refresh teardown
         // gap) shows house inventory instead of a blank. The paid creative renders

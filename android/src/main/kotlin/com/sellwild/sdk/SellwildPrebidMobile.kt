@@ -355,11 +355,18 @@ object SellwildPrebidMobile {
 internal object SellwildEidRegistry {
     private val lock = Any()
     private var consumer: List<SellwildEid> = emptyList()
+    private var id5: List<SellwildEid> = emptyList()
     private var growthCode: List<SellwildEid> = emptyList()
 
     /** Partner-supplied eids (from the public setExternalUserIds). */
     fun setConsumer(eids: List<SellwildEid>) {
         synchronized(lock) { consumer = eids }
+        push()
+    }
+
+    /** SDK-resolved ID5 eids. Set by [SellwildID5]. */
+    fun setId5(eids: List<SellwildEid>) {
+        synchronized(lock) { id5 = eids }
         push()
     }
 
@@ -371,8 +378,14 @@ internal object SellwildEidRegistry {
 
     private fun push() {
         val merged = synchronized(lock) {
-            val consumerSources = consumer.map { it.source }.toSet()
-            consumer + growthCode.filter { it.source !in consumerSources }
+            // Precedence on a source conflict: consumer > id5 > growthCode. First
+            // bucket to claim a source wins; later same-source entries drop.
+            val seen = mutableSetOf<String>()
+            val out = mutableListOf<SellwildEid>()
+            for (bucket in listOf(consumer, id5, growthCode)) {
+                for (eid in bucket) if (seen.add(eid.source)) out.add(eid)
+            }
+            out
         }
         SellwildPrebidMobile.applyEids(merged)
     }
