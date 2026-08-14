@@ -448,6 +448,24 @@ val state = SellwildGeoStore.current?.state
 > (nested marshalling) and a JS runtime `setGeo` are pending — RN's ad bridge is
 > view-manager-only, so a callable `setGeo` needs a new native method module.
 
+## Device type (`device.devicetype`) — automatic
+
+Emitted on every native Prebid auction so DSPs and source-side analytics can
+bucket demand by device class. No partner wiring — the SDK derives it from the
+platform UI idiom and merges it into the same global ORTB `device` object that
+carries `device.geo`.
+
+| idiom (iOS `UIUserInterfaceIdiom`) | OpenRTB `device.devicetype` (IAB enum) |
+|---|---|
+| phone | `4` (PHONE) |
+| pad | `5` (TABLET) |
+| anything else (unknown / tv / carPlay / vision) | `1` (MOBILE/TABLET) fallback |
+
+The iOS Prebid fork populates `device.os` / `make` / `model` / `ua` but not
+`devicetype`; Android emits `devicetype` end-to-end via its Prebid fork. iOS
+closes the gap by injecting the value through `setGlobalORTBConfig`, so
+`ios` / `ipados` rows now carry `devicetype` alongside `android`.
+
 ## Debug flags — `debug` vs `pbsDebug`
 
 Two independent, locally-configurable toggles (also settable remotely via the
