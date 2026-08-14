@@ -10,6 +10,7 @@
 // by hand.
 
 import Foundation
+import UIKit
 import SellwildPrebidSDK
 import GoogleMobileAds
 
@@ -277,6 +278,19 @@ public enum SellwildPrebidMobile {
     private static var resolvedPublisherId: String?
     private static var resolvedCats: [String]?
 
+    /// Map a `UIUserInterfaceIdiom` to the IAB OpenRTB `device.devicetype`
+    /// enum: phone → 4 (PHONE), pad → 5 (TABLET); anything else → 1
+    /// (MOBILE/TABLET) as a safe generic-mobile fallback for unknown / tv /
+    /// carPlay / vision idioms. `internal` (not `private`) so unit tests can
+    /// exercise the mapping without a live device.
+    static func deviceType(for idiom: UIUserInterfaceIdiom) -> Int {
+        switch idiom {
+        case .phone: return 4  // PHONE
+        case .pad:   return 5  // TABLET
+        default:     return 1  // MOBILE/TABLET
+        }
+    }
+
     /// Emit one combined global ORTB config carrying `app.publisher.id` and
     /// `device.geo`. `setGlobalORTBConfig` is last-write-wins, so both live in a
     /// single object rather than two competing calls.
@@ -299,7 +313,12 @@ public enum SellwildPrebidMobile {
         if let cats, !cats.isEmpty {
             app["cat"] = cats
         }
-        var device: [String: Any] = [:]
+        // device.devicetype (IAB OpenRTB enum) is emitted on EVERY request so
+        // DSPs and source-side analytics can bucket by device class. The iOS
+        // Prebid fork does not populate it (Android does end-to-end), so inject
+        // it here via the same global-ORTB merge path that already carries
+        // device.geo — buyers receive device.os/make/model the same way.
+        var device: [String: Any] = ["devicetype": deviceType(for: UIDevice.current.userInterfaceIdiom)]
         if let geoDict, !geoDict.isEmpty {
             device["geo"] = geoDict
         }
