@@ -206,7 +206,15 @@ public final class SellwildWidgetView: UIView {
         var ortb2AppFields: [String] = [
             "\"publisher\": {\"id\": \"\(config.partnerCode)\"}",
         ]
-        if let bundle = config.appBundleId, !bundle.isEmpty {
+        // app.bundle: on iOS/iPadOS this MUST be the numeric App Store ID (buyers key on it),
+        // NOT the reverse-DNS bundle the app carries. Mirror the native path
+        // (SellwildPrebidMobile) and derive it from the store URL. This WebView surface is
+        // iOS-family only (iPhone + iPad), so always prefer the derived numeric; fall back to the
+        // configured bundle only when no store-URL id can be parsed. Emitting appBundleId verbatim
+        // shipped the wrong bundle (e.g. iPad -> com.aws.weatherbug.pro), which demand rejects.
+        if let numericId = SellwildPrebidMobile.appStoreId(from: config.appStoreUrl) {
+            ortb2AppFields.append("\"bundle\": \"\(numericId)\"")
+        } else if let bundle = config.appBundleId, !bundle.isEmpty {
             ortb2AppFields.append("\"bundle\": \"\(bundle)\"")
         }
         if let storeUrl = config.appStoreUrl, !storeUrl.isEmpty {
