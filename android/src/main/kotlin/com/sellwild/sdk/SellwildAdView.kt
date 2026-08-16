@@ -317,6 +317,13 @@ class SellwildAdView @JvmOverloads constructor(
         listener?.onHouseAdImpression(this, zoneId.orEmpty())
     }
 
+    /** Show/hide the house backdrop. Kept as a class method so the inherited
+     *  View VISIBLE/GONE constants resolve unqualified — the ad-listener
+     *  callbacks that toggle it are anonymous objects, not View subclasses. */
+    private fun setHouseVisible(visible: Boolean) {
+        houseView?.visibility = if (visible) VISIBLE else GONE
+    }
+
     private fun openHouseUrl(url: String?) {
         // http/https only — the click URL is remote CMS config; never hand an
         // arbitrary scheme (intent:/market:/deep link) to an ACTION_VIEW intent.
@@ -525,7 +532,7 @@ class SellwildAdView @JvmOverloads constructor(
                 // Native creative filled — hide the house backdrop so it can't
                 // bleed through the transparent native template (parity with the
                 // GAM/prebid banner paths, whose opaque creatives cover it).
-                self.houseView?.visibility = GONE
+                self.setHouseVisible(false)
                 self.listener?.onAdLoaded(self)
                 // Native fills to the (capped) height; report it so the host
                 // slot resizes to the template rather than clipping.
@@ -582,6 +589,11 @@ class SellwildAdView @JvmOverloads constructor(
     private fun bannerAdListener() = object : AdListener() {
         override fun onAdLoaded() {
             val self = this@SellwildAdView
+            // Paid creative rendered — hide the house backdrop so a transparent
+            // or smaller-than-slot creative can't bleed through (re-shown on a
+            // later no-fill). Mirrors the native path; don't rely on the creative
+            // being opaque and full-slot.
+            self.setHouseVisible(false)
             self.listener?.onAdLoaded(self)
             // Report the actual rendered creative size so multi-size fallbacks
             // (e.g. a 320x50 win in a 300x250 request) resize the host slot.
@@ -593,6 +605,9 @@ class SellwildAdView @JvmOverloads constructor(
 
         override fun onAdFailedToLoad(error: LoadAdError) {
             val self = this@SellwildAdView
+            // No-fill — surface the house backdrop (re-shown in case a prior fill
+            // hid it) so the slot isn't blank, then record the house impression.
+            self.setHouseVisible(true)
             self.listener?.onAdFailed(self, error.message)
             SellwildEventQueue.shared(self.context).track("adError", action = error.message, label = self.zoneId.orEmpty())
             self.recordHouseImpressionIfShowing()
@@ -618,6 +633,13 @@ class SellwildAdView @JvmOverloads constructor(
                 if (self.prebidRefreshCount > self.effectiveRefreshMax) bannerView?.stopRefresh()
             }
             if (self.config.debug) android.util.Log.d("SellwildAdView", "[prebidOnly] rendered — zone ${self.zoneId.orEmpty()}")
+            // Paid creative rendered — hide the house backdrop so a transparent or
+            // smaller-than-slot creative can't bleed through. NOTE: Prebid's
+            // rendering banner self-refreshes with a teardown gap the backdrop used
+            // to cover; that gap now shows the slot background briefly instead of
+            // house inventory. Acceptable vs. the bleed-through it prevents, and
+            // only affects PREBID_ONLY with refresh enabled.
+            self.setHouseVisible(false)
             self.listener?.onAdLoaded(self)
             // Best-effort: the rendering BannerView doesn't surface the winning
             // creative size to this callback, so report the primary. Multi-size
@@ -633,6 +655,9 @@ class SellwildAdView @JvmOverloads constructor(
             val self = this@SellwildAdView
             // Loud on purpose: this is how we diagnose why .prebidOnly renders blank.
             if (self.config.debug) android.util.Log.w("SellwildAdView", "[prebidOnly] failed to render — zone ${self.zoneId.orEmpty()}: ${exception?.message}")
+            // No-fill — surface the house backdrop (re-shown in case a prior fill
+            // hid it) so the slot isn't blank, then record the house impression.
+            self.setHouseVisible(true)
             self.listener?.onAdFailed(self, exception?.message ?: "Prebid ad failed")
             SellwildEventQueue.shared(self.context).track("adError", action = exception?.message, label = self.zoneId.orEmpty())
             self.recordHouseImpressionIfShowing()
