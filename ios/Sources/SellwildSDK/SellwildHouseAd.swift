@@ -122,6 +122,22 @@ public enum SellwildHouseAd {
             return
         }
         DispatchQueue.global(qos: .userInitiated).async {
+            // data: URI — listing photos from the static cache can be inline
+            // base64 (the feed's own cell decodes these too). Decode inline,
+            // size-capped; memory-cache only, no disk churn for a self-contained
+            // value. Without this, a data: photo fails SellwildSafeURL.imageURL's
+            // http/https check below and the slot shows a grey placeholder.
+            if urlString.hasPrefix("data:") {
+                if let data = decodeDataURI(urlString),
+                   data.count <= SellwildSafeURL.maxImageBytes,
+                   let image = UIImage(data: data) {
+                    memoryCache.setObject(image, forKey: key)
+                    DispatchQueue.main.async { completion(image) }
+                } else {
+                    DispatchQueue.main.async { completion(nil) }
+                }
+                return
+            }
             if let disk = diskURL(for: urlString),
                let data = try? Data(contentsOf: disk),
                let image = UIImage(data: data) {
@@ -142,5 +158,35 @@ public enum SellwildHouseAd {
             if let disk = diskURL(for: urlString) { try? data.write(to: disk) }
             DispatchQueue.main.async { completion(image) }
         }
+    }
+
+    /// Decode a `data:[...];base64,<payload>` URI into raw bytes. Mirrors the
+    /// feed cell's decoder so a listing served with an inline photo renders the
+    /// same in the house backdrop as it does in the feed.
+    private static func decodeDataURI(_ s: String) -> Data? {
+        guard let comma = s.firstIndex(of: ",") else { return nil }
+        let payload = String(s[s.index(after: comma)...])
+        return Data(base64Encoded: payload, options: .ignoreUnknownCharacters)
+    }
+
+    // MARK: Listing fallback selection
+
+    /// Whether a listing carries a usable (non-empty) primary photo URL. A
+    /// photoless listing renders as a grey placeholder, so the feed prefers to
+    /// skip it when picking a house-backfill listing.
+    static func hasUsablePhoto(_ listing: SellwildListing) -> Bool {
+        guard let url = listing.photos?.first?.url else { return false }
+        return !url.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Pick a listing to house-backfill an MREC slot, rotating by `row` so
+    /// adjacent slots don't repeat. Prefers listings that actually have a photo
+    /// (rotating within that subset); falls back to plain rotation over all
+    /// listings only when none have a usable photo. Returns nil when empty.
+    static func pickListing(from listings: [SellwildListing], row: Int) -> SellwildListing? {
+        guard !listings.isEmpty else { return nil }
+        let withPhoto = listings.filter(hasUsablePhoto)
+        let pool = withPhoto.isEmpty ? listings : withPhoto
+        return pool[((row % pool.count) + pool.count) % pool.count]
     }
 }

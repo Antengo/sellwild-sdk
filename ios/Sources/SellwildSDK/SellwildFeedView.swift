@@ -371,11 +371,11 @@ public final class SellwildFeedView: UIView {
     }
 
     /// Pick a listing to house-backfill an ad slot with when no CMS house image
-    /// is configured. Rotates by row so adjacent ad slots don't show the same
-    /// listing. Returns nil when there are no listings to draw from.
+    /// is configured. Prefers listings that actually have a photo (a photoless
+    /// listing renders a grey placeholder), rotating by row so adjacent ad slots
+    /// don't repeat. Returns nil when there are no listings to draw from.
     private func houseListing(for row: Int) -> SellwildListing? {
-        guard !listings.isEmpty else { return nil }
-        return listings[row % listings.count]
+        SellwildHouseAd.pickListing(from: listings, row: row)
     }
 
     fileprivate static func parseColor(_ hex: String?) -> UIColor? {

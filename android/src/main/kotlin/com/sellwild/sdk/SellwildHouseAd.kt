@@ -110,6 +110,18 @@ internal object SellwildHouseAd {
         val main = Handler(Looper.getMainLooper())
         Thread {
             val bitmap = runCatching {
+                // data: URI — listing photos from the static cache can be inline
+                // base64 (the feed's own cell decodes these too). Decode inline,
+                // size-capped; memory-cache only, no disk churn. Without this, a
+                // data: photo fails SellwildSafeUrl.imageUrl's http/https check
+                // below and the slot shows a grey placeholder.
+                if (url.startsWith("data:")) {
+                    val comma = url.indexOf(',')
+                    if (comma < 0) return@runCatching null
+                    val bytes = android.util.Base64.decode(url.substring(comma + 1), android.util.Base64.DEFAULT)
+                    if (bytes.size > SellwildSafeUrl.MAX_IMAGE_BYTES) return@runCatching null
+                    return@runCatching BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                }
                 val disk = diskFile(appContext, url)
                 if (disk.exists()) {
                     BitmapFactory.decodeFile(disk.absolutePath)
@@ -129,4 +141,27 @@ internal object SellwildHouseAd {
 
     private fun JSONObject.optAny(key: String): Any? =
         if (has(key) && !isNull(key)) get(key) else null
+
+    // ── Listing fallback selection ───────────────────────────────────────────
+
+    /**
+     * Whether a listing carries a usable (non-blank) primary photo URL. A
+     * photoless listing renders as a grey placeholder, so the feed prefers to
+     * skip it when picking a house-backfill listing.
+     */
+    fun hasUsablePhoto(listing: SellwildListing): Boolean =
+        !listing.primaryPhotoUrl.isNullOrBlank()
+
+    /**
+     * Pick a listing to house-backfill an MREC slot, rotating by [row] so
+     * adjacent slots don't repeat. Prefers listings that actually have a photo
+     * (rotating within that subset); falls back to plain rotation over all
+     * listings only when none have a usable photo. Null when empty.
+     */
+    fun pickListing(listings: List<SellwildListing>, row: Int): SellwildListing? {
+        if (listings.isEmpty()) return null
+        val withPhoto = listings.filter { hasUsablePhoto(it) }
+        val pool = if (withPhoto.isEmpty()) listings else withPhoto
+        return pool[((row % pool.size) + pool.size) % pool.size]
+    }
 }

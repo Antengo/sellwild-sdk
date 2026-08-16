@@ -1,14 +1,17 @@
 // SellwildHouseAdView.swift — renders the house-ad backdrop.
 //
 // Two content modes, driven by `SellwildHouseAd.resolve` precedence:
-//   - image:   a CMS-configured house creative (aspect-fit into the slot).
-//   - listing: a Sellwild listing card (full-bleed photo + title/price overlay),
-//              used when no image is configured. Supplied by the feed; only
-//              meaningful for the MREC slot (a 320x50 banner is too small).
+//   - image:   a CMS-configured house creative (aspect-fit, full-bleed into the
+//              slot; creatives are designed to the slot).
+//   - listing: a Sellwild listing rendered as a compact card that mirrors the
+//              feed's `ListingCardCell` — white card, photo on top, title + price
+//              below. Used when no image is configured. Supplied by the feed;
+//              only meaningful for the MREC slot (a 320x50 banner is too small).
 //
-// The view sits BEHIND the paid creative in `SellwildAdView` and is only ever
-// seen when that creative is absent. A tap opens the creative's click URL (or
-// the listing's tap URL) via the owning ad view.
+// The view sits BEHIND the paid creative in `SellwildAdView` and is shown only
+// when that creative is absent (no-fill). `SellwildAdView` hides it on paid
+// fill, so a transparent or undersized creative can't let it bleed through. A
+// tap opens the creative's click URL (or the listing's tap URL) via the owner.
 
 import UIKit
 
@@ -19,9 +22,22 @@ final class SellwildHouseAdView: UIView {
     var onTap: (() -> Void)?
 
     private let imageView = UIImageView()
-    private let gradient = CAGradientLayer()
     private let titleLabel = UILabel()
     private let priceLabel = UILabel()
+
+    // The image URL currently being loaded. Guards against a reused view (the
+    // owning SellwildAdView is pooled in feed cells) applying a stale async
+    // image after the content was swapped — the feed's own cell guards the same
+    // way via `currentImageURL`.
+    private var pendingImageURL: String?
+
+    // Full-bleed (image mode) vs card (listing mode) layout, toggled per content.
+    private var fullBleedConstraints: [NSLayoutConstraint] = []
+    private var cardConstraints: [NSLayoutConstraint] = []
+
+    // Card-mode price color — matches ListingCardCell's default link/price blue.
+    private static let priceColor = UIColor(red: 0.15, green: 0.39, blue: 0.92, alpha: 1)
+    private static let titleColor = UIColor(red: 0.07, green: 0.09, blue: 0.15, alpha: 1)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -32,37 +48,42 @@ final class SellwildHouseAdView: UIView {
         imageView.clipsToBounds = true
         addSubview(imageView)
 
-        // Bottom scrim so overlaid text stays legible on any listing photo. Only
-        // shown in listing mode.
-        gradient.colors = [UIColor.clear.cgColor, UIColor.black.withAlphaComponent(0.65).cgColor]
-        gradient.isHidden = true
-        layer.addSublayer(gradient)
-
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.font = .systemFont(ofSize: 14, weight: .semibold)
-        titleLabel.textColor = .white
+        titleLabel.font = .systemFont(ofSize: 15, weight: .bold)
+        titleLabel.textColor = Self.titleColor
         titleLabel.numberOfLines = 2
         titleLabel.isHidden = true
         addSubview(titleLabel)
 
         priceLabel.translatesAutoresizingMaskIntoConstraints = false
-        priceLabel.font = .systemFont(ofSize: 15, weight: .bold)
-        priceLabel.textColor = .white
+        priceLabel.font = .systemFont(ofSize: 18, weight: .bold)
+        priceLabel.textColor = Self.priceColor
         priceLabel.isHidden = true
         addSubview(priceLabel)
 
+        // Common: image pinned to the top edges in both modes.
         NSLayoutConstraint.activate([
             imageView.topAnchor.constraint(equalTo: topAnchor),
-            imageView.bottomAnchor.constraint(equalTo: bottomAnchor),
             imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
             imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
-
-            titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
-            titleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
-            priceLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
-            priceLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10),
-            titleLabel.bottomAnchor.constraint(equalTo: priceLabel.topAnchor, constant: -2),
         ])
+
+        // Image mode: photo fills the whole slot.
+        fullBleedConstraints = [
+            imageView.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ]
+
+        // Card mode: photo occupies the top ~60% of the slot; title + price sit
+        // on the white card below it (mirrors ListingCardCell's stacking).
+        cardConstraints = [
+            imageView.heightAnchor.constraint(equalTo: heightAnchor, multiplier: 0.6),
+            titleLabel.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: 8),
+            titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            titleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            priceLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            priceLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            priceLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+        ]
 
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
         isUserInteractionEnabled = true
@@ -70,41 +91,49 @@ final class SellwildHouseAdView: UIView {
 
     required init?(coder: NSCoder) { fatalError("Use init(frame:)") }
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        gradient.frame = CGRect(x: 0, y: bounds.height * 0.5, width: bounds.width, height: bounds.height * 0.5)
-    }
-
     @objc private func tapped() { onTap?() }
 
     /// Render a CMS house image (aspect-fit; creatives are designed to the slot).
     func showImage(_ creative: SellwildHouseAdCreative) {
-        setListingChrome(visible: false)
+        setCardLayout(false)
+        backgroundColor = .clear
         imageView.contentMode = .scaleAspectFit
         imageView.backgroundColor = .clear
-        SellwildHouseAd.loadImage(creative.imageURL) { [weak self] image in
-            self?.imageView.image = image
-        }
+        loadImage(creative.imageURL)
     }
 
-    /// Render a Sellwild listing as the house ad (full-bleed photo + overlay).
+    /// Render a Sellwild listing as a compact card (photo on top, title + price
+    /// below on a white card) so it reads like the feed's listing cards.
     func showListing(_ listing: SellwildListing, config: SellwildConfig) {
-        setListingChrome(visible: true)
+        setCardLayout(true)
+        backgroundColor = .white
         imageView.contentMode = .scaleAspectFill
         imageView.backgroundColor = UIColor(white: 0.93, alpha: 1)
         titleLabel.text = listing.title
         priceLabel.text = Self.formatPrice(currency: listing.currency, price: listing.price)
-        if let urlString = listing.photos?.first?.url {
-            SellwildHouseAd.loadImage(urlString) { [weak self] image in
-                self?.imageView.image = image
-            }
-        }
+        loadImage(listing.photos?.first?.url)
     }
 
-    private func setListingChrome(visible: Bool) {
-        gradient.isHidden = !visible
-        titleLabel.isHidden = !visible
-        priceLabel.isHidden = !visible
+    /// Switch between full-bleed (image) and card (listing) layout, showing the
+    /// title/price chrome only in card mode.
+    private func setCardLayout(_ card: Bool) {
+        titleLabel.isHidden = !card
+        priceLabel.isHidden = !card
+        NSLayoutConstraint.deactivate(card ? fullBleedConstraints : cardConstraints)
+        NSLayoutConstraint.activate(card ? cardConstraints : fullBleedConstraints)
+    }
+
+    /// Load `urlString` into the image view, ignoring a result that arrives after
+    /// the content was swapped (reused view). Clears any prior image first so a
+    /// stale photo never lingers under new content.
+    private func loadImage(_ urlString: String?) {
+        pendingImageURL = urlString
+        imageView.image = nil
+        guard let urlString, !urlString.isEmpty else { return }
+        SellwildHouseAd.loadImage(urlString) { [weak self] image in
+            guard let self, self.pendingImageURL == urlString else { return }
+            self.imageView.image = image
+        }
     }
 
     private static func formatPrice(currency: String?, price: String?) -> String {

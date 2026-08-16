@@ -626,6 +626,11 @@ public enum SellwildAdError: Error, LocalizedError {
 extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
 
     public func bannerViewDidReceiveAd(_ bannerView: GoogleMobileAds.BannerView) {
+        // Paid creative rendered — hide the house backdrop so a transparent or
+        // smaller-than-slot creative can't let it bleed through (re-shown on a
+        // subsequent no-fill). Mirrors the native path; don't rely on the
+        // creative being opaque and full-slot.
+        houseView?.isHidden = true
         delegate?.sellwildAdViewDidLoad?(self)
         // Report the actual rendered creative size so multi-size fallbacks (e.g.
         // a 320x50 win in a 300x250 request) resize the host slot.
@@ -637,6 +642,9 @@ extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
 
     public func bannerView(_ bannerView: GoogleMobileAds.BannerView,
                            didFailToReceiveAdWithError error: Error) {
+        // No-fill — surface the house backdrop (re-shown in case a prior fill
+        // hid it) so the slot isn't blank, then record the house impression.
+        houseView?.isHidden = false
         delegate?.sellwildAdView?(self, didFailWithError: error)
         SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adError", action: error.localizedDescription, label: zoneId ?? ""))
         recordHouseImpressionIfShowing()
@@ -679,6 +687,13 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         #if DEBUG
         print("[SellwildAdView][prebidOnly] ✅ rendered — size \(adSize), zone \(zoneId ?? "?")")
         #endif
+        // Paid creative rendered — hide the house backdrop so a transparent or
+        // smaller-than-slot creative can't let it bleed through. NOTE: Prebid's
+        // rendering banner self-refreshes with a teardown gap the backdrop used
+        // to cover; that gap now shows the slot background briefly instead of
+        // house inventory. Acceptable vs. the bleed-through it prevents, and only
+        // affects .prebidOnly with refresh enabled.
+        houseView?.isHidden = true
         delegate?.sellwildAdViewDidLoad?(self)
         delegate?.sellwildAdView?(self, didRenderWithSize: adSize)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
@@ -692,6 +707,9 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         print("[SellwildAdView][prebidOnly] ❌ failed to render — zone \(zoneId ?? "?"): "
             + "\(error.localizedDescription)")
         #endif
+        // No-fill — surface the house backdrop (re-shown in case a prior fill
+        // hid it) so the slot isn't blank, then record the house impression.
+        houseView?.isHidden = false
         delegate?.sellwildAdView?(self, didFailWithError: error)
         SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adError", action: error.localizedDescription, label: zoneId ?? ""))
         recordHouseImpressionIfShowing()

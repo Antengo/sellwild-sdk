@@ -340,13 +340,12 @@ class SellwildFeedView @JvmOverloads constructor(
 
     /**
      * Pick a listing to house-backfill an ad slot with when no CMS house image
-     * is configured. Rotates by position so adjacent ad slots don't show the
-     * same listing. Null when there are no listings to draw from.
+     * is configured. Prefers listings that actually have a photo (a photoless
+     * listing renders a grey placeholder), rotating by position so adjacent ad
+     * slots don't repeat. Null when there are no listings to draw from.
      */
-    private fun houseListingFor(position: Int): SellwildListing? {
-        if (listings.isEmpty()) return null
-        return listings[position % listings.size]
-    }
+    private fun houseListingFor(position: Int): SellwildListing? =
+        SellwildHouseAd.pickListing(listings, position)
 
     // -----------------------------------------------------------------
     // Adapter
