@@ -52,6 +52,14 @@ public enum SellwildHouseAd {
     ///   1. MOBILE_HOUSE_AD_BY_ZONE[zoneId]      — { "image": ..., "url": ... }
     ///   2. MOBILE_HOUSE_AD_BY_SIZE["<w>x<h>"]   — { "image": ..., "url": ... }
     ///   3. MOBILE_HOUSE_AD_IMAGE + MOBILE_HOUSE_AD_URL — the app-wide default
+    ///
+    /// The image field (top-level `MOBILE_HOUSE_AD_IMAGE` or the `image` inside a
+    /// by-zone / by-size object) accepts **either a single URL string or an array
+    /// of URL strings**. For an array, one URL is chosen at random on each call —
+    /// i.e. each no-fill — so backfill rotates. The chosen image is lazily
+    /// fetched by `loadImage` and cached (memory + disk) per URL the first time
+    /// it's selected.
+    ///
     /// Returns `nil` when disabled or no image is configured (the caller then
     /// falls back to a listing, or leaves the slot empty).
     static func resolve(
@@ -71,16 +79,28 @@ public enum SellwildHouseAd {
            let creative = creative(from: bySize[sizeKey]) {
             return creative
         }
-        if let image = nonEmpty(raw["MOBILE_HOUSE_AD_IMAGE"]) {
+        if let image = pickImage(raw["MOBILE_HOUSE_AD_IMAGE"]) {
             return SellwildHouseAdCreative(imageURL: image, clickURL: nonEmpty(raw["MOBILE_HOUSE_AD_URL"]))
         }
         return nil
     }
 
     /// Parse a `{ "image": ..., "url": ... }` override object into a creative.
+    /// `image` may be a single URL string or an array of URL strings.
     private static func creative(from value: Any?) -> SellwildHouseAdCreative? {
-        guard let obj = value as? [String: Any], let image = nonEmpty(obj["image"]) else { return nil }
+        guard let obj = value as? [String: Any], let image = pickImage(obj["image"]) else { return nil }
         return SellwildHouseAdCreative(imageURL: image, clickURL: nonEmpty(obj["url"]))
+    }
+
+    /// Resolve a single house image URL from a value that is either a single URL
+    /// string or an array of URL strings. For an array, a random non-empty
+    /// element is chosen (so each no-fill rotates); for a string, it's returned
+    /// when non-empty. Returns nil when there's no usable URL.
+    private static func pickImage(_ value: Any?) -> String? {
+        if let arr = value as? [Any] {
+            return arr.compactMap { nonEmpty($0) }.randomElement()
+        }
+        return nonEmpty(value)
     }
 
     private static func nonEmpty(_ value: Any?) -> String? {

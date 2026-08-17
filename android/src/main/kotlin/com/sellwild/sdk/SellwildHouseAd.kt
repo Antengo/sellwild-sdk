@@ -62,6 +62,13 @@ internal object SellwildHouseAd {
      *   1. MOBILE_HOUSE_AD_BY_ZONE[zoneId]      — { "image": ..., "url": ... }
      *   2. MOBILE_HOUSE_AD_BY_SIZE["<w>x<h>"]   — { "image": ..., "url": ... }
      *   3. MOBILE_HOUSE_AD_IMAGE + MOBILE_HOUSE_AD_URL — the app-wide default
+     *
+     * The image field (top-level `MOBILE_HOUSE_AD_IMAGE` or the `image` inside a
+     * by-zone / by-size object) accepts **either a single URL string or an array
+     * of URL strings**. For an array, one URL is chosen at random on each call —
+     * i.e. each no-fill — so backfill rotates. The chosen image is lazily fetched
+     * by [loadImage] and cached (memory + disk) per URL the first time selected.
+     *
      * Returns null when disabled or no image is configured (the caller then
      * falls back to a listing, or leaves the slot empty).
      */
@@ -75,15 +82,30 @@ internal object SellwildHouseAd {
         val sizeKey = "${widthDp}x${heightDp}"
         obj.optJSONObject("MOBILE_HOUSE_AD_BY_SIZE")?.optJSONObject(sizeKey)?.let { creative(it)?.let { c -> return c } }
 
-        nonEmpty(obj.optString("MOBILE_HOUSE_AD_IMAGE"))?.let {
+        pickImage(obj.opt("MOBILE_HOUSE_AD_IMAGE"))?.let {
             return Creative(it, nonEmpty(obj.optString("MOBILE_HOUSE_AD_URL")))
         }
         return null
     }
 
     private fun creative(obj: JSONObject): Creative? {
-        val image = nonEmpty(obj.optString("image")) ?: return null
+        val image = pickImage(obj.opt("image")) ?: return null
         return Creative(image, nonEmpty(obj.optString("url")))
+    }
+
+    /**
+     * Resolve a single house image URL from a value that is either a single URL
+     * string or a JSON array of URL strings. For an array, a random non-empty
+     * element is chosen (so each no-fill rotates); for a string, it's returned
+     * when non-empty. Returns null when there's no usable URL.
+     */
+    private fun pickImage(value: Any?): String? = when (value) {
+        is org.json.JSONArray ->
+            (0 until value.length()).mapNotNull { nonEmpty(value.optString(it)) }.let { urls ->
+                if (urls.isEmpty()) null else urls.random()
+            }
+        is String -> nonEmpty(value)
+        else -> null
     }
 
     private fun nonEmpty(s: String?): String? = s?.trim()?.takeIf { it.isNotEmpty() }

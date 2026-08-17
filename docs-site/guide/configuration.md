@@ -491,10 +491,10 @@ It is **mobile-only** — the web widget ignores every `MOBILE_HOUSE_AD_*` key. 
 | CDN key | Type | Default | Description |
 |---|---|---|---|
 | `MOBILE_HOUSE_AD_ENABLED` | bool | `true` | **Master kill switch.** `false` = no backfill at all (image *or* listing); slots stay blank. Fully remote. |
-| `MOBILE_HOUSE_AD_IMAGE` | string (URL) | — | App-wide house creative, sized to the slot. |
-| `MOBILE_HOUSE_AD_URL` | string | — | Click-through URL for the image. |
-| `MOBILE_HOUSE_AD_BY_SIZE` | object | — | Per-size overrides, keyed `"<w>x<h>"` — e.g. `{"300x250":{"image":"…","url":"…"},"320x50":{"image":"…","url":"…"}}`. |
-| `MOBILE_HOUSE_AD_BY_ZONE` | object | — | Per-zone overrides (most specific), keyed by zone id — e.g. `{"weatherbug-mobile-300x250":{"image":"…","url":"…"}}`. |
+| `MOBILE_HOUSE_AD_IMAGE` | string (URL) **or** array of URL strings | — | App-wide house creative(s), sized to the slot. An array **rotates**: one URL is chosen at random on each no-fill (lazily fetched, then cached per URL). |
+| `MOBILE_HOUSE_AD_URL` | string | — | Click-through URL for the image (shared across an array). |
+| `MOBILE_HOUSE_AD_BY_SIZE` | object | — | Per-size overrides, keyed `"<w>x<h>"` — e.g. `{"300x250":{"image":"…","url":"…"}}`. Each `image` may itself be a single URL or an array of URLs. |
+| `MOBILE_HOUSE_AD_BY_ZONE` | object | — | Per-zone overrides (most specific), keyed by zone id — e.g. `{"weatherbug-mobile-300x250":{"image":"…","url":"…"}}`. Each `image` may be a single URL or an array of URLs. |
 
 ### Image resolution precedence
 
@@ -506,12 +506,15 @@ If none resolve, the SDK falls to the listing fallback (feed MREC only) and then
 
 ### Local image caching
 
-House images are cached on-device — **in-memory plus on-disk in the app's caches directory** — so each image is fetched **at most once per device**. This is a deliberate request-saving measure; no personal data is involved (see [Privacy & Consent](/guide/privacy)).
+House images are cached on-device — **in-memory plus on-disk in the app's caches directory** — so each image is fetched **at most once per device**. This is a deliberate request-saving measure; no personal data is involved (see [Privacy & Consent](/guide/privacy)). When `image` is an **array**, images stay lazy: only the URL picked for a given no-fill is fetched, and each distinct URL is cached the first time it's selected — so a rotation of N creatives costs at most N fetches per device.
 
 ```json
 {
   "MOBILE_HOUSE_AD_ENABLED": true,
-  "MOBILE_HOUSE_AD_IMAGE": "https://cdn.sellwild.com/house/weatherbug-default.png",
+  "MOBILE_HOUSE_AD_IMAGE": [
+    "https://cdn.sellwild.com/house/weatherbug-default-1.png",
+    "https://cdn.sellwild.com/house/weatherbug-default-2.png"
+  ],
   "MOBILE_HOUSE_AD_URL": "https://weatherbug.com/app",
   "MOBILE_HOUSE_AD_BY_SIZE": {
     "300x250": { "image": "https://cdn.sellwild.com/house/wb-mrec.png",   "url": "https://weatherbug.com/mrec" },
