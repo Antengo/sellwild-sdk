@@ -169,9 +169,11 @@ object SellwildSDK {
             videoTakeoversPerSession = raw.optIntOrNull("VIDEO_TAKEOVERS_PER_SESSION")
                 ?: base.videoTakeoversPerSession,
 
-            // App identity
-            appBundleId = raw.optStringOrNull("APP_BUNDLE_ID") ?: base.appBundleId,
-            appStoreUrl = raw.optStringOrNull("APP_STORE_URL") ?: base.appStoreUrl,
+            // App identity — per-platform override wins (APP_*_ANDROID), else shared, else base.
+            // app.bundle must be the real Play package (com.aws.android), not the reverse-DNS
+            // bundle, or demand can't match it; app.storeurl must be the Play link.
+            appBundleId = raw.optStringOrNull("APP_BUNDLE_ID_ANDROID") ?: raw.optStringOrNull("APP_BUNDLE_ID") ?: base.appBundleId,
+            appStoreUrl = raw.optStringOrNull("APP_STORE_URL_ANDROID") ?: raw.optStringOrNull("APP_STORE_URL") ?: base.appStoreUrl,
 
             // Third-party
             boltive = raw.optBooleanOrNull("BOLTIVE") ?: base.boltive,

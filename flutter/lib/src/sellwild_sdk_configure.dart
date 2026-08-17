@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:http/http.dart' as http;
 
@@ -161,9 +162,11 @@ class SellwildSDK {
       videoTakeoversPerSession: integer('VIDEO_TAKEOVERS_PER_SESSION') ??
           base.videoTakeoversPerSession,
 
-      // App identity
-      appBundleId: str('APP_BUNDLE_ID') ?? base.appBundleId,
-      appStoreUrl: str('APP_STORE_URL') ?? base.appStoreUrl,
+      // App identity — per-platform override wins (APP_*_IOS/_ANDROID), else shared, else base.
+      appBundleId: str(Platform.isAndroid ? 'APP_BUNDLE_ID_ANDROID' : 'APP_BUNDLE_ID_IOS')
+          ?? str('APP_BUNDLE_ID') ?? base.appBundleId,
+      appStoreUrl: str(Platform.isAndroid ? 'APP_STORE_URL_ANDROID' : 'APP_STORE_URL_IOS')
+          ?? str('APP_STORE_URL') ?? base.appStoreUrl,
 
       // Prebid Server (carry over from base — not overridden by remote in 1.2.0)
       prebidServer: base.prebidServer,

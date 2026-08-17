@@ -1,6 +1,7 @@
 import React from 'react'
 import { Platform, requireNativeComponent, UIManager, ViewStyle, View, Text, StyleSheet, NativeSyntheticEvent } from 'react-native'
 import { resolveAdStack, type SellwildConfig, type AdSize } from '@sellwild/sdk-core'
+import { resolveAppIdentity } from './appIdentity'
 
 // Standard IAB mobile ad sizes — used to lock the host View dimensions.
 // The actual ad size is also propagated to native as the `size` prop label.
@@ -162,10 +163,13 @@ export function SellwildBanner({
   // of SellwildConfig is ignored on the native side. Note: TS core uses
   // `adRefreshInterval` (millis); the native side reads it as
   // `adRefreshIntervalMs`. The bridge translates.
+  // App identity is resolved per-platform here (iOS vs Android) from the raw
+  // CDN payload on `config.remote`; the native banner path reads these fields.
+  const { appBundleId, appStoreUrl } = resolveAppIdentity(config)
   const nativeConfig = {
     partnerCode: config.partnerCode,
-    appBundleId: config.appBundleId,
-    appStoreUrl: config.appStoreUrl,
+    appBundleId,
+    appStoreUrl,
     geo: config.geo,
     gamTag: config.gamTag,
     debug: config.debug,
