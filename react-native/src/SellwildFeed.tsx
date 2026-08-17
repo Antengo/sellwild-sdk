@@ -11,6 +11,7 @@ import {
   NativeSyntheticEvent,
 } from 'react-native'
 import type { SellwildConfig, SellwildListing } from '@sellwild/sdk-core'
+import { resolveAppIdentity } from './appIdentity'
 
 // ─── Native component bridge ─────────────────────────────────────────────────
 //
@@ -161,11 +162,14 @@ export function SellwildFeed({
   //
   // Note: TS core uses `adRefreshInterval` (ms); the native side
   // reads it as `adRefreshIntervalMs`. The bridge translates.
+  // App identity is resolved per-platform here (iOS vs Android) from the raw
+  // CDN payload on `config.remote`; both native bridges read these fields.
+  const { appBundleId, appStoreUrl } = resolveAppIdentity(config)
   const nativeConfig: Record<string, unknown> = {
     partnerCode: config.partnerCode,
     slug: config.slug,
-    appBundleId: config.appBundleId,
-    appStoreUrl: config.appStoreUrl,
+    appBundleId,
+    appStoreUrl,
     geo: config.geo,
     gamTag: config.gamTag,
     debug: config.debug,

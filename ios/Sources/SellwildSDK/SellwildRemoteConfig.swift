@@ -164,9 +164,11 @@ public enum SellwildSDK {
         if let v = raw["INTERSTITIALS_PER_SESSION"]   as? Int  { c.interstitialsPerSession = v }
         if let v = raw["VIDEO_TAKEOVERS_PER_SESSION"] as? Int  { c.videoTakeoversPerSession = v }
 
-        // App identity
-        if let v = raw["APP_BUNDLE_ID"] as? String { c.appBundleId = v }
-        if let v = raw["APP_STORE_URL"] as? String { c.appStoreUrl = v }
+        // App identity — per-platform override wins (APP_*_IOS), else the shared value.
+        // (On the native Prebid path app.bundle is derived from the store URL's numeric id,
+        // so APP_STORE_URL[_IOS] is the one that must carry the App Store link.)
+        if let v = (raw["APP_BUNDLE_ID_IOS"] as? String) ?? (raw["APP_BUNDLE_ID"] as? String) { c.appBundleId = v }
+        if let v = (raw["APP_STORE_URL_IOS"] as? String) ?? (raw["APP_STORE_URL"] as? String) { c.appStoreUrl = v }
 
         // Third-party
         if let v = raw["BOLTIVE"]           as? Bool   { c.boltive = v }
