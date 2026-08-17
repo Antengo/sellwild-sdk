@@ -347,6 +347,16 @@ public final class SellwildFeedView: UIView {
         delegate?.sellwildFeed(self, didRecordAdClickForZoneId: zoneId)
     }
 
+    /// Re-query self-sizing row heights after an ad row's content height changed
+    /// (fixed ad slot ↔ full-width fallback card) without reloading/recreating
+    /// cells — so the row grows to show a fallback listing fully in view, and
+    /// shrinks back when a paid creative fills. No animation to avoid scroll jank.
+    fileprivate func reflowRowHeights() {
+        UIView.performWithoutAnimation {
+            tableView.performBatchUpdates(nil)
+        }
+    }
+
     private func nearestViewController() -> UIViewController? {
         var responder: UIResponder? = self
         while let r = responder {
@@ -498,29 +508,36 @@ private final class HeaderCell: UITableViewCell {
     @objc private func poweredByTapped() { onPoweredByTap?() }
 }
 
-// MARK: - ListingCardCell (full-bleed photo, title, price, seller line)
+// MARK: - SellwildListingCardView (shared listing card: photo, title, price, seller)
+//
+// The single source of truth for how a listing renders in the feed — used by
+// `ListingCardCell` (organic listings) AND by `AdRowCell` as the full-width
+// house-ad fallback, so a fallback listing is pixel-identical to every other
+// listing card. The view IS the white card; hosts pin it with the feed's 8/16
+// insets.
 
-private final class ListingCardCell: UITableViewCell {
-    static let reuseId = "SellwildFeedListingCardCell"
+final class SellwildListingCardView: UIView {
 
-    private let card = UIView()
+    /// Set to make the card tappable. Used by the ad-row fallback, which isn't
+    /// routed through the table's `didSelectRowAt`; organic listing cells leave
+    /// this nil and are tapped via row selection instead.
+    var onTap: (() -> Void)? {
+        didSet { tapRecognizer.isEnabled = onTap != nil }
+    }
+
     private let photoView = UIImageView()
     private let titleLabel = UILabel()
     private let priceLabel = UILabel()
     private let sellerLabel = UILabel()
+    private lazy var tapRecognizer = UITapGestureRecognizer(target: self, action: #selector(tapped))
     private var imageTask: URLSessionDataTask?
     private var currentImageURL: String?
 
-    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: style, reuseIdentifier: reuseIdentifier)
-        selectionStyle = .none
-        backgroundColor = .clear
-        contentView.backgroundColor = .clear
-
-        card.translatesAutoresizingMaskIntoConstraints = false
-        card.backgroundColor = .white
-        card.layer.cornerRadius = 12
-        card.clipsToBounds = true
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .white
+        layer.cornerRadius = 12
+        clipsToBounds = true
 
         photoView.translatesAutoresizingMaskIntoConstraints = false
         photoView.contentMode = .scaleAspectFill
@@ -539,48 +556,38 @@ private final class ListingCardCell: UITableViewCell {
         sellerLabel.font = .systemFont(ofSize: 11, weight: .regular)
         sellerLabel.textColor = UIColor(red: 0.42, green: 0.45, blue: 0.50, alpha: 1)
 
-        contentView.addSubview(card)
-        card.addSubview(photoView)
-        card.addSubview(titleLabel)
-        card.addSubview(priceLabel)
-        card.addSubview(sellerLabel)
+        addSubview(photoView)
+        addSubview(titleLabel)
+        addSubview(priceLabel)
+        addSubview(sellerLabel)
 
         NSLayoutConstraint.activate([
-            card.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
-            card.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
-            card.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            card.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-
-            photoView.topAnchor.constraint(equalTo: card.topAnchor),
-            photoView.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-            photoView.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            photoView.topAnchor.constraint(equalTo: topAnchor),
+            photoView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            photoView.trailingAnchor.constraint(equalTo: trailingAnchor),
             photoView.heightAnchor.constraint(equalToConstant: 200),
 
             titleLabel.topAnchor.constraint(equalTo: photoView.bottomAnchor, constant: 12),
-            titleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
-            titleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
+            titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            titleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
 
             priceLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
-            priceLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
-            priceLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
+            priceLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            priceLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
 
             sellerLabel.topAnchor.constraint(equalTo: priceLabel.bottomAnchor, constant: 6),
-            sellerLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
-            sellerLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
-            sellerLabel.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -12),
+            sellerLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            sellerLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            sellerLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
         ])
+
+        addGestureRecognizer(tapRecognizer)
+        tapRecognizer.isEnabled = false
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { fatalError("Use init(frame:)") }
 
-    override func prepareForReuse() {
-        super.prepareForReuse()
-        imageTask?.cancel()
-        imageTask = nil
-        currentImageURL = nil
-        photoView.image = nil
-        photoView.backgroundColor = UIColor(white: 0.93, alpha: 1)
-    }
+    @objc private func tapped() { onTap?() }
 
     func configure(config: SellwildConfig, listing: SellwildListing) {
         titleLabel.text = listing.title
@@ -588,6 +595,15 @@ private final class ListingCardCell: UITableViewCell {
         priceLabel.textColor = SellwildFeedView.parseColor(config.linkColor) ?? UIColor(red: 0.15, green: 0.39, blue: 0.92, alpha: 1)
         sellerLabel.text = Self.formatSeller(listing.user)
         loadImage(listing.photos?.first?.url)
+    }
+
+    /// Clear transient state before reuse (mirrors the old cell's prepareForReuse).
+    func reset() {
+        imageTask?.cancel()
+        imageTask = nil
+        currentImageURL = nil
+        photoView.image = nil
+        photoView.backgroundColor = UIColor(white: 0.93, alpha: 1)
     }
 
     private func loadImage(_ urlString: String?) {
@@ -659,20 +675,80 @@ private final class ListingCardCell: UITableViewCell {
     }
 }
 
-// MARK: - AdRowCell (wraps SellwildAdView)
+// MARK: - ListingCardCell (thin wrapper hosting a SellwildListingCardView)
 
-private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
-    static let reuseId = "SellwildFeedAdRowCell"
+private final class ListingCardCell: UITableViewCell {
+    static let reuseId = "SellwildFeedListingCardCell"
 
-    private var adView: SellwildAdView?
-    private var boundZoneId: String?
-    private weak var owner: SellwildFeedView?
+    private let cardView = SellwildListingCardView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         selectionStyle = .none
         backgroundColor = .clear
         contentView.backgroundColor = .clear
+
+        cardView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(cardView)
+        NSLayoutConstraint.activate([
+            cardView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            cardView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+            cardView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            cardView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        cardView.reset()
+    }
+
+    func configure(config: SellwildConfig, listing: SellwildListing) {
+        cardView.configure(config: config, listing: listing)
+    }
+}
+
+// MARK: - AdRowCell (wraps SellwildAdView)
+
+private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
+    static let reuseId = "SellwildFeedAdRowCell"
+
+    private var adView: SellwildAdView?
+    // Full-width listing fallback shown when the ad no-fills and no CMS house
+    // IMAGE is configured — rendered with the SAME card as organic listings so
+    // it's pixel-identical, and it grows the row to its natural height.
+    private let fallbackCard = SellwildListingCardView()
+    private var boundZoneId: String?
+    private weak var owner: SellwildFeedView?
+    private var config: SellwildConfig?
+    private var houseListing: SellwildListing?
+    // A CMS house IMAGE renders in-slot via the ad view (MREC), so when one is
+    // configured we keep the fixed slot instead of the full-width listing card.
+    private var hasHouseImage = false
+    private var adConstraints: [NSLayoutConstraint] = []
+    private var cardConstraints: [NSLayoutConstraint] = []
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        selectionStyle = .none
+        backgroundColor = .clear
+        contentView.backgroundColor = .clear
+
+        fallbackCard.translatesAutoresizingMaskIntoConstraints = false
+        fallbackCard.isHidden = true
+        contentView.addSubview(fallbackCard)
+        cardConstraints = [
+            fallbackCard.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            fallbackCard.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+            fallbackCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            fallbackCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+        ]
+        fallbackCard.onTap = { [weak self] in
+            guard let self, let listing = self.houseListing else { return }
+            self.owner?.handleListingTap(listing)
+        }
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -680,15 +756,27 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
     func configure(config: SellwildConfig, adSize: AdSize, zoneId: String, owner: SellwildFeedView,
                    houseListing: SellwildListing?) {
         self.owner = owner
-        // Keep the house-backfill listing fresh even when the ad view is reused,
-        // so the next refresh's backdrop can render it.
-        adView?.houseFallbackListing = houseListing
-        if boundZoneId == zoneId, adView != nil { return }
+        self.config = config
+        self.houseListing = houseListing
+        self.hasHouseImage = SellwildHouseAd.resolve(
+            remoteValues: config.remoteValues, zoneId: zoneId, size: adSize.cgSize
+        ) != nil
+        if boundZoneId == zoneId, adView != nil {
+            // Reused for the same zone: keep the ad view (and its refresh cadence).
+            // Refresh the fallback content if it's currently showing.
+            if !fallbackCard.isHidden, let listing = houseListing {
+                fallbackCard.configure(config: config, listing: listing)
+            }
+            return
+        }
         boundZoneId = zoneId
         adView?.removeFromSuperview()
 
         let ad = SellwildAdView(config: config, adSize: adSize, zoneId: zoneId)
-        ad.houseFallbackListing = houseListing
+        // The feed owns the LISTING fallback (rendered full-width below); the ad
+        // view only handles a house IMAGE backdrop in-slot, so don't hand it a
+        // listing.
+        ad.houseFallbackListing = nil
         // Inherit ad-stack from CDN config so feed ads respect AD_STACK / AD_STACK_BY_ZONE
         ad.adStackOverride = SellwildAdStack.resolve(
             remoteValues: config.remoteValues,
@@ -698,28 +786,66 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
         ad.translatesAutoresizingMaskIntoConstraints = false
         ad.delegate = self
         contentView.addSubview(ad)
-        NSLayoutConstraint.activate([
+        adConstraints = [
             ad.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
             ad.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
             ad.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             ad.widthAnchor.constraint(equalToConstant: adSize.cgSize.width),
             ad.heightAnchor.constraint(equalToConstant: adSize.cgSize.height),
-        ])
+        ]
         adView = ad
+        showAdSlot()   // start on the fixed ad slot; swap to the card only on no-fill
         ad.load()
     }
 
+    /// Show the fixed MREC ad slot (paid creative or in-slot house image).
+    private func showAdSlot() {
+        NSLayoutConstraint.deactivate(cardConstraints)
+        fallbackCard.isHidden = true
+        adView?.isHidden = false
+        NSLayoutConstraint.activate(adConstraints)
+    }
+
+    /// Swap to the full-width listing fallback and grow the row to fit it.
+    private func showFallbackCard() {
+        guard let listing = houseListing, let config = config else { showAdSlot(); return }
+        NSLayoutConstraint.deactivate(adConstraints)
+        adView?.isHidden = true
+        fallbackCard.configure(config: config, listing: listing)
+        fallbackCard.isHidden = false
+        NSLayoutConstraint.activate(cardConstraints)
+        owner?.handleHouseAdImpression(boundZoneId ?? "")
+        owner?.reflowRowHeights()
+    }
+
     // MARK: SellwildAdViewDelegate
+
+    func sellwildAdViewDidLoad(_ adView: SellwildAdView) {
+        // Paid creative filled — ensure the ad slot is showing (shrinks the row
+        // back if a fallback card had grown it).
+        let wasCard = !fallbackCard.isHidden
+        showAdSlot()
+        if wasCard { owner?.reflowRowHeights() }
+    }
 
     func sellwildAdView(_ adView: SellwildAdView, didReceiveImpressionForZoneId zoneId: String) {
         owner?.handleAdImpression(zoneId)
     }
 
     func sellwildAdView(_ adView: SellwildAdView, didRecordHouseImpressionForZoneId zoneId: String) {
+        // Fired when the ad view's own house IMAGE backdrop shows on no-fill.
         owner?.handleHouseAdImpression(zoneId)
     }
 
-    func sellwildAdView(_ adView: SellwildAdView, didFailWithError error: Error) { /* swallow */ }
+    func sellwildAdView(_ adView: SellwildAdView, didFailWithError error: Error) {
+        // No-fill. A CMS house image (if any) renders in-slot via the ad view, so
+        // keep the fixed slot; otherwise show the full-width listing fallback.
+        if hasHouseImage || houseListing == nil {
+            showAdSlot()
+        } else {
+            showFallbackCard()
+        }
+    }
 
     func sellwildAdViewDidRecordClick(_ adView: SellwildAdView) {
         if let z = boundZoneId { owner?.handleAdClick(z) }
