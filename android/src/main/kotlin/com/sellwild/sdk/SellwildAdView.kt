@@ -324,6 +324,12 @@ class SellwildAdView @JvmOverloads constructor(
         houseView?.visibility = if (visible) VISIBLE else GONE
     }
 
+    /** Best-effort, SDK-surface mute of auto-playing creative audio in this
+     *  slot's WebView(s). No Prebid-fork dependency. See [SellwildAdAudioGuard]. */
+    private fun applyAudioGuard() {
+        SellwildAdAudioGuard.apply(this, config.remoteJson)
+    }
+
     private fun openHouseUrl(url: String?) {
         // http/https only — the click URL is remote CMS config; never hand an
         // arbitrary scheme (intent:/market:/deep link) to an ACTION_VIEW intent.
@@ -533,6 +539,7 @@ class SellwildAdView @JvmOverloads constructor(
                 // bleed through the transparent native template (parity with the
                 // GAM/prebid banner paths, whose opaque creatives cover it).
                 self.setHouseVisible(false)
+                self.applyAudioGuard()
                 self.listener?.onAdLoaded(self)
                 // Native fills to the (capped) height; report it so the host
                 // slot resizes to the template rather than clipping.
@@ -594,6 +601,7 @@ class SellwildAdView @JvmOverloads constructor(
             // later no-fill). Mirrors the native path; don't rely on the creative
             // being opaque and full-slot.
             self.setHouseVisible(false)
+            self.applyAudioGuard()
             self.listener?.onAdLoaded(self)
             // Report the actual rendered creative size so multi-size fallbacks
             // (e.g. a 320x50 win in a 300x250 request) resize the host slot.
@@ -640,6 +648,7 @@ class SellwildAdView @JvmOverloads constructor(
             // house inventory. Acceptable vs. the bleed-through it prevents, and
             // only affects PREBID_ONLY with refresh enabled.
             self.setHouseVisible(false)
+            self.applyAudioGuard()
             self.listener?.onAdLoaded(self)
             // Best-effort: the rendering BannerView doesn't surface the winning
             // creative size to this callback, so report the primary. Multi-size

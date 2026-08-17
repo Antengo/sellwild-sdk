@@ -516,6 +516,23 @@ On `both` zones, provision the GAM outstream creative **before** enabling video,
 
 ---
 
+## Muting auto-play creative audio (best-effort)
+
+Some banner / MRAID creatives autoplay video or audio **with sound**, unprompted. The SDK ships a best-effort **audio guard** that mutes it entirely on the client — no server or CMS change:
+
+- When a creative renders in a `SellwildAdView` slot, the SDK finds the ad's WebView(s) in its own view tree and injects a small mute shim (patches `HTMLMediaElement.play` to force-mute, mutes existing `<video>/<audio>`, and keeps muting new media via a `MutationObserver`), re-applied on a few short retries.
+- **Muted video still autoplays** (viewability is preserved); only *sound* is targeted.
+
+**Toggle (remote config / CDN):**
+```json
+{ "MOBILE_AD_MUTE_AUTOPLAY": false }
+```
+On by default; set `false` to disable.
+
+> **Best-effort, by design.** It reaches media in the WebView's **main frame** only — a creative whose media is inside a cross-origin `<iframe>` is walled off by the same-origin policy, and creatives rendered in **GAM/AdX's own** container (not ours) are out of reach. For those, block auto-play-audio creatives in Google Ad Manager. Full ad-quality coverage (auto-redirects, malware, heavy ads) is the domain of dedicated vendors (Boltive, AppHarbr); this guard targets the common unsolicited-audio case.
+
+---
+
 ## Native Ad Format
 
 The SDK supports the **Prebid native ad format** in the standard ad slot. Unlike banner/outstream — which the fork auto-renders — native returns raw **assets** (title, body, icon, main image, CTA, sponsoredBy) that the SDK lays out into a default template (icon + title + sponsoredBy on top, main media in the middle, body + CTA at the bottom) and registers for impression / click tracking. It's **off by default** and toggled entirely from remote config, so you enable/disable it per zone from the CDN with **no app release**.
