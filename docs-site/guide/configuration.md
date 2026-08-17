@@ -492,7 +492,7 @@ It is **mobile-only** — the web widget ignores every `MOBILE_HOUSE_AD_*` key. 
 |---|---|---|---|
 | `MOBILE_HOUSE_AD_ENABLED` | bool | `true` | **Master kill switch.** `false` = no backfill at all (image *or* listing); slots stay blank. Fully remote. |
 | `MOBILE_HOUSE_AD_IMAGE` | string (URL) **or** array of URL strings | — | App-wide house creative(s), sized to the slot. An array **rotates**: one URL is chosen at random on each no-fill (lazily fetched, then cached per URL). |
-| `MOBILE_HOUSE_AD_URL` | string | — | Click-through URL for the image (shared across an array). |
+| `MOBILE_HOUSE_AD_URL` | string **or** array of URL strings | — | Click-through URL(s). A single string is **shared** across all images; an **array pairs one click URL per image by index** (index-matched to `MOBILE_HOUSE_AD_IMAGE`; a missing/blank paired entry means no click). |
 | `MOBILE_HOUSE_AD_BY_SIZE` | object | — | Per-size overrides, keyed `"<w>x<h>"` — e.g. `{"300x250":{"image":"…","url":"…"}}`. Each `image` may itself be a single URL or an array of URLs. |
 | `MOBILE_HOUSE_AD_BY_ZONE` | object | — | Per-zone overrides (most specific), keyed by zone id — e.g. `{"weatherbug-mobile-300x250":{"image":"…","url":"…"}}`. Each `image` may be a single URL or an array of URLs. |
 
@@ -515,7 +515,10 @@ House images are cached on-device — **in-memory plus on-disk in the app's cach
     "https://cdn.sellwild.com/house/weatherbug-default-1.png",
     "https://cdn.sellwild.com/house/weatherbug-default-2.png"
   ],
-  "MOBILE_HOUSE_AD_URL": "https://weatherbug.com/app",
+  "MOBILE_HOUSE_AD_URL": [
+    "https://weatherbug.com/app?c=default-1",
+    "https://weatherbug.com/app?c=default-2"
+  ],
   "MOBILE_HOUSE_AD_BY_SIZE": {
     "300x250": { "image": "https://cdn.sellwild.com/house/wb-mrec.png",   "url": "https://weatherbug.com/mrec" },
     "320x50":  { "image": "https://cdn.sellwild.com/house/wb-banner.png", "url": "https://weatherbug.com/banner" }

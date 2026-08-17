@@ -68,6 +68,9 @@ internal object SellwildHouseAd {
      * of URL strings**. For an array, one URL is chosen at random on each call —
      * i.e. each no-fill — so backfill rotates. The chosen image is lazily fetched
      * by [loadImage] and cached (memory + disk) per URL the first time selected.
+     * The click URL (`MOBILE_HOUSE_AD_URL` / `url`) is paired the same way: a
+     * single string is shared across all images, or an array pairs one click URL
+     * per image by index.
      *
      * Returns null when disabled or no image is configured (the caller then
      * falls back to a listing, or leaves the slot empty).
@@ -82,30 +85,41 @@ internal object SellwildHouseAd {
         val sizeKey = "${widthDp}x${heightDp}"
         obj.optJSONObject("MOBILE_HOUSE_AD_BY_SIZE")?.optJSONObject(sizeKey)?.let { creative(it)?.let { c -> return c } }
 
-        pickImage(obj.opt("MOBILE_HOUSE_AD_IMAGE"))?.let {
-            return Creative(it, nonEmpty(obj.optString("MOBILE_HOUSE_AD_URL")))
-        }
+        pickCreative(obj.opt("MOBILE_HOUSE_AD_IMAGE"), obj.opt("MOBILE_HOUSE_AD_URL"))?.let { return it }
         return null
     }
 
-    private fun creative(obj: JSONObject): Creative? {
-        val image = pickImage(obj.opt("image")) ?: return null
-        return Creative(image, nonEmpty(obj.optString("url")))
-    }
+    private fun creative(obj: JSONObject): Creative? =
+        pickCreative(obj.opt("image"), obj.opt("url"))
 
     /**
-     * Resolve a single house image URL from a value that is either a single URL
-     * string or a JSON array of URL strings. For an array, a random non-empty
-     * element is chosen (so each no-fill rotates); for a string, it's returned
-     * when non-empty. Returns null when there's no usable URL.
+     * Pick a house creative — an image and its paired click URL — from `image`
+     * and `url` values that are each either a single URL string or a JSON array
+     * of URL strings. One index is chosen at random per call (per no-fill), so an
+     * array of images rotates. The click URL pairs by the image's **original**
+     * index when `url` is an array (one per image); a single `url` string is
+     * shared across all images; a missing/blank paired entry yields no click.
+     * Returns null when there's no usable image.
      */
-    private fun pickImage(value: Any?): String? = when (value) {
-        is org.json.JSONArray ->
-            (0 until value.length()).mapNotNull { nonEmpty(value.optString(it)) }.let { urls ->
-                if (urls.isEmpty()) null else urls.random()
-            }
-        is String -> nonEmpty(value)
-        else -> null
+    private fun pickCreative(imageValue: Any?, urlValue: Any?): Creative? {
+        // Non-empty images with their original index for URL pairing.
+        val images: List<Pair<Int, String>> = when (imageValue) {
+            is org.json.JSONArray ->
+                (0 until imageValue.length()).mapNotNull { i ->
+                    nonEmpty(imageValue.optString(i))?.let { i to it }
+                }
+            is String -> nonEmpty(imageValue)?.let { listOf(0 to it) } ?: emptyList()
+            else -> emptyList()
+        }
+        val picked = images.randomOrNull() ?: return null
+        // Click URL: array → paired by the image's original index; string → shared.
+        val click: String? = when (urlValue) {
+            is org.json.JSONArray ->
+                if (picked.first < urlValue.length()) nonEmpty(urlValue.optString(picked.first)) else null
+            is String -> nonEmpty(urlValue)
+            else -> null
+        }
+        return Creative(picked.second, click)
     }
 
     private fun nonEmpty(s: String?): String? = s?.trim()?.takeIf { it.isNotEmpty() }

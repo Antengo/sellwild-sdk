@@ -58,7 +58,9 @@ public enum SellwildHouseAd {
     /// of URL strings**. For an array, one URL is chosen at random on each call —
     /// i.e. each no-fill — so backfill rotates. The chosen image is lazily
     /// fetched by `loadImage` and cached (memory + disk) per URL the first time
-    /// it's selected.
+    /// it's selected. The click URL (`MOBILE_HOUSE_AD_URL` / `url`) is paired the
+    /// same way: a single string is shared across all images, or an array pairs
+    /// one click URL per image by index.
     ///
     /// Returns `nil` when disabled or no image is configured (the caller then
     /// falls back to a listing, or leaves the slot empty).
@@ -79,28 +81,48 @@ public enum SellwildHouseAd {
            let creative = creative(from: bySize[sizeKey]) {
             return creative
         }
-        if let image = pickImage(raw["MOBILE_HOUSE_AD_IMAGE"]) {
-            return SellwildHouseAdCreative(imageURL: image, clickURL: nonEmpty(raw["MOBILE_HOUSE_AD_URL"]))
+        if let creative = pickCreative(image: raw["MOBILE_HOUSE_AD_IMAGE"], url: raw["MOBILE_HOUSE_AD_URL"]) {
+            return creative
         }
         return nil
     }
 
     /// Parse a `{ "image": ..., "url": ... }` override object into a creative.
-    /// `image` may be a single URL string or an array of URL strings.
+    /// `image` and `url` may each be a single URL string or an array of URL
+    /// strings (see `pickCreative`).
     private static func creative(from value: Any?) -> SellwildHouseAdCreative? {
-        guard let obj = value as? [String: Any], let image = pickImage(obj["image"]) else { return nil }
-        return SellwildHouseAdCreative(imageURL: image, clickURL: nonEmpty(obj["url"]))
+        guard let obj = value as? [String: Any] else { return nil }
+        return pickCreative(image: obj["image"], url: obj["url"])
     }
 
-    /// Resolve a single house image URL from a value that is either a single URL
-    /// string or an array of URL strings. For an array, a random non-empty
-    /// element is chosen (so each no-fill rotates); for a string, it's returned
-    /// when non-empty. Returns nil when there's no usable URL.
-    private static func pickImage(_ value: Any?) -> String? {
-        if let arr = value as? [Any] {
-            return arr.compactMap { nonEmpty($0) }.randomElement()
+    /// Pick a house creative — an image and its paired click URL — from `image`
+    /// and `url` values that are each either a single URL string or an array of
+    /// URL strings. One index is chosen at random per call (per no-fill), so an
+    /// array of images rotates. The click URL pairs by the image's **original**
+    /// index when `url` is an array (one per image); a single `url` string is
+    /// shared across all images; a missing/blank paired entry yields no click.
+    /// Returns nil when there's no usable image.
+    private static func pickCreative(image imageValue: Any?, url urlValue: Any?) -> SellwildHouseAdCreative? {
+        // Non-empty images, keeping their original index for URL pairing.
+        let images: [(index: Int, url: String)]
+        if let arr = imageValue as? [Any] {
+            images = arr.enumerated().compactMap { pair in
+                nonEmpty(pair.element).map { (index: pair.offset, url: $0) }
+            }
+        } else if let single = nonEmpty(imageValue) {
+            images = [(index: 0, url: single)]
+        } else {
+            images = []
         }
-        return nonEmpty(value)
+        guard let picked = images.randomElement() else { return nil }
+        // Click URL: array → paired by the image's original index; string → shared.
+        let click: String?
+        if let urls = urlValue as? [Any] {
+            click = picked.index < urls.count ? nonEmpty(urls[picked.index]) : nil
+        } else {
+            click = nonEmpty(urlValue)
+        }
+        return SellwildHouseAdCreative(imageURL: picked.url, clickURL: click)
     }
 
     private static func nonEmpty(_ value: Any?) -> String? {

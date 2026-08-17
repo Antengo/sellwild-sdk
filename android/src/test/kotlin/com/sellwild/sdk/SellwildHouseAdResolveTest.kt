@@ -68,4 +68,56 @@ class SellwildHouseAdResolveTest {
         )
         assertNull(c)
     }
+
+    // URL pairing
+
+    @Test
+    fun `image and url arrays pair by index`() {
+        val json =
+            """{"MOBILE_HOUSE_AD_IMAGE":["https://x/a.png","https://x/b.png","https://x/c.png"],"MOBILE_HOUSE_AD_URL":["https://x/ua","https://x/ub","https://x/uc"]}"""
+        val paired = mapOf(
+            "https://x/a.png" to "https://x/ua",
+            "https://x/b.png" to "https://x/ub",
+            "https://x/c.png" to "https://x/uc",
+        )
+        repeat(80) {
+            val c = SellwildHouseAd.resolve(json, null, 300, 250)
+            assertNotNull(c)
+            assertEquals("click URL must pair with its image", paired[c!!.imageUrl], c.clickUrl)
+        }
+    }
+
+    @Test
+    fun `image array with single shared url`() {
+        val json = """{"MOBILE_HOUSE_AD_IMAGE":["https://x/a.png","https://x/b.png"],"MOBILE_HOUSE_AD_URL":"https://x/shared"}"""
+        repeat(20) {
+            assertEquals("https://x/shared", SellwildHouseAd.resolve(json, null, 300, 250)?.clickUrl)
+        }
+    }
+
+    @Test
+    fun `shorter url array leaves unpaired click null`() {
+        val json =
+            """{"MOBILE_HOUSE_AD_IMAGE":["https://x/a.png","https://x/b.png","https://x/c.png"],"MOBILE_HOUSE_AD_URL":["https://x/only0"]}"""
+        repeat(80) {
+            val c = SellwildHouseAd.resolve(json, null, 300, 250)
+            if (c?.imageUrl == "https://x/a.png") assertEquals("https://x/only0", c.clickUrl) else assertNull(c?.clickUrl)
+        }
+    }
+
+    @Test
+    fun `blank images keep url pairing by original index`() {
+        val json =
+            """{"MOBILE_HOUSE_AD_IMAGE":["","https://x/b.png","https://x/c.png"],"MOBILE_HOUSE_AD_URL":["https://x/u0","https://x/u1","https://x/u2"]}"""
+        repeat(80) {
+            val c = SellwildHouseAd.resolve(json, null, 300, 250)
+            assertNotNull(c)
+            if (c!!.imageUrl == "https://x/b.png") {
+                assertEquals("https://x/u1", c.clickUrl)
+            } else {
+                assertEquals("https://x/c.png", c.imageUrl)
+                assertEquals("https://x/u2", c.clickUrl)
+            }
+        }
+    }
 }
