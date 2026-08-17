@@ -383,15 +383,13 @@ class SellwildFeedView @JvmOverloads constructor(
             val cfg = config ?: return
             when (val row = rows[position]) {
                 is Row.Header -> (holder as HeaderHolder).view.bind(cfg, ::openUrl)
-                is Row.Listing -> (holder as ListingHolder).view.bind(cfg, row.listing) { listing ->
-                    val handled = listener?.onListingTap(listing) ?: false
-                    if (!handled) openUrl(listing.tapUrl(cfg.partnerCode, cfg.bhTag))
-                }
-                // MREC can house-backfill with a listing when no CMS image is set;
-                // a 320x50 banner is too small for a card, so it gets none.
-                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position))
-                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position))
-                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null)
+                is Row.Listing -> (holder as ListingHolder).view.bind(cfg, row.listing, ::handleFeedListingTap)
+                // MREC can house-backfill with a full-width listing card (same as
+                // organic listings) when no CMS image is set; a 320x50 banner is
+                // too small for a card, so it gets none.
+                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap)
+                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap)
+                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null, ::handleFeedListingTap)
             }
         }
     }
@@ -410,6 +408,14 @@ class SellwildFeedView @JvmOverloads constructor(
 
     private fun onAdClick(zoneId: String) {
         listener?.onAdClicked(zoneId)
+    }
+
+    /** Route a listing tap (organic card OR an ad-row full-width fallback card)
+     *  through the host hook, falling back to opening the listing URL. */
+    private fun handleFeedListingTap(listing: SellwildListing) {
+        val cfg = config ?: return
+        val handled = listener?.onListingTap(listing) ?: false
+        if (!handled) openUrl(listing.tapUrl(cfg.partnerCode, cfg.bhTag))
     }
 
     private fun openUrl(url: String?) {
@@ -630,15 +636,31 @@ class SellwildFeedView @JvmOverloads constructor(
 
     private class AdRowView(context: Context, private val size: AdSize) : FrameLayout(context) {
         private var adView: SellwildAdView? = null
+        // Full-width listing fallback shown when the ad no-fills and no CMS house
+        // IMAGE is configured — the SAME card as organic listings, so it's
+        // pixel-identical, and it grows the row to its natural height.
+        private val fallbackCard = ListingCardView(context)
         private var boundZoneId: String? = null
+        private var config: SellwildConfig? = null
+        private var houseListing: SellwildListing? = null
+        // A CMS house IMAGE renders in-slot via the ad view (MREC), so when one is
+        // configured we keep the fixed slot instead of the full-width card.
+        private var hasHouseImage = false
+        private var onHouseImpression: ((String) -> Unit)? = null
+        private var onListingTap: ((SellwildListing) -> Unit)? = null
+        private val slotPad = dp(context, 8)
 
         init {
             layoutParams = LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             )
-            val pad = dp(context, 8)
-            setPadding(pad, pad, pad, pad)
+            setPadding(slotPad, slotPad, slotPad, slotPad)
+            fallbackCard.visibility = GONE
+            addView(
+                fallbackCard,
+                LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
+            )
         }
 
         fun bind(
@@ -648,43 +670,93 @@ class SellwildFeedView @JvmOverloads constructor(
             onHouseImpression: (String) -> Unit,
             onClick: (String) -> Unit,
             houseListing: SellwildListing?,
+            onListingTap: (SellwildListing) -> Unit,
         ) {
-            // Keep the house-backfill listing fresh even when the ad view is
-            // reused, so the next refresh's backdrop can render it.
-            adView?.houseFallbackListing = houseListing
-            if (boundZoneId == zoneId && adView != null) return
+            this.config = config
+            this.houseListing = houseListing
+            this.onHouseImpression = onHouseImpression
+            this.onListingTap = onListingTap
+            this.hasHouseImage =
+                SellwildHouseAd.resolve(config.remoteJson, zoneId, size.width, size.height) != null
+
+            if (boundZoneId == zoneId && adView != null) {
+                // Reused for the same zone: keep the ad view (and its refresh
+                // cadence). Refresh the fallback content if it's currently showing.
+                if (fallbackCard.visibility == VISIBLE) {
+                    houseListing?.let { fallbackCard.bind(config, it) { l -> onListingTap(l) } }
+                }
+                return
+            }
             boundZoneId = zoneId
             // Destroy the outgoing ad view before replacing it. This holder is
             // being rebound to a DIFFERENT zone, so the old view is finished —
             // without destroy() its refresh Handler keeps auctioning/impressing
             // for the old zone on a detached view (a leak + invalid traffic).
             adView?.destroy()
-            removeAllViews()
+            adView?.let { removeView(it) }
             val ad = SellwildAdView(context).apply {
                 layoutParams = LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     Gravity.CENTER_HORIZONTAL,
                 )
-                houseFallbackListing = houseListing
+                // The feed owns the LISTING fallback (rendered full-width below);
+                // the ad view only handles a house IMAGE backdrop in-slot.
+                houseFallbackListing = null
                 // Inherit ad-stack from CDN config so feed ads respect AD_STACK / AD_STACK_BY_ZONE
                 adStackOverride = SellwildAdStack.resolve(config.remoteJson, zoneId, null)
                 listener = object : SellwildAdView.Listener {
-                    override fun onAdLoaded(adView: SellwildAdView) {}
+                    override fun onAdLoaded(adView: SellwildAdView) {
+                        // Paid creative filled — show the ad slot (shrink the row
+                        // back if a fallback card had grown it).
+                        showAdSlot()
+                    }
                     override fun onAdImpression(adView: SellwildAdView, zoneId: String) {
                         onImpression(zoneId)
                     }
                     override fun onHouseAdImpression(adView: SellwildAdView, zoneId: String) {
+                        // Fired when the ad view's own house IMAGE backdrop shows.
                         onHouseImpression(zoneId)
                     }
                     override fun onAdClicked(adView: SellwildAdView) { onClick(zoneId) }
-                    override fun onAdFailed(adView: SellwildAdView, message: String) {}
+                    override fun onAdFailed(adView: SellwildAdView, message: String) {
+                        // No-fill. A CMS house image (if any) renders in-slot via the
+                        // ad view; otherwise show the full-width listing fallback.
+                        if (this@AdRowView.hasHouseImage || this@AdRowView.houseListing == null) {
+                            showAdSlot()
+                        } else {
+                            showFallbackCard()
+                        }
+                    }
                 }
                 setup(config, size, zoneId)
             }
             adView = ad
             addView(ad)
+            showAdSlot()   // start on the fixed ad slot; swap to the card only on no-fill
             ad.load()
+        }
+
+        /** Show the fixed MREC ad slot (paid creative or in-slot house image). */
+        private fun showAdSlot() {
+            setPadding(slotPad, slotPad, slotPad, slotPad)
+            fallbackCard.visibility = GONE
+            adView?.visibility = VISIBLE
+            requestLayout()
+        }
+
+        /** Swap to the full-width listing fallback and grow the row to fit it. The
+         *  card carries its own 16dp/8dp insets, so zero the slot padding to match
+         *  the organic listing rows exactly. */
+        private fun showFallbackCard() {
+            val listing = houseListing ?: return showAdSlot()
+            val cfg = config ?: return showAdSlot()
+            setPadding(0, 0, 0, 0)
+            adView?.visibility = GONE
+            fallbackCard.bind(cfg, listing) { onListingTap?.invoke(it) }
+            fallbackCard.visibility = VISIBLE
+            onHouseImpression?.invoke(boundZoneId ?: "")
+            requestLayout()
         }
     }
 
