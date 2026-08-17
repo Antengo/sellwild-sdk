@@ -433,6 +433,7 @@ public final class SellwildAdView: UIView {
             // Native filled — hide the house backdrop so it can't show through the
             // transparent native template (otherwise: two overlapping ads).
             self.houseView?.isHidden = true
+            self.applyAudioGuard()
             self.delegate?.sellwildAdViewDidLoad?(self)
             // Native fills to the (capped) height; report it so the host slot
             // resizes to the template rather than clipping.
@@ -528,6 +529,12 @@ public final class SellwildAdView: UIView {
     private func recordHouseImpressionIfShowing() {
         guard let houseView, !houseView.isHidden else { return }
         delegate?.sellwildAdView?(self, didRecordHouseImpressionForZoneId: zoneId ?? "")
+    }
+
+    /// Best-effort, SDK-surface mute of auto-playing creative audio in this
+    /// slot's WebView(s). No Prebid-fork dependency. See `SellwildAdAudioGuard`.
+    private func applyAudioGuard() {
+        SellwildAdAudioGuard.apply(to: self, remoteValues: config.remoteValues)
     }
 
     private func openHouseURL(_ urlString: String?) {
@@ -631,6 +638,7 @@ extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
         // subsequent no-fill). Mirrors the native path; don't rely on the
         // creative being opaque and full-slot.
         houseView?.isHidden = true
+        applyAudioGuard()
         delegate?.sellwildAdViewDidLoad?(self)
         // Report the actual rendered creative size so multi-size fallbacks (e.g.
         // a 320x50 win in a 300x250 request) resize the host slot.
@@ -694,6 +702,7 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         // house inventory. Acceptable vs. the bleed-through it prevents, and only
         // affects .prebidOnly with refresh enabled.
         houseView?.isHidden = true
+        applyAudioGuard()
         delegate?.sellwildAdViewDidLoad?(self)
         delegate?.sellwildAdView?(self, didRenderWithSize: adSize)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
