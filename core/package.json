@@ -1,6 +1,6 @@
 {
   "name": "@sellwild/sdk-core",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Sellwild mobile advertising SDK - core types, API client, and ad configuration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
