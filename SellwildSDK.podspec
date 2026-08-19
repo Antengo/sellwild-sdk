@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'SellwildSDK'
-  s.version          = '1.7.3'
+  s.version          = '1.7.4'
   s.summary          = 'Sellwild mobile advertising SDK for iOS'
   s.description      = <<-DESC
     SellwildSDK provides native iOS components for embedding
