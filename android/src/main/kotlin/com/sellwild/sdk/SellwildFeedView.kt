@@ -425,9 +425,9 @@ class SellwildFeedView @JvmOverloads constructor(
                 // MREC can house-backfill with a full-width listing card (same as
                 // organic listings) when no CMS image is set; a 320x50 banner is
                 // too small for a card, so it gets none.
-                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap)
-                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap)
-                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null, ::handleFeedListingTap)
+                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize)
+                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize)
+                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null, ::handleFeedListingTap, ::onAdRowResize)
             }
         }
     }
@@ -454,6 +454,21 @@ class SellwildFeedView @JvmOverloads constructor(
         val cfg = config ?: return
         val handled = listener?.onListingTap(listing) ?: false
         if (!handled) openUrl(listing.tapUrl(cfg.partnerCode, cfg.bhTag))
+    }
+
+    /**
+     * An ad row settled to a new height after the initial layout — a paid fill,
+     * a no-fill, or the no-fill full-width fallback card morph. A child's own
+     * requestLayout() doesn't make a WRAP_CONTENT RecyclerView re-measure its
+     * total height, so in embedded mode (scrollEnabled = false) the height we
+     * emitted at first layout goes stale and the host under-sizes the container
+     * (last item clipped) until a full re-layout — e.g. detach/re-attach when the
+     * user opens a listing and returns. Force the recycler to re-measure, then
+     * re-emit the settled height on the next frame (reportContentHeight dedupes).
+     */
+    private fun onAdRowResize() {
+        recycler.requestLayout()
+        recycler.post { reportContentHeight() }
     }
 
     private fun openUrl(url: String?) {
@@ -549,6 +564,11 @@ class SellwildFeedView @JvmOverloads constructor(
                     cornerRadius = dp(context, 12).toFloat()
                     setColor(Color.WHITE)
                 }
+                // Clip children (the full-bleed photo) to the rounded background
+                // outline so the top corners round too — matches the iOS card
+                // (cornerRadius + clipsToBounds). Without this the photo overpaints
+                // the top corners and only the bottom (white bg) looks rounded.
+                clipToOutline = true
                 layoutParams = LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -686,6 +706,9 @@ class SellwildFeedView @JvmOverloads constructor(
         private var hasHouseImage = false
         private var onHouseImpression: ((String) -> Unit)? = null
         private var onListingTap: ((SellwildListing) -> Unit)? = null
+        // Notifies the feed that this row's height changed so it can force the
+        // recycler to re-measure and re-emit content height (embedded mode).
+        private var onRowResize: (() -> Unit)? = null
         private val slotPad = dp(context, 8)
 
         init {
@@ -710,11 +733,13 @@ class SellwildFeedView @JvmOverloads constructor(
             onClick: (String) -> Unit,
             houseListing: SellwildListing?,
             onListingTap: (SellwildListing) -> Unit,
+            onRowResize: () -> Unit,
         ) {
             this.config = config
             this.houseListing = houseListing
             this.onHouseImpression = onHouseImpression
             this.onListingTap = onListingTap
+            this.onRowResize = onRowResize
             this.hasHouseImage =
                 SellwildHouseAd.resolve(config.remoteJson, zoneId, size.width, size.height) != null
 
@@ -789,6 +814,7 @@ class SellwildFeedView @JvmOverloads constructor(
             fallbackCard.visibility = GONE
             adView?.visibility = VISIBLE
             requestLayout()
+            onRowResize?.invoke()
         }
 
         /** Swap to the full-width listing fallback and grow the row to fit it. The
@@ -803,6 +829,7 @@ class SellwildFeedView @JvmOverloads constructor(
             fallbackCard.visibility = VISIBLE
             onHouseImpression?.invoke(boundZoneId ?: "")
             requestLayout()
+            onRowResize?.invoke()
         }
     }
 

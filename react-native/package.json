@@ -1,6 +1,6 @@
 {
   "name": "@sellwild/react-native-sdk",
-  "version": "1.7.3",
+  "version": "1.7.4",
   "description": "Sellwild mobile advertising SDK for React Native",
   "main": "src/index.ts",
   "types": "src/index.ts",
