@@ -152,11 +152,15 @@ public enum SellwildPrebidMobile {
     ///     demand fall back to a smaller creative when the primary doesn't fill.
     ///   - bidderParams: Optional bidder params forwarded to Prebid Server as
     ///     impression-level ORTB ext data via `setImpORTBConfig`.
+    ///   - gpid: Optional client-side GPID (Global Placement ID). When set, it's
+    ///     written to both `imp.ext.gpid` and `imp.ext.data.pbadslot`. nil ⇒ no
+    ///     gpid/pbadslot is sent.
     public static func runBannerAuction(
         on bannerView: AdManagerBannerView,
         configId: String,
         adSizes: [CGSize],
         bidderParams: [String: Any] = [:],
+        gpid: String? = nil,
         video: Bool = false,
         completion: @escaping (ResultCode) -> Void
     ) {
@@ -179,10 +183,12 @@ public enum SellwildPrebidMobile {
             unit.videoParameters = SellwildVideo.outstreamParameters()
         }
 
-        // Forward raw CDN bidder params as ORTB imp.ext config. Prebid Server
-        // resolves stored requests against this on its side.
-        if !bidderParams.isEmpty,
-           let ortbExt = ortbExtJSON(for: bidderParams) {
+        // Forward raw CDN bidder params + the GPID as ORTB imp.ext config. Prebid
+        // Server resolves stored requests against this on its side. Emit whenever
+        // there are bidder params OR a gpid to send (gpid alone still needs an
+        // imp.ext, which the old bidder-params-only guard would have dropped).
+        if !bidderParams.isEmpty || gpid != nil,
+           let ortbExt = ortbExtJSON(for: bidderParams, gpid: gpid) {
             unit.setImpORTBConfig(ortbExt)
         }
 
@@ -229,21 +235,12 @@ public enum SellwildPrebidMobile {
     private static let defaultPrebidEndpoint =
         "https://prebid.sellwild.com/openrtb2/auction"
 
-    /// Wrap CDN bidder params as `imp.ext` JSON. Prebid Server merges this
-    /// with its own stored impression configuration.
-    private static func ortbExtJSON(for params: [String: Any]) -> String? {
-        // imp.ext expects bidder names lowercased; CDN ships CONSTANT_CASE.
-        var bidders: [String: Any] = [:]
-        for (k, v) in params {
-            bidders[k.lowercased()] = v
-        }
-        let imp: [String: Any] = ["ext": ["prebid": ["bidder": bidders]]]
-        guard JSONSerialization.isValidJSONObject(imp),
-              let data = try? JSONSerialization.data(withJSONObject: imp),
-              let s = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-        return s
+    /// Wrap CDN bidder params (+ optional GPID) as `imp.ext` JSON. Prebid Server
+    /// merges this with its own stored impression configuration. Delegates to
+    /// `SellwildGpid.impExtJSON` so gpid + pbadslot are constructed at the single
+    /// point shared with the `.prebidOnly` path.
+    private static func ortbExtJSON(for params: [String: Any], gpid: String?) -> String? {
+        SellwildGpid.impExtJSON(gpid: gpid, bidderParams: params)
     }
 
     /// Extract the numeric Apple App Store ID from a store URL, e.g.

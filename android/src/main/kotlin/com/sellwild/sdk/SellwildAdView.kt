@@ -82,6 +82,15 @@ class SellwildAdView @JvmOverloads constructor(
     var adStackOverride: SellwildAdStack? = null
 
     /**
+     * Effective GPID override for this placement. When set, wins over the
+     * remotely-resolved [SellwildGpid.resolveBase] base — the feed sets it to
+     * inject the per-slot occurrence suffix (`base#n`). Standalone views leave
+     * it null and auto-resolve the bare base. Internal — not a public RN/Flutter
+     * prop; set before [setup]/[load] so the prebidOnly imp-ext picks it up.
+     */
+    var gpidOverride: String? = null
+
+    /**
      * A listing the feed supplies as house-ad backfill when no CMS house image
      * (`HOUSE_AD_IMAGE`) is configured. Rendered only in the MREC slot — a
      * 320x50 banner is too small for a card. See [SellwildHouseAd].
@@ -145,6 +154,14 @@ class SellwildAdView @JvmOverloads constructor(
             zoneId,
             SellwildAdSizes.Size(adSize.width, adSize.height),
         )
+
+    /**
+     * The GPID value applied to this placement's Prebid imp — [gpidOverride]
+     * when the feed injected a suffixed value, else the remotely-resolved base.
+     * Null → no gpid/pbadslot is set on the imp.
+     */
+    private val effectiveGpid: String?
+        get() = gpidOverride ?: SellwildGpid.resolveBase(config.remoteJson, zoneId)
 
     fun setup(config: SellwildConfig, adSize: AdSize, zoneId: String? = null) {
         this.config = config
@@ -415,6 +432,7 @@ class SellwildAdView @JvmOverloads constructor(
             bidderParams = bidderParamsFromRemote(config),
             video = SellwildVideo.isEnabled(config.remoteJson, zoneId),
             adSizes = resolvedAdSizes,
+            gpid = effectiveGpid,
         )
     }
 
@@ -477,6 +495,11 @@ class SellwildAdView @JvmOverloads constructor(
             }
             // Multi-size fallback for the Prebid-rendered banner (primary above).
             SellwildAdSizes.applyRendering(resolvedAdSizes, this)
+            // GPID: emit imp.ext.gpid + imp.ext.data.pbadslot. This path sets no
+            // bidder params (that's the .both auction ext), so only the gpid is
+            // carried; null gpid → nothing is set. Verified the rendering
+            // BannerView exposes setImpOrtbConfig(String) in fork 3.3.2.
+            SellwildGpid.impExtJson(effectiveGpid)?.let { setImpOrtbConfig(it) }
         }
         prebidBanner = prebid
 

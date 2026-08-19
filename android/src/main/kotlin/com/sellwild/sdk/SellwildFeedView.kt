@@ -295,9 +295,11 @@ class SellwildFeedView @JvmOverloads constructor(
     private sealed class Row {
         object Header : Row()
         data class Listing(val listing: SellwildListing) : Row()
-        data class GamAd(val zoneId: String) : Row()
-        data class DirectAd(val zoneId: String) : Row()
-        data class Banner(val zoneId: String) : Row()
+        // Ad rows carry the resolved GPID value for their slot (base, or base#n
+        // when the same base is shared by more than one slot on this screen).
+        data class GamAd(val zoneId: String, val gpid: String? = null) : Row()
+        data class DirectAd(val zoneId: String, val gpid: String? = null) : Row()
+        data class Banner(val zoneId: String, val gpid: String? = null) : Row()
     }
 
     private fun buildRows(): List<Row> {
@@ -310,6 +312,21 @@ class SellwildFeedView @JvmOverloads constructor(
             ?: cfg.bottomBannerZid
         var gamIdx = 0
 
+        // First pass: emit rows and, for each ad slot, resolve its GPID base (no
+        // suffix yet). Track the base per ad row and count how many ad slots
+        // share each base so the second pass knows whether to disambiguate.
+        val adRowIndices = mutableListOf<Int>()   // index into `rows` of each ad row
+        val adBases = mutableListOf<String?>()     // base per ad row, row order
+        val baseCounts = mutableMapOf<String, Int>()
+
+        fun addAdRow(zone: String, make: () -> Row) {
+            val base = SellwildGpid.resolveBase(cfg.remoteJson, zone)
+            if (base != null) baseCounts[base] = (baseCounts[base] ?: 0) + 1
+            adRowIndices.add(rows.size)
+            adBases.add(base)
+            rows.add(make())
+        }
+
         for (token in schedule) {
             when (token) {
                 'L' -> if (listingsIterator.hasNext()) {
@@ -317,16 +334,37 @@ class SellwildFeedView @JvmOverloads constructor(
                 }
                 'G' -> {
                     val zone = pickZone(gamZones, gamIdx++)
-                    if (zone != null) rows.add(Row.GamAd(zone))
+                    if (zone != null) addAdRow(zone) { Row.GamAd(zone) }
                 }
                 'D' -> {
                     val zone = pickZone(gamZones, gamIdx++)
-                    if (zone != null) rows.add(Row.DirectAd(zone))
+                    if (zone != null) addAdRow(zone) { Row.DirectAd(zone) }
                 }
                 'B' -> {
-                    if (!bannerZone.isNullOrEmpty()) rows.add(Row.Banner(bannerZone))
+                    if (!bannerZone.isNullOrEmpty()) addAdRow(bannerZone) { Row.Banner(bannerZone) }
                 }
                 else -> { /* ignore unknown tokens for forward compat */ }
+            }
+        }
+
+        // Second pass: assign each ad slot's GPID. A base used by exactly one
+        // slot → base; a base used by k>1 slots → base#1, base#2, … in row order.
+        val seen = mutableMapOf<String, Int>()
+        for (i in adRowIndices.indices) {
+            val base = adBases[i] ?: continue
+            val gpid = if ((baseCounts[base] ?: 0) > 1) {
+                val n = (seen[base] ?: 0) + 1
+                seen[base] = n
+                "$base#$n"
+            } else {
+                base
+            }
+            val idx = adRowIndices[i]
+            rows[idx] = when (val r = rows[idx]) {
+                is Row.GamAd -> r.copy(gpid = gpid)
+                is Row.DirectAd -> r.copy(gpid = gpid)
+                is Row.Banner -> r.copy(gpid = gpid)
+                else -> r
             }
         }
         return rows
@@ -387,9 +425,9 @@ class SellwildFeedView @JvmOverloads constructor(
                 // MREC can house-backfill with a full-width listing card (same as
                 // organic listings) when no CMS image is set; a 320x50 banner is
                 // too small for a card, so it gets none.
-                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize)
-                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize)
-                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null, ::handleFeedListingTap, ::onAdRowResize)
+                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize)
+                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize)
+                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null, ::handleFeedListingTap, ::onAdRowResize)
             }
         }
     }
@@ -689,6 +727,7 @@ class SellwildFeedView @JvmOverloads constructor(
         fun bind(
             config: SellwildConfig,
             zoneId: String,
+            gpid: String?,
             onImpression: (String) -> Unit,
             onHouseImpression: (String) -> Unit,
             onClick: (String) -> Unit,
@@ -706,7 +745,11 @@ class SellwildFeedView @JvmOverloads constructor(
 
             if (boundZoneId == zoneId && adView != null) {
                 // Reused for the same zone: keep the ad view (and its refresh
-                // cadence). Refresh the fallback content if it's currently showing.
+                // cadence). Keep gpidOverride current — the same zone can carry a
+                // different occurrence suffix at a different feed position (the
+                // in-flight creative's imp-ext is not rebuilt on reuse). Refresh
+                // the fallback content if it's currently showing.
+                adView?.gpidOverride = gpid
                 if (fallbackCard.visibility == VISIBLE) {
                     houseListing?.let { fallbackCard.bind(config, it) { l -> onListingTap(l) } }
                 }
@@ -730,6 +773,9 @@ class SellwildFeedView @JvmOverloads constructor(
                 houseFallbackListing = null
                 // Inherit ad-stack from CDN config so feed ads respect AD_STACK / AD_STACK_BY_ZONE
                 adStackOverride = SellwildAdStack.resolve(config.remoteJson, zoneId, null)
+                // Inject the feed-computed GPID (base, or base#n for a shared
+                // base) before setup() so the prebidOnly imp-ext picks it up.
+                gpidOverride = gpid
                 listener = object : SellwildAdView.Listener {
                     override fun onAdLoaded(adView: SellwildAdView) {
                         // Paid creative filled — show the ad slot (shrink the row
