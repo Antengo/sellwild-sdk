@@ -152,6 +152,8 @@ object SellwildPrebidMobile {
      * @param bidderParams   Optional CDN bidder params (raw CONSTANT_CASE
      *                       passthrough). Forwarded to Prebid Server as
      *                       `imp.ext.prebid.bidder` JSON.
+     * @param gpid           Optional Global Placement ID. When set, emitted as
+     *                       both `imp.ext.gpid` and `imp.ext.data.pbadslot`.
      * @param completion     Called with the Prebid [ResultCode] after the
      *                       auction completes (and after `loadAd()` is fired).
      */
@@ -165,6 +167,7 @@ object SellwildPrebidMobile {
         bidderParams: Map<String, Any?> = emptyMap(),
         video: Boolean = false,
         adSizes: List<SellwildAdSizes.Size> = emptyList(),
+        gpid: String? = null,
         completion: ((ResultCode) -> Unit)? = null,
     ) {
         val unit = if (video) {
@@ -183,7 +186,9 @@ object SellwildPrebidMobile {
             api = listOf(Signals.Api.MRAID_3, Signals.Api.OMID_1)
         }
 
-        ortbExtJson(bidderParams)?.let { unit.setImpOrtbConfig(it) }
+        // Build imp-ext once: gpid (+ pbadslot) and bidder params together. Set
+        // even when there are no bidder params, as long as a gpid is present.
+        ortbExtJson(bidderParams, gpid)?.let { unit.setImpOrtbConfig(it) }
 
         val request = AdManagerAdRequest.Builder().build()
         unit.fetchDemand(request, OnCompleteListener { result ->
@@ -313,26 +318,14 @@ object SellwildPrebidMobile {
     }
 
     /**
-     * Wrap CDN bidder params as `imp.ext.prebid.bidder` JSON. Bidder names are
-     * lowercased — CDN ships CONSTANT_CASE, Prebid expects lowercase.
+     * Wrap CDN bidder params as `imp.ext.prebid.bidder` JSON, optionally with a
+     * [gpid] (emitted as `imp.ext.gpid` + `imp.ext.data.pbadslot`). Delegates to
+     * [SellwildGpid.impExtJson] so the `.both` and `.prebidOnly` paths build the
+     * imp-ext through one construction point. Returns null when there is nothing
+     * to set (no bidder params AND no gpid).
      */
-    internal fun ortbExtJson(params: Map<String, Any?>): String? {
-        if (params.isEmpty()) return null
-        val bidders = JSONObject()
-        for ((k, v) in params) {
-            if (v == null) continue
-            bidders.put(k.lowercase(), v)
-        }
-        if (bidders.length() == 0) return null
-        val ext = JSONObject().apply {
-            put("ext", JSONObject().apply {
-                put("prebid", JSONObject().apply {
-                    put("bidder", bidders)
-                })
-            })
-        }
-        return ext.toString()
-    }
+    internal fun ortbExtJson(params: Map<String, Any?>, gpid: String? = null): String? =
+        SellwildGpid.impExtJson(gpid, params)
 
     // Test-only seam to reset the bootstrap latch.
     internal fun resetForTesting() {

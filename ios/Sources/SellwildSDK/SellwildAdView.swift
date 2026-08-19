@@ -46,6 +46,13 @@ public final class SellwildAdView: UIView {
     /// `AD_STACK` / `AD_STACK_BY_ZONE` config — intended for QA / testing.
     public var adStackOverride: SellwildAdStack?
 
+    /// Optional GPID override. When set it wins over the config-resolved base —
+    /// `SellwildFeedView` injects `base#n` here so two ad slots that share a base
+    /// on one screen stay unique. Standalone views leave this nil and auto-resolve
+    /// the bare base from config. Internal on purpose: gpid is resolved from CMS
+    /// config, not a public RN/Flutter-facing property.
+    var gpidOverride: String?
+
     public weak var delegate: SellwildAdViewDelegate?
 
     /// A listing the feed supplies as house-ad backfill when no CMS house image
@@ -70,6 +77,13 @@ public final class SellwildAdView: UIView {
             zoneId: zoneId,
             primary: adSize.cgSize
         )
+    }
+
+    /// The effective GPID for this placement: an explicit `gpidOverride` (the
+    /// feed injects `base#n` for repeated bases) else the config-resolved base.
+    /// nil ⇒ no gpid/pbadslot is sent.
+    private var resolvedGpid: String? {
+        gpidOverride ?? SellwildGpid.resolveBase(remoteValues: config.remoteValues, zoneId: zoneId)
     }
 
     // MARK: Private
@@ -277,6 +291,7 @@ public final class SellwildAdView: UIView {
             configId: configId,
             adSizes: resolvedAdSizes,
             bidderParams: [:],
+            gpid: resolvedGpid,
             video: SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId)
         ) { [weak self] result in
             guard let self else { return }
@@ -340,6 +355,13 @@ public final class SellwildAdView: UIView {
         prebidWaitAttempts = 0
 
         let banner = ensurePrebidBanner(configId: configId)
+        // Attach the GPID to the Prebid-rendered impression. This path makes its
+        // own PBS bid request (no GAM), so it sets imp.ext directly on the
+        // rendering banner — gpid + pbadslot only, no bidder params (those are
+        // server-side stored config). Skipped entirely when no base resolves.
+        if let ortbExt = SellwildGpid.impExtJSON(gpid: resolvedGpid) {
+            banner.setImpORTBConfig(ortbExt)
+        }
         // Prebid's rendering banner owns its own auto-refresh; mirror the GAM
         // cadence when configured — floored like the GAM timer so a mis-scaled
         // AD_REFRESH_INTERVAL can't drive a sub-second refresh storm. The refresh
