@@ -94,6 +94,9 @@ public final class SellwildFeedView: UIView {
     private var schedule: String
     private var listings: [SellwildListing] = []
     private var rows: [Row] = [.header]
+    /// Effective GPID per ad row, keyed by row index. Repopulated on every
+    /// `rebuildRows()` so `base#n` disambiguation reflects the current screen.
+    private var gpidByRowIndex: [Int: String] = [:]
 
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let refreshControl = UIRefreshControl()
@@ -281,7 +284,34 @@ public final class SellwildFeedView: UIView {
 
     private func rebuildRows() {
         rows = buildRows()
+        gpidByRowIndex = computeGpids(for: rows)
         tableView.reloadData()
+    }
+
+    /// Compute the effective GPID for every ad row on this screen, keyed by row
+    /// index. Resolves each ad slot's base from config (per its zone) in row
+    /// order, then disambiguates bases shared by more than one slot with a
+    /// 1-based `#n` suffix via `SellwildGpid.disambiguate` — so gpid/pbadslot are
+    /// unique per placement even when zones share a base. Rows whose base
+    /// resolves to nil are omitted (no gpid sent for that slot).
+    private func computeGpids(for rows: [Row]) -> [Int: String] {
+        var adRowIndices: [Int] = []
+        var bases: [String?] = []
+        for (i, row) in rows.enumerated() {
+            let zone: String
+            switch row {
+            case .gamAd(let z), .directAd(let z), .banner(let z): zone = z
+            default: continue
+            }
+            adRowIndices.append(i)
+            bases.append(SellwildGpid.resolveBase(remoteValues: config.remoteValues, zoneId: zone))
+        }
+        let values = SellwildGpid.disambiguate(bases)
+        var out: [Int: String] = [:]
+        for (slot, rowIndex) in adRowIndices.enumerated() {
+            if let v = values[slot] { out[rowIndex] = v }
+        }
+        return out
     }
 
     private func buildRows() -> [Row] {
@@ -435,13 +465,15 @@ extension SellwildFeedView: UITableViewDataSource, UITableViewDelegate {
             let cell = tableView.dequeueReusableCell(withIdentifier: AdRowCell.reuseId, for: indexPath) as! AdRowCell
             // MREC can house-backfill with a listing when no CMS image is set.
             cell.configure(config: config, adSize: .mrec300x250, zoneId: zone, owner: self,
-                           houseListing: houseListing(for: indexPath.row))
+                           houseListing: houseListing(for: indexPath.row),
+                           gpid: gpidByRowIndex[indexPath.row])
             return cell
         case .banner(let zone):
             let cell = tableView.dequeueReusableCell(withIdentifier: AdRowCell.reuseId, for: indexPath) as! AdRowCell
             // 320x50 is too small for a listing card — CMS house image only.
             cell.configure(config: config, adSize: .banner320x50, zoneId: zone, owner: self,
-                           houseListing: nil)
+                           houseListing: nil,
+                           gpid: gpidByRowIndex[indexPath.row])
             return cell
         }
     }
@@ -754,7 +786,7 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
     required init?(coder: NSCoder) { fatalError() }
 
     func configure(config: SellwildConfig, adSize: AdSize, zoneId: String, owner: SellwildFeedView,
-                   houseListing: SellwildListing?) {
+                   houseListing: SellwildListing?, gpid: String?) {
         self.owner = owner
         self.config = config
         self.houseListing = houseListing
@@ -783,6 +815,9 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
             zoneId: zoneId,
             override: nil
         )
+        // Inject the feed-computed GPID (base, or base#n when the base repeats on
+        // this screen). nil ⇒ the ad view auto-resolves the bare base from config.
+        ad.gpidOverride = gpid
         ad.translatesAutoresizingMaskIntoConstraints = false
         ad.delegate = self
         contentView.addSubview(ad)
