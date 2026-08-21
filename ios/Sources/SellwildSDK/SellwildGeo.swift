@@ -57,6 +57,28 @@ public struct SellwildGeo: Codable, Equatable {
         if let v = type { g["type"] = v }
         return g
     }
+
+    /// Map an ISO-3166-1 alpha-2 country code to alpha-3 for North America only
+    /// (oRTB `device.geo.country` wants alpha-3). Returns nil for anything
+    /// outside this set, so callers skip sending an unmapped country.
+    static func northAmericaAlpha3(alpha2: String) -> String? {
+        switch alpha2.uppercased() {
+        case "US": return "USA"   // United States
+        case "CA": return "CAN"   // Canada
+        case "MX": return "MEX"   // Mexico
+        case "GT": return "GTM"   // Guatemala
+        case "BZ": return "BLZ"   // Belize
+        case "SV": return "SLV"   // El Salvador
+        case "HN": return "HND"   // Honduras
+        case "NI": return "NIC"   // Nicaragua
+        case "CR": return "CRI"   // Costa Rica
+        case "PA": return "PAN"   // Panama
+        case "GL": return "GRL"   // Greenland
+        case "BM": return "BMU"   // Bermuda
+        case "PM": return "SPM"   // Saint-Pierre & Miquelon
+        default: return nil
+        }
+    }
 }
 
 /// Process-wide current geo, readable by ANY SDK surface — the native ads path,

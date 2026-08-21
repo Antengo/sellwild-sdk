@@ -42,6 +42,30 @@ data class SellwildGeo(
         type?.let { g.put("type", it) }
         return if (g.length() > 0) g else null
     }
+
+    companion object {
+        /**
+         * Map an ISO-3166-1 alpha-2 country code to alpha-3 for North America
+         * only (oRTB `device.geo.country` wants alpha-3). Returns null for
+         * anything outside this set, so callers skip an unmapped country.
+         */
+        fun northAmericaAlpha3(alpha2: String): String? = when (alpha2.uppercase()) {
+            "US" -> "USA"   // United States
+            "CA" -> "CAN"   // Canada
+            "MX" -> "MEX"   // Mexico
+            "GT" -> "GTM"   // Guatemala
+            "BZ" -> "BLZ"   // Belize
+            "SV" -> "SLV"   // El Salvador
+            "HN" -> "HND"   // Honduras
+            "NI" -> "NIC"   // Nicaragua
+            "CR" -> "CRI"   // Costa Rica
+            "PA" -> "PAN"   // Panama
+            "GL" -> "GRL"   // Greenland
+            "BM" -> "BMU"   // Bermuda
+            "PM" -> "SPM"   // Saint-Pierre & Miquelon
+            else -> null
+        }
+    }
 }
 
 /**
