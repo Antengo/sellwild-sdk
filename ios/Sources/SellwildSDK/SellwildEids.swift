@@ -1,10 +1,15 @@
 // SellwildEids.swift — partner-supplied external/extended user IDs (user.ext.eids).
 //
-// Authenticated universal IDs (UID2, ID5, LiveRamp RampID, …) are minted from the
-// user's email / login / consent, which only the host app holds — the SDK cannot
-// generate them. The partner obtains the ID(s) from their identity provider and
-// hands them to the SDK via `SellwildPrebidMobile.setExternalUserIds(_:)`; the SDK
-// formats them into OpenRTB `user.ext.eids` on every native Prebid auction.
+// Login-based universal IDs (UID2, LiveRamp RampID, …) are minted from the user's
+// email / login, which only the host app holds — the SDK cannot generate them. The
+// partner obtains those from their identity provider and hands them to the SDK via
+// `SellwildPrebidMobile.setExternalUserIds(_:)`.
+//
+// ID5 is different: it mints from first-party / probabilistic signals with just a
+// partner id (no login), so the SDK CAN resolve it automatically — see
+// `SellwildID5`, which feeds this registry's `id5` bucket like GrowthCode feeds
+// its own. Either way, the SDK formats the union into OpenRTB `user.ext.eids` on
+// every native Prebid auction.
 
 import Foundation
 import SellwildPrebidSDK
@@ -68,11 +73,18 @@ public extension SellwildPrebidMobile {
 enum SellwildEidRegistry {
     private static let lock = NSLock()
     private static var consumer: [SellwildEid] = []
+    private static var id5: [SellwildEid] = []
     private static var growthCode: [SellwildEid] = []
 
     /// Partner-supplied eids (from the public `setExternalUserIds`).
     static func setConsumer(_ eids: [SellwildEid]) {
         lock.lock(); consumer = eids; lock.unlock()
+        push()
+    }
+
+    /// SDK-resolved ID5 eids. Internal — set by `SellwildID5`.
+    static func setId5(_ eids: [SellwildEid]) {
+        lock.lock(); id5 = eids; lock.unlock()
         push()
     }
 
@@ -84,8 +96,16 @@ enum SellwildEidRegistry {
 
     private static func push() {
         lock.lock()
-        let consumerSources = Set(consumer.map { $0.source })
-        let merged = consumer + growthCode.filter { !consumerSources.contains($0.source) }
+        // Precedence on a source conflict: consumer > id5 > growthCode. First
+        // bucket to claim a source wins; later buckets' same-source entries drop.
+        var seen = Set<String>()
+        var merged: [SellwildEid] = []
+        for bucket in [consumer, id5, growthCode] {
+            for eid in bucket where !seen.contains(eid.source) {
+                merged.append(eid)
+                seen.insert(eid.source)
+            }
+        }
         lock.unlock()
 
         let mapped: [ExternalUserId] = merged.map { eid in
