@@ -232,7 +232,7 @@ public final class SellwildAPIClient {
             // path can key a per-state cache. Mirrors the web widget's
             // appendViewerHeaders seeding userLocation.state.
             if let http = response as? HTTPURLResponse {
-                Self.seedGeoStateIfEmpty(from: http)
+                Self.seedGeoFromCloudFrontIfEmpty(from: http)
             }
             do {
                 let parsed = try self?.parseListingsResponse(data: data)
@@ -297,17 +297,35 @@ public final class SellwildAPIClient {
         task.resume()
     }
 
-    /// Seed `SellwildGeoStore` state from the CloudFront viewer-country-region
-    /// header (case-insensitive) only when no state is already set. Never
-    /// overwrites a partner-supplied or previously-seeded state.
-    private static func seedGeoStateIfEmpty(from response: HTTPURLResponse) {
-        let current = SellwildGeoStore.current
-        if let existing = current?.state, !existing.isEmpty { return }
-        guard let region = response.value(forHTTPHeaderField: "CloudFront-Viewer-Country-Region"),
-              !region.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        var geo = current ?? SellwildGeo()
-        geo.state = region
-        SellwildGeoStore.current = geo
+    /// Seed `SellwildGeoStore` region + country from the CloudFront viewer
+    /// headers when not already set, then re-emit so `device.geo` reaches the
+    /// auction. `applyGlobalORTB()` runs only at bootstrap + `setGeo(_:)` (not
+    /// per-auction), so a bare store write would never make it into a request —
+    /// `setGeo` persists the store AND re-emits. Never overwrites a
+    /// partner-supplied or previously-seeded value. Country is restricted to a
+    /// North America alpha-2 → alpha-3 map (oRTB wants alpha-3); anything outside
+    /// NA is skipped rather than sent unmapped.
+    private static func seedGeoFromCloudFrontIfEmpty(from response: HTTPURLResponse) {
+        var geo = SellwildGeoStore.current ?? SellwildGeo()
+        var changed = false
+
+        if (geo.state ?? "").isEmpty,
+           let region = response.value(forHTTPHeaderField: "CloudFront-Viewer-Country-Region")?
+               .trimmingCharacters(in: .whitespacesAndNewlines), !region.isEmpty {
+            geo.state = region
+            changed = true
+        }
+
+        if (geo.country ?? "").isEmpty,
+           let alpha2 = response.value(forHTTPHeaderField: "CloudFront-Viewer-Country")?
+               .trimmingCharacters(in: .whitespacesAndNewlines), !alpha2.isEmpty,
+           let alpha3 = SellwildGeo.northAmericaAlpha3(alpha2: alpha2) {
+            geo.country = alpha3
+            changed = true
+        }
+
+        guard changed else { return }
+        SellwildPrebidMobile.setGeo(geo)
     }
 
     // MARK: Send Analytics Event
