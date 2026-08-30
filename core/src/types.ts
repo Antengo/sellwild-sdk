@@ -293,6 +293,12 @@ export interface SellwildConfig {
   appBundleId?: string    // iOS bundle ID or Android package name (e.g., "com.mycompany.myapp")
   appStoreUrl?: string    // App Store or Google Play URL for the host app
 
+  // OpenRTB app.publisher.id — must equal the sellers.json seller id (== schain
+  // sid) for supply-chain coherence. Sourced from the CDN top-level PUBLISHER_ID
+  // (fallback SELLER_ID). Native platforms inject it into the oRTB auction; kept
+  // here for typed/webview passthrough parity.
+  appPublisherId?: string
+
   // Geo — partner-supplied location. On native (iOS/Android) it is emitted as
   // OpenRTB device.geo and seeds SellwildGeoStore; `state` is intended to key
   // per-state listing caches. Bridged to native via the config prop.

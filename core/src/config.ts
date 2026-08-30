@@ -6,6 +6,14 @@ export const SELLWILD_URL = 'https://sellwild.com'
 export const EVENTS_URL = 'https://events.sellwild.com/events/queue'
 export const DEFAULT_LISTINGS_URL = 'https://cache.sellwild.com/listings-img-data-sm'
 
+/**
+ * SDK version, stamped into analytics events (`attributes.sdkVersion`) and the
+ * config-fetch User-Agent beacon so the installed base can be censused. Keep in
+ * lockstep with the package manifests (package.json / podspec / build.gradle.kts
+ * / pubspec.yaml) and the native version constants.
+ */
+export const SDK_VERSION = '1.7.5'
+
 const defaultConfig: Omit<SellwildConfig, 'partnerCode'> = {
   slug: '',
   name: '',

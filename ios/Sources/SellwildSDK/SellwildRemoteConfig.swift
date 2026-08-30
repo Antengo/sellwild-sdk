@@ -19,6 +19,11 @@ import Foundation
 /// endpoint is derived from `partnerCode`), so ads still render.
 public enum SellwildSDK {
 
+    /// SDK version, stamped into analytics events (`attributes.sdkVersion`) and
+    /// the config-fetch User-Agent beacon. Keep in lockstep with the podspec
+    /// `s.version` and the other platforms' version constants.
+    public static let sdkVersion = "1.7.5"
+
     /// Build a `SellwildConfig` by fetching `partnerCode/slug.json` from the
     /// Sellwild CDN and applying it onto SDK defaults.
     ///
@@ -44,6 +49,10 @@ public enum SellwildSDK {
         var request = URLRequest(url: url)
         request.timeoutInterval = timeout
         request.cachePolicy = .reloadIgnoringLocalCacheData
+        // Version beacon: fires on every config fetch (independent of the events
+        // kill switch) and lands in CloudFront cs(User-Agent) logs for an
+        // installed-base census.
+        request.setValue("SellwildSDK/\(sdkVersion) (ios)", forHTTPHeaderField: "User-Agent")
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)

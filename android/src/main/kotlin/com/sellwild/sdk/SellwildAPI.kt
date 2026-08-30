@@ -246,6 +246,12 @@ data class SellwildEvent(
     val event: String,
     val action: String? = null,
     val label: String? = null,
+    /**
+     * Free-form passthrough bag that lands in BigQuery. The queue stamps
+     * `platform` + `sdkVersion` here at flush time; any caller-supplied keys are
+     * preserved.
+     */
+    val attributes: Map<String, Any?>? = null,
     val uid: String,
     val createdTime: Long = System.currentTimeMillis(),
 )
@@ -294,6 +300,18 @@ class SellwildEventQueue(context: Context) {
                         put("event", e.event)
                         e.action?.let { put("action", it) }
                         e.label?.let { put("label", it) }
+                        // Stamp platform + sdkVersion into the free-form
+                        // `attributes` bag for an installed-base census (queryable
+                        // in BigQuery, no server change). Merge preserves any
+                        // caller-supplied attribute keys.
+                        put(
+                            "attributes",
+                            JSONObject().apply {
+                                e.attributes?.forEach { (k, v) -> put(k, v) }
+                                put("platform", "android")
+                                put("sdkVersion", SellwildSDK.SDK_VERSION)
+                            },
+                        )
                         put("uid", e.uid)
                         put("createdTime", e.createdTime)
                     })

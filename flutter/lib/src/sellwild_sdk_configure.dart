@@ -45,7 +45,13 @@ class SellwildSDK {
     );
 
     try {
-      final response = await httpClient.get(url).timeout(timeout);
+      // Version beacon: fires on every config fetch (independent of the events
+      // kill switch) and lands in CloudFront cs(User-Agent) logs for an
+      // installed-base census.
+      final response = await httpClient.get(
+        url,
+        headers: {'User-Agent': 'SellwildSDK/$sellwildSdkVersion (flutter)'},
+      ).timeout(timeout);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final raw = jsonDecode(response.body) as Map<String, dynamic>;
         config = apply(raw, config);

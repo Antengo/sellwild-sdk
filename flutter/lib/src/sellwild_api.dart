@@ -47,17 +47,27 @@ class SellwildAPIClient {
     String? action,
     String? label,
     required String uid,
+    // Additional free-form passthrough attributes. `platform` + `sdkVersion` are
+    // always stamped on top for an installed-base census; caller keys are merged
+    // first so the SDK-reserved keys win on collision.
+    Map<String, dynamic>? attributes,
     // Analytics kill switch. Defaults on; pass the resolved remote-config
     // EVENTS_ENABLED so events can be stopped via CMS without an app release.
     bool enabled = true,
   }) async {
     if (!enabled) return;
     const url = 'https://events.sellwild.com/events/queue';
+    final mergedAttributes = <String, dynamic>{
+      ...?attributes,
+      'platform': 'flutter',
+      'sdkVersion': sellwildSdkVersion,
+    };
     final payload = jsonEncode([
       {
         'event': event,
         if (action != null) 'action': action,
         if (label != null) 'label': label,
+        'attributes': mergedAttributes,
         'uid': uid,
         'createdTime': DateTime.now().millisecondsSinceEpoch,
       }

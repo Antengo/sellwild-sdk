@@ -319,7 +319,16 @@ public final class SellwildAPIClient {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        guard let body = try? JSONEncoder().encode([event]) else { return }
+        // Stamp platform + sdkVersion into the free-form `attributes` bag for an
+        // installed-base census (queryable in BigQuery, no server change). Merge
+        // preserves any caller-supplied attribute keys.
+        var stamped = event
+        var attributes = stamped.attributes ?? [:]
+        attributes["platform"] = "ios"
+        attributes["sdkVersion"] = SellwildSDK.sdkVersion
+        stamped.attributes = attributes
+
+        guard let body = try? JSONEncoder().encode([stamped]) else { return }
         request.httpBody = body
 
         session.dataTask(with: request).resume()
@@ -361,13 +370,18 @@ public struct SellwildEvent: Codable {
     public let event: String
     public let action: String?
     public let label: String?
+    /// Free-form passthrough bag that lands in BigQuery. The SDK stamps
+    /// `platform` + `sdkVersion` here at send time (see `sendEvent`); callers may
+    /// supply additional keys, which are preserved.
+    public var attributes: [String: String]?
     public let uid: String
     public let createdTime: Int64
 
-    public init(event: String, action: String? = nil, label: String? = nil) {
+    public init(event: String, action: String? = nil, label: String? = nil, attributes: [String: String]? = nil) {
         self.event = event
         self.action = action
         self.label = label
+        self.attributes = attributes
         self.uid = SellwildSession.shared.uid
         self.createdTime = Int64(Date().timeIntervalSince1970 * 1000)
     }

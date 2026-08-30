@@ -1,5 +1,5 @@
 import { SellwildConfig, SellwildListingsResponse, SellwildListing, SdkEvent } from './types'
-import { EVENTS_URL, DEFAULT_LISTINGS_URL } from './config'
+import { EVENTS_URL, DEFAULT_LISTINGS_URL, SDK_VERSION } from './config'
 
 // Cached listing fetches keyed by URL
 const listingCache = new Map<string, Promise<SellwildListingsResponse>>()
@@ -91,10 +91,23 @@ class EventQueue {
   // configure() to honor the CMS EVENTS_ENABLED flag. When off, events are
   // neither queued nor sent (and any pending batch is dropped on flush).
   private enabled = true
+  // Host platform, stamped into every event's `attributes` bag for an
+  // installed-base census. Empty until the host calls setPlatform(); when unset
+  // the platform key is omitted (only sdkVersion is added).
+  private platform = ''
 
   /** Toggle event sending. Pass `config.eventsEnabled` from a resolved config. */
   setEnabled(enabled: boolean): void {
     this.enabled = enabled
+  }
+
+  /**
+   * Set the host platform stamped into every event's `attributes` bag (e.g.
+   * `'web'` or `'react-native'`). Call once at host startup — the web host
+   * passes `'web'`, the RN host passes `'react-native'`.
+   */
+  setPlatform(platform: string): void {
+    this.platform = platform
   }
 
   getUid(): string {
@@ -109,7 +122,16 @@ class EventQueue {
 
   push(event: SdkEvent): void {
     if (!this.enabled) return
-    this.events.push({ ...event, uid: this.getUid(), createdTime: Date.now() })
+    // Stamp platform + sdkVersion into the free-form `attributes` passthrough
+    // bag (queryable in BigQuery, no server change). Merge AFTER the caller's
+    // attributes so their keys win on collision — but platform/sdkVersion are
+    // SDK-reserved, so applied last here to guarantee they're present.
+    const attributes = {
+      ...event.attributes,
+      ...(this.platform ? { platform: this.platform } : {}),
+      sdkVersion: SDK_VERSION,
+    }
+    this.events.push({ ...event, attributes, uid: this.getUid(), createdTime: Date.now() })
     if (this.events.length > this.maxQueue) {
       this.events.splice(0, this.events.length - this.maxQueue) // drop oldest over the cap
     }
