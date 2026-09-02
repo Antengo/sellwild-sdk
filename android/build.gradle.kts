@@ -90,11 +90,13 @@ dependencies {
     // Package: com.sellwild.prebid (instead of org.prebid.mobile)
     // Main class: SellwildPrebid (instead of PrebidMobile)
     // Published to local Maven during development; JitPack for releases.
-    // 3.3.2-sw1: Sellwild patch exposing multiformat (banner+video) on the
-    // rendering BannerView so prebidOnly placements can serve outstream video
-    // (see Antengo/prebid-mobile-android BannerView.setAdUnitFormats).
-    implementation("com.sellwild:PrebidMobile-core:3.3.2-sw1")
-    implementation("com.sellwild:PrebidMobile-gamEventHandlers:3.3.2-sw1")
+    // 3.3.2-sw2: Sellwild fork patches for prebidOnly outstream video —
+    // sw1 exposes multiformat (banner+video) on the rendering BannerView
+    // (setAdUnitFormats/setVideoParameters); sw2 makes BasicParameterBuilder
+    // actually honor those VideoParameters on the rendering path (mimes/
+    // protocols/playbackmethod/api/placement/plcmt/durations), not just w/h.
+    implementation("com.sellwild:PrebidMobile-core:3.3.2-sw2")
+    implementation("com.sellwild:PrebidMobile-gamEventHandlers:3.3.2-sw2")
     implementation("com.google.android.gms:play-services-ads:23.6.0")
 
     // SellwildFeed (1.4.0+) — all-in-one native feed surface.
