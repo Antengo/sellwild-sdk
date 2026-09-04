@@ -264,6 +264,15 @@ class SellwildEventQueue(context: Context) {
     @Volatile
     var enabled: Boolean = true
 
+    /**
+     * Partner attribution. Set from the resolved config (CODE / partnerCode) so
+     * every event carries `attributes.code` — the events pipeline keys the
+     * partner off that field. When absent, the server stamps the partner as
+     * "Invalid", so this must be populated before any emit.
+     */
+    @Volatile
+    var partnerCode: String? = null
+
     val uid: String by lazy {
         prefs.getString("_sw_uid", null) ?: UUID.randomUUID().toString().also { id ->
             prefs.edit().putString("_sw_uid", id).apply()
@@ -296,6 +305,12 @@ class SellwildEventQueue(context: Context) {
                         e.label?.let { put("label", it) }
                         put("uid", e.uid)
                         put("createdTime", e.createdTime)
+                        // Partner attribution: the events pipeline reads the
+                        // partner from attributes.code. Without it every mobile
+                        // event lands as "Invalid".
+                        partnerCode?.takeIf { it.isNotEmpty() }?.let { code ->
+                            put("attributes", JSONObject().put("code", code))
+                        }
                     })
                 }
             }
