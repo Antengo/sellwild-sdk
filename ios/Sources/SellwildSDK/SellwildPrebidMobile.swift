@@ -260,10 +260,17 @@ public enum SellwildPrebidMobile {
     }
 
     /// Pull the OpenRTB app.publisher.id (== sellers.json seller id / schain sid)
-    /// from the CDN S2S_CONFIG blob, accepting either a string or a JSON number.
+    /// from the raw CDN payload's top-level `PUBLISHER_ID` (fallback `SELLER_ID`),
+    /// accepting either a string or a JSON number.
+    ///
+    /// Reads the top-level key directly rather than the old `S2S_CONFIG` dict
+    /// cast: S2S_CONFIG ships as a raw String (a JS object-literal), so the
+    /// `[String: Any]` cast always failed and the publisher id was never set.
+    /// Returns nil when absent/empty, preserving today's behavior (no
+    /// app.publisher.id emitted) for partners without the key.
     private static func resolvePublisherId(from config: SellwildConfig) -> String? {
-        guard let s2s = config.remoteValues?["S2S_CONFIG"] as? [String: Any] else { return nil }
-        switch s2s["publisherId"] ?? s2s["sellerId"] {
+        guard let raw = config.remoteValues else { return nil }
+        switch raw["PUBLISHER_ID"] ?? raw["SELLER_ID"] {
         case let s as String where !s.isEmpty: return s
         case let n as NSNumber: return n.stringValue
         default: return nil

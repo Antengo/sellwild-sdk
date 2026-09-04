@@ -30,6 +30,13 @@ import java.net.URL
 object SellwildSDK {
 
     /**
+     * SDK version, stamped into analytics events (`attributes.sdkVersion`) and
+     * the config-fetch User-Agent beacon. Keep in lockstep with the
+     * `build.gradle.kts` version and the other platforms' version constants.
+     */
+    const val SDK_VERSION = "1.7.5"
+
+    /**
      * Build a [SellwildConfig] by fetching `partnerCode/slug.json` from the
      * Sellwild CDN and applying it onto SDK defaults.
      *
@@ -54,6 +61,10 @@ object SellwildSDK {
             connection.requestMethod = "GET"
             connection.connectTimeout = timeoutMs
             connection.readTimeout = timeoutMs
+            // Version beacon: fires on every config fetch (independent of the
+            // events kill switch) and lands in CloudFront cs(User-Agent) logs for
+            // an installed-base census.
+            connection.setRequestProperty("User-Agent", "SellwildSDK/$SDK_VERSION (android)")
             if (connection.responseCode in 200..299) {
                 val body = connection.inputStream.bufferedReader().readText()
                 // Stash the raw payload so unmapped CDN keys (new bidders,

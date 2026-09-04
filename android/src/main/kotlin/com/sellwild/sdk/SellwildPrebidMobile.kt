@@ -82,9 +82,10 @@ object SellwildPrebidMobile {
                 Log.w(TAG, "MobileAds.initialize threw: ${e.message}")
             }
 
-            // Parse remoteJson ONCE per bootstrap — resolvePrebidServer and
-            // resolvePublisherId both read S2S_CONFIG out of it, and each parse
-            // allocates a fresh JSONObject tree over what can be a multi-KB blob.
+            // Parse remoteJson ONCE per bootstrap — resolvePrebidServer reads
+            // S2S_CONFIG out of it and resolvePublisherId reads the top-level
+            // PUBLISHER_ID/SELLER_ID key, and each parse allocates a fresh
+            // JSONObject tree over what can be a multi-KB blob.
             val remoteRoot = config.remoteJson?.let {
                 runCatching { JSONObject(it) }.getOrNull()
             }
@@ -273,14 +274,20 @@ object SellwildPrebidMobile {
 
     /**
      * Pull the OpenRTB app.publisher.id (== sellers.json seller id / schain sid)
-     * from the CDN S2S_CONFIG blob. Accepts `publisherId` or `sellerId`.
+     * from the raw CDN payload's top-level `PUBLISHER_ID` (fallback `SELLER_ID`).
+     *
+     * Reads the top-level key directly rather than the old `S2S_CONFIG` object
+     * lookup: S2S_CONFIG ships as a raw String (a JS object-literal), so
+     * `optJSONObject("S2S_CONFIG")` always returned null and the publisher id was
+     * never set. Returns null when absent/empty, preserving today's behavior (no
+     * app.publisher.id emitted) for partners without the key.
      *
      * Takes the already-parsed remoteJson root so bootstrap() and its siblings
      * don't each re-parse the same string.
      */
     internal fun resolvePublisherId(remoteRoot: JSONObject?): String? {
-        val s2s = remoteRoot?.optJSONObject("S2S_CONFIG") ?: return null
-        val id = s2s.optString("publisherId", "").ifEmpty { s2s.optString("sellerId", "") }
+        val root = remoteRoot ?: return null
+        val id = root.optString("PUBLISHER_ID", "").ifEmpty { root.optString("SELLER_ID", "") }
         return id.ifEmpty { null }
     }
 
