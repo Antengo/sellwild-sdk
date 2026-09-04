@@ -168,8 +168,13 @@ class SellwildAdView @JvmOverloads constructor(
         this.adSize = adSize
         this.zoneId = zoneId
 
-        // Honor the CMS analytics kill switch (EVENTS_ENABLED) before any emit.
-        SellwildEventQueue.shared(context).enabled = SellwildEvents.isEnabled(config.remoteJson)
+        // Honor the CMS analytics kill switch (EVENTS_ENABLED) and stamp the
+        // partner (attributes.code) so events attribute correctly — both before
+        // any emit.
+        SellwildEventQueue.shared(context).apply {
+            enabled = SellwildEvents.isEnabled(config.remoteJson)
+            partnerCode = config.partnerCode
+        }
 
         when {
             nativeEnabled -> ensureNativeAdView()
