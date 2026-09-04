@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 // MARK: - Data Models
 
@@ -158,10 +161,31 @@ public final class SellwildAPIClient {
     /// without an app release. When off, `sendEvent` is a no-op.
     public var eventsEnabled: Bool = true
 
+    // MARK: Event batching
+    // Analytics events are coalesced into array POSTs to /events/queue instead of
+    // one request per event. API Gateway + Lambda + SQS all bill per HTTP request,
+    // so batching cuts the whole chain. Mirrors the web/core/Android clients
+    // (batch 100, 10s flush, 1000 cap). The FIRST event of the process is sent
+    // immediately so session-start/attribution isn't delayed; the rest batch.
+    private let eventsURL = URL(string: "https://events.sellwild.com/events/queue")!
+    private let eventQueue = DispatchQueue(label: "com.sellwild.sdk.eventqueue")
+    private let maxEventBatch = 100
+    private let maxEventQueue = 1000
+    private let eventFlushInterval: TimeInterval = 10
+    private var eventBuffer: [SellwildEvent] = []
+    private var eventFlushTimer: DispatchSourceTimer?
+    private var hasFlushedFirstEvent = false
+    private var lifecycleObservers: [NSObjectProtocol] = []
+
     public static let shared = SellwildAPIClient()
 
     public init(session: URLSession = .shared) {
         self.session = session
+        registerLifecycleFlush()
+    }
+
+    deinit {
+        lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
     // MARK: Fetch Listings
@@ -312,26 +336,96 @@ public final class SellwildAPIClient {
 
     // MARK: Send Analytics Event
 
+    /// Queue an analytics event. The first event of the process is flushed
+    /// immediately; subsequent events are batched (up to `maxEventBatch`, or every
+    /// `eventFlushInterval`, whichever comes first) and sent as one array POST.
     public func sendEvent(_ event: SellwildEvent) {
         guard eventsEnabled else { return }
-        let url = URL(string: "https://events.sellwild.com/events/queue")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let stamped = stampEvent(event)
+        eventQueue.async {
+            self.eventBuffer.append(stamped)
+            if self.eventBuffer.count > self.maxEventQueue {
+                // Drop oldest so a persistently-failing endpoint can't grow unbounded.
+                self.eventBuffer.removeFirst(self.eventBuffer.count - self.maxEventQueue)
+            }
+            if !self.hasFlushedFirstEvent || self.eventBuffer.count >= self.maxEventBatch {
+                self.hasFlushedFirstEvent = true
+                self.flushEventsLocked()
+            } else {
+                self.scheduleEventFlushLocked()
+            }
+        }
+    }
 
-        // Stamp platform + sdkVersion into the free-form `attributes` bag for an
-        // installed-base census (queryable in BigQuery, no server change). Merge
-        // preserves any caller-supplied attribute keys.
+    /// Force-send any queued events now. Wired to app background/terminate so the
+    /// tail isn't lost while the flush timer is suspended in the background.
+    public func flushEvents() {
+        eventQueue.async { self.flushEventsLocked() }
+    }
+
+    /// Stamp platform + sdkVersion into the free-form `attributes` bag for an
+    /// installed-base census (queryable in BigQuery, no server change). Caller
+    /// keys are preserved; the SDK-reserved keys are applied last.
+    private func stampEvent(_ event: SellwildEvent) -> SellwildEvent {
         var stamped = event
         var attributes = stamped.attributes ?? [:]
         attributes["platform"] = "ios"
         attributes["sdkVersion"] = SellwildSDK.sdkVersion
         stamped.attributes = attributes
+        return stamped
+    }
 
-        guard let body = try? JSONEncoder().encode([stamped]) else { return }
+    // Must run on `eventQueue`.
+    private func flushEventsLocked() {
+        eventFlushTimer?.cancel()
+        eventFlushTimer = nil
+        guard !eventBuffer.isEmpty else { return }
+        let batch = Array(eventBuffer.prefix(maxEventBatch))
+        eventBuffer.removeFirst(batch.count)
+        guard let body = try? JSONEncoder().encode(batch) else { return }
+
+        var request = URLRequest(url: eventsURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
 
-        session.dataTask(with: request).resume()
+        session.dataTask(with: request) { [weak self] _, _, error in
+            guard let self = self, error != nil else { return }
+            // Re-queue on failure (capped) and reschedule so a transient outage
+            // recovers without waiting for the next event.
+            self.eventQueue.async {
+                self.eventBuffer.insert(contentsOf: batch, at: 0)
+                if self.eventBuffer.count > self.maxEventQueue {
+                    self.eventBuffer.removeFirst(self.eventBuffer.count - self.maxEventQueue)
+                }
+                self.scheduleEventFlushLocked()
+            }
+        }.resume()
+    }
+
+    // Must run on `eventQueue`.
+    private func scheduleEventFlushLocked() {
+        guard eventFlushTimer == nil else { return }
+        let timer = DispatchSource.makeTimerSource(queue: eventQueue)
+        timer.schedule(deadline: .now() + eventFlushInterval)
+        timer.setEventHandler { [weak self] in self?.flushEventsLocked() }
+        eventFlushTimer = timer
+        timer.resume()
+    }
+
+    private func registerLifecycleFlush() {
+        #if canImport(UIKit)
+        let names: [Notification.Name] = [
+            UIApplication.didEnterBackgroundNotification,
+            UIApplication.willTerminateNotification,
+        ]
+        for name in names {
+            let token = NotificationCenter.default.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
+                self?.flushEvents()
+            }
+            lifecycleObservers.append(token)
+        }
+        #endif
     }
 
     // MARK: Private
