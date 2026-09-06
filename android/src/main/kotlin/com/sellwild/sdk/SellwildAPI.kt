@@ -303,9 +303,24 @@ class SellwildEventQueue(context: Context) {
             val conn = URL(eventsUrl).openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
+            // Persistent connection: keep the socket alive so HttpURLConnection's
+            // pool can reuse it for the next flush instead of a fresh TCP+TLS
+            // handshake per batch. events.sellwild.com is fronted by an ALB whose
+            // cost scales with NewConnectionCount — one connection per POST was
+            // ~1 new connection per request. Reuse drops that toward ~0.
+            conn.setRequestProperty("Connection", "keep-alive")
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 15_000
             conn.doOutput = true
             OutputStreamWriter(conn.outputStream).use { it.write(json.toString()) }
-            conn.responseCode // trigger send
+            // Fully drain + close the response stream. This is what actually
+            // returns the socket to the keep-alive pool — reading only
+            // `responseCode` leaves the body unread and the connection is dropped
+            // (no reuse). Never call disconnect(): that evicts the pooled socket
+            // and defeats the whole point.
+            val code = conn.responseCode
+            (if (code in 200..299) conn.inputStream else conn.errorStream)
+                ?.use { it.readBytes() }
         }
     }
 
