@@ -782,6 +782,13 @@ class SellwildFeedView @JvmOverloads constructor(
                         // back if a fallback card had grown it).
                         showAdSlot()
                     }
+                    override fun onAdResize(adView: SellwildAdView, width: Int, height: Int) {
+                        // The creative resized the slot (multi-size shrink to the
+                        // won size, outstream video, or the capped native template).
+                        // Re-measure the row so the feed height tracks the actual
+                        // ad height instead of the reserved bounding box.
+                        onRowResize?.invoke()
+                    }
                     override fun onAdImpression(adView: SellwildAdView, zoneId: String) {
                         onImpression(zoneId)
                     }
