@@ -491,16 +491,31 @@ class SellwildAdView @JvmOverloads constructor(
         }
         prebidBanner = prebid
 
-        // Reserve the widest/tallest size the auction may return. Critical for
-        // prebidOnly: the rendering BannerView doesn't surface the winning
-        // creative size, so onAdResize can't shrink a clip back — reserving the
-        // bounding box up front prevents it.
+        // Reserve the widest/tallest size the auction may return so a wider/
+        // taller multi-size winner doesn't clip before it renders. Once the
+        // creative renders, the sw3 fork surfaces the won size and
+        // prebidBannerListener tightens this box down to it.
         val bound = SellwildAdSizes.boundingSize(resolvedAdSizes)
         val dp = context.resources.displayMetrics.density
         val widthPx = (bound.width * dp).toInt()
         val heightPx = (bound.height * dp).toInt()
         addView(prebid, LayoutParams(widthPx, heightPx))
         return prebid
+    }
+
+    /**
+     * Shrink the reserved multi-size prebidOnly slot to the creative that won.
+     * The slot is reserved at the bounding box of all requested sizes; once the
+     * sw3 fork surfaces the won size we resize the rendering banner to it so a
+     * smaller winner (e.g. 320x50 in a 300x250 + 320x50 slot) doesn't leave
+     * whitespace. No-op on a missing view or non-positive size.
+     */
+    private fun tightenPrebidSlot(widthDp: Int, heightDp: Int) {
+        if (widthDp <= 0 || heightDp <= 0) return
+        val pb = prebidBanner ?: return
+        val dp = context.resources.displayMetrics.density
+        pb.layoutParams = LayoutParams((widthDp * dp).toInt(), (heightDp * dp).toInt())
+        pb.requestLayout()
     }
 
     private fun loadPrebidOnly() {
@@ -661,10 +676,16 @@ class SellwildAdView @JvmOverloads constructor(
             self.setHouseVisible(false)
             self.applyAudioGuard()
             self.listener?.onAdLoaded(self)
-            // Best-effort: the rendering BannerView doesn't surface the winning
-            // creative size to this callback, so report the primary. Multi-size
-            // prebidOnly fallbacks won't shrink the slot — a known limitation.
-            self.listener?.onAdResize(self, self.adSize.width, self.adSize.height)
+            // sw3 fork getters surface the winning creative size, so tighten the
+            // reserved multi-size bounding box to what actually rendered and
+            // report it. Falls back to the primary when the fork can't report a
+            // size (0 — e.g. no-fill), preserving prior behavior.
+            val wonW = bannerView?.creativeWidth ?: 0
+            val wonH = bannerView?.creativeHeight ?: 0
+            val w = if (wonW > 0) wonW else self.adSize.width
+            val h = if (wonH > 0) wonH else self.adSize.height
+            self.tightenPrebidSlot(w, h)
+            self.listener?.onAdResize(self, w, h)
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
             SellwildEventQueue.shared(self.context).track("adRenderSucceeded", label = self.zoneId.orEmpty())
         }
