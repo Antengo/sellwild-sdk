@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 // MARK: - Data Models
 
@@ -161,13 +164,35 @@ public final class SellwildAPIClient {
     /// Partner attribution. Set from the resolved config (CODE / partnerCode) so
     /// every event carries `attributes.code` — the events pipeline keys the
     /// partner off that field. When absent, the server stamps the partner as
-    /// "Invalid", so this must be populated before any emit.
+    /// "Invalid", so this must be populated before any emit. Applied in
+    /// `stampEvent` so it rides every batched event.
     public var partnerCode: String?
+
+    // MARK: Event batching
+    // Analytics events are coalesced into array POSTs to /events/queue instead of
+    // one request per event. API Gateway + Lambda + SQS all bill per HTTP request,
+    // so batching cuts the whole chain. Mirrors the web/core/Android clients
+    // (batch 100, 10s flush, 1000 cap). The FIRST event of the process is sent
+    // immediately so session-start/attribution isn't delayed; the rest batch.
+    private let eventsURL = URL(string: "https://events.sellwild.com/events/queue")!
+    private let eventQueue = DispatchQueue(label: "com.sellwild.sdk.eventqueue")
+    private let maxEventBatch = 100
+    private let maxEventQueue = 1000
+    private let eventFlushInterval: TimeInterval = 10
+    private var eventBuffer: [SellwildEvent] = []
+    private var eventFlushTimer: DispatchSourceTimer?
+    private var hasFlushedFirstEvent = false
+    private var lifecycleObservers: [NSObjectProtocol] = []
 
     public static let shared = SellwildAPIClient()
 
     public init(session: URLSession = .shared) {
         self.session = session
+        registerLifecycleFlush()
+    }
+
+    deinit {
+        lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
     // MARK: Fetch Listings
@@ -336,26 +361,104 @@ public final class SellwildAPIClient {
 
     // MARK: Send Analytics Event
 
+    /// Queue an analytics event. The first event of the process is flushed
+    /// immediately; subsequent events are batched (up to `maxEventBatch`, or every
+    /// `eventFlushInterval`, whichever comes first) and sent as one array POST.
     public func sendEvent(_ event: SellwildEvent) {
         guard eventsEnabled else { return }
-        let url = URL(string: "https://events.sellwild.com/events/queue")!
-        var request = URLRequest(url: url)
+        let stamped = stampEvent(event)
+        eventQueue.async {
+            self.eventBuffer.append(stamped)
+            if self.eventBuffer.count > self.maxEventQueue {
+                // Drop oldest so a persistently-failing endpoint can't grow unbounded.
+                self.eventBuffer.removeFirst(self.eventBuffer.count - self.maxEventQueue)
+            }
+            if !self.hasFlushedFirstEvent || self.eventBuffer.count >= self.maxEventBatch {
+                self.hasFlushedFirstEvent = true
+                self.flushEventsLocked()
+            } else {
+                self.scheduleEventFlushLocked()
+            }
+        }
+    }
+
+    /// Force-send any queued events now. Wired to app background/terminate so the
+    /// tail isn't lost while the flush timer is suspended in the background.
+    public func flushEvents() {
+        eventQueue.async { self.flushEventsLocked() }
+    }
+
+    /// Stamp platform + sdkVersion into the free-form `attributes` bag for an
+    /// installed-base census (queryable in BigQuery, no server change). Caller
+    /// keys are preserved; the SDK-reserved keys are applied last.
+    private func stampEvent(_ event: SellwildEvent) -> SellwildEvent {
+        var stamped = event
+        var attributes = stamped.attributes ?? [:]
+        // `attributes.type` is the ios/android discriminator the events view reads
+        // (JSON_EXTRACT(attributes,'type') → the `type` column); `sdkVersion` is an
+        // installed-base census field.
+        attributes["type"] = "ios"
+        attributes["sdkVersion"] = SellwildSDK.sdkVersion
+        // Partner attribution: the events pipeline keys the partner off
+        // attributes.code; without it every event lands as "Invalid".
+        if let code = partnerCode, !code.isEmpty {
+            attributes["code"] = code
+        }
+        stamped.attributes = attributes
+        return stamped
+    }
+
+    // Must run on `eventQueue`.
+    private func flushEventsLocked() {
+        eventFlushTimer?.cancel()
+        eventFlushTimer = nil
+        guard !eventBuffer.isEmpty else { return }
+        let batch = Array(eventBuffer.prefix(maxEventBatch))
+        eventBuffer.removeFirst(batch.count)
+        guard let body = try? JSONEncoder().encode(batch) else { return }
+
+        var request = URLRequest(url: eventsURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        // Partner attribution: the events pipeline reads the partner from
-        // attributes.code. Without it every mobile event lands as "Invalid".
-        var stamped = event
-        if let code = partnerCode, !code.isEmpty {
-            var attrs = stamped.attributes ?? [:]
-            attrs["code"] = code
-            stamped.attributes = attrs
-        }
-
-        guard let body = try? JSONEncoder().encode([stamped]) else { return }
         request.httpBody = body
 
-        session.dataTask(with: request).resume()
+        session.dataTask(with: request) { [weak self] _, _, error in
+            guard let self = self, error != nil else { return }
+            // Re-queue on failure (capped) and reschedule so a transient outage
+            // recovers without waiting for the next event.
+            self.eventQueue.async {
+                self.eventBuffer.insert(contentsOf: batch, at: 0)
+                if self.eventBuffer.count > self.maxEventQueue {
+                    self.eventBuffer.removeFirst(self.eventBuffer.count - self.maxEventQueue)
+                }
+                self.scheduleEventFlushLocked()
+            }
+        }.resume()
+    }
+
+    // Must run on `eventQueue`.
+    private func scheduleEventFlushLocked() {
+        guard eventFlushTimer == nil else { return }
+        let timer = DispatchSource.makeTimerSource(queue: eventQueue)
+        timer.schedule(deadline: .now() + eventFlushInterval)
+        timer.setEventHandler { [weak self] in self?.flushEventsLocked() }
+        eventFlushTimer = timer
+        timer.resume()
+    }
+
+    private func registerLifecycleFlush() {
+        #if canImport(UIKit)
+        let names: [Notification.Name] = [
+            UIApplication.didEnterBackgroundNotification,
+            UIApplication.willTerminateNotification,
+        ]
+        for name in names {
+            let token = NotificationCenter.default.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
+                self?.flushEvents()
+            }
+            lifecycleObservers.append(token)
+        }
+        #endif
     }
 
     // MARK: Private
@@ -394,6 +497,10 @@ public struct SellwildEvent: Codable {
     public let event: String
     public let action: String?
     public let label: String?
+    /// Free-form passthrough bag that lands in BigQuery. The SDK stamps
+    /// `platform` + `sdkVersion` here at send time (see `sendEvent`); callers may
+    /// supply additional keys, which are preserved.
+    public var attributes: [String: String]?
     public let uid: String
     public let createdTime: Int64
     /// Partner attribution + metadata for the events pipeline. The server keys
@@ -402,10 +509,11 @@ public struct SellwildEvent: Codable {
     /// omitted when nil (synthesized `encodeIfPresent`).
     public var attributes: [String: String]?
 
-    public init(event: String, action: String? = nil, label: String? = nil) {
+    public init(event: String, action: String? = nil, label: String? = nil, attributes: [String: String]? = nil) {
         self.event = event
         self.action = action
         self.label = label
+        self.attributes = attributes
         self.uid = SellwildSession.shared.uid
         self.createdTime = Int64(Date().timeIntervalSince1970 * 1000)
     }

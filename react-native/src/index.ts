@@ -43,3 +43,9 @@ export {
 } from '@sellwild/sdk-core'
 
 export type { ConfigureOptions } from '@sellwild/sdk-core'
+
+// Stamp every analytics event with the host platform. Runs once on module load
+// so any code path that reaches the shared core `eventQueue` is attributed to
+// react-native (merged into `attributes.platform` alongside `sdkVersion`).
+import { eventQueue } from '@sellwild/sdk-core'
+eventQueue.setPlatform('react-native')

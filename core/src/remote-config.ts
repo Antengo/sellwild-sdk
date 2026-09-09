@@ -1,5 +1,5 @@
 import { SellwildConfig, AdStack } from './types'
-import { WIDGET_BASE_URL } from './config'
+import { WIDGET_BASE_URL, SDK_VERSION } from './config'
 
 /**
  * Remote config — fetches app config JSON from the CDN.
@@ -76,6 +76,11 @@ const KEY_MAP: Record<string, keyof SellwildConfig> = {
   SCHAIN_SID: 'schainSid',
   S2S_CONFIG: 's2sConfig',
   IAB_CATS: 'iabCats',
+
+  // OpenRTB app.publisher.id (== sellers.json seller id / schain sid). Ships as
+  // a top-level CDN key; native resolvers read it directly for oRTB injection.
+  // Mapped here for typed/webview passthrough parity.
+  PUBLISHER_ID: 'appPublisherId',
 
   // Ad network objects — mapped as-is (lowercase key)
   IX: 'ix',
@@ -276,7 +281,15 @@ export async function fetchRemoteConfig(
   }
 
   try {
-    const res = await fetch(url, { signal: controller.signal })
+    // Version beacon: a `SellwildSDK/<version> (react-native)` User-Agent fires
+    // on every config fetch (independent of the events kill switch) and lands in
+    // CloudFront cs(User-Agent) logs for an installed-base census. RN honors the
+    // custom UA; browsers ignore it (web is out of scope for app census). No
+    // query params — that would fragment the CloudFront cache.
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': `SellwildSDK/${SDK_VERSION} (react-native)` },
+    })
     if (!res.ok) return {}
 
     const raw = await res.json() as Record<string, unknown>
