@@ -127,7 +127,10 @@ class SellwildAPIClient(private val context: Context) {
                 // header when the partner hasn't supplied one, so the
                 // localized-listings path can key a per-state cache. Mirrors the
                 // web widget's appendViewerHeaders seeding userLocation.state.
-                seedGeoStateIfEmpty(connection.getHeaderField("CloudFront-Viewer-Country-Region"))
+                seedGeoFromCloudFrontIfEmpty(
+                    connection.getHeaderField("CloudFront-Viewer-Country-Region"),
+                    connection.getHeaderField("CloudFront-Viewer-Country"),
+                )
 
                 val body = connection.inputStream.bufferedReader().readText()
                 val response = parseListingsResponse(body)
@@ -163,15 +166,33 @@ class SellwildAPIClient(private val context: Context) {
         }
 
     /**
-     * Seed [SellwildGeoStore] state from the CloudFront viewer-country-region
-     * header only when no state is already set. Never overwrites a
-     * partner-supplied or previously-seeded state.
+     * Seed [SellwildGeoStore] region + country from the CloudFront viewer
+     * headers when not already set, then re-emit so `device.geo` reaches the
+     * auction. `applyGlobalOrtb()` runs only at bootstrap + [SellwildPrebidMobile.setGeo]
+     * (not per-auction), so a bare store write would never make it into a
+     * request — setGeo persists AND re-emits. Never overwrites a partner-supplied
+     * or previously-seeded value. Country is restricted to a North America
+     * alpha-2 → alpha-3 map (oRTB wants alpha-3); anything outside NA is skipped.
      */
-    private fun seedGeoStateIfEmpty(region: String?) {
-        val trimmed = region?.trim()?.takeIf { it.isNotEmpty() } ?: return
-        val current = SellwildGeoStore.current
-        if (!current?.state.isNullOrEmpty()) return
-        SellwildGeoStore.current = (current ?: SellwildGeo()).copy(state = trimmed)
+    private fun seedGeoFromCloudFrontIfEmpty(region: String?, countryAlpha2: String?) {
+        var geo = SellwildGeoStore.current ?: SellwildGeo()
+        var changed = false
+
+        val r = region?.trim()?.takeIf { it.isNotEmpty() }
+        if (geo.state.isNullOrEmpty() && r != null) {
+            geo = geo.copy(state = r)
+            changed = true
+        }
+
+        val alpha3 = countryAlpha2?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { SellwildGeo.northAmericaAlpha3(it) }
+        if (geo.country.isNullOrEmpty() && alpha3 != null) {
+            geo = geo.copy(country = alpha3)
+            changed = true
+        }
+
+        if (!changed) return
+        SellwildPrebidMobile.setGeo(geo)
     }
 
     fun clearCache() = listingCache.clear()
