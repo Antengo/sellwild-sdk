@@ -101,6 +101,12 @@ public final class SellwildFeedView: UIView {
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let refreshControl = UIRefreshControl()
     private let apiClient = SellwildAPIClient()
+    /// One `firstAdViewed` guard for the whole feed surface — shared across every
+    /// ad row so `firstAdViewed` fires once per feed mount, not once per row (web
+    /// parity). A new feed instance (screen mount) gets a fresh guard and fires
+    /// again. `fileprivate` so the same-file `AdRowCell` can read it via `owner`.
+    /// See `SellwildFirstAdViewedGuard`.
+    fileprivate let firstAdViewedGuard = SellwildFirstAdViewedGuard()
 
     /// KVO token for `tableView.contentSize`, driving the content-height
     /// callback and self-sizing. Torn down in `deinit`.
@@ -805,6 +811,9 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
         adView?.removeFromSuperview()
 
         let ad = SellwildAdView(config: config, adSize: adSize, zoneId: zoneId)
+        // Share the feed's surface guard so firstAdViewed fires once for the whole
+        // feed, not once per ad row (web parity).
+        ad.firstAdViewedGuard = owner.firstAdViewedGuard
         // The feed owns the LISTING fallback (rendered full-width below); the ad
         // view only handles a house IMAGE backdrop in-slot, so don't hand it a
         // listing.
