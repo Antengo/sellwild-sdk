@@ -6,6 +6,28 @@ import SellwildPrebidSDK
 public typealias PrebidBannerView = SellwildPrebidSDK.BannerView
 public typealias PrebidBannerViewDelegate = SellwildPrebidSDK.BannerViewDelegate
 
+/// Per-surface once-guard for the web-parity `firstAdViewed` event.
+///
+/// The web widget fires `firstAdViewed` once per page load (an in-memory closure
+/// flag) so analytics can dedupe the per-render `adRenderSucceeded` down to a
+/// single impression; a full navigation reloads the bundle and re-fires it.
+/// Native mirrors that per ad *surface*: a standalone `SellwildAdView` owns its
+/// own guard (surface = the view) and `SellwildFeedView` shares one across all
+/// its ad rows (surface = the feed), so exactly one `firstAdViewed` fires per
+/// surface mount — regardless of ad refreshes or slot count — and a fresh mount
+/// (navigation) fires again. In-memory only; never persisted.
+public final class SellwildFirstAdViewedGuard {
+    private var fired = false
+    public init() {}
+
+    /// Runs `block` the first time only; subsequent calls are no-ops.
+    public func fireOnce(_ block: () -> Void) {
+        if fired { return }
+        fired = true
+        block()
+    }
+}
+
 // MARK: - SellwildAdView
 //
 // Native banner ad view. As of 1.3.0 this view runs a Prebid Mobile auction
@@ -54,6 +76,11 @@ public final class SellwildAdView: UIView {
     var gpidOverride: String?
 
     public weak var delegate: SellwildAdViewDelegate?
+
+    /// Per-surface guard for the web-parity `firstAdViewed` event. Standalone
+    /// views keep their own; `SellwildFeedView` injects a shared one across its
+    /// ad rows. See `SellwildFirstAdViewedGuard`.
+    public var firstAdViewedGuard = SellwildFirstAdViewedGuard()
 
     /// A listing the feed supplies as house-ad backfill when no CMS house image
     /// (`HOUSE_AD_IMAGE`) is configured. Rendered only in the MREC slot — a
@@ -130,6 +157,9 @@ public final class SellwildAdView: UIView {
         self.zoneId = zoneId
         // Honor the CMS analytics kill switch (EVENTS_ENABLED) before any emit.
         SellwildAPIClient.shared.eventsEnabled = SellwildEvents.isEnabled(remoteValues: config.remoteValues)
+        // Partner attribution: stamp attributes.code so events attribute
+        // correctly instead of landing as "Invalid".
+        SellwildAPIClient.shared.partnerCode = config.partnerCode
         super.init(frame: CGRect(origin: .zero, size: adSize.cgSize))
         // Reserve the widest/tallest size the auction may return (primary + any
         // BANNER_SIZES fallbacks) so a wider/taller fallback creative doesn't
@@ -253,6 +283,18 @@ public final class SellwildAdView: UIView {
     }
 
     // MARK: GAM path (.both / .gamOnly)
+
+    /// Emit the per-render `adRenderSucceeded` (every render/refresh, unchanged)
+    /// plus — once per ad surface — the web-parity `firstAdViewed`. The latter
+    /// carries the same `attributes.code` (stamped in `sendEvent`) but no label,
+    /// matching the web widget, and is deduped by `firstAdViewedGuard`.
+    private func emitAdRender() {
+        SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adRenderSucceeded", label: zoneId ?? ""))
+        firstAdViewedGuard.fireOnce {
+            SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "firstAdViewed"))
+            print("[SellwildEvents] firstAdViewed fired once for this ad surface (zone \(zoneId ?? ""))")
+        }
+    }
 
     private func loadGAM(runAuction: Bool) {
         let banner = ensureGAMBanner()
@@ -461,7 +503,7 @@ public final class SellwildAdView: UIView {
             // resizes to the template rather than clipping.
             self.delegate?.sellwildAdView?(self, didRenderWithSize: CGSize(width: self.adSize.cgSize.width, height: cap))
             self.delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: self.zoneId ?? "")
-            SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adRenderSucceeded", label: self.zoneId ?? ""))
+            self.emitAdRender()
         }
         v.onClick = { [weak self] in
             guard let self else { return }
@@ -666,7 +708,7 @@ extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
         // a 320x50 win in a 300x250 request) resize the host slot.
         delegate?.sellwildAdView?(self, didRenderWithSize: bannerView.adSize.size)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
-        SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adRenderSucceeded", label: zoneId ?? ""))
+        emitAdRender()
         scheduleRefresh()
     }
 
@@ -728,7 +770,7 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         delegate?.sellwildAdViewDidLoad?(self)
         delegate?.sellwildAdView?(self, didRenderWithSize: adSize)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
-        SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adRenderSucceeded", label: zoneId ?? ""))
+        emitAdRender()
     }
 
     public func bannerView(_ bannerView: PrebidBannerView,

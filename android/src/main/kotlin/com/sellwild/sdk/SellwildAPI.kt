@@ -127,7 +127,10 @@ class SellwildAPIClient(private val context: Context) {
                 // header when the partner hasn't supplied one, so the
                 // localized-listings path can key a per-state cache. Mirrors the
                 // web widget's appendViewerHeaders seeding userLocation.state.
-                seedGeoStateIfEmpty(connection.getHeaderField("CloudFront-Viewer-Country-Region"))
+                seedGeoFromCloudFrontIfEmpty(
+                    connection.getHeaderField("CloudFront-Viewer-Country-Region"),
+                    connection.getHeaderField("CloudFront-Viewer-Country"),
+                )
 
                 val body = connection.inputStream.bufferedReader().readText()
                 val response = parseListingsResponse(body)
@@ -163,15 +166,33 @@ class SellwildAPIClient(private val context: Context) {
         }
 
     /**
-     * Seed [SellwildGeoStore] state from the CloudFront viewer-country-region
-     * header only when no state is already set. Never overwrites a
-     * partner-supplied or previously-seeded state.
+     * Seed [SellwildGeoStore] region + country from the CloudFront viewer
+     * headers when not already set, then re-emit so `device.geo` reaches the
+     * auction. `applyGlobalOrtb()` runs only at bootstrap + [SellwildPrebidMobile.setGeo]
+     * (not per-auction), so a bare store write would never make it into a
+     * request — setGeo persists AND re-emits. Never overwrites a partner-supplied
+     * or previously-seeded value. Country is restricted to a North America
+     * alpha-2 → alpha-3 map (oRTB wants alpha-3); anything outside NA is skipped.
      */
-    private fun seedGeoStateIfEmpty(region: String?) {
-        val trimmed = region?.trim()?.takeIf { it.isNotEmpty() } ?: return
-        val current = SellwildGeoStore.current
-        if (!current?.state.isNullOrEmpty()) return
-        SellwildGeoStore.current = (current ?: SellwildGeo()).copy(state = trimmed)
+    private fun seedGeoFromCloudFrontIfEmpty(region: String?, countryAlpha2: String?) {
+        var geo = SellwildGeoStore.current ?: SellwildGeo()
+        var changed = false
+
+        val r = region?.trim()?.takeIf { it.isNotEmpty() }
+        if (geo.state.isNullOrEmpty() && r != null) {
+            geo = geo.copy(state = r)
+            changed = true
+        }
+
+        val alpha3 = countryAlpha2?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { SellwildGeo.northAmericaAlpha3(it) }
+        if (geo.country.isNullOrEmpty() && alpha3 != null) {
+            geo = geo.copy(country = alpha3)
+            changed = true
+        }
+
+        if (!changed) return
+        SellwildPrebidMobile.setGeo(geo)
     }
 
     fun clearCache() = listingCache.clear()
@@ -270,6 +291,15 @@ class SellwildEventQueue(context: Context) {
     @Volatile
     var enabled: Boolean = true
 
+    /**
+     * Partner attribution. Set from the resolved config (CODE / partnerCode) so
+     * every event carries `attributes.code` — the events pipeline keys the
+     * partner off that field. When absent, the server stamps the partner as
+     * "Invalid", so this must be populated before any emit.
+     */
+    @Volatile
+    var partnerCode: String? = null
+
     val uid: String by lazy {
         prefs.getString("_sw_uid", null) ?: UUID.randomUUID().toString().also { id ->
             prefs.edit().putString("_sw_uid", id).apply()
@@ -314,6 +344,12 @@ class SellwildEventQueue(context: Context) {
                         )
                         put("uid", e.uid)
                         put("createdTime", e.createdTime)
+                        // Partner attribution: the events pipeline reads the
+                        // partner from attributes.code. Without it every mobile
+                        // event lands as "Invalid".
+                        partnerCode?.takeIf { it.isNotEmpty() }?.let { code ->
+                            put("attributes", JSONObject().put("code", code))
+                        }
                     })
                 }
             }
@@ -321,9 +357,24 @@ class SellwildEventQueue(context: Context) {
             val conn = URL(eventsUrl).openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
+            // Persistent connection: keep the socket alive so HttpURLConnection's
+            // pool can reuse it for the next flush instead of a fresh TCP+TLS
+            // handshake per batch. events.sellwild.com is fronted by an ALB whose
+            // cost scales with NewConnectionCount — one connection per POST was
+            // ~1 new connection per request. Reuse drops that toward ~0.
+            conn.setRequestProperty("Connection", "keep-alive")
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 15_000
             conn.doOutput = true
             OutputStreamWriter(conn.outputStream).use { it.write(json.toString()) }
-            conn.responseCode // trigger send
+            // Fully drain + close the response stream. This is what actually
+            // returns the socket to the keep-alive pool — reading only
+            // `responseCode` leaves the body unread and the connection is dropped
+            // (no reuse). Never call disconnect(): that evicts the pooled socket
+            // and defeats the whole point.
+            val code = conn.responseCode
+            (if (code in 200..299) conn.inputStream else conn.errorStream)
+                ?.use { it.readBytes() }
         }
     }
 

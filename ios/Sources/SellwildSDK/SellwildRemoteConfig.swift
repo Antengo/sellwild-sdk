@@ -22,7 +22,7 @@ public enum SellwildSDK {
     /// SDK version, stamped into analytics events (`attributes.sdkVersion`) and
     /// the config-fetch User-Agent beacon. Keep in lockstep with the podspec
     /// `s.version` and the other platforms' version constants.
-    public static let sdkVersion = "1.7.5"
+    public static let sdkVersion = "1.7.6"
 
     /// Build a `SellwildConfig` by fetching `partnerCode/slug.json` from the
     /// Sellwild CDN and applying it onto SDK defaults.

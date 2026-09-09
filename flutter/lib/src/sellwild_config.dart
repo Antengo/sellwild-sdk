@@ -1,7 +1,7 @@
 /// SDK version, stamped into analytics events (`attributes.sdkVersion`) and the
 /// config-fetch User-Agent beacon. Keep in lockstep with `pubspec.yaml` and the
 /// other platforms' version constants.
-const String sellwildSdkVersion = '1.7.5';
+const String sellwildSdkVersion = '1.7.6';
 
 /// Sellwild SDK configuration.
 /// Mirrors the web widget's ICustomizations, adapted for Flutter.

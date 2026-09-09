@@ -12,7 +12,7 @@ export const DEFAULT_LISTINGS_URL = 'https://cache.sellwild.com/listings-img-dat
  * lockstep with the package manifests (package.json / podspec / build.gradle.kts
  * / pubspec.yaml) and the native version constants.
  */
-export const SDK_VERSION = '1.7.5'
+export const SDK_VERSION = '1.7.6'
 
 const defaultConfig: Omit<SellwildConfig, 'partnerCode'> = {
   slug: '',

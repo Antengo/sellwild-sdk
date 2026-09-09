@@ -89,12 +89,21 @@ dependencies {
     // conflicts with host apps that have their own Prebid implementation.
     // Package: com.sellwild.prebid (instead of org.prebid.mobile)
     // Main class: SellwildPrebid (instead of PrebidMobile)
-    // Published to local Maven during development; JitPack for releases.
-    // 3.3.2-sw1: Sellwild patch exposing multiformat (banner+video) on the
-    // rendering BannerView so prebidOnly placements can serve outstream video
-    // (see Antengo/prebid-mobile-android BannerView.setAdUnitFormats).
-    implementation("com.sellwild:PrebidMobile-core:3.3.2-sw1")
-    implementation("com.sellwild:PrebidMobile-gamEventHandlers:3.3.2-sw1")
+    // Resolved from JitPack (see settings.gradle.kts). JitPack serves the fork
+    // under the `com.github.Antengo.prebid-mobile-android` group — it rewrites the
+    // artifact groupId to `com.github.<owner>.<repo>`, so `com.sellwild:*` does NOT
+    // resolve there (404). The shaded *package* stays `com.sellwild.prebid`
+    // regardless of the Maven group. `publishToMavenLocal` still emits `com.sellwild`
+    // for local dev, but the committed coordinate must be the JitPack one so CI /
+    // release builds resolve without a local publish.
+    // 3.3.2-sw3: cumulative Sellwild fork patches on the rendering BannerView —
+    // sw1 exposes multiformat (banner+video) for prebidOnly outstream; sw2 makes
+    // BasicParameterBuilder honor the VideoParameters on the rendering path; sw3
+    // adds getCreativeWidth()/getCreativeHeight() so prebidOnly multi-size slots
+    // (e.g. 300x250 + 320x50) can shrink to the won creative instead of holding
+    // the reserved bounding box (see Antengo/prebid-mobile-android).
+    implementation("com.github.Antengo.prebid-mobile-android:PrebidMobile-core:3.3.2-sw3")
+    implementation("com.github.Antengo.prebid-mobile-android:PrebidMobile-gamEventHandlers:3.3.2-sw3")
     implementation("com.google.android.gms:play-services-ads:23.6.0")
 
     // SellwildFeed (1.4.0+) — all-in-one native feed surface.
@@ -130,7 +139,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "com.sellwild"
             artifactId = "sdk"
-            version = "1.7.5"
+            version = "1.7.6"
 
             afterEvaluate {
                 from(components["release"])

@@ -161,6 +161,13 @@ public final class SellwildAPIClient {
     /// without an app release. When off, `sendEvent` is a no-op.
     public var eventsEnabled: Bool = true
 
+    /// Partner attribution. Set from the resolved config (CODE / partnerCode) so
+    /// every event carries `attributes.code` — the events pipeline keys the
+    /// partner off that field. When absent, the server stamps the partner as
+    /// "Invalid", so this must be populated before any emit. Applied in
+    /// `stampEvent` so it rides every batched event.
+    public var partnerCode: String?
+
     // MARK: Event batching
     // Analytics events are coalesced into array POSTs to /events/queue instead of
     // one request per event. API Gateway + Lambda + SQS all bill per HTTP request,
@@ -256,7 +263,7 @@ public final class SellwildAPIClient {
             // path can key a per-state cache. Mirrors the web widget's
             // appendViewerHeaders seeding userLocation.state.
             if let http = response as? HTTPURLResponse {
-                Self.seedGeoStateIfEmpty(from: http)
+                Self.seedGeoFromCloudFrontIfEmpty(from: http)
             }
             do {
                 let parsed = try self?.parseListingsResponse(data: data)
@@ -321,17 +328,35 @@ public final class SellwildAPIClient {
         task.resume()
     }
 
-    /// Seed `SellwildGeoStore` state from the CloudFront viewer-country-region
-    /// header (case-insensitive) only when no state is already set. Never
-    /// overwrites a partner-supplied or previously-seeded state.
-    private static func seedGeoStateIfEmpty(from response: HTTPURLResponse) {
-        let current = SellwildGeoStore.current
-        if let existing = current?.state, !existing.isEmpty { return }
-        guard let region = response.value(forHTTPHeaderField: "CloudFront-Viewer-Country-Region"),
-              !region.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        var geo = current ?? SellwildGeo()
-        geo.state = region
-        SellwildGeoStore.current = geo
+    /// Seed `SellwildGeoStore` region + country from the CloudFront viewer
+    /// headers when not already set, then re-emit so `device.geo` reaches the
+    /// auction. `applyGlobalORTB()` runs only at bootstrap + `setGeo(_:)` (not
+    /// per-auction), so a bare store write would never make it into a request —
+    /// `setGeo` persists the store AND re-emits. Never overwrites a
+    /// partner-supplied or previously-seeded value. Country is restricted to a
+    /// North America alpha-2 → alpha-3 map (oRTB wants alpha-3); anything outside
+    /// NA is skipped rather than sent unmapped.
+    private static func seedGeoFromCloudFrontIfEmpty(from response: HTTPURLResponse) {
+        var geo = SellwildGeoStore.current ?? SellwildGeo()
+        var changed = false
+
+        if (geo.state ?? "").isEmpty,
+           let region = response.value(forHTTPHeaderField: "CloudFront-Viewer-Country-Region")?
+               .trimmingCharacters(in: .whitespacesAndNewlines), !region.isEmpty {
+            geo.state = region
+            changed = true
+        }
+
+        if (geo.country ?? "").isEmpty,
+           let alpha2 = response.value(forHTTPHeaderField: "CloudFront-Viewer-Country")?
+               .trimmingCharacters(in: .whitespacesAndNewlines), !alpha2.isEmpty,
+           let alpha3 = SellwildGeo.northAmericaAlpha3(alpha2: alpha2) {
+            geo.country = alpha3
+            changed = true
+        }
+
+        guard changed else { return }
+        SellwildPrebidMobile.setGeo(geo)
     }
 
     // MARK: Send Analytics Event
@@ -371,6 +396,11 @@ public final class SellwildAPIClient {
         var attributes = stamped.attributes ?? [:]
         attributes["platform"] = "ios"
         attributes["sdkVersion"] = SellwildSDK.sdkVersion
+        // Partner attribution: the events pipeline keys the partner off
+        // attributes.code; without it every event lands as "Invalid".
+        if let code = partnerCode, !code.isEmpty {
+            attributes["code"] = code
+        }
         stamped.attributes = attributes
         return stamped
     }
@@ -470,6 +500,11 @@ public struct SellwildEvent: Codable {
     public var attributes: [String: String]?
     public let uid: String
     public let createdTime: Int64
+    /// Partner attribution + metadata for the events pipeline. The server keys
+    /// the partner off `attributes.code`; `SellwildAPIClient.sendEvent` stamps it
+    /// from the resolved `partnerCode` before sending. Optional → the key is
+    /// omitted when nil (synthesized `encodeIfPresent`).
+    public var attributes: [String: String]?
 
     public init(event: String, action: String? = nil, label: String? = nil, attributes: [String: String]? = nil) {
         self.event = event

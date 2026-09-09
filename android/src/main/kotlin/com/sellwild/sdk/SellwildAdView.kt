@@ -20,6 +20,32 @@ import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView
 import com.sellwild.prebid.api.rendering.listeners.BannerViewListener
 
 /**
+ * Per-surface once-guard for the web-parity `firstAdViewed` event.
+ *
+ * The web widget fires `firstAdViewed` once per page load (an in-memory closure
+ * flag) so analytics can dedupe the per-render `adRenderSucceeded` down to a
+ * single impression; a full navigation reloads the bundle and re-fires it. Native
+ * mirrors that per ad *surface*: a standalone [SellwildAdView] owns its own guard
+ * (surface = the view) and [SellwildFeedView] shares one across all its ad rows
+ * (surface = the feed), so exactly one `firstAdViewed` fires per surface mount —
+ * regardless of ad refreshes or how many slots the surface renders — and a fresh
+ * mount (navigation) fires again. In-memory only; never persisted.
+ */
+class SellwildFirstAdViewedGuard {
+    @Volatile private var fired = false
+
+    /** Runs [block] the first time only; subsequent calls are no-ops. */
+    fun fireOnce(block: () -> Unit) {
+        if (fired) return
+        synchronized(this) {
+            if (fired) return
+            fired = true
+        }
+        block()
+    }
+}
+
+/**
  * Native banner ad view. As of 1.3.0 this view runs a Prebid Mobile auction
  * and renders into an [AdManagerAdView]. There is **no WebView** in the ad
  * path.
@@ -74,6 +100,14 @@ class SellwildAdView @JvmOverloads constructor(
     }
 
     var listener: Listener? = null
+
+    /**
+     * Per-surface guard for the web-parity `firstAdViewed` event. A standalone
+     * view keeps its own (surface = the view); [SellwildFeedView] injects a
+     * single shared guard across all its ad rows (surface = the feed) so exactly
+     * one `firstAdViewed` fires per surface mount. See [SellwildFirstAdViewedGuard].
+     */
+    var firstAdViewedGuard = SellwildFirstAdViewedGuard()
 
     /**
      * Optional code-level ad-stack override. When set, wins over the remote
@@ -168,8 +202,13 @@ class SellwildAdView @JvmOverloads constructor(
         this.adSize = adSize
         this.zoneId = zoneId
 
-        // Honor the CMS analytics kill switch (EVENTS_ENABLED) before any emit.
-        SellwildEventQueue.shared(context).enabled = SellwildEvents.isEnabled(config.remoteJson)
+        // Honor the CMS analytics kill switch (EVENTS_ENABLED) and stamp the
+        // partner (attributes.code) so events attribute correctly — both before
+        // any emit.
+        SellwildEventQueue.shared(context).apply {
+            enabled = SellwildEvents.isEnabled(config.remoteJson)
+            partnerCode = config.partnerCode
+        }
 
         when {
             nativeEnabled -> ensureNativeAdView()
@@ -491,16 +530,31 @@ class SellwildAdView @JvmOverloads constructor(
         }
         prebidBanner = prebid
 
-        // Reserve the widest/tallest size the auction may return. Critical for
-        // prebidOnly: the rendering BannerView doesn't surface the winning
-        // creative size, so onAdResize can't shrink a clip back — reserving the
-        // bounding box up front prevents it.
+        // Reserve the widest/tallest size the auction may return so a wider/
+        // taller multi-size winner doesn't clip before it renders. Once the
+        // creative renders, the sw3 fork surfaces the won size and
+        // prebidBannerListener tightens this box down to it.
         val bound = SellwildAdSizes.boundingSize(resolvedAdSizes)
         val dp = context.resources.displayMetrics.density
         val widthPx = (bound.width * dp).toInt()
         val heightPx = (bound.height * dp).toInt()
         addView(prebid, LayoutParams(widthPx, heightPx))
         return prebid
+    }
+
+    /**
+     * Shrink the reserved multi-size prebidOnly slot to the creative that won.
+     * The slot is reserved at the bounding box of all requested sizes; once the
+     * sw3 fork surfaces the won size we resize the rendering banner to it so a
+     * smaller winner (e.g. 320x50 in a 300x250 + 320x50 slot) doesn't leave
+     * whitespace. No-op on a missing view or non-positive size.
+     */
+    private fun tightenPrebidSlot(widthDp: Int, heightDp: Int) {
+        if (widthDp <= 0 || heightDp <= 0) return
+        val pb = prebidBanner ?: return
+        val dp = context.resources.displayMetrics.density
+        pb.layoutParams = LayoutParams((widthDp * dp).toInt(), (heightDp * dp).toInt())
+        pb.requestLayout()
     }
 
     private fun loadPrebidOnly() {
@@ -556,7 +610,7 @@ class SellwildAdView @JvmOverloads constructor(
                 // slot resizes to the template rather than clipping.
                 self.listener?.onAdResize(self, adSize.width, cap)
                 self.listener?.onAdImpression(self, self.zoneId.orEmpty())
-                SellwildEventQueue.shared(self.context).track("adRenderSucceeded", label = self.zoneId.orEmpty())
+                self.emitAdRender()
             }
             onClick = {
                 val self = this@SellwildAdView
@@ -604,6 +658,25 @@ class SellwildAdView @JvmOverloads constructor(
 
     // ── Internals ──────────────────────────────────────────────────────────
 
+    /**
+     * Emit the per-render `adRenderSucceeded` (fires on every render/refresh,
+     * unchanged) plus — once per ad surface — the web-parity `firstAdViewed`.
+     * `firstAdViewed` carries the same `attributes.code` (stamped in the queue
+     * flush) but no label, matching the web widget's payload, and is deduped by
+     * [firstAdViewedGuard] so it lands once per surface mount even across refreshes.
+     */
+    private fun emitAdRender() {
+        val q = SellwildEventQueue.shared(context)
+        q.track("adRenderSucceeded", label = zoneId.orEmpty())
+        firstAdViewedGuard.fireOnce {
+            q.track("firstAdViewed")
+            android.util.Log.d(
+                "SellwildEvents",
+                "[firstAdViewed] fired once for this ad surface (zone ${zoneId.orEmpty()})",
+            )
+        }
+    }
+
     private fun bannerAdListener() = object : AdListener() {
         override fun onAdLoaded() {
             val self = this@SellwildAdView
@@ -618,7 +691,7 @@ class SellwildAdView @JvmOverloads constructor(
             // (e.g. a 320x50 win in a 300x250 request) resize the host slot.
             self.bannerView?.adSize?.let { self.listener?.onAdResize(self, it.width, it.height) }
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
-            SellwildEventQueue.shared(self.context).track("adRenderSucceeded", label = self.zoneId.orEmpty())
+            self.emitAdRender()
             scheduleRefresh()
         }
 
@@ -661,12 +734,18 @@ class SellwildAdView @JvmOverloads constructor(
             self.setHouseVisible(false)
             self.applyAudioGuard()
             self.listener?.onAdLoaded(self)
-            // Best-effort: the rendering BannerView doesn't surface the winning
-            // creative size to this callback, so report the primary. Multi-size
-            // prebidOnly fallbacks won't shrink the slot — a known limitation.
-            self.listener?.onAdResize(self, self.adSize.width, self.adSize.height)
+            // sw3 fork getters surface the winning creative size, so tighten the
+            // reserved multi-size bounding box to what actually rendered and
+            // report it. Falls back to the primary when the fork can't report a
+            // size (0 — e.g. no-fill), preserving prior behavior.
+            val wonW = bannerView?.creativeWidth ?: 0
+            val wonH = bannerView?.creativeHeight ?: 0
+            val w = if (wonW > 0) wonW else self.adSize.width
+            val h = if (wonH > 0) wonH else self.adSize.height
+            self.tightenPrebidSlot(w, h)
+            self.listener?.onAdResize(self, w, h)
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
-            SellwildEventQueue.shared(self.context).track("adRenderSucceeded", label = self.zoneId.orEmpty())
+            self.emitAdRender()
         }
 
         override fun onAdDisplayed(bannerView: PrebidBannerView?) {}

@@ -34,7 +34,7 @@ object SellwildSDK {
      * the config-fetch User-Agent beacon. Keep in lockstep with the
      * `build.gradle.kts` version and the other platforms' version constants.
      */
-    const val SDK_VERSION = "1.7.5"
+    const val SDK_VERSION = "1.7.6"
 
     /**
      * Build a [SellwildConfig] by fetching `partnerCode/slug.json` from the
@@ -198,8 +198,20 @@ object SellwildSDK {
     }
 }
 
-private fun JSONObject.optStringOrNull(key: String): String? =
-    if (has(key) && !isNull(key)) optString(key) else null
+// Only return a genuine JSON string. org.json's `optString` COERCES a JSONArray /
+// JSONObject value to its literal `toString` ("[]" / "{}"), which then reads as a
+// NON-empty scalar (e.g. a zone id) and gets forwarded to Prebid Server as a bogus
+// stored-impression id. This bit MOBILE_BANNER_ZID: the CDN serializes an empty
+// scalar zid as `[]`, `optString` turned it into the string "[]", and the banner
+// auction 400'd with `No stored impression found for id: []`. Treat any non-string
+// value as absent so an empty/array-typed field falls through to the null path
+// (auction skipped) instead of requesting a garbage id.
+private fun JSONObject.optStringOrNull(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    val v = opt(key)
+    if (v is JSONArray || v is JSONObject) return null
+    return optString(key)
+}
 
 private fun JSONObject.optIntOrNull(key: String): Int? =
     if (has(key) && !isNull(key)) optInt(key) else null

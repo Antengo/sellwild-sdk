@@ -153,6 +153,14 @@ class SellwildFeedView @JvmOverloads constructor(
     private val recycler: RecyclerView
     private val adapter = RowAdapter()
 
+    /**
+     * One `firstAdViewed` guard for the whole feed surface — the feed is one
+     * "page", so every ad row shares it and only the first render across the feed
+     * fires `firstAdViewed` (web parity). A new feed instance (screen mount) gets
+     * a fresh guard and fires again. See [SellwildFirstAdViewedGuard].
+     */
+    private val firstAdViewedGuard = SellwildFirstAdViewedGuard()
+
     init {
         orientation = VERTICAL
         layoutParams = layoutParams ?: LayoutParams(
@@ -425,9 +433,9 @@ class SellwildFeedView @JvmOverloads constructor(
                 // MREC can house-backfill with a full-width listing card (same as
                 // organic listings) when no CMS image is set; a 320x50 banner is
                 // too small for a card, so it gets none.
-                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize)
-                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize)
-                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null, ::handleFeedListingTap, ::onAdRowResize)
+                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize, firstAdViewedGuard)
+                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize, firstAdViewedGuard)
+                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null, ::handleFeedListingTap, ::onAdRowResize, firstAdViewedGuard)
             }
         }
     }
@@ -734,6 +742,7 @@ class SellwildFeedView @JvmOverloads constructor(
             houseListing: SellwildListing?,
             onListingTap: (SellwildListing) -> Unit,
             onRowResize: () -> Unit,
+            surfaceGuard: SellwildFirstAdViewedGuard,
         ) {
             this.config = config
             this.houseListing = houseListing
@@ -763,6 +772,9 @@ class SellwildFeedView @JvmOverloads constructor(
             adView?.destroy()
             adView?.let { removeView(it) }
             val ad = SellwildAdView(context).apply {
+                // Share the feed's surface guard so firstAdViewed fires once for
+                // the whole feed, not once per ad row (web parity).
+                firstAdViewedGuard = surfaceGuard
                 layoutParams = LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -781,6 +793,13 @@ class SellwildFeedView @JvmOverloads constructor(
                         // Paid creative filled — show the ad slot (shrink the row
                         // back if a fallback card had grown it).
                         showAdSlot()
+                    }
+                    override fun onAdResize(adView: SellwildAdView, width: Int, height: Int) {
+                        // The creative resized the slot (multi-size shrink to the
+                        // won size, outstream video, or the capped native template).
+                        // Re-measure the row so the feed height tracks the actual
+                        // ad height instead of the reserved bounding box.
+                        onRowResize?.invoke()
                     }
                     override fun onAdImpression(adView: SellwildAdView, zoneId: String) {
                         onImpression(zoneId)
