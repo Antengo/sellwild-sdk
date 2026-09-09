@@ -158,6 +158,12 @@ public final class SellwildAPIClient {
     /// without an app release. When off, `sendEvent` is a no-op.
     public var eventsEnabled: Bool = true
 
+    /// Partner attribution. Set from the resolved config (CODE / partnerCode) so
+    /// every event carries `attributes.code` — the events pipeline keys the
+    /// partner off that field. When absent, the server stamps the partner as
+    /// "Invalid", so this must be populated before any emit.
+    public var partnerCode: String?
+
     public static let shared = SellwildAPIClient()
 
     public init(session: URLSession = .shared) {
@@ -319,7 +325,16 @@ public final class SellwildAPIClient {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        guard let body = try? JSONEncoder().encode([event]) else { return }
+        // Partner attribution: the events pipeline reads the partner from
+        // attributes.code. Without it every mobile event lands as "Invalid".
+        var stamped = event
+        if let code = partnerCode, !code.isEmpty {
+            var attrs = stamped.attributes ?? [:]
+            attrs["code"] = code
+            stamped.attributes = attrs
+        }
+
+        guard let body = try? JSONEncoder().encode([stamped]) else { return }
         request.httpBody = body
 
         session.dataTask(with: request).resume()
@@ -363,6 +378,11 @@ public struct SellwildEvent: Codable {
     public let label: String?
     public let uid: String
     public let createdTime: Int64
+    /// Partner attribution + metadata for the events pipeline. The server keys
+    /// the partner off `attributes.code`; `SellwildAPIClient.sendEvent` stamps it
+    /// from the resolved `partnerCode` before sending. Optional → the key is
+    /// omitted when nil (synthesized `encodeIfPresent`).
+    public var attributes: [String: String]?
 
     public init(event: String, action: String? = nil, label: String? = nil) {
         self.event = event
