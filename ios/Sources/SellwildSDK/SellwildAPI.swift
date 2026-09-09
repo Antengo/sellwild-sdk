@@ -394,7 +394,10 @@ public final class SellwildAPIClient {
     private func stampEvent(_ event: SellwildEvent) -> SellwildEvent {
         var stamped = event
         var attributes = stamped.attributes ?? [:]
-        attributes["platform"] = "ios"
+        // `attributes.type` is the ios/android discriminator the events view reads
+        // (JSON_EXTRACT(attributes,'type') → the `type` column); `sdkVersion` is an
+        // installed-base census field.
+        attributes["type"] = "ios"
         attributes["sdkVersion"] = SellwildSDK.sdkVersion
         // Partner attribution: the events pipeline keys the partner off
         // attributes.code; without it every event lands as "Invalid".

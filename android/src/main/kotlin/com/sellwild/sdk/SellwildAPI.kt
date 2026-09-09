@@ -330,26 +330,24 @@ class SellwildEventQueue(context: Context) {
                         put("event", e.event)
                         e.action?.let { put("action", it) }
                         e.label?.let { put("label", it) }
-                        // Stamp platform + sdkVersion into the free-form
-                        // `attributes` bag for an installed-base census (queryable
-                        // in BigQuery, no server change). Merge preserves any
-                        // caller-supplied attribute keys.
+                        put("uid", e.uid)
+                        put("createdTime", e.createdTime)
+                        // Stamp the analytics attributes bag ONCE. The events
+                        // pipeline reads `attributes.code` for partner attribution
+                        // (absent ⇒ the row lands as "Invalid") and `attributes.type`
+                        // for the ios/android discriminator (the events view does
+                        // JSON_EXTRACT(attributes,'type') → the `type` column);
+                        // `sdkVersion` rides along for an installed-base census.
+                        // Caller-supplied keys are preserved.
                         put(
                             "attributes",
                             JSONObject().apply {
                                 e.attributes?.forEach { (k, v) -> put(k, v) }
-                                put("platform", "android")
+                                put("type", "android")
                                 put("sdkVersion", SellwildSDK.SDK_VERSION)
+                                partnerCode?.takeIf { it.isNotEmpty() }?.let { put("code", it) }
                             },
                         )
-                        put("uid", e.uid)
-                        put("createdTime", e.createdTime)
-                        // Partner attribution: the events pipeline reads the
-                        // partner from attributes.code. Without it every mobile
-                        // event lands as "Invalid".
-                        partnerCode?.takeIf { it.isNotEmpty() }?.let { code ->
-                            put("attributes", JSONObject().put("code", code))
-                        }
                     })
                 }
             }

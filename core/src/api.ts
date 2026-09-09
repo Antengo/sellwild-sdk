@@ -126,9 +126,12 @@ class EventQueue {
     // bag (queryable in BigQuery, no server change). Merge AFTER the caller's
     // attributes so their keys win on collision — but platform/sdkVersion are
     // SDK-reserved, so applied last here to guarantee they're present.
+    // `type` is the platform discriminator the events view reads
+    // (JSON_EXTRACT(attributes,'type') → the `type` column); `sdkVersion` is an
+    // installed-base census field. Applied last so they're guaranteed present.
     const attributes = {
       ...event.attributes,
-      ...(this.platform ? { platform: this.platform } : {}),
+      ...(this.platform ? { type: this.platform } : {}),
       sdkVersion: SDK_VERSION,
     }
     this.events.push({ ...event, attributes, uid: this.getUid(), createdTime: Date.now() })

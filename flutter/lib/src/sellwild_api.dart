@@ -59,7 +59,9 @@ class SellwildAPIClient {
     const url = 'https://events.sellwild.com/events/queue';
     final mergedAttributes = <String, dynamic>{
       ...?attributes,
-      'platform': 'flutter',
+      // `type` is the platform discriminator the events view reads
+      // (attributes.type → the `type` column); `sdkVersion` for census.
+      'type': 'flutter',
       'sdkVersion': sellwildSdkVersion,
     };
     final payload = jsonEncode([
