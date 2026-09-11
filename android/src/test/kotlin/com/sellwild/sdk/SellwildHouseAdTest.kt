@@ -60,4 +60,36 @@ class SellwildHouseAdTest {
     fun `pickListing on empty is null`() {
         assertNull(SellwildHouseAd.pickListing(emptyList(), 0))
     }
+
+    // ── excludeIds (dedup vs. already-shown feed rows) ──────────────────────
+
+    @Test
+    fun `pickListing excludes already-shown ids`() {
+        val ls = listOf(
+            listing("1", "https://x/a.jpg"),
+            listing("2", "https://x/b.jpg"),
+            listing("3", "https://x/c.jpg"),
+        )
+        // Without exclusion, row 0 resolves to "1" (see rotation test above).
+        // With "1" already shown as a normal feed row, it must never be picked.
+        for (row in 0 until 6) {
+            assertNotEquals("1", SellwildHouseAd.pickListing(ls, row, setOf("1"))?.id)
+        }
+    }
+
+    @Test
+    fun `pickListing falls back to a duplicate when every candidate is excluded`() {
+        val ls = listOf(listing("1", "https://x/a.jpg"), listing("2", "https://x/b.jpg"))
+        // Every candidate is already shown elsewhere — degrade to a duplicate
+        // (matches the web widget's documented last-resort behavior) rather
+        // than returning null and leaving the ad slot with no house content.
+        assertNotNull(SellwildHouseAd.pickListing(ls, 0, setOf("1", "2")))
+    }
+
+    @Test
+    fun `pickListing default excludeIds is unchanged`() {
+        // No excludeIds argument at all — existing call sites/behavior untouched.
+        val ls = listOf(listing("a", "https://x/a.jpg"), listing("b", "https://x/b.jpg"))
+        assertEquals("a", SellwildHouseAd.pickListing(ls, 0)?.id)
+    }
 }

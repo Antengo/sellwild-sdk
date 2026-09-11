@@ -419,9 +419,17 @@ public final class SellwildFeedView: UIView {
     /// Pick a listing to house-backfill an ad slot with when no CMS house image
     /// is configured. Prefers listings that actually have a photo (a photoless
     /// listing renders a grey placeholder), rotating by row so adjacent ad slots
-    /// don't repeat. Returns nil when there are no listings to draw from.
+    /// don't repeat. Excludes listings already rendered as a normal `.listing`
+    /// row in `rows` so an ad-slot backfill never duplicates a listing already
+    /// shown elsewhere in the feed — falls back to a duplicate only if every
+    /// candidate is already shown (see `SellwildHouseAd.pickListing`). Returns
+    /// nil when there are no listings to draw from.
     private func houseListing(for row: Int) -> SellwildListing? {
-        SellwildHouseAd.pickListing(from: listings, row: row)
+        let shownIds: Set<String> = Set(rows.compactMap { r -> String? in
+            if case .listing(let l) = r { return l.id }
+            return nil
+        })
+        return SellwildHouseAd.pickListing(from: listings, row: row, excludeIds: shownIds)
     }
 
     fileprivate static func parseColor(_ hex: String?) -> UIColor? {

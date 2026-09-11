@@ -224,11 +224,21 @@ public enum SellwildHouseAd {
     /// Pick a listing to house-backfill an MREC slot, rotating by `row` so
     /// adjacent slots don't repeat. Prefers listings that actually have a photo
     /// (rotating within that subset); falls back to plain rotation over all
-    /// listings only when none have a usable photo. Returns nil when empty.
-    static func pickListing(from listings: [SellwildListing], row: Int) -> SellwildListing? {
+    /// listings only when none have a usable photo. `excludeIds` — the ids of
+    /// listings already rendered as a normal row elsewhere in the same feed —
+    /// are skipped so a house backfill never duplicates one, falling back to a
+    /// duplicate only if every candidate in the pool is already shown. Returns
+    /// nil when empty.
+    static func pickListing(
+        from listings: [SellwildListing],
+        row: Int,
+        excludeIds: Set<String> = []
+    ) -> SellwildListing? {
         guard !listings.isEmpty else { return nil }
         let withPhoto = listings.filter(hasUsablePhoto)
         let pool = withPhoto.isEmpty ? listings : withPhoto
-        return pool[((row % pool.count) + pool.count) % pool.count]
+        let notShown = pool.filter { !excludeIds.contains($0.id) }
+        let finalPool = notShown.isEmpty ? pool : notShown
+        return finalPool[((row % finalPool.count) + finalPool.count) % finalPool.count]
     }
 }

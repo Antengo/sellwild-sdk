@@ -192,12 +192,22 @@ internal object SellwildHouseAd {
      * Pick a listing to house-backfill an MREC slot, rotating by [row] so
      * adjacent slots don't repeat. Prefers listings that actually have a photo
      * (rotating within that subset); falls back to plain rotation over all
-     * listings only when none have a usable photo. Null when empty.
+     * listings only when none have a usable photo. [excludeIds] — the ids of
+     * listings already rendered as a normal row elsewhere in the same feed —
+     * are skipped so a house backfill never duplicates one, falling back to a
+     * duplicate only if every candidate in the pool is already shown. Null
+     * when empty.
      */
-    fun pickListing(listings: List<SellwildListing>, row: Int): SellwildListing? {
+    fun pickListing(
+        listings: List<SellwildListing>,
+        row: Int,
+        excludeIds: Set<String> = emptySet(),
+    ): SellwildListing? {
         if (listings.isEmpty()) return null
         val withPhoto = listings.filter { hasUsablePhoto(it) }
         val pool = if (withPhoto.isEmpty()) listings else withPhoto
-        return pool[((row % pool.size) + pool.size) % pool.size]
+        val notShown = pool.filterNot { it.id in excludeIds }
+        val finalPool = notShown.ifEmpty { pool }
+        return finalPool[((row % finalPool.size) + finalPool.size) % finalPool.size]
     }
 }

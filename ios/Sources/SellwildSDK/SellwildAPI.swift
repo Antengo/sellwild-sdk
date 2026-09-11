@@ -498,16 +498,14 @@ public struct SellwildEvent: Codable {
     public let action: String?
     public let label: String?
     /// Free-form passthrough bag that lands in BigQuery. The SDK stamps
-    /// `platform` + `sdkVersion` here at send time (see `sendEvent`); callers may
-    /// supply additional keys, which are preserved.
+    /// `platform` + `sdkVersion` here at send time (see `sendEvent`), and
+    /// `code` (partner attribution — the events pipeline keys the partner off
+    /// `attributes.code`) from the resolved `partnerCode`; callers may supply
+    /// additional keys, which are preserved. Optional → the key is omitted
+    /// when nil (synthesized `encodeIfPresent`).
     public var attributes: [String: String]?
     public let uid: String
     public let createdTime: Int64
-    /// Partner attribution + metadata for the events pipeline. The server keys
-    /// the partner off `attributes.code`; `SellwildAPIClient.sendEvent` stamps it
-    /// from the resolved `partnerCode` before sending. Optional → the key is
-    /// omitted when nil (synthesized `encodeIfPresent`).
-    public var attributes: [String: String]?
 
     public init(event: String, action: String? = nil, label: String? = nil, attributes: [String: String]? = nil) {
         self.event = event

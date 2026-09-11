@@ -77,4 +77,46 @@ final class SellwildHouseAdTests: XCTestCase {
     func testPickListingEmptyIsNil() {
         XCTAssertNil(SellwildHouseAd.pickListing(from: [], row: 0))
     }
+
+    // MARK: pickListing excludeIds (dedup vs. already-shown feed rows)
+
+    func testPickListingExcludesAlreadyShownIds() {
+        let ls = listings("""
+        [
+          {"id":"1","status":"active","title":"a","photos":[{"url":"https://x/a.jpg"}]},
+          {"id":"2","status":"active","title":"b","photos":[{"url":"https://x/b.jpg"}]},
+          {"id":"3","status":"active","title":"c","photos":[{"url":"https://x/c.jpg"}]}
+        ]
+        """)
+        // Without exclusion, row 0 resolves to "1" (see rotation tests above).
+        // With "1" already shown as a normal feed row, it must never be picked.
+        for row in 0..<6 {
+            XCTAssertNotEqual(SellwildHouseAd.pickListing(from: ls, row: row, excludeIds: ["1"])?.id, "1")
+        }
+    }
+
+    func testPickListingFallsBackToDuplicateWhenAllExcluded() {
+        let ls = listings("""
+        [
+          {"id":"1","status":"active","title":"a","photos":[{"url":"https://x/a.jpg"}]},
+          {"id":"2","status":"active","title":"b","photos":[{"url":"https://x/b.jpg"}]}
+        ]
+        """)
+        // Every candidate is already shown elsewhere — degrade to a duplicate
+        // (matches the web widget's documented last-resort behavior) rather
+        // than returning nil and leaving the ad slot with no house content.
+        let picked = SellwildHouseAd.pickListing(from: ls, row: 0, excludeIds: ["1", "2"])
+        XCTAssertNotNil(picked)
+    }
+
+    func testPickListingDefaultExcludeIdsIsUnchanged() {
+        // No excludeIds argument at all — existing call sites/behavior untouched.
+        let ls = listings("""
+        [
+          {"id":"a","status":"active","title":"a","photos":[{"url":"https://x/a.jpg"}]},
+          {"id":"b","status":"active","title":"b","photos":[{"url":"https://x/b.jpg"}]}
+        ]
+        """)
+        XCTAssertEqual(SellwildHouseAd.pickListing(from: ls, row: 0)?.id, "a")
+    }
 }

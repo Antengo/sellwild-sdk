@@ -388,10 +388,17 @@ class SellwildFeedView @JvmOverloads constructor(
      * Pick a listing to house-backfill an ad slot with when no CMS house image
      * is configured. Prefers listings that actually have a photo (a photoless
      * listing renders a grey placeholder), rotating by position so adjacent ad
-     * slots don't repeat. Null when there are no listings to draw from.
+     * slots don't repeat. Excludes listings already rendered as a normal
+     * [Row.Listing] row in [currentRows] so an ad-slot backfill never
+     * duplicates a listing already shown elsewhere in the feed — falls back to
+     * a duplicate only if every candidate is already shown (see
+     * [SellwildHouseAd.pickListing]). Null when there are no listings to draw
+     * from.
      */
-    private fun houseListingFor(position: Int): SellwildListing? =
-        SellwildHouseAd.pickListing(listings, position)
+    private fun houseListingFor(position: Int, currentRows: List<Row>): SellwildListing? {
+        val shownIds = currentRows.mapNotNull { (it as? Row.Listing)?.listing?.id }.toSet()
+        return SellwildHouseAd.pickListing(listings, position, shownIds)
+    }
 
     // -----------------------------------------------------------------
     // Adapter
@@ -433,8 +440,8 @@ class SellwildFeedView @JvmOverloads constructor(
                 // MREC can house-backfill with a full-width listing card (same as
                 // organic listings) when no CMS image is set; a 320x50 banner is
                 // too small for a card, so it gets none.
-                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize, firstAdViewedGuard)
-                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position), ::handleFeedListingTap, ::onAdRowResize, firstAdViewedGuard)
+                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position, rows), ::handleFeedListingTap, ::onAdRowResize, firstAdViewedGuard)
+                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position, rows), ::handleFeedListingTap, ::onAdRowResize, firstAdViewedGuard)
                 is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null, ::handleFeedListingTap, ::onAdRowResize, firstAdViewedGuard)
             }
         }
