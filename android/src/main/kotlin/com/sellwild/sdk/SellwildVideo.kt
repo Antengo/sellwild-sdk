@@ -43,6 +43,28 @@ internal object SellwildVideo {
         EnumSet.of(AdUnitFormat.BANNER, AdUnitFormat.VIDEO)
 
     /**
+     * Whether outstream audio is enabled (unmuted) for this placement.
+     * Remote-config gated; defaults to `false` (muted autoplay — the in-feed
+     * standard, matches iOS) when unset. A truthy global `VIDEO_SOUND_ENABLED`
+     * forces sound on; otherwise the per-zone map decides. Mirrors `isEnabled`.
+     *
+     * Unlike iOS, the shaded fork's rendering `BannerView`/`AdUnitConfiguration`
+     * exposes no client-side mute knob (no `VideoControlsConfiguration`
+     * equivalent) — this value is consumed by [SellwildAdView]'s direct
+     * `VideoView.mute()` enforcement instead of a request-side config write.
+     */
+    fun soundEnabled(remoteJson: String?, zoneId: String?): Boolean {
+        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
+        if (truthy(obj.optAny("VIDEO_SOUND_ENABLED"))) return true
+        if (zoneId != null) {
+            obj.optJSONObject("VIDEO_SOUND_ENABLED_BY_ZONE")?.let { byZone ->
+                if (byZone.has(zoneId) && !byZone.isNull(zoneId)) return truthy(byZone.get(zoneId))
+            }
+        }
+        return false
+    }
+
+    /**
      * Outstream in-banner video parameters: mp4, VAST 2.0–4.0, autoplay with
      * sound off, OMID + MRAID (no VPAID), in-banner placement, standalone plcmt.
      *
