@@ -43,8 +43,15 @@ internal object SellwildVideo {
         EnumSet.of(AdUnitFormat.BANNER, AdUnitFormat.VIDEO)
 
     /**
-     * Outstream in-banner video parameters: mp4, VAST 2.0–4.0, autoplay with
-     * sound off, OMID + MRAID (no VPAID), in-banner placement, standalone plcmt.
+     * Outstream in-banner video parameters: mp4, VAST 2.0–4.0, CLICK-TO-PLAY
+     * (user-initiated — we never autoplay), OMID + MRAID (no VPAID), in-banner
+     * placement, standalone plcmt.
+     *
+     * Playback is click-to-play by policy: autoplay (even sound-off) is the source
+     * of the audio breakthrough and non-compliant creatives ignore the sound-off
+     * hint, so video starts only on a user tap. The server-side banner-video-reject
+     * hook enforces the same rule (rejects any video imp whose playbackmethod isn't
+     * click-to-play).
      *
      * NOTE (verify on build): the `Signals.*` cases below are Prebid Mobile 3.x;
      * confirm they resolve in the shaded fork.
@@ -56,7 +63,7 @@ internal object SellwildVideo {
                 Signals.Protocols.VAST_3_0,
                 Signals.Protocols.VAST_4_0,
             )
-            playbackMethod = listOf(Signals.PlaybackMethod.AutoPlaySoundOff)
+            playbackMethod = listOf(Signals.PlaybackMethod.ClickToPlay)
             api = listOf(Signals.Api.OMID_1, Signals.Api.MRAID_3)
             // InBanner (OpenRTB 2.5 placement value 2, deprecated in 2.6 but
             // widely honored) + Standalone / no-content (OpenRTB 2.6 plcmt
