@@ -110,6 +110,22 @@ public enum SellwildVideo {
         cfg.adConfiguration.videoControlsConfig.isMuted = !soundEnabled(remoteValues: remoteValues, zoneId: zoneId)
     }
 
+    /// Force video autoplay muted on a rendering `BannerView` even when this
+    /// zone never requested video (`isEnabled` is `false`, so `enableOutstream`
+    /// never runs and `videoControlsConfig.isMuted` is never written).
+    ///
+    /// Defensive mitigation: `videoControlsConfig.isMuted` defaults to `false`
+    /// (sound ON) in the fork — see `enableOutstream`'s doc comment — so a
+    /// banner-only imp that unexpectedly wins a video/VAST creative (a bidder or
+    /// stored-imp config ignoring the requested `imp.video` absence) would
+    /// autoplay with sound by the fork's own default, with nothing in this SDK
+    /// having ever touched the mute config for that placement. Call this on
+    /// every rendering `BannerView` that does NOT call `enableOutstream`, so
+    /// the mute config is written either way.
+    static func forceDefaultMute(on bannerView: PrebidBannerView) {
+        bannerView.adUnitConfig.adConfiguration.videoControlsConfig.isMuted = true
+    }
+
     private static func truthy(_ value: Any?) -> Bool {
         switch value {
         case let b as Bool: return b

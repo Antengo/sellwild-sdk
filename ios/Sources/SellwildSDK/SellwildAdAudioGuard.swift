@@ -11,10 +11,18 @@
 // a MutationObserver.
 //
 // BEST-EFFORT — known limits (documented on purpose):
-//   • Only reaches media in the WebView's MAIN frame. A creative whose media
-//     lives in a cross-origin <iframe> is walled off by the same-origin policy
-//     (this is exactly why the vendors inject at WebView-creation, which needs a
-//     fork change). Muted video autoplay still shows; only sound is targeted.
+//   • The `evaluateJavaScript` pass only reaches media in the WebView's MAIN
+//     frame — a creative whose media lives in a cross-origin <iframe> is walled
+//     off by the same-origin policy. To narrow this gap WITHOUT a fork change,
+//     `apply` also attaches a `WKUserScript` (`forMainFrameOnly: false`,
+//     `.atDocumentStart`) to the WebView's OWN `configuration.userContentController`
+//     — a fully public property on any WKWebView we can already reach, no fork
+//     access needed. Per-frame `WKUserScript`s run on THAT frame's own
+//     navigation, so this reaches an iframe that loads/reloads AFTER we attach
+//     it (common for viewability-triggered creatives) — but not an iframe
+//     that's already fully loaded by the time we find the WebView. True,
+//     complete coverage still needs the fork to attach at WebView-CREATION
+//     time, before any navigation starts (a fork change).
 //   • Only covers WebViews inside our own view tree. GAM/AdX creatives rendered
 //     in Google's own container are out of reach here.
 //   • We evaluate AFTER load + a few short retries, so there can be a brief blip
@@ -47,6 +55,10 @@ enum SellwildAdAudioGuard {
     /// few short retries. No-op when disabled or when there's no WebView yet.
     static func apply(to container: UIView, remoteValues: [String: Any]?) {
         guard isEnabled(remoteValues: remoteValues) else { return }
+        // One-time (not per-retry) per-frame injection — see the file header
+        // for why this reaches cross-origin iframes the evaluateJavaScript
+        // pass below cannot.
+        installUserScripts(in: container)
         for delay in retryDelays {
             if delay == 0 {
                 muteWebViews(in: container)
@@ -56,6 +68,31 @@ enum SellwildAdAudioGuard {
                     muteWebViews(in: container)
                 }
             }
+        }
+    }
+
+    /// Marks a `WKUserContentController` we've already injected into, so a
+    /// repeat `apply()` call (a refresh reusing the same WebView) doesn't stack
+    /// duplicate copies of the same script on every render.
+    private static var injectedKey: UInt8 = 0
+
+    /// Attach `muteScript` as a `WKUserScript` to every WebView's OWN
+    /// configuration, `forMainFrameOnly: false` so it runs in every frame
+    /// (including cross-origin iframes) on THAT frame's own navigation —
+    /// sidestepping the same-origin restriction `evaluateJavaScript` hits.
+    /// Idempotent per WebView (see `injectedKey`); does nothing for a frame
+    /// that's already finished loading before we attach.
+    private static func installUserScripts(in root: UIView) {
+        for webView in webViews(in: root) {
+            let controller = webView.configuration.userContentController
+            if objc_getAssociatedObject(controller, &injectedKey) as? Bool == true { continue }
+            objc_setAssociatedObject(controller, &injectedKey, true, .OBJC_ASSOCIATION_RETAIN)
+            let script = WKUserScript(
+                source: muteScript,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: false
+            )
+            controller.addUserScript(script)
         }
     }
 

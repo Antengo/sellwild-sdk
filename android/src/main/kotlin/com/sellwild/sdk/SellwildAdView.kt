@@ -6,6 +6,8 @@ import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
 import android.util.Log
+import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.browser.customtabs.CustomTabsIntent
 import com.google.android.gms.ads.AdListener
@@ -17,6 +19,7 @@ import org.json.JSONObject
 import com.sellwild.prebid.AdSize as PrebidAdSize
 import com.sellwild.prebid.api.exceptions.AdException
 import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView
+import com.sellwild.prebid.api.rendering.VideoView as PrebidVideoView
 import com.sellwild.prebid.api.rendering.listeners.BannerViewListener
 
 /**
@@ -386,6 +389,55 @@ class SellwildAdView @JvmOverloads constructor(
         SellwildAdAudioGuard.apply(this, config.remoteJson)
     }
 
+    /**
+     * Defense-in-depth against outstream audio, run on EVERY prebidOnly render
+     * regardless of whether this zone requested video (a video creative can win
+     * either way):
+     *  1. Placement validation — [PrebidBannerView.getBidResponse]'s
+     *     `isVideo()` (type-checks `ext.prebid.type`, falls back to sniffing the
+     *     raw `adm` for VAST) tells us whether the winning bid is ACTUALLY video
+     *     regardless of what `imp.video` we requested. On a mismatch (video won
+     *     a zone that never enabled video — a bidder/stored-imp ignoring the
+     *     request), report it via analytics for visibility.
+     *  2. Direct player enforcement — unlike iOS, the shaded fork exposes no
+     *     client-side mute CONFIG on the rendering path (no
+     *     `VideoControlsConfiguration` equivalent); the only enforcement point
+     *     is [PrebidVideoView.mute], found by walking [bannerView]'s own child
+     *     hierarchy (mirrors [SellwildAdAudioGuard]'s WebView walk). The
+     *     request-side `AutoPlaySoundOff` playback-method signal
+     *     ([SellwildVideo.outstreamParameters]) is advisory only — bidders can
+     *     ignore it — so this call is the actual enforcement, not the request.
+     */
+    private fun enforceVideoMuteAndValidatePlacement(bannerView: PrebidBannerView) {
+        val expectedVideo = SellwildVideo.isEnabled(config.remoteJson, zoneId)
+        val looksLikeVideo = runCatching { bannerView.bidResponse?.isVideo() }.getOrNull() == true
+        if (!looksLikeVideo) return
+
+        if (!expectedVideo) {
+            if (config.debug) {
+                Log.d("SellwildAdView", "[prebidOnly] placement mismatch — video creative won a banner-only zone ${zoneId.orEmpty()}")
+            }
+            SellwildEventQueue.shared(context).track("placementMismatch", label = zoneId.orEmpty())
+        }
+
+        val wantsSound = expectedVideo && SellwildVideo.soundEnabled(config.remoteJson, zoneId)
+        for (videoView in videoViews(bannerView)) {
+            videoView.mute(!wantsSound)
+        }
+    }
+
+    /** Depth-first collect every [PrebidVideoView] in the subtree rooted at
+     *  [root] (mirrors [SellwildAdAudioGuard]'s WebView walk). */
+    private fun videoViews(root: View): List<PrebidVideoView> {
+        if (root is PrebidVideoView) return listOf(root)
+        if (root !is ViewGroup) return emptyList()
+        val found = mutableListOf<PrebidVideoView>()
+        for (i in 0 until root.childCount) {
+            found.addAll(videoViews(root.getChildAt(i)))
+        }
+        return found
+    }
+
     private fun openHouseUrl(url: String?) {
         // http/https only — the click URL is remote CMS config; never hand an
         // arbitrary scheme (intent:/market:/deep link) to an ACTION_VIEW intent.
@@ -733,6 +785,7 @@ class SellwildAdView @JvmOverloads constructor(
             // only affects PREBID_ONLY with refresh enabled.
             self.setHouseVisible(false)
             self.applyAudioGuard()
+            bannerView?.let { self.enforceVideoMuteAndValidatePlacement(it) }
             self.listener?.onAdLoaded(self)
             // sw3 fork getters surface the winning creative size, so tighten the
             // reserved multi-size bounding box to what actually rendered and

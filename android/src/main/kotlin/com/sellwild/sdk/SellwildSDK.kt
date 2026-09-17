@@ -34,7 +34,7 @@ object SellwildSDK {
      * the config-fetch User-Agent beacon. Keep in lockstep with the
      * `build.gradle.kts` version and the other platforms' version constants.
      */
-    const val SDK_VERSION = "1.7.6"
+    const val SDK_VERSION = "1.7.7"
 
     /**
      * Build a [SellwildConfig] by fetching `partnerCode/slug.json` from the

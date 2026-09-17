@@ -43,6 +43,28 @@ internal object SellwildVideo {
         EnumSet.of(AdUnitFormat.BANNER, AdUnitFormat.VIDEO)
 
     /**
+     * Whether outstream audio is enabled (unmuted) for this placement.
+     * Remote-config gated; defaults to `false` (muted autoplay — the in-feed
+     * standard, matches iOS) when unset. A truthy global `VIDEO_SOUND_ENABLED`
+     * forces sound on; otherwise the per-zone map decides. Mirrors `isEnabled`.
+     *
+     * Unlike iOS, the shaded fork's rendering `BannerView`/`AdUnitConfiguration`
+     * exposes no client-side mute knob (no `VideoControlsConfiguration`
+     * equivalent) — this value is consumed by [SellwildAdView]'s direct
+     * `VideoView.mute()` enforcement instead of a request-side config write.
+     */
+    fun soundEnabled(remoteJson: String?, zoneId: String?): Boolean {
+        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
+        if (truthy(obj.optAny("VIDEO_SOUND_ENABLED"))) return true
+        if (zoneId != null) {
+            obj.optJSONObject("VIDEO_SOUND_ENABLED_BY_ZONE")?.let { byZone ->
+                if (byZone.has(zoneId) && !byZone.isNull(zoneId)) return truthy(byZone.get(zoneId))
+            }
+        }
+        return false
+    }
+
+    /**
      * Outstream in-banner video parameters: mp4, VAST 2.0–4.0, CLICK-TO-PLAY
      * (user-initiated — we never autoplay), OMID + MRAID (no VPAID), in-banner
      * placement, standalone plcmt.
@@ -51,7 +73,9 @@ internal object SellwildVideo {
      * of the audio breakthrough and non-compliant creatives ignore the sound-off
      * hint, so video starts only on a user tap. The server-side banner-video-reject
      * hook enforces the same rule (rejects any video imp whose playbackmethod isn't
-     * click-to-play).
+     * click-to-play). `soundEnabled` above still gates the direct `VideoView.mute()`
+     * enforcement in [SellwildAdView] as defense-in-depth for creatives that ignore
+     * the click-to-play request.
      *
      * NOTE (verify on build): the `Signals.*` cases below are Prebid Mobile 3.x;
      * confirm they resolve in the shaded fork.

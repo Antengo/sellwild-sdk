@@ -1,4 +1,5 @@
 import UIKit
+import AVFoundation
 import GoogleMobileAds
 import SellwildPrebidSDK
 
@@ -441,6 +442,11 @@ public final class SellwildAdView: UIView {
         // formats (banner-only there for now; see SellwildAdView.kt).
         if SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId) {
             SellwildVideo.enableOutstream(on: v, remoteValues: config.remoteValues, zoneId: zoneId)
+        } else {
+            // Defensive: this zone never requested video, but force the mute
+            // config anyway in case a bidder/stored-imp still wins a video
+            // creative on this banner-only imp. See forceDefaultMute's doc comment.
+            SellwildVideo.forceDefaultMute(on: v)
         }
         // Multi-size fallback for the Prebid-rendered banner (primary set above).
         SellwildAdSizes.applyRendering(resolvedAdSizes, to: v)
@@ -599,6 +605,50 @@ public final class SellwildAdView: UIView {
     /// slot's WebView(s). No Prebid-fork dependency. See `SellwildAdAudioGuard`.
     private func applyAudioGuard() {
         SellwildAdAudioGuard.apply(to: self, remoteValues: config.remoteValues)
+    }
+
+    /// Defense-in-depth against outstream audio a request-side mute config
+    /// doesn't guarantee is honored:
+    ///  1. Placement validation — detect when the winning bid is actually
+    ///     video/VAST despite this zone not requesting video (a bidder or
+    ///     stored-imp ignoring the requested `imp.video` absence). Reports the
+    ///     mismatch via analytics so we get real visibility into how often it
+    ///     happens, rather than only muting silently.
+    ///  2. Direct player enforcement — force-mute the actual rendered
+    ///     `AVPlayer` (found by walking for an `AVPlayerLayer`-backed subview,
+    ///     the same pattern `SellwildAdAudioGuard` uses for `WKWebView`), not
+    ///     just the request-side `videoControlsConfig` — the same class of bug
+    ///     already seen once (a config write not surviving to render).
+    /// Runs on EVERY render, since a video creative can win regardless of
+    /// whether this zone requested video.
+    private func enforceVideoMuteAndValidatePlacement(on bannerView: PrebidBannerView) {
+        let expectedVideo = SellwildVideo.isEnabled(remoteValues: config.remoteValues, zoneId: zoneId)
+        let bid = bannerView.lastBidResponse?.winningBid
+        let looksLikeVideo = bid?.adFormat == .video
+            || bid?.videoAdConfiguration != nil
+            || (bid?.adm?.contains("<VAST") ?? false)
+        guard looksLikeVideo else { return }
+
+        if !expectedVideo {
+            #if DEBUG
+            print("[SellwildAdView][prebidOnly] ⚠️ placement mismatch — video creative won a banner-only zone \(zoneId ?? "?")")
+            #endif
+            SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "placementMismatch", label: zoneId ?? ""))
+        }
+
+        let wantsSound = expectedVideo && SellwildVideo.soundEnabled(remoteValues: config.remoteValues, zoneId: zoneId)
+        for layer in playerLayers(in: bannerView) {
+            layer.player?.isMuted = !wantsSound
+        }
+    }
+
+    /// Depth-first collect every `AVPlayerLayer`-backed view in the subtree
+    /// rooted at `root` (mirrors `SellwildAdAudioGuard.webViews(in:)`).
+    private func playerLayers(in root: UIView) -> [AVPlayerLayer] {
+        var found: [AVPlayerLayer] = []
+        if let layer = root.layer as? AVPlayerLayer { found.append(layer) }
+        for sub in root.subviews { found.append(contentsOf: playerLayers(in: sub)) }
+        return found
     }
 
     private func openHouseURL(_ urlString: String?) {
@@ -767,6 +817,7 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         // affects .prebidOnly with refresh enabled.
         houseView?.isHidden = true
         applyAudioGuard()
+        enforceVideoMuteAndValidatePlacement(on: bannerView)
         delegate?.sellwildAdViewDidLoad?(self)
         delegate?.sellwildAdView?(self, didRenderWithSize: adSize)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
