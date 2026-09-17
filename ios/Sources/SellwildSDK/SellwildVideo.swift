@@ -55,9 +55,15 @@ public enum SellwildVideo {
         return false
     }
 
-    /// Outstream in-banner video parameters: mp4, VAST 2.0–4.2, autoplay with
-    /// sound off (the in-feed standard), OMID + MRAID (no VPAID), in-banner
+    /// Outstream in-banner video parameters: mp4, VAST 2.0–4.2, CLICK-TO-PLAY
+    /// (user-initiated — we never autoplay), OMID + MRAID (no VPAID), in-banner
     /// placement, standalone (no-content) plcmt.
+    ///
+    /// Playback is click-to-play by policy: autoplay (even sound-off) is the
+    /// source of the audio breakthrough and non-compliant creatives ignore the
+    /// sound-off hint, so video starts only on a user tap. The server-side
+    /// banner-video-reject hook enforces the same rule (rejects any video imp
+    /// whose playbackmethod isn't click-to-play).
     ///
     /// NOTE (verify on build): the `Signals.*` enum cases and `VideoParameters`
     /// property names below are Prebid Mobile 3.x; confirm they resolve in the
@@ -69,7 +75,7 @@ public enum SellwildVideo {
             Signals.Protocols.VAST_3_0,
             Signals.Protocols.VAST_4_0,
         ]
-        params.playbackMethod = [Signals.PlaybackMethod.AutoPlaySoundOff]
+        params.playbackMethod = [Signals.PlaybackMethod.ClickToPlay]
         params.placement = Signals.Placement.InBanner   // deprecated in 2.6 but widely honored
         // NOTE: Prebid Mobile 3.x shaded fork doesn't expose `plcmt` (OpenRTB 2.6);
         // `placement = InBanner` covers the intent for buyers still on the 2.5 signal.
@@ -91,9 +97,9 @@ public enum SellwildVideo {
     /// `adConfiguration.videoControlsConfig.isMuted`) — the same path the fork's
     /// own mediation adapters use — so there's no reliance on mutating a get-only
     /// proxy in place. `videoControlsConfig.isMuted` defaults to `false` (sound
-    /// ON) in the fork, so the mute write is what keeps autoplay silent (the
-    /// request-side `playbackMethod = AutoPlaySoundOff` is only an advisory
-    /// auction signal).
+    /// ON) in the fork, so the mute write is defense-in-depth. The request-side
+    /// `playbackMethod = ClickToPlay` is the primary control (video starts only on
+    /// a user tap); the mute write keeps any stray playback silent regardless.
     ///
     /// NOTE (verify on build): these `AdConfiguration` members are Prebid Mobile
     /// 3.x; confirm they resolve in the shaded `SellwildPrebidSDK` fork.
