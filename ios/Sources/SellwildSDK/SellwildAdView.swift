@@ -132,6 +132,11 @@ public final class SellwildAdView: UIView {
     // .prebidOnly renders (initial + auto-refreshes). Caps Prebid's internal
     // auto-refresh at effectiveRefreshMax, which it otherwise ignores.
     private var prebidRefreshCount = 0
+    // True once the .prebidOnly BannerView has rendered a creative at least once.
+    // Gates reattach behavior: with a rendered creative present, a reattach keeps
+    // it (so its viewability tracker can fire the impression/burl) rather than
+    // discarding it with a fresh auction.
+    private var prebidHasRenderedCreative = false
 
     /// Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
     /// when set, else the shared `AD_REFRESH_MAX` (matches Android + web). iOS
@@ -245,10 +250,54 @@ public final class SellwildAdView: UIView {
             scheduleRefresh()
         case .prebidOnly:
             // Setting refreshInterval alone doesn't re-arm: pause()'s stopRefresh()
-            // latched the banner (the fork clears that only on a new bid request),
-            // so re-issue the load to actually resume the auto-refresh cadence.
-            if effectiveRefreshMax > 0 { prebidBanner?.loadAd() }
+            // latched the banner (the fork clears that only on a new bid request).
+            // Default (flag off): re-issue loadAd() to un-latch — but that discards
+            // the current creative before its viewability tracker fires, so burl
+            // (the viewable impression) almost never fires on a scrolling feed.
+            // Flag on: keep the already-rendered creative so its tracker fires the
+            // impression/burl now that we're back on screen, and resume the cadence
+            // on a DELAYED refresh instead of an immediate re-auction.
+            if effectiveRefreshMax > 0 {
+                if keepsPrebidCreativeOnReattach, prebidHasRenderedCreative {
+                    schedulePrebidRefresh()
+                } else {
+                    prebidBanner?.loadAd()
+                }
+            }
         }
+    }
+
+    /// Whether a .prebidOnly reattach keeps the already-rendered creative (letting
+    /// its viewability tracker fire the impression/burl) and resumes the refresh
+    /// cadence on a delayed timer, instead of immediately re-auctioning (which
+    /// discards the creative before it can be counted). Remote-config gated;
+    /// defaults to `false` (today's behavior) so it ships dormant and can be
+    /// validated per-partner from the CDN with no release. Set
+    /// `MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH: true` to enable.
+    private var keepsPrebidCreativeOnReattach: Bool {
+        switch config.remoteValues?["MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH"] {
+        case let b as Bool: return b
+        case let n as NSNumber: return n.boolValue
+        case let s as String: return ["1", "true", "yes", "on"].contains(s.lowercased())
+        default: return false
+        }
+    }
+
+    /// Resume the .prebidOnly refresh cadence WITHOUT discarding the current
+    /// creative: wait one refresh interval, then re-auction. During the wait the
+    /// already-rendered creative stays on screen, so its viewability tracker can
+    /// fire the impression/burl. Only re-auctions if still attached and under the
+    /// refresh cap. `.common` mode so it fires during scroll tracking.
+    private func schedulePrebidRefresh() {
+        guard effectiveRefreshMax > 0, prebidRefreshCount < effectiveRefreshMax else { return }
+        refreshTimer?.invalidate()
+        let interval = max(config.adRefreshInterval, Self.minRefreshIntervalSec)
+        let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
+            guard let self, self.window != nil else { return }
+            self.prebidBanner?.loadAd()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        refreshTimer = timer
     }
 
     // MARK: Detached-refresh pause (default ON — parity with Android)
@@ -351,6 +400,7 @@ public final class SellwildAdView: UIView {
             pb.stopRefresh()
             pb.removeFromSuperview()
             prebidBanner = nil
+            prebidHasRenderedCreative = false
         }
         if let na = nativeAdView { na.removeFromSuperview(); nativeAdView = nil }
         if let existing = gamBanner { return existing }
@@ -413,6 +463,7 @@ public final class SellwildAdView: UIView {
             banner.refreshInterval = max(config.adRefreshInterval, Self.minRefreshIntervalSec)
         }
         prebidRefreshCount = 0
+        prebidHasRenderedCreative = false
         banner.loadAd()
     }
 
@@ -488,7 +539,7 @@ public final class SellwildAdView: UIView {
     private func ensureNativeAdView(configId: String) -> SellwildNativeAdView {
         // Tear down banner render paths if we previously rendered one.
         if let gb = gamBanner { gb.removeFromSuperview(); gamBanner = nil }
-        if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil }
+        if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil; prebidHasRenderedCreative = false }
         if let existing = nativeAdView { return existing }
 
         let cap = SellwildNative.maxHeight(
@@ -806,6 +857,7 @@ extension SellwildAdView: PrebidBannerViewDelegate {
             prebidRefreshCount += 1
             if prebidRefreshCount > effectiveRefreshMax { bannerView.stopRefresh() }
         }
+        prebidHasRenderedCreative = true
         #if DEBUG
         print("[SellwildAdView][prebidOnly] ✅ rendered — size \(adSize), zone \(zoneId ?? "?")")
         #endif
