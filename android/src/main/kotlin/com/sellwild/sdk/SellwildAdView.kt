@@ -292,7 +292,11 @@ class SellwildAdView @JvmOverloads constructor(
                     // fires the impression/burl now that we're back on screen, and
                     // resume the cadence on a DELAYED refresh instead of an
                     // immediate re-auction. See MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH.
-                    if (keepsPrebidCreativeOnReattach && prebidHasRenderedCreative) {
+                    // Order matters: the cheap flag short-circuits before
+                    // keepsPrebidCreativeOnReattach, which parses remoteJson — so a
+                    // reattach with no rendered creative (common on fast scroll)
+                    // skips the parse entirely.
+                    if (prebidHasRenderedCreative && keepsPrebidCreativeOnReattach) {
                         schedulePrebidRefresh()
                     } else {
                         prebidBanner?.loadAd()

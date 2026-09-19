@@ -258,7 +258,10 @@ public final class SellwildAdView: UIView {
             // impression/burl now that we're back on screen, and resume the cadence
             // on a DELAYED refresh instead of an immediate re-auction.
             if effectiveRefreshMax > 0 {
-                if keepsPrebidCreativeOnReattach, prebidHasRenderedCreative {
+                // Order matters: the cheap flag short-circuits before
+                // keepsPrebidCreativeOnReattach so we skip the config lookup when
+                // there's no rendered creative to keep (common on fast scroll).
+                if prebidHasRenderedCreative, keepsPrebidCreativeOnReattach {
                     schedulePrebidRefresh()
                 } else {
                     prebidBanner?.loadAd()
