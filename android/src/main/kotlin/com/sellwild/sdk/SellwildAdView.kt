@@ -149,6 +149,11 @@ class SellwildAdView @JvmOverloads constructor(
     // prebidOnly renders (initial + auto-refreshes). Caps Prebid's internal
     // auto-refresh at effectiveRefreshMax, which it otherwise ignores.
     private var prebidRefreshCount = 0
+    // True once the prebidOnly BannerView has rendered a creative at least once.
+    // Gates the reattach behavior: if we already have a rendered creative, a
+    // reattach should keep it (so its viewability tracker can fire the
+    // impression/burl) rather than discard it with a fresh auction.
+    private var prebidHasRenderedCreative = false
 
     /**
      * Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
@@ -279,9 +284,69 @@ class SellwildAdView @JvmOverloads constructor(
             SellwildAdStack.BOTH, SellwildAdStack.GAM_ONLY -> scheduleRefresh()
             SellwildAdStack.PREBID_ONLY ->
                 if (effectiveRefreshMax > 0 && !nativeEnabled) {
-                    prebidBanner?.loadAd()
+                    // Default (flag off): re-issue loadAd() to un-latch the fork's
+                    // refresh cadence — but this discards the current creative
+                    // before its viewability tracker fires, so burl (the viewable
+                    // impression) almost never fires on a scrolling feed.
+                    // Flag on: keep the already-rendered creative so its tracker
+                    // fires the impression/burl now that we're back on screen, and
+                    // resume the cadence on a DELAYED refresh instead of an
+                    // immediate re-auction. See MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH.
+                    // Order matters: the cheap flag short-circuits before
+                    // keepsPrebidCreativeOnReattach, which parses remoteJson — so a
+                    // reattach with no rendered creative (common on fast scroll)
+                    // skips the parse entirely.
+                    if (prebidHasRenderedCreative && keepsPrebidCreativeOnReattach) {
+                        schedulePrebidRefresh()
+                    } else {
+                        prebidBanner?.loadAd()
+                    }
                 }
         }
+    }
+
+    /**
+     * Whether a prebidOnly reattach should keep the already-rendered creative
+     * (letting its viewability tracker fire the impression/burl) and resume the
+     * refresh cadence on a delayed timer, instead of immediately re-auctioning
+     * (which discards the creative before it can be counted).
+     *
+     * Remote-config gated; defaults to `false` (today's behavior) so it ships
+     * dormant and can be validated per-partner from the CDN with no release.
+     * Set `MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH: true` to enable.
+     */
+    private val keepsPrebidCreativeOnReattach: Boolean
+        get() {
+            if (!::config.isInitialized) return false
+            val obj = config.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
+            if (!obj.has("MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH") ||
+                obj.isNull("MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH")
+            ) {
+                return false
+            }
+            return when (val v = obj.get("MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH")) {
+                is Boolean -> v
+                is Number -> v.toInt() != 0
+                is String -> v.lowercase() in setOf("1", "true", "yes", "on")
+                else -> false
+            }
+        }
+
+    /**
+     * Resume the prebidOnly refresh cadence WITHOUT discarding the current
+     * creative: wait one refresh interval, then re-auction. During the wait the
+     * already-rendered creative stays on screen, so its viewability tracker can
+     * fire the impression/burl. Only re-auctions if still attached and under the
+     * refresh cap. Reuses the shared [refreshHandler]; never stacks callbacks.
+     */
+    private fun schedulePrebidRefresh() {
+        if (effectiveRefreshMax <= 0 || prebidRefreshCount >= effectiveRefreshMax) return
+        val handler = refreshHandler ?: Handler(Looper.getMainLooper()).also { refreshHandler = it }
+        handler.removeCallbacksAndMessages(null)
+        val interval = config.adRefreshIntervalMs.coerceAtLeast(MIN_REFRESH_INTERVAL_MS)
+        handler.postDelayed({
+            if (isAttachedToWindow) prebidBanner?.loadAd()
+        }, interval)
     }
 
     // ── Detached-refresh pause (default ON) ──────────────────────────────────
@@ -332,6 +397,7 @@ class SellwildAdView @JvmOverloads constructor(
         bannerView = null
         prebidBanner?.destroy()
         prebidBanner = null
+        prebidHasRenderedCreative = false
         nativeAdView?.destroy()
         nativeAdView = null
     }
@@ -631,6 +697,7 @@ class SellwildAdView @JvmOverloads constructor(
         }
         prebidWaitAttempts = 0
         prebidRefreshCount = 0
+        prebidHasRenderedCreative = false
         prebid.loadAd()
     }
 
@@ -777,6 +844,7 @@ class SellwildAdView @JvmOverloads constructor(
                 if (self.prebidRefreshCount > self.effectiveRefreshMax) bannerView?.stopRefresh()
             }
             if (self.config.debug) android.util.Log.d("SellwildAdView", "[prebidOnly] rendered — zone ${self.zoneId.orEmpty()}")
+            self.prebidHasRenderedCreative = true
             // Paid creative rendered — hide the house backdrop so a transparent or
             // smaller-than-slot creative can't bleed through. NOTE: Prebid's
             // rendering banner self-refreshes with a teardown gap the backdrop used
