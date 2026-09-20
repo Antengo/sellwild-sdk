@@ -1,5 +1,7 @@
 package com.sellwild.rnsdk
 
+import android.content.Context
+import android.view.View
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.common.MapBuilder
@@ -14,6 +16,32 @@ import com.sellwild.sdk.SellwildConfig
 import com.sellwild.sdk.SellwildGrowthCodeConfig
 import com.sellwild.sdk.SellwildLocalizedListingsConfig
 import org.json.JSONObject
+
+/**
+ * React Native (Paper) only lays out views in its own shadow tree; the child
+ * views a native component adds itself — here the GAM/Prebid banner and the
+ * WebView the viewability tracker watches — are never measured or laid out, so
+ * they render 0-size and fail the impression viewability check
+ * (getWidth()>0 / getGlobalVisibleRect), which means NO viewable impression and
+ * NO burl fires. Re-run measure + layout on our RN-assigned bounds whenever a
+ * child requests layout (e.g. when the ad renders asynchronously). This is the
+ * standard RN native-view fix (react-native-webview/maps/video do the same).
+ * Not needed on iOS RN, which lays subviews out via Auto Layout constraints.
+ */
+internal class RnSellwildAdView(context: Context) : SellwildAdView(context) {
+    private val measureAndLayout = Runnable {
+        measure(
+            View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY),
+        )
+        layout(left, top, right, bottom)
+    }
+
+    override fun requestLayout() {
+        super.requestLayout()
+        post(measureAndLayout)
+    }
+}
 
 /**
  * Bridges the JS <SellwildBanner> component to the native
@@ -65,7 +93,7 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
     )
 
     override fun createViewInstance(reactContext: ThemedReactContext): SellwildAdView {
-        val view = SellwildAdView(reactContext)
+        val view = RnSellwildAdView(reactContext)
         pending[view] = PendingProps()
         view.listener = object : SellwildAdView.Listener {
             override fun onAdLoaded(adView: SellwildAdView) {

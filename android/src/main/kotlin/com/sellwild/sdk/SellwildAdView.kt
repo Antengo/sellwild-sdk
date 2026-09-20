@@ -74,7 +74,7 @@ class SellwildFirstAdViewedGuard {
  * ad.load()
  * ```
  */
-class SellwildAdView @JvmOverloads constructor(
+open class SellwildAdView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,

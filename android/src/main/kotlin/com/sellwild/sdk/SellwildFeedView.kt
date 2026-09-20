@@ -57,7 +57,7 @@ import kotlinx.coroutines.withContext
  * feed.load()
  * ```
  */
-class SellwildFeedView @JvmOverloads constructor(
+open class SellwildFeedView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
