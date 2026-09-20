@@ -1,7 +1,7 @@
 import React from 'react'
 import { Platform, requireNativeComponent, UIManager, ViewStyle, View, Text, StyleSheet, NativeSyntheticEvent } from 'react-native'
 import { resolveAdStack, type SellwildConfig, type AdSize } from '@sellwild/sdk-core'
-import { resolveAppIdentity } from './appIdentity'
+import { toNativeConfig } from './nativeConfig'
 
 // Standard IAB mobile ad sizes — used to lock the host View dimensions.
 // The actual ad size is also propagated to native as the `size` prop label.
@@ -159,31 +159,9 @@ export function SellwildBanner({
     )
   }
 
-  // Pass only the fields the native banner path actually reads. The rest
-  // of SellwildConfig is ignored on the native side. Note: TS core uses
-  // `adRefreshInterval` (millis); the native side reads it as
-  // `adRefreshIntervalMs`. The bridge translates.
-  // App identity is resolved per-platform here (iOS vs Android) from the raw
-  // CDN payload on `config.remote`; the native banner path reads these fields.
-  const { appBundleId, appStoreUrl } = resolveAppIdentity(config)
-  const nativeConfig = {
-    partnerCode: config.partnerCode,
-    appBundleId,
-    appStoreUrl,
-    geo: config.geo,
-    gamTag: config.gamTag,
-    debug: config.debug,
-    pbsDebug: config.pbsDebug,
-    adRefreshMax: config.adRefreshMax,
-    adRefreshMaxMobile: config.adRefreshMaxMobile,
-    adRefreshIntervalMs: config.adRefreshInterval,
-    prebidServer: config.prebidServer,
-    // Local GrowthCode overrides (remote GROWTHCODE_* keys ride `remote`).
-    growthCode: config.growthCode,
-    // Local localized-listings overrides (remote LOCALIZED_LISTINGS rides `remote`).
-    localizedListings: config.localizedListings,
-    remote: config.remote,
-  }
+  // The fields the native banner path reads. Built via the shared helper so
+  // <SellwildBanner> and prewarm() stay in sync (single source of truth).
+  const nativeConfig = toNativeConfig(config)
 
   return (
     <NativeBanner

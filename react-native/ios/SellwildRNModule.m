@@ -6,5 +6,6 @@
 
 RCT_EXTERN_METHOD(setGeo:(NSDictionary *)geo)
 RCT_EXTERN_METHOD(setExternalUserIds:(NSArray *)eids)
+RCT_EXTERN_METHOD(prewarm:(NSDictionary *)config)
 
 @end
