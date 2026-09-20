@@ -1,5 +1,7 @@
 package com.sellwild.rnsdk
 
+import android.content.Context
+import android.view.View
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.bridge.ReadableMap
@@ -16,6 +18,29 @@ import com.sellwild.sdk.SellwildListing
 import com.sellwild.sdk.SellwildLocalizedListingsConfig
 import com.sellwild.sdk.SellwildSDK
 import org.json.JSONObject
+
+/**
+ * React Native (Paper) only lays out its own shadow-tree views; children a
+ * native component adds itself (the feed's RecyclerView + ad WebViews) are never
+ * measured/laid out, so they render 0-size and fail the impression viewability
+ * check — no viewable impression, no burl. Re-run measure + layout on our
+ * RN-assigned bounds whenever a child requests layout. Standard RN native-view
+ * fix; not needed on iOS RN (Auto Layout constraints handle it).
+ */
+internal class RnSellwildFeedView(context: Context) : SellwildFeedView(context) {
+    private val measureAndLayout = Runnable {
+        measure(
+            View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY),
+        )
+        layout(left, top, right, bottom)
+    }
+
+    override fun requestLayout() {
+        super.requestLayout()
+        post(measureAndLayout)
+    }
+}
 
 /**
  * Bridges the JS <SellwildFeed> component to the native
@@ -52,7 +77,7 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
     )
 
     override fun createViewInstance(reactContext: ThemedReactContext): SellwildFeedView {
-        val view = SellwildFeedView(reactContext)
+        val view = RnSellwildFeedView(reactContext)
         pending[view] = PendingProps()
         view.listener = object : SellwildFeedView.Listener {
             override fun onListingTap(listing: SellwildListing): Boolean {
