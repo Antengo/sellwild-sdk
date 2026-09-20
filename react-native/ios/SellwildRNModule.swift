@@ -39,4 +39,18 @@ final class SellwildRNModule: NSObject {
         }
         SellwildPrebidMobile.setExternalUserIds(mapped)
     }
+
+    /// JS: `SellwildRNModule.prewarm(nativeConfig)`. Pre-initializes the native ad
+    /// stack before the first ad view mounts so the first impression doesn't incur
+    /// cold-start init latency. Idempotent. Reuses the banner manager's config
+    /// mapping so the payload matches `<SellwildBanner config=...>`. iOS bootstraps
+    /// inside `configure()` too; this is the explicit early opt-in for parity with
+    /// Android's `SellwildSDK.prewarm`.
+    @objc(prewarm:)
+    func prewarm(_ config: NSDictionary) {
+        let cfg = SellwildBannerViewManager.configFromMap(config)
+        DispatchQueue.main.async {
+            _ = SellwildPrebidMobile.bootstrap(with: cfg)
+        }
+    }
 }

@@ -1,5 +1,6 @@
 import { NativeModules } from 'react-native'
-import type { SellwildEid, SellwildGeo } from '@sellwild/sdk-core'
+import type { SellwildConfig, SellwildEid, SellwildGeo } from '@sellwild/sdk-core'
+import { toNativeConfig } from './nativeConfig'
 
 // Imperative bridge to the native Sellwild method module. The ad surface is
 // otherwise view-manager-only (config flows as a prop on <SellwildBanner> /
@@ -8,6 +9,7 @@ const SellwildRNModule = NativeModules.SellwildRNModule as
   | {
       setGeo?: (geo: Record<string, unknown>) => void
       setExternalUserIds?: (eids: SellwildEid[]) => void
+      prewarm?: (config: Record<string, unknown>) => void
     }
   | undefined
 
@@ -34,4 +36,17 @@ export function setGeo(geo: SellwildGeo | null): void {
  */
 export function setExternalUserIds(eids: SellwildEid[]): void {
   SellwildRNModule?.setExternalUserIds?.(eids ?? [])
+}
+
+/**
+ * Pre-initialize the native ad stack (Prebid + ad server SDK) before the first
+ * `<SellwildBanner>`/`<SellwildFeed>` mounts, so the first impression doesn't
+ * incur cold-start init latency and fall back to server-only demand.
+ *
+ * Optional: mounting an ad view already bootstraps idempotently. Call this at
+ * app launch (with the same config you pass to the components) when first-fill
+ * on a cold start matters. No-op if the native module isn't linked.
+ */
+export function prewarm(config: SellwildConfig): void {
+  SellwildRNModule?.prewarm?.(toNativeConfig(config))
 }

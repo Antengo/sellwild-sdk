@@ -5,9 +5,11 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.UiThreadUtil
 import com.sellwild.sdk.SellwildEid
 import com.sellwild.sdk.SellwildEidUid
 import com.sellwild.sdk.SellwildPrebidMobile
+import com.sellwild.sdk.SellwildSDK
 
 /**
  * React Native method module for the native Sellwild SDK's runtime setters.
@@ -40,6 +42,22 @@ class SellwildModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun setExternalUserIds(eids: ReadableArray?) {
         SellwildPrebidMobile.setExternalUserIds(toEids(eids))
+    }
+
+    /**
+     * JS: `SellwildRNModule.prewarm(nativeConfig)`. Pre-initializes the native ad
+     * stack (Prebid + ad server SDK) before the first ad view mounts, so the
+     * first impression doesn't incur cold-start init latency. Mirrors the native
+     * Android-only [SellwildSDK.prewarm]; idempotent. Runs on the main thread —
+     * the ad-SDK inits expect it. Reuses the banner manager's config mapping so
+     * the payload shape matches `<SellwildBanner config=...>`.
+     */
+    @ReactMethod
+    fun prewarm(config: ReadableMap?) {
+        if (config == null) return
+        val ctx = reactApplicationContext
+        val cfg = SellwildBannerViewManager.configFromMap(config)
+        UiThreadUtil.runOnUiThread { SellwildSDK.prewarm(ctx, cfg) }
     }
 
     private fun toEids(arr: ReadableArray?): List<SellwildEid> {

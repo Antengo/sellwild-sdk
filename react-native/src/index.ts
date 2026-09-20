@@ -14,7 +14,7 @@ export { useSellwildListings } from './useSellwildListings'
 export type { UseSellwildListingsResult } from './useSellwildListings'
 
 // Imperative native setters (runtime, session-scoped).
-export { setGeo, setExternalUserIds } from './commands'
+export { setGeo, setExternalUserIds, prewarm } from './commands'
 
 // Re-export core types for convenience
 export type {
