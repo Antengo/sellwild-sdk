@@ -32,6 +32,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 /**
  * All-in-one native feed surface. As of 1.4.0 this view renders a
@@ -99,6 +100,18 @@ open class SellwildFeedView @JvmOverloads constructor(
     }
 
     var listener: Listener? = null
+
+    /**
+     * Opt in to defensive layout self-healing for hosts that don't lay out this
+     * view's children — React Native (esp. New Architecture / Fabric interop) and
+     * custom native wrappers. Those hosts size the view they manage but skip the
+     * measure pass on natively-added children, so the feed (and its ad rows) can
+     * end up 0-sized and fail the ad viewability check — no viewable impression,
+     * no burl. When enabled, if this view is 0-sized while its parent has real
+     * bounds, it re-measures + lays itself out to fill the parent. Guarded to that
+     * broken case. Also enabled remotely via `MOBILE_LAYOUT_SELF_HEAL`.
+     */
+    var layoutSelfHeal: Boolean = false
 
     /**
      * Disable the feed's own scrolling so it can be embedded inside a parent
@@ -270,6 +283,7 @@ open class SellwildFeedView @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        startLayoutSelfHealIfEnabled()
         // Self-heal the "config arrived late / detached mid-load during a fast
         // scroll" race: if we have a config but no successful load yet (and none
         // in flight), (re)start the load on re-attach. Deduped by load()'s own
@@ -281,6 +295,7 @@ open class SellwildFeedView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        stopLayoutSelfHeal()
         // Cancel only the in-flight fetch — NOT the whole scope. `scope.cancel()`
         // is terminal (the scope is a val, never recreated), so cancelling it on a
         // transient detach during fast scroll permanently killed the loader: the
@@ -288,6 +303,51 @@ open class SellwildFeedView @JvmOverloads constructor(
         // load()/refresh() no-op'd on the dead scope. onAttachedToWindow re-drives
         // an incomplete load instead.
         loadJob?.cancel()
+    }
+
+    // ── Layout self-heal (default OFF; see [layoutSelfHeal]) ──────────────────
+    private var selfHealListener: android.view.ViewTreeObserver.OnGlobalLayoutListener? = null
+
+    private fun isLayoutSelfHealEnabled(): Boolean {
+        if (layoutSelfHeal) return true
+        val obj = config?.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
+        if (!obj.has("MOBILE_LAYOUT_SELF_HEAL") || obj.isNull("MOBILE_LAYOUT_SELF_HEAL")) return false
+        return when (val v = obj.get("MOBILE_LAYOUT_SELF_HEAL")) {
+            is Boolean -> v
+            is Number -> v.toInt() != 0
+            is String -> v.lowercase() in setOf("1", "true", "yes", "on")
+            else -> false
+        }
+    }
+
+    private fun startLayoutSelfHealIfEnabled() {
+        if (selfHealListener != null || !isLayoutSelfHealEnabled()) return
+        val l = android.view.ViewTreeObserver.OnGlobalLayoutListener { healLayoutIfCollapsed() }
+        selfHealListener = l
+        viewTreeObserver.addOnGlobalLayoutListener(l)
+    }
+
+    private fun stopLayoutSelfHeal() {
+        selfHealListener?.let { viewTreeObserver.removeOnGlobalLayoutListener(it) }
+        selfHealListener = null
+    }
+
+    /**
+     * If this view is 0-sized while its parent has real bounds (the RN /
+     * custom-wrapper case where the host didn't measure our children), force a
+     * measure + layout to fill the parent. Converges once sized.
+     */
+    private fun healLayoutIfCollapsed() {
+        if (width != 0 && height != 0) return
+        val p = parent as? View ?: return
+        val w = p.width
+        val h = p.height
+        if (w <= 0 || h <= 0) return
+        measure(
+            View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY),
+        )
+        layout(0, 0, w, h)
     }
 
     private fun applyBackground(config: SellwildConfig) {
