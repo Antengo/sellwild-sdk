@@ -96,14 +96,16 @@ dependencies {
     // regardless of the Maven group. `publishToMavenLocal` still emits `com.sellwild`
     // for local dev, but the committed coordinate must be the JitPack one so CI /
     // release builds resolve without a local publish.
-    // 3.3.2-sw3: cumulative Sellwild fork patches on the rendering BannerView —
+    // 3.3.2-sw4: cumulative Sellwild fork patches on the rendering BannerView —
     // sw1 exposes multiformat (banner+video) for prebidOnly outstream; sw2 makes
     // BasicParameterBuilder honor the VideoParameters on the rendering path; sw3
     // adds getCreativeWidth()/getCreativeHeight() so prebidOnly multi-size slots
     // (e.g. 300x250 + 320x50) can shrink to the won creative instead of holding
-    // the reserved bounding box (see Antengo/prebid-mobile-android).
-    implementation("com.github.Antengo.prebid-mobile-android:PrebidMobile-core:3.3.2-sw3")
-    implementation("com.github.Antengo.prebid-mobile-android:PrebidMobile-gamEventHandlers:3.3.2-sw3")
+    // the reserved bounding box; sw4 substitutes the ${AUCTION_PRICE} macro in
+    // bid.burl (billing URL) and emits device.geo.country in ISO alpha-3
+    // (see Antengo/prebid-mobile-android).
+    implementation("com.github.Antengo.prebid-mobile-android:PrebidMobile-core:3.3.2-sw4")
+    implementation("com.github.Antengo.prebid-mobile-android:PrebidMobile-gamEventHandlers:3.3.2-sw4")
     implementation("com.google.android.gms:play-services-ads:23.6.0")
 
     // SellwildFeed (1.4.0+) — all-in-one native feed surface.
