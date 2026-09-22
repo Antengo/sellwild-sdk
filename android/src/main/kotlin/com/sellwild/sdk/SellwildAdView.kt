@@ -105,6 +105,20 @@ open class SellwildAdView @JvmOverloads constructor(
     var listener: Listener? = null
 
     /**
+     * Opt in to defensive layout self-healing for hosts that don't lay out this
+     * view's children — React Native (esp. the New Architecture / Fabric interop)
+     * and custom native wrappers that host this view. Those hosts size the view
+     * they manage but skip the measure pass on natively-added children, so the
+     * ad ends up 0-sized and fails the viewability check (width>0 + on-screen
+     * rect) — no viewable impression, no burl. When enabled, if this view is
+     * 0-sized while its parent has real bounds, it re-measures + lays itself out
+     * to fill the parent. Guarded to that broken case, so a correctly-laid-out
+     * host never triggers it. Also enabled remotely via
+     * `MOBILE_LAYOUT_SELF_HEAL`; either source turns it on.
+     */
+    var layoutSelfHeal: Boolean = false
+
+    /**
      * Per-surface guard for the web-parity `firstAdViewed` event. A standalone
      * view keeps its own (surface = the view); [SellwildFeedView] injects a
      * single shared guard across all its ad rows (surface = the feed) so exactly
@@ -377,6 +391,7 @@ open class SellwildAdView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        stopLayoutSelfHeal()
         if (pausesRefreshWhenDetached && !isPausedForDetach) {
             isPausedForDetach = true
             pause()
@@ -385,10 +400,59 @@ open class SellwildAdView @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        startLayoutSelfHealIfEnabled()
         if (pausesRefreshWhenDetached && isPausedForDetach) {
             isPausedForDetach = false
             resume()
         }
+    }
+
+    // ── Layout self-heal (default OFF; see [layoutSelfHeal]) ──────────────────
+    private var selfHealListener: android.view.ViewTreeObserver.OnGlobalLayoutListener? = null
+
+    /** True when self-heal is enabled by the host property or remote config. */
+    private fun isLayoutSelfHealEnabled(): Boolean {
+        if (layoutSelfHeal) return true
+        if (!::config.isInitialized) return false
+        val obj = config.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
+        if (!obj.has("MOBILE_LAYOUT_SELF_HEAL") || obj.isNull("MOBILE_LAYOUT_SELF_HEAL")) return false
+        return when (val v = obj.get("MOBILE_LAYOUT_SELF_HEAL")) {
+            is Boolean -> v
+            is Number -> v.toInt() != 0
+            is String -> v.lowercase() in setOf("1", "true", "yes", "on")
+            else -> false
+        }
+    }
+
+    private fun startLayoutSelfHealIfEnabled() {
+        if (selfHealListener != null || !isLayoutSelfHealEnabled()) return
+        val l = android.view.ViewTreeObserver.OnGlobalLayoutListener { healLayoutIfCollapsed() }
+        selfHealListener = l
+        viewTreeObserver.addOnGlobalLayoutListener(l)
+    }
+
+    private fun stopLayoutSelfHeal() {
+        selfHealListener?.let { viewTreeObserver.removeOnGlobalLayoutListener(it) }
+        selfHealListener = null
+    }
+
+    /**
+     * If this view is 0-sized while its parent has real bounds (the RN /
+     * custom-wrapper case where the host didn't measure our children), force a
+     * measure + layout to fill the parent. Converges: once sized, the guard is
+     * false, so it won't re-fire.
+     */
+    private fun healLayoutIfCollapsed() {
+        if (width != 0 && height != 0) return
+        val p = parent as? View ?: return
+        val w = p.width
+        val h = p.height
+        if (w <= 0 || h <= 0) return
+        measure(
+            View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY),
+        )
+        layout(0, 0, w, h)
     }
 
     fun destroy() {
