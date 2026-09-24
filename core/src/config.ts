@@ -1,5 +1,8 @@
 import { SellwildConfig, PartialSellwildConfig } from './types'
 import { fetchRemoteConfig, type RemoteConfigOptions } from './remote-config'
+import { eventQueue } from './event-queue'
+import { setFailureContext } from './failures'
+import { coerceFlag } from './failures/core'
 
 export const WIDGET_BASE_URL = 'https://widget.sellwild.com'
 export const SELLWILD_URL = 'https://sellwild.com'
@@ -90,6 +93,10 @@ const defaultConfig: Omit<SellwildConfig, 'partnerCode'> = {
 
   // Analytics — events on by default; CMS EVENTS_ENABLED=false is the kill switch
   eventsEnabled: true,
+  // clientFailure reporting — on, every session; CMS FAILURES_ENABLED and
+  // FAILURES_SAMPLE_RATE turn it off or sample it
+  failuresEnabled: true,
+  failuresSampleRate: 1,
 
   // Debug
   debug: false,
@@ -109,6 +116,27 @@ export function buildConfig(partial: PartialSellwildConfig): SellwildConfig {
   } as SellwildConfig
 }
 
+// Partner first, before any fetch, so a failed config fetch is still
+// attributed to the partner (contracts/FAILURES.md 3.2).
+function setRuntimePartner(partnerCode: string): void {
+  setFailureContext({ partnerCode })
+  eventQueue.setPartnerCode(partnerCode)
+}
+
+// After the remote config resolves: the EVENTS_ENABLED kill switch, debug and
+// the clientFailure flags. `eventsEnabled` is coerced again because host
+// overrides are not type-checked at runtime (an `undefined` would otherwise
+// turn events off).
+function applyRuntimeFlags(config: SellwildConfig): void {
+  eventQueue.setEnabled(coerceFlag(config.eventsEnabled, true))
+  setFailureContext({
+    debug: config.debug,
+    eventsEnabled: config.eventsEnabled,
+    failuresEnabled: config.failuresEnabled,
+    failuresSampleRate: config.failuresSampleRate,
+  })
+}
+
 /**
  * @deprecated since 1.2.0 — prefer `configure(partnerCode, slug, { overrides })`.
  *
@@ -117,20 +145,24 @@ export function buildConfig(partial: PartialSellwildConfig): SellwildConfig {
  * Merge order: defaults → partner static config → remote CDN config
  *
  * The remote config is fetched from widget.sellwild.com/app/{partnerCode}/{slug}.json.
- * If the fetch fails (network, timeout, 404), falls back silently to the
- * static config so the app is never blocked by remote config availability.
+ * If the fetch fails (network, timeout, 404), falls back to the static config
+ * so the app is never blocked by remote config availability. The fetch
+ * reports its own failure (logFailure); this fallback does not report it again.
  */
 export async function buildConfigWithRemote(
   partial: PartialSellwildConfig,
   remoteSlug: string,
   options?: RemoteConfigOptions,
 ): Promise<SellwildConfig> {
+  setRuntimePartner(partial.partnerCode)
   const remote = await fetchRemoteConfig(partial.partnerCode, remoteSlug, options)
-  return {
+  const config = {
     ...defaultConfig,
     ...partial,
     ...remote,
   } as SellwildConfig
+  applyRuntimeFlags(config)
+  return config
 }
 
 export interface ConfigureOptions extends RemoteConfigOptions {
@@ -156,7 +188,12 @@ export interface ConfigureOptions extends RemoteConfigOptions {
  * Failure handling: if the fetch fails (network error, timeout, non-2xx),
  * `configure` returns a defaulted `SellwildConfig` with the supplied
  * `partnerCode` and `slug`. Ads still render — `listingsUrl` falls back to
- * the general listings cache (`DEFAULT_LISTINGS_URL`).
+ * the general listings cache (`DEFAULT_LISTINGS_URL`). The fetch reports the
+ * failure itself (logFailure, attributed to `partnerCode`).
+ *
+ * Runtime state: sets the partner for events and failure reports before the
+ * fetch, then applies `eventsEnabled` to the events queue and `debug`,
+ * `failuresEnabled` and `failuresSampleRate` to failure reporting.
  *
  * @example
  *   const config = await configure('weatherbug', 'weatherbug-main')
@@ -172,14 +209,17 @@ export async function configure(
   options: ConfigureOptions = {},
 ): Promise<SellwildConfig> {
   const { overrides, ...remoteOptions } = options
+  setRuntimePartner(partnerCode)
   const remote = await fetchRemoteConfig(partnerCode, slug, remoteOptions)
-  return {
+  const config = {
     ...defaultConfig,
     partnerCode,
     slug,
     ...remote,
     ...(overrides ?? {}),
   } as SellwildConfig
+  applyRuntimeFlags(config)
+  return config
 }
 
 export function getMainUrl(config: SellwildConfig, type: 'sell' | 'post' | 'buy', source: string): string {

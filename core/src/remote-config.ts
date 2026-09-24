@@ -1,5 +1,7 @@
 import { SellwildConfig, AdStack } from './types'
 import { WIDGET_BASE_URL, SDK_VERSION } from './config'
+import { logFailure } from './failures'
+import { coerceFlag, coerceRate } from './failures/core'
 
 /**
  * Remote config — fetches app config JSON from the CDN.
@@ -117,6 +119,10 @@ const KEY_MAP: Record<string, keyof SellwildConfig> = {
 
   // Analytics kill switch
   EVENTS_ENABLED: 'eventsEnabled',
+
+  // clientFailure kill switch and session sample rate (contracts/FAILURES.md 10)
+  FAILURES_ENABLED: 'failuresEnabled',
+  FAILURES_SAMPLE_RATE: 'failuresSampleRate',
 }
 
 // ── Transform ───��───────────────────────────────────────────────────────────
@@ -151,16 +157,16 @@ export function mapRemoteConfig(raw: Record<string, unknown>): Partial<SellwildC
  * downstream code can rely on the typed contract.
  */
 function coerceConfigValue(configKey: string, value: unknown): unknown {
-  if (configKey === 'eventsEnabled') {
-    // Kill switch: enabled unless the CMS ships an explicitly falsy value.
+  if (configKey === 'eventsEnabled' || configKey === 'failuresEnabled') {
+    // Kill switches: enabled unless the CMS ships an explicitly falsy value.
     // The CMS may store booleans as real JSON booleans OR strings, so coerce
-    // both. Anything else (unexpected shape) leaves events ON.
-    if (typeof value === 'boolean') return value
-    if (typeof value === 'number') return value !== 0
-    if (typeof value === 'string') {
-      return !['false', '0', 'no', 'off'].includes(value.trim().toLowerCase())
-    }
-    return true
+    // both (contracts/FAILURES.md 5.3: false/0/no/off, ASCII trim and case).
+    // Anything else (unexpected shape) leaves them ON.
+    return coerceFlag(value, true)
+  }
+  if (configKey === 'failuresSampleRate') {
+    // A number or decimal text clamped to 0..1; anything else is 1 (FAILURES.md 5.4).
+    return coerceRate(value)
   }
   if (configKey === 'iabCats') {
     if (Array.isArray(value)) return value
@@ -257,6 +263,8 @@ const remoteConfigCache = new Map<string, Partial<SellwildConfig>>()
  *
  * On failure (network error, 404, timeout) returns an empty object so the SDK
  * falls back to its static defaults — remote config is additive, never blocking.
+ * Each failure is reported once with logFailure (config.fetch.*,
+ * config.parse.invalid). A caller abort is not a failure and is not reported.
  */
 export async function fetchRemoteConfig(
   partnerCode: string,
@@ -273,11 +281,25 @@ export async function fetchRemoteConfig(
   const timeout = options.timeout ?? 5000
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeout)
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeout)
 
   // Combine external signal with timeout
   if (options.signal) {
     options.signal.addEventListener('abort', () => controller.abort())
+  }
+
+  // A fetch or body read that rejects: the timeout, a caller abort (not a
+  // failure, so not reported), or `code` (network or parse).
+  const failed = (code: 'config.fetch.network' | 'config.fetch.parse', error: unknown): void => {
+    if (timedOut) {
+      logFailure({ code: 'config.fetch.timeout', component: 'remoteConfig', message: `no answer in ${timeout} ms`, url })
+    } else if (!options.signal?.aborted) {
+      logFailure({ code, component: 'remoteConfig', error, url })
+    }
   }
 
   try {
@@ -286,22 +308,48 @@ export async function fetchRemoteConfig(
     // CloudFront cs(User-Agent) logs for an installed-base census. RN honors the
     // custom UA; browsers ignore it (web is out of scope for app census). No
     // query params — that would fragment the CloudFront cache.
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': `SellwildSDK/${SDK_VERSION} (react-native)` },
-    })
-    if (!res.ok) return {}
+    let res: Response
+    try {
+      res = await fetch(url, {
+        signal: controller.signal,
+        headers: { 'User-Agent': `SellwildSDK/${SDK_VERSION} (react-native)` },
+      })
+    } catch (error) {
+      // Network error, timeout or caller abort — fall back to static config
+      failed('config.fetch.network', error)
+      return {}
+    }
+    if (!res.ok) {
+      // A missing config answers 403 AccessDenied XML (contracts/samples).
+      logFailure({ code: 'config.fetch.http', component: 'remoteConfig', message: `HTTP ${res.status}`, httpStatus: res.status, url })
+      return {}
+    }
 
-    const raw = await res.json() as Record<string, unknown>
-    const config = mapRemoteConfig(raw)
+    let raw: unknown
+    try {
+      raw = await res.json()
+    } catch (error) {
+      failed('config.fetch.parse', error)
+      return {}
+    }
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      logFailure({ code: 'config.parse.invalid', component: 'remoteConfig', message: `config JSON is ${jsonKind(raw)}`, url })
+      // mapRemoteConfig(null) throws, which always fell back to {}. Other
+      // values still map as they always have.
+      if (raw === null) return {}
+    }
+    const config = mapRemoteConfig(raw as Record<string, unknown>)
     remoteConfigCache.set(cacheKey, config)
     return config
-  } catch {
-    // Network error or timeout — fall back to static config
-    return {}
   } finally {
     clearTimeout(timer)
   }
+}
+
+function jsonKind(value: unknown): string {
+  if (value === null) return 'null'
+  if (Array.isArray(value)) return 'an array'
+  return `a ${typeof value}`
 }
 
 /**

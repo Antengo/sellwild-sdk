@@ -23,6 +23,11 @@ import UIKit
 @objc(SellwildFeedViewManager)
 public final class SellwildFeedViewManager: RCTViewManager {
 
+    public override init() {
+        super.init()
+        SellwildRNWrapper.install()
+    }
+
     public override static func requiresMainQueueSetup() -> Bool { true }
 
     public override func view() -> UIView! {

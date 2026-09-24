@@ -21,6 +21,11 @@ import UIKit
 @objc(SellwildBannerViewManager)
 public final class SellwildBannerViewManager: RCTViewManager {
 
+    public override init() {
+        super.init()
+        SellwildRNWrapper.install()
+    }
+
     public override static func requiresMainQueueSetup() -> Bool { true }
 
     public override func view() -> UIView! {

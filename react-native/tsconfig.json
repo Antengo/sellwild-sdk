@@ -1,17 +1,18 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "module": "CommonJS",
-    "lib": ["ES2017"],
+    "module": "esnext",
+    "lib": ["ES2018"],
     "jsx": "react-native",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "paths": {
       "@sellwild/sdk-core": ["../core/src"]
     }
   },
+  "files": ["test/stubs/rn-globals.d.ts"],
   "include": ["src"],
   "exclude": ["node_modules"]
 }

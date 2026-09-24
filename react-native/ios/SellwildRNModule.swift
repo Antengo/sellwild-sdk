@@ -10,6 +10,11 @@ import SellwildSDK
 @objc(SellwildRNModule)
 final class SellwildRNModule: NSObject {
 
+    override init() {
+        super.init()
+        SellwildRNWrapper.install()
+    }
+
     /// Off-main is fine — the setters just update process-wide state.
     @objc static func requiresMainQueueSetup() -> Bool { false }
 
@@ -52,5 +57,23 @@ final class SellwildRNModule: NSObject {
         DispatchQueue.main.async {
             _ = SellwildPrebidMobile.bootstrap(with: cfg)
         }
+    }
+}
+
+/// Marks every failure the native SDK reports as coming from React Native
+/// (`wrapper: react-native`, contracts/FAILURES.md 3.1). The native SDK logs
+/// its own failures; the bridge only adds the wrapper and never logs them
+/// again (FAILURES.md 9).
+///
+/// This module and both view managers call `install()` from `init`, so the
+/// wrapper is set before any native SDK code runs, whichever class React
+/// Native creates first. The `static let` runs once, thread-safely.
+enum SellwildRNWrapper {
+    private static let installed: Void = {
+        SellwildFailures.setWrapper("react-native")
+    }()
+
+    static func install() {
+        _ = installed
     }
 }

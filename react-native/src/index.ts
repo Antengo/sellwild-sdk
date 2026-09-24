@@ -49,3 +49,6 @@ export type { ConfigureOptions } from '@sellwild/sdk-core'
 // react-native (merged into `attributes.platform` alongside `sdkVersion`).
 import { eventQueue } from '@sellwild/sdk-core'
 eventQueue.setPlatform('react-native')
+// Likewise every clientFailure event with client `react-native`: ./failures
+// sets it in core's failure context when it loads.
+import './failures'

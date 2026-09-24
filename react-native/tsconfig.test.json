@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Tests and vitest.config.ts run in Node, which has the web globals the
+    // DOM lib types (fetch, Response, URL, import.meta.url). src does not get
+    // DOM: tsconfig.json checks it without.
+    "lib": ["ES2018", "DOM"],
+    "jsx": "react"
+  },
+  // DOM declares crypto already, so leave out rn-globals.d.ts.
+  "files": [],
+  "include": ["src", "test", "vitest.config.ts"],
+  "exclude": ["node_modules", "coverage", "test/stubs/rn-globals.d.ts"]
+}

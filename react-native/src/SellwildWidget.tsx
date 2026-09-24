@@ -10,6 +10,7 @@ import type { WebViewMessageEvent } from 'react-native-webview'
 import type { SellwildConfig, SellwildListing } from '@sellwild/sdk-core'
 import { buildConfig, WIDGET_BASE_URL } from '@sellwild/sdk-core'
 import type { PartialSellwildConfig } from '@sellwild/sdk-core'
+import { logFailure } from './failures'
 import { buildWidgetHtml } from './htmlBuilder'
 
 export interface SellwildWidgetProps {
@@ -88,6 +89,9 @@ export function SellwildWidget({
             onLoad?.()
             break
           case 'ERROR':
+            // A script error inside the widget page. The page cannot report
+            // it itself, so it is reported here, before the host hears of it.
+            logFailure({ code: 'bridge.script.exception', component: 'webview', message: msg.message })
             onError?.(new Error(msg.message))
             break
         }
@@ -119,11 +123,26 @@ export function SellwildWidget({
         originWhitelist={['*']}
         onError={syntheticEvent => {
           const { nativeEvent } = syntheticEvent
+          // The WebView failed to load its page (offline, DNS, TLS, a failed
+          // navigation). Only the host of nativeEvent.url is sent.
+          logFailure({
+            code: 'widget.webview_load.network',
+            component: 'webview',
+            error: nativeEvent.description,
+            message: loadErrorCode(nativeEvent),
+            url: nativeEvent.url,
+          })
           onError?.(new Error(nativeEvent.description))
         }}
       />
     </View>
   )
+}
+
+// Which load error the platform raised: `NSURLErrorDomain -1009` on iOS,
+// `-2` (WebViewClient.ERROR_HOST_LOOKUP) on Android, which has no domain.
+function loadErrorCode({ domain, code }: { domain?: string | null; code?: number | null }): string {
+  return [domain, code].filter((part) => part != null).join(' ')
 }
 
 const styles = StyleSheet.create({
