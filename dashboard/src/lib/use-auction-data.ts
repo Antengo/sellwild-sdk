@@ -7,11 +7,12 @@ import type {
   CpmSnapshot,
   AuctionQueryFilters,
 } from './athena-types';
+import { authFetch } from './auth-fetch';
 
 async function fetchType<T>(type: string, filters: AuctionQueryFilters): Promise<T> {
   const params = new URLSearchParams({ type });
   if (filters.hours) params.set('hours', String(filters.hours));
-  const res = await fetch(`/.netlify/functions/auctions?${params}`);
+  const res = await authFetch(`/.netlify/functions/auctions?${params}`);
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`${type}: ${body}`);
