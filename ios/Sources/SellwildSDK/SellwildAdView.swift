@@ -464,6 +464,11 @@ public final class SellwildAdView: UIView {
         // COUNT is capped in the didReceiveAdWithAdSize delegate.
         if effectiveRefreshMax > 0 {
             banner.refreshInterval = max(config.adRefreshInterval, Self.minRefreshIntervalSec)
+        } else {
+            // Cap 0 = no refresh. The fork defaults refreshInterval to 60s, and
+            // its setter clamps 0 up to 15s — only a negative value stores 0,
+            // which its AutoRefreshManager treats as "don't refresh".
+            banner.refreshInterval = -1
         }
         prebidRefreshCount = 0
         prebidHasRenderedCreative = false
