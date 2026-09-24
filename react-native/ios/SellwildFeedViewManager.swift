@@ -61,7 +61,11 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
     // MARK: Internals
 
     private var feedView: SellwildFeedView?
-    private var lastAppliedKey: String?
+    /// Last applied `config` map, compared by value (`isEqual:` ⇒
+    /// `isEqualToDictionary:`, deep). NOT `NSDictionary.hash` — that is
+    /// just the entry count, so a partnerCode / slug / geo / remote change
+    /// with the same key count would be silently ignored.
+    private var lastAppliedConfig: NSDictionary?
     private var needsApply: Bool = false
 
     override init(frame: CGRect) {
@@ -82,9 +86,8 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
         // Skip if the props identity hasn't changed since last apply.
         // Feed refresh is driven by user pull-to-refresh, not JS
         // re-renders.
-        let key = "\(cfgMap.hash)"
-        if lastAppliedKey == key { return }
-        lastAppliedKey = key
+        if lastAppliedConfig?.isEqual(cfgMap) == true { return }
+        lastAppliedConfig = cfgMap.copy() as? NSDictionary
 
         let sellwildConfig = Self.configFromMap(cfgMap)
 

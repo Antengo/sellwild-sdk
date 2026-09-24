@@ -73,7 +73,9 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
 
     private data class PendingProps(
         var config: ReadableMap? = null,
-        var lastAppliedKey: String? = null,
+        // Last applied config, compared by value. A hashCode() key is only a
+        // probabilistic match (collisions ⇒ a real config change is skipped).
+        var lastAppliedConfig: Map<String, Any?>? = null,
     )
 
     override fun createViewInstance(reactContext: ThemedReactContext): SellwildFeedView {
@@ -142,9 +144,9 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
         val p = pending[view] ?: return
         val configMap = p.config ?: return
 
-        val key = "${configMap.hashCode()}"
-        if (p.lastAppliedKey == key) return
-        p.lastAppliedKey = key
+        val configValue = configMap.toHashMap()
+        if (p.lastAppliedConfig == configValue) return
+        p.lastAppliedConfig = configValue
 
         val config = configFromMap(configMap)
         view.setup(config)
