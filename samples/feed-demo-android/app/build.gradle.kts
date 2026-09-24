@@ -41,9 +41,9 @@ dependencies {
     // Transitive deps the SDK AAR expects on the consumer classpath.
     // (Local-AAR consumption means we have to declare them by hand;
     // Maven publish wires these up automatically.)
-    // Using namespace-shaded Prebid from local Maven (com.sellwild instead of org.prebid)
-    implementation("com.sellwild:PrebidMobile-core:3.3.2")
-    implementation("com.sellwild:PrebidMobile-gamEventHandlers:3.3.2")
+    // Namespace-shaded Prebid fork from maven.sellwild.com (same pin as the SDK)
+    implementation("com.sellwild:PrebidMobile-core:3.3.2-sw4")
+    implementation("com.sellwild:PrebidMobile-gamEventHandlers:3.3.2-sw4")
     implementation("com.google.android.gms:play-services-ads:23.6.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")

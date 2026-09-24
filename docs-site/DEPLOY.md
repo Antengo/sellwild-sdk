@@ -156,20 +156,3 @@ Requires trunk session registered to `ryan@antengo.com`.
 |---|---|
 | Pod | [SellwildSDK](https://cocoapods.org/pods/SellwildSDK) |
 | Trunk Account | `ryan@antengo.com` |
-
----
-
-## Flutter SDK (pub.dev)
-
-Published to pub.dev.
-
-```bash
-cd flutter && dart pub publish
-```
-
-Authenticates via Google OAuth — use `ryan@antengo.com`.
-
-| Resource | Value |
-|---|---|
-| Package | [sellwild_sdk](https://pub.dev/packages/sellwild_sdk) |
-| Publisher Account | `ryan@antengo.com` |

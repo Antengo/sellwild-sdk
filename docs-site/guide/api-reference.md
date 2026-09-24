@@ -9,8 +9,7 @@ Per-platform reference for all public classes, methods, delegates, and types in 
 1. [iOS (Swift)](#ios-swift)
 2. [Android (Kotlin)](#android-kotlin)
 3. [React Native (TypeScript)](#react-native-typescript)
-4. [Flutter (Dart)](#flutter-dart)
-5. [Core Types](#core-types)
+4. [Core Types](#core-types)
 
 ---
 
@@ -568,7 +567,7 @@ const config = await configure('weatherbug', 'weatherbug-weatherbug', {
 
 Results are cached in-memory per `(partnerCode, slug)` for the lifetime of the process. Call `clearRemoteConfigCache()` to force a re-fetch.
 
-**Platform parity.** Native consumers get the same surface via `SellwildSDK.configure(partnerCode:slug:)` (iOS), `SellwildSDK.configure(partnerCode, slug)` (Android), and `SellwildSDK.configure(partnerCode:, slug:)` (Flutter).
+**Platform parity.** Native consumers get the same surface via `SellwildSDK.configure(partnerCode:slug:)` (iOS) and `SellwildSDK.configure(partnerCode, slug)` (Android).
 
 ---
 
@@ -595,176 +594,6 @@ import { currencyToSymbol } from '@sellwild/react-native-sdk';
 currencyToSymbol('USD'); // '$'
 currencyToSymbol('EUR'); // '\u20ac'
 currencyToSymbol('GBP'); // '\u00a3'
-```
-
----
-
-## Flutter (Dart)
-
-### SellwildConfig
-
-Immutable configuration class. All fields are `final`.
-
-```dart
-final config = SellwildConfig(
-  partnerCode: 'weatherbug',
-  appBundleId: 'com.aws.android',
-  appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
-  prebidServer: PrebidServerConfig(
-    accountId: 'weatherbug',
-    endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
-    bidders: ['appnexus', 'pubmatic', 'ix', 'rubicon', 'openx'],
-    timeout: 1500,
-  ),
-);
-```
-
-Constructor accepts all fields from the [Configuration Reference](/guide/configuration). The class is `const`-constructible when all arguments are compile-time constants.
-
----
-
-### SellwildWidget
-
-The primary Flutter widget. Renders the full marketplace experience in a WebView.
-
-```dart
-SellwildWidget(
-  config: config,
-  onListingTap: (SellwildListing listing) { /* ... */ },
-  onAdImpression: (String zoneId) { /* ... */ },
-  onLoad: () { /* ... */ },
-  onError: (Object error) { /* ... */ },
-)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `config` | `SellwildConfig` | Yes | SDK configuration. |
-| `onListingTap` | `void Function(SellwildListing)?` | No | Called when a listing is tapped. |
-| `onAdImpression` | `void Function(String)?` | No | Called on ad impression with zone ID. |
-| `onLoad` | `void Function()?` | No | Called when the widget finishes loading. |
-| `onError` | `void Function(Object)?` | No | Called on errors. |
-
-The widget expands to fill its parent. Wrap it in a `SizedBox` or `Expanded` to control dimensions:
-
-```dart
-SizedBox(height: 400, child: SellwildWidget(config: config))
-```
-
----
-
-### SellwildBanner
-
-Standalone banner ad widget.
-
-```dart
-SellwildBanner(
-  config: config,
-  adSize: SellwildAdSize.mrec300x250,
-  zoneId: '12345',
-  onImpression: () { /* ... */ },
-  onClick: () { /* ... */ },
-  onError: (Object error) { /* ... */ },
-)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `config` | `SellwildConfig` | Yes | SDK configuration. |
-| `adSize` | `SellwildAdSize` | Yes | IAB standard ad dimensions. |
-| `zoneId` | `String?` | No | Ad zone identifier. |
-| `onImpression` | `void Function()?` | No | Called when the ad renders. |
-| `onClick` | `void Function()?` | No | Called when the user taps the ad. |
-| `onError` | `void Function(Object)?` | No | Called on errors. |
-
----
-
-### SellwildListingCard
-
-Native Flutter widget for rendering a single listing card.
-
-```dart
-SellwildListingCard(
-  listing: listing,
-  config: config,
-  onTap: (SellwildListing listing) { /* ... */ },
-)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `listing` | `SellwildListing` | Yes | Listing data to render. |
-| `config` | `SellwildConfig` | Yes | Used for styling (colors, font size). |
-| `onTap` | `void Function(SellwildListing)?` | No | Called when the card is tapped. |
-
-The card renders at a fixed width of 160px with an image, price badge, and title. Customize appearance through `SellwildConfig` fields (`priceColor`, `priceFontColor`, `fontSize`).
-
----
-
-### SellwildAPIClient
-
-Singleton HTTP client for fetching listing data.
-
-```dart
-final client = SellwildAPIClient.instance;
-
-// Fetch listings
-final response = await client.fetchListings(config);
-for (final listing in response.listings) {
-  print('${listing.title} -- ${listing.displayPrice}');
-}
-
-// Clear cache
-client.clearCache();
-
-// Dispose (for test teardown)
-client.dispose();
-```
-
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `fetchListings(config)` | `Future<SellwildListingsResponse>` | Fetch listings. Caches by URL. |
-| `clearCache()` | `void` | Clear the response cache. |
-| `dispose()` | `void` | Close the HTTP client. Call only in test teardown. |
-
-**Error handling:** Throws `SellwildException` on network or parsing errors.
-
-```dart
-try {
-  final response = await SellwildAPIClient.instance.fetchListings(config);
-} on SellwildException catch (e) {
-  debugPrint('API error: ${e.message}');
-}
-```
-
----
-
-### SellwildAdSize
-
-Enum of supported ad dimensions.
-
-```dart
-enum SellwildAdSize {
-  banner320x50,          // 320 x 50  -- Mobile Banner
-  mrec300x250,           // 300 x 250 -- Medium Rectangle
-  leaderboard728x90,     // 728 x 90  -- Leaderboard
-  halfPage300x600,       // 300 x 600 -- Half Page
-  wideSkyscraper160x600, // 160 x 600 -- Wide Skyscraper
-}
-```
-
----
-
-### PrebidServerConfig
-
-```dart
-class PrebidServerConfig {
-  final String accountId;
-  final String endpoint;
-  final List<String> bidders;
-  final int timeout;            // default: 1500
-  final String? syncEndpoint;   // derived from endpoint if null
-}
 ```
 
 ---

@@ -18,15 +18,6 @@ local.properties
 *.iml
 .idea/
 
-# Flutter / Dart
-.dart_tool/
-.packages
-.pub-cache/
-.pub/
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
-
 # Node / React Native
 node_modules/
 dist/

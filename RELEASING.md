@@ -10,7 +10,8 @@ A release is complete only when ALL of these pass:
 
 - [ ] iOS SPM: fresh `swift package resolve` pulls the new version
 - [ ] iOS CocoaPods: `pod install --repo-update` in a **scratch project** (not this repo) installs the new version from the **public trunk**
-- [ ] Android: new AAR resolves from `https://maven.sellwild.com` (not Maven Local)
+- [ ] Android: new AAR resolves from `https://maven.sellwild.com` (not Maven Local), including its transitive `com.sellwild:PrebidMobile-*` fork deps
+- [ ] npm: `@sellwild/sdk-core` published before `@sellwild/react-native-sdk`, and a scratch RN app installs + builds
 - [ ] Coexistence smoke test: scratch Podfile with `pod 'PrebidMobile', '~> 3.0'` + `pod 'SellwildSDK'` builds with 0 errors
 - [ ] ObjC dual-import test: an **Objective-C** file with `@import PrebidMobile; @import SellwildPrebidSDK;` that *uses* types from both compiles clean (Swift-only tests miss "different definitions in different modules" errors — this is what broke 1.4.2 for WeatherBug)
 - [ ] Only after all of the above: notify partners
@@ -90,11 +91,56 @@ curl -sI https://maven.sellwild.com/releases/com/sellwild/sdk/X.Y.Z/sdk-X.Y.Z.aa
 ```
 
 If the fork (Antengo/prebid-mobile-android) changed, publish its modules the same
-way first (PrebidMobile-core, PrebidMobile-gamEventHandlers, omsdk-android).
+way first (PrebidMobile-core, PrebidMobile-gamEventHandlers, omsdk-android), under
+the `com.sellwild` group on maven.sellwild.com. The SDK must depend on
+`com.sellwild:PrebidMobile-*`, never the JitPack coordinate
+(`com.github.Antengo.prebid-mobile-android`): the AAR's POM carries that
+dependency to partners, and they only have maven.sellwild.com. Before
+publishing, check the fork version the SDK pins resolves there:
+
+```bash
+curl -sI https://maven.sellwild.com/releases/com/sellwild/PrebidMobile-core/<ver>/PrebidMobile-core-<ver>.pom  # expect 200
+```
+
+## npm Release Steps (React Native)
+
+Publish **after** the iOS pod and Android AAR are live: the RN bridge compiles
+against them (`react-native/android/build.gradle` pins `com.sellwild:sdk`, and
+`SellwildSDK-RN.podspec` requires `SellwildSDK >= <this version>`).
+
+```bash
+# 1. Versions in lockstep with the native release:
+#    - core/package.json            "version"
+#    - react-native/package.json    "version" AND "@sellwild/sdk-core": "^X.Y.Z"
+#    - react-native/android/build.gradle   implementation "com.sellwild:sdk:X.Y.Z"
+
+# 2. Core FIRST. RN imports core APIs (eventQueue.setPlatform, SellwildGeo /
+#    SellwildEid types) at module load, so publishing RN against an older core
+#    crashes host apps on launch.
+cd core && npm run typecheck && npm run test:smoke
+npm publish --access public          # prepublishOnly runs the tsc build
+npm view @sellwild/sdk-core version  # expect X.Y.Z
+
+# 3. Then RN. It ships raw .ts. Local tsc resolves core from ../core/src
+#    (tsconfig "paths"), so it can't catch a stale published core; the
+#    scratch-app check below is what proves the published pair works.
+cd ../react-native && npx tsc --noEmit  # must not exceed the error baseline CI enforces (see ci.yml)
+npm publish --access public
+npm view @sellwild/react-native-sdk version  # expect X.Y.Z
+
+# 4. Refresh RN's lockfile against the now-published core and commit it
+#    (until then `npm ci` in react-native/ fails: the lockfile still pins the
+#    previous core range).
+npm install --legacy-peer-deps && git commit -am "chore(rn): refresh lockfile for core X.Y.Z"
+```
+
+Verify in a scratch RN app: `npm install @sellwild/react-native-sdk@X.Y.Z`, then
+build both platforms. Import errors or unresolved native symbols mean a version
+pin above was missed.
 
 ## Hard Rules
 
 1. **Never move an existing tag.** Cut a new patch version instead.
 2. **Never announce a release based on `pod spec lint` or a local build.** Only a clean-environment install counts.
-3. **Version numbers stay in lockstep** across podspec, Package.swift, and build.gradle.kts.
+3. **Version numbers stay in lockstep** across podspec, Package.swift, build.gradle.kts, both package.json files, and the RN bridge's `com.sellwild:sdk` pin.
 4. **Fork before SDK.** The fork's pods must be on trunk before SellwildSDK's podspec (which pins them) can validate.

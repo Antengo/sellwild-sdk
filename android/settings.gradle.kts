@@ -20,8 +20,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // JitPack for namespace-shaded Prebid Mobile fork
-        maven { url = uri("https://jitpack.io") }
+        // Sellwild Maven: namespace-shaded Prebid Mobile fork (com.sellwild:PrebidMobile-*)
+        // and its omsdk-android dependency. Same repo partners already add.
+        maven { url = uri("https://maven.sellwild.com/releases") }
         // Local Maven repo for namespace-shaded Prebid Mobile (dev only)
         mavenLocal()
     }
