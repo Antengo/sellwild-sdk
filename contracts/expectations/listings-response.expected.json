@@ -1,0 +1,252 @@
+{
+  "description": "What every platform listings parser must return for each listings sample and valid fixture. Same rules as app-config.expected.json: match `expected`, or differ only in a field named in that platform's knownDrift entry.",
+  "fields": {
+    "items": {
+      "platforms": [
+        "core",
+        "react-native",
+        "ios",
+        "android",
+        "flutter",
+        "widget"
+      ],
+      "meaning": "Number of listings the parser returns (no item is dropped: every item in these files is valid)."
+    },
+    "ids": {
+      "platforms": [
+        "core",
+        "react-native",
+        "ios",
+        "android",
+        "flutter",
+        "widget"
+      ],
+      "meaning": "Listing ids as text, in order."
+    },
+    "nullRemoteUrlIds": {
+      "platforms": [
+        "ios",
+        "android",
+        "flutter",
+        "widget"
+      ],
+      "meaning": "Ids whose remote_url is JSON null. Parsers must treat it as absent (never the text \"null\")."
+    },
+    "widgetCacheVersionId": {
+      "platforms": [
+        "core",
+        "ios",
+        "android",
+        "flutter",
+        "widget"
+      ],
+      "meaning": "result.widgetCacheVersionId, or '0' when absent."
+    }
+  },
+  "cases": [
+    {
+      "file": "samples/listings-response/bargainhunter.json",
+      "expected": {
+        "items": 10,
+        "ids": [
+          "90391",
+          "90316",
+          "90309",
+          "90314",
+          "90307",
+          "90318",
+          "90312",
+          "89727",
+          "89729",
+          "89723"
+        ],
+        "nullRemoteUrlIds": [],
+        "widgetCacheVersionId": "0"
+      },
+      "knownDrift": {
+        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 10 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails."
+      }
+    },
+    {
+      "file": "samples/listings-response/listings-img-data-sm-avif-weatherbug.json",
+      "expected": {
+        "items": 10,
+        "ids": [
+          "105140230",
+          "105078898",
+          "104988052",
+          "105112773",
+          "105121916",
+          "105099065",
+          "105063060",
+          "105132794",
+          "105132975",
+          "105118558"
+        ],
+        "nullRemoteUrlIds": [
+          "105078898",
+          "104988052",
+          "105112773",
+          "105099065",
+          "105063060",
+          "105132975",
+          "105118558"
+        ],
+        "widgetCacheVersionId": "733489"
+      },
+      "knownDrift": {
+        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 10 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails.",
+        "android": "nullRemoteUrlIds: org.json optString returns the text \"null\" for JSON null on a device (JVM tests use org.json:json, which returns \"\", and cannot see it), so tapUrl can open \"null\" for a dataSourceId 31 listing."
+      }
+    },
+    {
+      "file": "samples/listings-response/listings-img-data-sm.json",
+      "expected": {
+        "items": 10,
+        "ids": [
+          "105140231",
+          "105139763",
+          "105140623",
+          "105140591",
+          "105140712",
+          "105140593",
+          "105140245",
+          "104959948",
+          "105140796",
+          "105140794"
+        ],
+        "nullRemoteUrlIds": [
+          "105140623",
+          "105140591",
+          "105140593",
+          "104959948",
+          "105140796",
+          "105140794"
+        ],
+        "widgetCacheVersionId": "0"
+      },
+      "knownDrift": {
+        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 10 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails.",
+        "android": "nullRemoteUrlIds: org.json optString returns the text \"null\" for JSON null on a device (JVM tests use org.json:json, which returns \"\", and cannot see it), so tapUrl can open \"null\" for a dataSourceId 31 listing."
+      }
+    },
+    {
+      "file": "samples/listings-response/listings-sm.json",
+      "expected": {
+        "items": 10,
+        "ids": [
+          "105140231",
+          "105139763",
+          "105140623",
+          "105140591",
+          "105140712",
+          "105140593",
+          "105140245",
+          "104959948",
+          "105140796",
+          "105140794"
+        ],
+        "nullRemoteUrlIds": [
+          "105140623",
+          "105140591",
+          "105140593",
+          "104959948",
+          "105140796",
+          "105140794"
+        ],
+        "widgetCacheVersionId": "0"
+      },
+      "knownDrift": {
+        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 10 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails.",
+        "android": "nullRemoteUrlIds: org.json optString returns the text \"null\" for JSON null on a device (JVM tests use org.json:json, which returns \"\", and cannot see it), so tapUrl can open \"null\" for a dataSourceId 31 listing."
+      }
+    },
+    {
+      "file": "samples/listings-response/s3-sellwild-cache-listings-sm.json",
+      "expected": {
+        "items": 10,
+        "ids": [
+          "105140231",
+          "105139763",
+          "105140623",
+          "105140591",
+          "105140712",
+          "105140593",
+          "105140245",
+          "104959948",
+          "105140796",
+          "105140794"
+        ],
+        "nullRemoteUrlIds": [
+          "105140623",
+          "105140591",
+          "105140593",
+          "104959948",
+          "105140796",
+          "105140794"
+        ],
+        "widgetCacheVersionId": "0"
+      },
+      "knownDrift": {
+        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 10 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails.",
+        "android": "nullRemoteUrlIds: org.json optString returns the text \"null\" for JSON null on a device (JVM tests use org.json:json, which returns \"\", and cannot see it), so tapUrl can open \"null\" for a dataSourceId 31 listing."
+      }
+    },
+    {
+      "file": "fixtures/listings-response/valid/empty-rs.json",
+      "expected": {
+        "items": 0,
+        "ids": [],
+        "nullRemoteUrlIds": [],
+        "widgetCacheVersionId": "0"
+      },
+      "knownDrift": {}
+    },
+    {
+      "file": "fixtures/listings-response/valid/mixed-item-types.json",
+      "expected": {
+        "items": 4,
+        "ids": [
+          "105140231",
+          "105140232",
+          "104874856",
+          "90391"
+        ],
+        "nullRemoteUrlIds": [
+          "105140232"
+        ],
+        "widgetCacheVersionId": "0"
+      },
+      "knownDrift": {
+        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 3 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails.",
+        "android": "nullRemoteUrlIds: org.json optString returns the text \"null\" for JSON null on a device (JVM tests use org.json:json, which returns \"\", and cannot see it), so tapUrl can open \"null\" for a dataSourceId 31 listing."
+      }
+    },
+    {
+      "file": "fixtures/listings-response/valid/partner-cache-config.json",
+      "expected": {
+        "items": 1,
+        "ids": [
+          "105140231"
+        ],
+        "nullRemoteUrlIds": [],
+        "widgetCacheVersionId": "733489"
+      },
+      "knownDrift": {
+        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 1 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails."
+      }
+    },
+    {
+      "file": "fixtures/listings-response/valid/rpc-envelope.json",
+      "expected": {
+        "items": 1,
+        "ids": [
+          "5550001"
+        ],
+        "nullRemoteUrlIds": [],
+        "widgetCacheVersionId": "12"
+      },
+      "knownDrift": {}
+    }
+  ]
+}

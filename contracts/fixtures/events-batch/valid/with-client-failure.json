@@ -1,0 +1,36 @@
+[
+  {
+    "_synthetic": true,
+    "event": "firstAdViewed",
+    "label": "43",
+    "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+    "createdTime": 1790000000000,
+    "attributes": {
+      "type": "ios",
+      "sdkVersion": "1.7.7",
+      "code": "weatherbug"
+    }
+  },
+  {
+    "event": "clientFailure",
+    "action": "listings.fetch.http",
+    "label": "listings",
+    "attributes": {
+      "code": "weatherbug",
+      "client": "ios",
+      "clientVersion": "1.7.7",
+      "severity": "error",
+      "fv": "1",
+      "msg": "HTTP 503",
+      "httpStatus": "503",
+      "host": "cache.sellwild.com",
+      "zoneId": "43",
+      "seq": "1",
+      "repeat": "1",
+      "type": "ios",
+      "sdkVersion": "1.7.7"
+    },
+    "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+    "createdTime": 1790000000000
+  }
+]

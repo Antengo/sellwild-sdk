@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/failure-codes.schema.json",
+  "title": "Failure code registry",
+  "description": "contracts/failure-codes.json: the canonical list of clientFailure codes (FAILURES.md section 4). Each platform mirrors the codes whose clients include it.",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "required": ["code", "area", "operation", "reason", "component", "severity", "clients", "description"],
+    "additionalProperties": false,
+    "properties": {
+      "code": {
+        "description": "The code: <area>.<operation>.<reason>, at most 64 characters.",
+        "type": "string",
+        "maxLength": 64,
+        "pattern": "^[a-z][a-z0-9]*\\.[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
+      },
+      "area": {
+        "description": "First segment of the code. 'client' is reserved for client.code.invalid.",
+        "enum": ["config", "listings", "localized", "ad", "house", "feed", "bridge", "widget", "video", "growthcode", "geo", "storage", "client"]
+      },
+      "operation": {
+        "description": "Second segment of the code: what was being done.",
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "reason": {
+        "description": "Third segment of the code: why it failed.",
+        "enum": ["network", "timeout", "http", "parse", "invalid", "missing", "exception", "unsupported"]
+      },
+      "component": {
+        "description": "Usual label for this code. A call site may pass another component. 'unknown' only for client.code.invalid.",
+        "enum": ["configure", "remoteConfig", "listings", "localized", "feed", "banner", "native", "video", "house", "bridge", "webview", "widget", "shorts", "tv", "flipcard", "growthcode", "geo", "storage", "unknown"]
+      },
+      "severity": {
+        "description": "Recommended severity for call sites. logFailure itself defaults to error when none is passed.",
+        "enum": ["fatal", "error", "warn"]
+      },
+      "clients": {
+        "description": "Platforms that emit this code. core codes also run inside react-native.",
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": { "enum": ["core", "react-native", "ios", "android", "flutter", "widget"] }
+      },
+      "description": {
+        "description": "One sentence: what failed and what the user sees.",
+        "type": "string",
+        "minLength": 10
+      }
+    }
+  }
+}

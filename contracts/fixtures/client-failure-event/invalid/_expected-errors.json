@@ -1,0 +1,53 @@
+{
+  "description": "For each invalid fixture: an ajv error that must be among the failures (instancePath, and keyword when given). Proves the fixture fails for the intended reason.",
+  "errors": {
+    "attribute-number.json": {
+      "instancePath": "/attributes/seq",
+      "keyword": "type"
+    },
+    "extra-attribute.json": {
+      "instancePath": "/attributes",
+      "keyword": "additionalProperties"
+    },
+    "legacy-snake-code.json": {
+      "instancePath": "/action",
+      "keyword": "pattern"
+    },
+    "msg-201.json": {
+      "instancePath": "/attributes/msg",
+      "keyword": "maxLength"
+    },
+    "severity-critical.json": {
+      "instancePath": "/attributes/severity",
+      "keyword": "enum"
+    },
+    "missing-fv.json": {
+      "instancePath": "/attributes",
+      "keyword": "required"
+    },
+    "capped-zero.json": {
+      "instancePath": "/attributes/capped",
+      "keyword": "const"
+    },
+    "seq-21.json": {
+      "instancePath": "/attributes/seq",
+      "keyword": "pattern"
+    },
+    "host-with-path.json": {
+      "instancePath": "/attributes/host",
+      "keyword": "pattern"
+    },
+    "label-not-in-enum.json": {
+      "instancePath": "/label",
+      "keyword": "enum"
+    },
+    "amount-field.json": {
+      "instancePath": "",
+      "keyword": "additionalProperties"
+    },
+    "created-seconds.json": {
+      "instancePath": "/createdTime",
+      "keyword": "minimum"
+    }
+  }
+}

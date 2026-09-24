@@ -1,0 +1,21 @@
+{
+  "_synthetic": true,
+  "LAYOUT": "app",
+  "NAME": "fixture-app",
+  "CODE": "fixture",
+  "SLUG": "fixture-app",
+  "basename": "fixture-app",
+  "MOBILE_ZID": [
+    "fixture-mobile-300x250"
+  ],
+  "MOBILE_ZID_IOS": [],
+  "MOBILE_ZID_ANDROID": [],
+  "DISPLAY_ZID": [],
+  "BIDDERS": {},
+  "VIDEO_ENABLED": "1",
+  "NATIVE_ENABLED": 0,
+  "MOBILE_AD_MUTE_AUTOPLAY": "true",
+  "GROWTHCODE_ENABLED": true,
+  "GROWTHCODE_SEND_MAID": "no",
+  "GROWTHCODE_TTL_HOURS": "24"
+}

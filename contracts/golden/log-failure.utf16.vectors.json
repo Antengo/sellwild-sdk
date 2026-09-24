@@ -1,0 +1,206 @@
+{
+  "contract": "clientFailure",
+  "fv": "1",
+  "generatedBy": "contracts/reference/log-failure.mjs via contracts/scripts/generate-vectors.mjs",
+  "spec": "contracts/FAILURES.md",
+  "note": "Inputs with lone UTF-16 surrogates. Only for platforms whose strings can hold them (TS, Kotlin, Dart). Swift strings cannot, so iOS skips this file.",
+  "limits": {
+    "codeMax": 64,
+    "errName": 64,
+    "msg": 200,
+    "msgBudget": 80,
+    "msgKey": 64,
+    "stack": 800,
+    "stackFrames": 5,
+    "zoneId": 32,
+    "host": 253,
+    "partnerCode": 64,
+    "clientVersion": 32,
+    "release": 64,
+    "maxAttributes": 16,
+    "eventBytes": 2048,
+    "dedupeWindowMs": 60000,
+    "lruSize": 50,
+    "perKeyEmits": 3,
+    "sessionEmits": 20
+  },
+  "vectors": [
+    {
+      "name": "utf16.lone-high-surrogate-replaced",
+      "input": {
+        "code": "listings.fetch.http",
+        "component": "listings",
+        "message": "bad \ud800 half"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.7.7",
+        "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0,
+        "keys": []
+      },
+      "expected": {
+        "event": {
+          "event": "clientFailure",
+          "action": "listings.fetch.http",
+          "label": "listings",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "ios",
+            "clientVersion": "1.7.7",
+            "severity": "error",
+            "fv": "1",
+            "msg": "bad � half",
+            "seq": "1",
+            "repeat": "1"
+          },
+          "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+          "createdTime": 1790000000000
+        },
+        "flushNow": true,
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1,
+          "keys": [
+            {
+              "key": "listings.fetch.http|listings||bad � half",
+              "lastEmitAt": 1790000000000,
+              "suppressed": 0,
+              "emits": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "utf16.lone-low-surrogate-replaced",
+      "input": {
+        "code": "listings.fetch.http",
+        "component": "listings",
+        "message": "bad \udc00 low",
+        "errName": "E\udfff"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.7.7",
+        "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0,
+        "keys": []
+      },
+      "expected": {
+        "event": {
+          "event": "clientFailure",
+          "action": "listings.fetch.http",
+          "label": "listings",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "ios",
+            "clientVersion": "1.7.7",
+            "severity": "error",
+            "fv": "1",
+            "errName": "E�",
+            "msg": "bad � low",
+            "seq": "1",
+            "repeat": "1"
+          },
+          "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+          "createdTime": 1790000000000
+        },
+        "flushNow": true,
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1,
+          "keys": [
+            {
+              "key": "listings.fetch.http|listings|E�|bad � low",
+              "lastEmitAt": 1790000000000,
+              "suppressed": 0,
+              "emits": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "utf16.lone-surrogate-in-zoneId",
+      "input": {
+        "code": "listings.fetch.http",
+        "component": "listings",
+        "zoneId": "z\ud83d"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.7.7",
+        "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0,
+        "keys": []
+      },
+      "expected": {
+        "event": {
+          "event": "clientFailure",
+          "action": "listings.fetch.http",
+          "label": "listings",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "ios",
+            "clientVersion": "1.7.7",
+            "severity": "error",
+            "fv": "1",
+            "zoneId": "z�",
+            "seq": "1",
+            "repeat": "1"
+          },
+          "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+          "createdTime": 1790000000000
+        },
+        "flushNow": true,
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1,
+          "keys": [
+            {
+              "key": "listings.fetch.http|listings||",
+              "lastEmitAt": 1790000000000,
+              "suppressed": 0,
+              "emits": 1
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "units": {
+    "fnv1a32": [
+      {
+        "input": "\ud800",
+        "expected": 55024714
+      },
+      {
+        "input": "a\udc00b",
+        "expected": 1982953453
+      }
+    ],
+    "sanitizeMessage": [
+      {
+        "input": "bad \udc00 low",
+        "expected": "bad � low"
+      },
+      {
+        "input": "😀 ok \ud83d",
+        "expected": "😀 ok �"
+      }
+    ]
+  }
+}

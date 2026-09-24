@@ -1,0 +1,83 @@
+{
+  "description": "Per-file counts of banned print calls and empty catch blocks in shipped SDK source (FAILURES.md section 11). The gate fails when a count goes up or a file not listed here has a hit. Lower a count (or drop the file) in the same change that removes a hit: node scripts/print-gate.mjs --update.",
+  "exemptFromPrint": [
+    "core/src/failures/index.ts",
+    "core/src/debug-log.ts",
+    "ios/Sources/SellwildSDK/Failures/SellwildFailures.swift",
+    "ios/Sources/SellwildSDK/Failures/SellwildLog.swift",
+    "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailures.kt",
+    "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildLog.kt",
+    "flutter/lib/src/failures/sellwild_failures.dart",
+    "flutter/lib/src/failures/sellwild_log.dart"
+  ],
+  "files": {
+    "android/src/main/kotlin/com/sellwild/sdk/SellwildAdAudioGuard.kt": {
+      "print": 0,
+      "emptyCatch": 5
+    },
+    "android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt": {
+      "print": 5,
+      "emptyCatch": 0
+    },
+    "android/src/main/kotlin/com/sellwild/sdk/SellwildNativeAdView.kt": {
+      "print": 2,
+      "emptyCatch": 0
+    },
+    "android/src/main/kotlin/com/sellwild/sdk/SellwildPrebidMobile.kt": {
+      "print": 3,
+      "emptyCatch": 0
+    },
+    "android/src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt": {
+      "print": 0,
+      "emptyCatch": 2
+    },
+    "core/src/localized-listings.ts": {
+      "print": 0,
+      "emptyCatch": 1
+    },
+    "flutter/lib/src/sellwild_sdk_configure.dart": {
+      "print": 0,
+      "emptyCatch": 1
+    },
+    "flutter/lib/src/sellwild_widget.dart": {
+      "print": 0,
+      "emptyCatch": 3
+    },
+    "ios/Sources/SellwildSDK/SellwildAdAudioGuard.swift": {
+      "print": 0,
+      "emptyCatch": 5
+    },
+    "ios/Sources/SellwildSDK/SellwildAdView.swift": {
+      "print": 9,
+      "emptyCatch": 0
+    },
+    "ios/Sources/SellwildSDK/SellwildFeedView.swift": {
+      "print": 7,
+      "emptyCatch": 0
+    },
+    "ios/Sources/SellwildSDK/SellwildNativeAdView.swift": {
+      "print": 2,
+      "emptyCatch": 0
+    },
+    "ios/Sources/SellwildSDK/SellwildPrebidMobile.swift": {
+      "print": 1,
+      "emptyCatch": 0
+    },
+    "ios/Sources/SellwildSDK/SellwildRemoteConfig.swift": {
+      "print": 0,
+      "emptyCatch": 1
+    },
+    "ios/Sources/SellwildSDK/SellwildWidgetView.swift": {
+      "print": 0,
+      "emptyCatch": 1
+    },
+    "react-native/src/htmlBuilder.ts": {
+      "print": 0,
+      "emptyCatch": 2
+    },
+    "react-native/src/SellwildWidget.tsx": {
+      "print": 0,
+      "emptyCatch": 1
+    }
+  }
+}

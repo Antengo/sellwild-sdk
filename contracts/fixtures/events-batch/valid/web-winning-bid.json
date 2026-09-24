@@ -1,0 +1,19 @@
+[
+  {
+    "_synthetic": true,
+    "event": "adWinningBid",
+    "label": "sellwild-ad-0-med-1",
+    "action": "rubicon",
+    "amount": 0.42,
+    "uid": "unkown",
+    "createdTime": 1790000000000,
+    "attributes": {
+      "widgetType": "display",
+      "widgetName": "10news-scripps-10news",
+      "code": "10news",
+      "version": 284,
+      "release": "abc123",
+      "cols": 1
+    }
+  }
+]

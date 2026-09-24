@@ -1,0 +1,11 @@
+{
+  "_synthetic": true,
+  "gc_id": "gc-fixture-0001",
+  "eb": "[{\"inserter\":\"growthcode.io\",\"source\":\"uidapi.com\",\"matcher\":\"growthcode.io\",\"uids\":[{\"id\":\"A4AAAABj-fixture-uid2\",\"atype\":3}]},{\"inserter\":\"growthcode.io\",\"source\":\"id5-sync.com\",\"uids\":[{\"id\":\"ID5*fixture\",\"atype\":\"1\"},{\"id\":\"ppid-fixture\",\"stype\":\"ppuid\"}]}]",
+  "idi": true,
+  "version": 4,
+  "kv": {
+    "seg": "1"
+  },
+  "persistent": true
+}

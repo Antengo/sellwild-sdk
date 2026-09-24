@@ -1,0 +1,28 @@
+{
+  "_synthetic": true,
+  "LAYOUT": "app",
+  "NAME": "fixture-app",
+  "CODE": "fixture",
+  "SLUG": "fixture-app",
+  "basename": "fixture-app",
+  "MOBILE_ZID": [
+    "fixture-mobile-300x250"
+  ],
+  "MOBILE_ZID_IOS": [],
+  "MOBILE_ZID_ANDROID": [],
+  "DISPLAY_ZID": [],
+  "BIDDERS": {},
+  "AD_STACK": "",
+  "AD_STACK_BY_ZONE": "",
+  "GPID_BASE_BY_ZONE": "",
+  "BANNER_SIZES": "",
+  "BANNER_SIZES_BY_ZONE": "",
+  "VIDEO_ENABLED_BY_ZONE": "",
+  "VIDEO_SOUND_ENABLED_BY_ZONE": "",
+  "NATIVE_ENABLED_BY_ZONE": "",
+  "NATIVE_MAX_HEIGHT_BY_ZONE": "",
+  "MOBILE_HOUSE_AD_BY_SIZE": "",
+  "MOBILE_HOUSE_AD_BY_ZONE": "",
+  "GROWTHCODE_ENABLED_BY_ZONE": "",
+  "LOCALIZED_LISTINGS": ""
+}

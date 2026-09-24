@@ -1,0 +1,377 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/client-failure-event.schema.json",
+  "title": "clientFailure event",
+  "description": "One clientFailure event exactly as logFailure builds it (contracts/FAILURES.md). Our code produces it, so nothing else is allowed. `#/$defs/wireEvent` is the same event after an SDK queue stamps attributes.type and attributes.sdkVersion.",
+  "type": "object",
+  "required": [
+    "event",
+    "action",
+    "label",
+    "attributes",
+    "uid",
+    "createdTime"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "attributes": {
+      "description": "Allowlisted attributes, at most 16, all strings.",
+      "type": "object",
+      "required": [
+        "code",
+        "client",
+        "clientVersion",
+        "severity",
+        "fv",
+        "seq",
+        "repeat"
+      ],
+      "additionalProperties": false,
+      "maxProperties": 16,
+      "properties": {
+        "code": {
+          "description": "Partner code from context, or 'unknown'.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "client": {
+          "description": "Which logFailure implementation emitted the event.",
+          "enum": [
+            "core",
+            "react-native",
+            "ios",
+            "android",
+            "flutter",
+            "widget"
+          ]
+        },
+        "clientVersion": {
+          "description": "SDK_VERSION, or the widget package version. 'unknown' when missing.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "severity": {
+          "description": "fatal = surface could not render; error = failed, fallback used; warn = degraded but handled.",
+          "enum": [
+            "fatal",
+            "error",
+            "warn"
+          ]
+        },
+        "fv": {
+          "description": "Contract version.",
+          "const": "1"
+        },
+        "errName": {
+          "description": "Error type or class name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "msg": {
+          "description": "Sanitized message (FAILURES.md section 7).",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "stack": {
+          "description": "Sanitized stack: up to 5 frames, one per line.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 800
+        },
+        "httpStatus": {
+          "description": "HTTP status, three digits.",
+          "type": "string",
+          "pattern": "^[0-9]{3}$"
+        },
+        "host": {
+          "description": "Hostname only (never a path or query). '<ip>' for IP literals.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253,
+          "pattern": "^[^/?#\\s]+$"
+        },
+        "zoneId": {
+          "description": "Ad zone id.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "wrapper": {
+          "description": "Set when the native SDK is hosted by a wrapper.",
+          "enum": [
+            "react-native",
+            "flutter"
+          ]
+        },
+        "release": {
+          "description": "Widget git sha.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "seq": {
+          "description": "Number of this event within the session (1..20).",
+          "type": "string",
+          "pattern": "^([1-9]|1[0-9]|20)$"
+        },
+        "repeat": {
+          "description": "suppressed + 1: how many occurrences this event stands for.",
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "capped": {
+          "description": "Present only on the 20th event of the session.",
+          "const": "1"
+        }
+      }
+    },
+    "wireAttributes": {
+      "description": "Attributes after queue stamping: the allowlist plus type and sdkVersion.",
+      "type": "object",
+      "required": [
+        "code",
+        "client",
+        "clientVersion",
+        "severity",
+        "fv",
+        "seq",
+        "repeat"
+      ],
+      "additionalProperties": false,
+      "maxProperties": 18,
+      "properties": {
+        "code": {
+          "description": "Partner code from context, or 'unknown'.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "client": {
+          "description": "Which logFailure implementation emitted the event.",
+          "enum": [
+            "core",
+            "react-native",
+            "ios",
+            "android",
+            "flutter",
+            "widget"
+          ]
+        },
+        "clientVersion": {
+          "description": "SDK_VERSION, or the widget package version. 'unknown' when missing.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "severity": {
+          "description": "fatal = surface could not render; error = failed, fallback used; warn = degraded but handled.",
+          "enum": [
+            "fatal",
+            "error",
+            "warn"
+          ]
+        },
+        "fv": {
+          "description": "Contract version.",
+          "const": "1"
+        },
+        "errName": {
+          "description": "Error type or class name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "msg": {
+          "description": "Sanitized message (FAILURES.md section 7).",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "stack": {
+          "description": "Sanitized stack: up to 5 frames, one per line.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 800
+        },
+        "httpStatus": {
+          "description": "HTTP status, three digits.",
+          "type": "string",
+          "pattern": "^[0-9]{3}$"
+        },
+        "host": {
+          "description": "Hostname only (never a path or query). '<ip>' for IP literals.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253,
+          "pattern": "^[^/?#\\s]+$"
+        },
+        "zoneId": {
+          "description": "Ad zone id.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "wrapper": {
+          "description": "Set when the native SDK is hosted by a wrapper.",
+          "enum": [
+            "react-native",
+            "flutter"
+          ]
+        },
+        "release": {
+          "description": "Widget git sha.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "seq": {
+          "description": "Number of this event within the session (1..20).",
+          "type": "string",
+          "pattern": "^([1-9]|1[0-9]|20)$"
+        },
+        "repeat": {
+          "description": "suppressed + 1: how many occurrences this event stands for.",
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "capped": {
+          "description": "Present only on the 20th event of the session.",
+          "const": "1"
+        },
+        "type": {
+          "description": "Platform stamped by the SDK queue.",
+          "enum": [
+            "ios",
+            "android",
+            "flutter",
+            "react-native",
+            "web"
+          ]
+        },
+        "sdkVersion": {
+          "description": "SDK version stamped by the SDK queue.",
+          "type": "string"
+        }
+      }
+    },
+    "wireEvent": {
+      "description": "A clientFailure element of the POSTed array.",
+      "type": "object",
+      "required": [
+        "event",
+        "action",
+        "label",
+        "attributes",
+        "uid",
+        "createdTime"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event": {
+          "description": "Event name.",
+          "const": "clientFailure"
+        },
+        "action": {
+          "description": "Failure code from contracts/failure-codes.json, or client.code.invalid.",
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*\\.[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
+        },
+        "label": {
+          "description": "Component. Values outside the enum become 'unknown'.",
+          "enum": [
+            "configure",
+            "remoteConfig",
+            "listings",
+            "localized",
+            "feed",
+            "banner",
+            "native",
+            "video",
+            "house",
+            "bridge",
+            "webview",
+            "widget",
+            "shorts",
+            "tv",
+            "flipcard",
+            "growthcode",
+            "geo",
+            "storage",
+            "unknown"
+          ]
+        },
+        "attributes": {
+          "description": "String-only attributes (iOS attributes are [String: String]).",
+          "$ref": "#/$defs/wireAttributes"
+        },
+        "uid": {
+          "description": "The events queue uid for this device or page.",
+          "type": "string"
+        },
+        "createdTime": {
+          "description": "Epoch milliseconds.",
+          "type": "integer",
+          "minimum": 1000000000000
+        }
+      }
+    }
+  },
+  "properties": {
+    "_synthetic": {
+      "description": "Fixture marker. Present only in hand-made fixtures, never on the wire.",
+      "const": true
+    },
+    "event": {
+      "description": "Event name.",
+      "const": "clientFailure"
+    },
+    "action": {
+      "description": "Failure code from contracts/failure-codes.json, or client.code.invalid.",
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9]*\\.[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
+    },
+    "label": {
+      "description": "Component. Values outside the enum become 'unknown'.",
+      "enum": [
+        "configure",
+        "remoteConfig",
+        "listings",
+        "localized",
+        "feed",
+        "banner",
+        "native",
+        "video",
+        "house",
+        "bridge",
+        "webview",
+        "widget",
+        "shorts",
+        "tv",
+        "flipcard",
+        "growthcode",
+        "geo",
+        "storage",
+        "unknown"
+      ]
+    },
+    "attributes": {
+      "description": "String-only attributes (iOS attributes are [String: String]).",
+      "$ref": "#/$defs/attributes"
+    },
+    "uid": {
+      "description": "The events queue uid for this device or page.",
+      "type": "string"
+    },
+    "createdTime": {
+      "description": "Epoch milliseconds.",
+      "type": "integer",
+      "minimum": 1000000000000
+    }
+  }
+}

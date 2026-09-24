@@ -57,3 +57,15 @@ docs-site/.vitepress/dist
 .mastracode/
 android/.kotlin/
 samples/feed-demo-android/app/libs/
+
+# Generated test and coverage output (coverage-summary/ is committed)
+contracts/out/
+contracts/node_modules/
+core/coverage/
+react-native/coverage/
+flutter/coverage/
+*.xcresult
+*.profraw
+*.profdata
+.coverage-tmp/
+.nyc_output/

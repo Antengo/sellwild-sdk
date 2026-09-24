@@ -1,0 +1,22 @@
+{
+  "_synthetic": true,
+  "id": "105140231",
+  "photos": [
+    {
+      "thumbUrl": "https://x.example.com/t.jpg"
+    }
+  ],
+  "title": "2021 Lexus UX UX 200",
+  "price": "19315",
+  "status": "1",
+  "user": {
+    "id": "95090098",
+    "trustLevel": "3",
+    "firstName": "Lotlinx",
+    "lastName": "A"
+  },
+  "shippable": true,
+  "categoryGroupId": "12",
+  "dataSourceId": "31",
+  "remote_url": "https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&pubId=234000&url=1"
+}

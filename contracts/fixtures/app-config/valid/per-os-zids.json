@@ -1,0 +1,25 @@
+{
+  "_synthetic": true,
+  "LAYOUT": "app",
+  "NAME": "fixture-app",
+  "CODE": "fixture",
+  "SLUG": "fixture-app",
+  "basename": "fixture-app",
+  "MOBILE_ZID": [
+    "shared-feed"
+  ],
+  "MOBILE_ZID_IOS": [
+    "ios-feed-1",
+    "ios-feed-2"
+  ],
+  "MOBILE_ZID_ANDROID": [
+    "android-feed"
+  ],
+  "DISPLAY_ZID": [],
+  "BIDDERS": {},
+  "MOBILE_ZID_ALL_IOS": "",
+  "MOBILE_ZID_ALL_ANDROID": "",
+  "MOBILE_BANNER_ZID": "shared-banner",
+  "MOBILE_BANNER_ZID_IOS": "ios-banner",
+  "MOBILE_BANNER_ZID_ANDROID": ""
+}
