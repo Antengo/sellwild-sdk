@@ -423,6 +423,24 @@ Prebid Mobile builds the OpenRTB request in-process and forwards real in-app sig
 
 ---
 
+## Android — Multi-process WebView (API 28+)
+
+GMA and Prebid render ad creatives in WebViews. If your app uses multiple
+processes, call this before any WebView is created:
+
+```kotlin
+class MyApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        SellwildWebViewCompat.configureForMultiProcess(this)
+    }
+}
+```
+
+This sets a process-specific WebView data directory suffix to prevent crashes (crbug.com/558377).
+
+---
+
 ## iOS — App Tracking Transparency
 
 To unlock IDFA-based targeting (required for Prebid Mobile SDK Mode C):
