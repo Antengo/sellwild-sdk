@@ -35,7 +35,6 @@ The Sellwild SDK delivers programmatic display and video ads into native mobile 
 | iOS | Swift 5.5 | iOS 13+ | SPM / CocoaPods |
 | Android | Kotlin | API 21+ | Gradle (Maven) |
 | React Native | TypeScript | RN 0.70+ | npm / yarn |
-| Flutter | Dart 3 | Flutter 3.10+ | pub.dev |
 
 ## Ad Formats
 
@@ -55,7 +54,6 @@ Choose your platform to get started:
 - [iOS (Swift)](/guide/ios) — Swift Package Manager or CocoaPods
 - [Android (Kotlin)](/guide/android) — Gradle dependency
 - [React Native](/guide/react-native) — npm package
-- [Flutter](/guide/flutter) — pub.dev package
 
 Or learn about the ad server:
 
