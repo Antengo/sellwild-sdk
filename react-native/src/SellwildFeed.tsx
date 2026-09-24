@@ -110,6 +110,9 @@ export interface SellwildFeedProps {
    * asynchronously — after the native side has already decided whether to
    * open the browser. To handle navigation yourself, set
    * `consumeListingTaps` instead.
+   *
+   * The `boolean` return type is kept only so existing handlers still compile;
+   * it is deprecated and has no effect.
    */
   onListingTap?: (listing: SellwildListing) => boolean | void
 
@@ -147,6 +150,8 @@ export function SellwildFeed({
   // scrolling, so we size our own container from the native-reported content
   // height rather than filling with flex:1.
   const [contentHeight, setContentHeight] = React.useState<number | null>(null)
+  // Dev-only: warn once per feed about the ignored `return true`, not on every tap.
+  const warnedReturnTrue = React.useRef(false)
   const embedded = scrollEnabled === false
   const containerStyle: StyleProp<ViewStyle> = embedded
     ? [contentHeight != null ? { height: contentHeight } : undefined, style]
@@ -224,7 +229,8 @@ export function SellwildFeed({
       }}
       onListingTap={(e: NativeSyntheticEvent<{ listing: SellwildListing }>) => {
         const result = onListingTap?.(e.nativeEvent.listing)
-        if (__DEV__ && result === true && !consumeListingTaps) {
+        if (__DEV__ && result === true && !consumeListingTaps && !warnedReturnTrue.current) {
+          warnedReturnTrue.current = true
           console.warn(
             '[Sellwild] onListingTap returned true, but the return value is ignored ' +
               '(RN events are async). Set consumeListingTaps on <SellwildFeed> to ' +
