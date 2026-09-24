@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts'
+import { authFetch } from '../lib/auth-fetch'
 
 const tooltipStyle = {
   contentStyle: {
@@ -79,7 +80,7 @@ export default function AuctionDetailPage() {
       if (cancelled) return
       setLoading(true)
       try {
-        const res = await fetch(
+        const res = await authFetch(
           `/.netlify/functions/logs?type=detail&auctionId=${encodeURIComponent(auctionId!)}&hours=72`
         )
         const data = await res.json()

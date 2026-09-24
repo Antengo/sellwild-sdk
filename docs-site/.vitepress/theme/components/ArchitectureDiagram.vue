@@ -6,7 +6,7 @@
         <div class="node-header">
           <span class="node-title">Your App</span>
         </div>
-        <div class="node-detail">iOS / Android / RN / Flutter</div>
+        <div class="node-detail">iOS / Android / RN</div>
       </div>
 
       <div class="arch-arrow">

@@ -9,7 +9,6 @@ Multi-platform SDK for embedding Sellwild marketplace listings and ad units in m
 | React Native | `react-native/` | TypeScript | RN 0.70+ |
 | iOS | `ios/` | Swift 5.5 | iOS 13+ |
 | Android | `android/` | Kotlin | API 21+ |
-| Flutter | `flutter/` | Dart 3 | Flutter 3.10+ |
 | Core (shared) | `core/` | TypeScript | Node / Browser |
 
 ---
@@ -21,13 +20,12 @@ sdk/
 ├── core/               # Shared TypeScript: types, API client, config, ad logic
 ├── react-native/       # React Native package (native ad views + WebView marketplace widget)
 ├── ios/                # Swift Package + CocoaPod (native ad views + WKWebView widget)
-├── android/            # Gradle library (native ad views + WebView widget)
-└── flutter/            # Flutter plugin (webview_flutter — ad + widget; legacy)
+└── android/            # Gradle library (native ad views + WebView widget)
 ```
 
-All four platform SDKs:
+All three platform SDKs:
 1. Load listings from the Sellwild API
-2. Render ad units natively via a Prebid Mobile → Google Mobile Ads auction (iOS, Android, React Native — **no WebView in the ad path**). Flutter still renders ads through a WebView (legacy track).
+2. Render ad units natively via a Prebid Mobile → Google Mobile Ads auction (iOS, Android, React Native — **no WebView in the ad path**).
 3. Render the marketplace **widget** surface (listings) in a WebView
 4. Bridge listing clicks and ad impressions back to native callbacks
 5. Support the full `SellwildConfig` customization system from the web widget
@@ -200,45 +198,6 @@ viewModelScope.launch {
 
 ---
 
-### Flutter
-
-Add to `pubspec.yaml`:
-```yaml
-dependencies:
-  sellwild_sdk: ^1.3.0
-```
-
-```dart
-import 'package:sellwild_sdk/sellwild_sdk.dart';
-
-const config = SellwildConfig(
-  partnerCode: 'mysite',
-);
-
-// Full widget
-SellwildWidget(
-  config: config,
-  onListingTap: (listing) => Navigator.pushNamed(context, '/detail', arguments: listing),
-)
-
-// Banner ad
-SellwildBanner(
-  config: config,
-  adSize: SellwildAdSize.mrec300x250,
-  zoneId: '98765',
-  onImpression: () => analytics.track('ad_impression'),
-)
-
-// Native listing card
-SellwildListingCard(
-  listing: listing,
-  config: config,
-  onTap: (l) => openDetail(l),
-)
-```
-
----
-
 ## Configuration Reference
 
 | Property | Type | Default | Description |
@@ -272,7 +231,7 @@ The SDK supports three Prebid integration modes:
 
 | Mode | Description |
 |------|-------------|
-| **A — Prebid.js in WebView** | Client-side bidding inside a WebView. Used by the Flutter legacy ad track. Set `appBundleId` for proper in-app signals. |
+| **A — Prebid.js in WebView** | Client-side bidding inside a WebView (legacy track). Set `appBundleId` for proper in-app signals. |
 | **B — Prebid Server S2S** | All bids routed through a Prebid Server instance. Solves cookie/IDFA WebView limitations. Set `prebidServer` in config. |
 | **C — Prebid Mobile SDK** (default on iOS, Android, React Native) | True native bidding via a bundled Prebid Mobile → Google Mobile Ads auction. Supports IDFA/GAID. No WebView in the ad path. |
 
@@ -329,15 +288,6 @@ android/src/main/kotlin/com/sellwild/sdk/
 ├── SellwildAdView.kt           # View banner ad
 ├── SellwildWidgetView.kt       # View full widget (incl. SellwildWebViewCompat)
 └── SellwildPrebidMobile.kt     # Optional: Prebid Mobile SDK helper (reflection-based)
-
-flutter/lib/
-├── sellwild_sdk.dart        # Package barrel export
-└── src/
-    ├── sellwild_config.dart       # Configuration model (incl. PrebidServerConfig)
-    ├── sellwild_models.dart       # Listing + photo models
-    ├── sellwild_widget.dart       # Widget + Banner widgets (ortb2.app + S2S injection)
-    ├── sellwild_api.dart          # API client
-    └── sellwild_listing_card.dart # Native listing card widget
 ```
 
 ---

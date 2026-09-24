@@ -1,6 +1,6 @@
 # Prebid Integration Guide
 
-The Sellwild SDK supports three Prebid integration modes. On iOS, Android, and React Native the SDK **defaults to Mode C (native Prebid Mobile)** — bundled, no wiring required. **Mode A (Prebid.js in a WebView)** is the Flutter / legacy WebView track. **Mode B (Prebid Server S2S)** is an opt-in routing choice that layers on either.
+The Sellwild SDK supports three Prebid integration modes. On iOS, Android, and React Native the SDK **defaults to Mode C (native Prebid Mobile)** — bundled, no wiring required. **Mode A (Prebid.js in a WebView)** is the legacy WebView track. **Mode B (Prebid Server S2S)** is an opt-in routing choice that layers on either.
 
 ---
 
@@ -8,7 +8,7 @@ The Sellwild SDK supports three Prebid integration modes. On iOS, Android, and R
 
 | Mode | Where Bidding Runs | IDFA/GAID | 3rd-party Cookies | Extra Dependency |
 |------|--------------------|-----------|-------------------|------------------|
-| **A — Prebid.js in WebView** | Inside WebView (client) | ✗ | ✗ | None (Flutter / legacy track) |
+| **A — Prebid.js in WebView** | Inside WebView (client) | ✗ | ✗ | None (legacy track) |
 | **B — Prebid Server S2S** | Prebid Server (server-side) | ✗ | N/A (server call) | Self-hosted or managed Prebid Server |
 | **C — Prebid Mobile SDK** *(default: iOS/Android/RN)* | Native SDK | ✓ (with ATT) | N/A | Bundled — no extra dependency |
 
@@ -18,7 +18,7 @@ All three modes inject `ortb2.app` into Prebid.js (Modes A & B) or set the app c
 
 ## Mode A — Prebid.js in WebView
 
-The WebView ad track — used by Flutter today, and by any surface that renders ads through the marketplace WebView. No additional configuration is needed beyond the base `SellwildConfig`. On iOS, Android, and React Native the SDK renders ads natively (Mode C) instead — see below.
+The legacy WebView ad track — used by any surface that renders ads through the marketplace WebView. No additional configuration is needed beyond the base `SellwildConfig`. On iOS, Android, and React Native the SDK renders ads natively (Mode C) instead — see below.
 
 **Required fields to enable proper in-app signals:**
 
@@ -34,14 +34,6 @@ val config = SellwildConfig(
     appBundleId = BuildConfig.APPLICATION_ID,
     appStoreUrl = "https://play.google.com/store/apps/details?id=com.mycompany.myapp",
     // ...
-)
-```
-
-```dart
-// Flutter
-SellwildConfig(
-  appBundleId: 'com.mycompany.myapp',
-  appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
 )
 ```
 
@@ -97,16 +89,6 @@ prebidServer: {
   bidders:   ['appnexus', 'rubicon', 'ix', 'openx'],
   timeout:   1500,
 }
-```
-
-```dart
-// Flutter
-prebidServer: PrebidServerConfig(
-  accountId: 'YOUR_ACCOUNT_ID',
-  endpoint: 'https://prebid-server.example.com/openrtb2/auction',
-  bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
-  timeout: 1500,
-),
 ```
 
 **What the SDK injects (automatic when `prebidServer` is set):**

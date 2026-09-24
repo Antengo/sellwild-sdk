@@ -17,7 +17,7 @@ features:
   - title: Native Banner Ads
     details: Banner auctions run through Prebid Mobile and render in AdManagerBannerView (iOS) / AdManagerAdView (Android). No WebView in the ad path, no on-device waterfall. Sub-200ms response times across all SSPs.
   - title: One Integration
-    details: Replace 10-40 individual ad SDKs with a single lightweight package. iOS (Swift), Android (Kotlin), React Native, and Flutter. Under 2 MB added to your app.
+    details: Replace 10-40 individual ad SDKs with a single lightweight package. iOS (Swift), Android (Kotlin), and React Native. Under 2 MB added to your app.
   - title: 400+ SSP Adapters
     details: AppNexus, PubMatic, Magnite, Index Exchange, OpenX, TripleLift, Sharethrough, InMobi, Smaato, Yieldmo, and hundreds more — all available on day one.
   - title: Full Transparency
