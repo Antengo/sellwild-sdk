@@ -68,8 +68,8 @@ object SellwildSDK {
             if (connection.responseCode in 200..299) {
                 val body = connection.inputStream.bufferedReader().readText()
                 // Stash the raw payload so unmapped CDN keys (new bidders,
-                // forward-compatible settings) flow through to the WebView
-                // attribute serializer without an SDK release.
+                // forward-compatible settings) stay readable via remoteJson
+                // without an SDK release.
                 config = apply(JSONObject(body), config).copy(remoteJson = body)
             }
         }
@@ -137,8 +137,8 @@ object SellwildSDK {
             bannerZid = raw.optStringOrNull("BANNER_ZID") ?: base.bannerZid,
             bottomBannerZid = raw.optStringOrNull("BOTTOM_BANNER_ZID") ?: base.bottomBannerZid,
             // Per-platform placement resolution (this mapper only ever runs on
-            // Android — the Kotlin SDK — so RN / Flutter hosts on Android resolve
-            // here too). Three tiers, most specific first, per placement:
+            // Android — the Kotlin SDK — so RN hosts on Android resolve here
+            // too). Three tiers, most specific first, per placement:
             //   1. per-placement per-platform (MOBILE_ZID_ANDROID / MOBILE_BANNER_ZID_ANDROID)
             //   2. platform-wide "ALL" (MOBILE_ZID_ALL_ANDROID — one value every
             //      mobile placement on this OS falls back to)

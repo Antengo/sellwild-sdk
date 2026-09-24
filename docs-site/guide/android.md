@@ -120,7 +120,7 @@ As of 1.3.0, `SellwildAdView` no longer renders banner creatives in a `WebView`.
 - **First-use bootstrap.** The first time a `SellwildAdView` is created, `SellwildPrebidMobile.bootstrap()` initializes Prebid Mobile (host, account ID, timeouts) using values from `SellwildConfig.prebidServer`. Subsequent ad views reuse the initialized stack.
 - **Auction flow.** `SellwildAdView.load()` builds an OpenRTB request with Prebid Mobile, sends it to `prebid.sellwild.com`, applies the winning bid's keywords as targeting on an `AdManagerAdRequest`, then calls `AdManagerAdView.loadAd(...)`. The GAM SDK selects between the Prebid line item and any direct-sold demand and renders the creative natively.
 - **Required manifest entry.** GMA will not initialize without the `com.google.android.gms.ads.APPLICATION_ID` `meta-data` entry. See [AndroidManifest Configuration](#androidmanifest-configuration) below.
-- **Marketplace listings.** `SellwildWidgetView` is a separate surface for the marketplace listings widget and is unrelated to the ad path. If your integration only requires banner ads, you do not need to use it.
+- **Marketplace listings.** Use [`SellwildFeedView` / `SellwildFeed`](#native-marketplace-feed-1-3-5) for the all-in-one listings surface. The WebView-based `SellwildWidgetView` and `SellwildWebViewCompat` have been removed.
 
 If you want to bypass the native ad path entirely and consume bids yourself, see [Prebid Server Configuration](#prebid-server-configuration).
 
@@ -217,7 +217,7 @@ class FeedActivity : AppCompatActivity() {
 
 The `onListingTap` listener method returns a `Boolean`:
 
-- **Return `false`** (recommended): The SDK opens the listing URL in Chrome Custom Tabs. This matches the WebView widget behavior.
+- **Return `false`** (recommended): The SDK opens the listing URL in Chrome Custom Tabs.
 - **Return `true`**: You handle navigation yourself. The SDK does nothing.
 
 ### Embedding in a Scroll View (1.4.0+)
@@ -806,7 +806,7 @@ lifecycleScope.launch {
         // Optional: override CDN values with app-controlled ones.
         c.copy(appBundleId = packageName)
     }
-    // Hand `config` to your SellwildAdView / SellwildWidgetView.
+    // Hand `config` to your SellwildAdView / SellwildFeedView.
 }
 ```
 

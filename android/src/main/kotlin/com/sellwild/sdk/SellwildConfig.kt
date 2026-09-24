@@ -61,9 +61,6 @@ data class SellwildConfig(
     val watermarkTitle: String = "Powered by Sellwild",
 
     // Ads - Display
-    /** Ad system to initialize. Defaults to "PrebidOnly". AdStack silently
-     *  no-ops if this is unset, so the SDK always sets it. */
-    val adType: String? = null,
     val bannerZid: String? = null,
     val bottomBannerZid: String? = null,
     val mobileBannerZid: String? = null,
@@ -71,7 +68,6 @@ data class SellwildConfig(
     val hideBannerTop: Boolean = false,
     val hideBannerBottom: Boolean = false,
     val gamTag: String? = null,
-    val gptProxyUrl: String? = null,
     val disableGpt: Boolean = false,
     val adDisableDisplay: Boolean = false,
 
@@ -80,7 +76,6 @@ data class SellwildConfig(
     val adRefreshMaxMobile: Int = 0,
     val adRefreshIntervalMs: Long = 30_000L,
     val maxFailedAuctions: Int = 3,
-    val prebidSrc: String? = null,
     val floorMultiplier: Float = 1.0f,
 
     // Ads - Compliance
@@ -112,11 +107,9 @@ data class SellwildConfig(
      * Raw remote-config payload as fetched from the CDN, as the original
      * JSON string. Populated by [SellwildSDK.configure].
      *
-     * The widget's WebView attribute parser is case-insensitive and accepts
-     * arbitrary keys, so every entry in this payload is forwarded to the
-     * widget verbatim. This means the SDK does NOT need a release whenever
-     * the CMS adds a new bidder or remote setting — partners receive new
-     * fields automatically the moment the CDN JSON includes them.
+     * Every entry is kept verbatim, so native surfaces can read CMS-defined
+     * settings (bidders, feature flags, ad-network settings) that have no
+     * typed field without an SDK release.
      */
     val remoteJson: String? = null,
 
@@ -131,10 +124,9 @@ data class SellwildConfig(
     val interstitialsPerSession: Int = 1,
     val videoTakeoversPerSession: Int = 0,
 
-    // Mobile app identity (for ortb2.app in Prebid.js)
-    // Without appBundleId, Prebid.js sends bids as web (ortb2.site) traffic instead
-    // of in-app traffic. DSPs that buy app inventory separately will not bid, and
-    // app-ads.txt enforcement is bypassed.
+    // Mobile app identity (OpenRTB `app` object on native Prebid auctions).
+    // Declares in-app inventory rather than web (site) traffic; DSPs that buy app
+    // inventory separately key on it, and app-ads.txt enforcement depends on it.
     val appBundleId: String? = null,   // Android package name (e.g. "com.mycompany.myapp")
     val appStoreUrl: String? = null,   // Google Play Store URL for the host app
 
@@ -145,9 +137,9 @@ data class SellwildConfig(
     val geo: SellwildGeo? = null,
 
     // Prebid Server S2S (optional)
-    // Route all Prebid.js bidder calls through a Prebid Server instance instead of running
-    // client-side adapters in the WebView. Solves cookie/IDFA limitations.
-    // Leave null to use the default Prebid.js client-side mode.
+    // Prebid Server instance the native Prebid Mobile auction targets (account ID,
+    // endpoint, bidders, timeout). Leave null to use the SDK's default Sellwild
+    // Prebid Server settings.
     val prebidServer: PrebidServerConfig? = null,
 
     // GrowthCode Signal Resolve (identity) — local overrides for the GrowthCode
@@ -199,7 +191,6 @@ data class SellwildConfig(
         put("hideBannerTop", hideBannerTop)
         put("hideBannerBottom", hideBannerBottom)
         gamTag?.let { put("gamTag", it) }
-        gptProxyUrl?.let { put("gptProxyUrl", it) }
         put("disableGpt", disableGpt)
         put("adRefreshMax", adRefreshMax)
         put("adRefreshMaxMobile", adRefreshMaxMobile)
@@ -306,8 +297,7 @@ data class WaterfallPartnerConfig(
 )
 
 /**
- * Configuration for routing Prebid.js header bidding through a Prebid Server instance.
- * Solves cookie and IDFA limitations that affect Prebid.js running in a native WebView.
+ * Prebid Server settings for the native Prebid Mobile auction.
  */
 data class PrebidServerConfig(
     /** Your Prebid Server account ID. */

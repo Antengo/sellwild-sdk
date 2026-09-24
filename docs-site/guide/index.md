@@ -8,7 +8,7 @@ The Sellwild SDK delivers programmatic display and video ads into native mobile 
 
 ::: tip What's new in 1.3.0
 - **Banner ads now render natively** through the Google Mobile Ads SDK + Prebid Mobile. The ad path no longer touches a WebView.
-- **`SellwildWidget` (marketplace listings) still uses a WebView** for listing rendering — that's intentional and unchanged.
+- **Marketplace listings.** The WebView-based `SellwildWidget` has since been removed. Use the native feed (`SellwildFeedView` / `SellwildFeed`). See the [migration guide](/guide/migration-widget-to-feed).
 - **Action required for upgraders.** iOS now requires **Xcode 16+** (PrebidMobile 3.x). Android `minSdk` is raised to **23**. iOS apps must set `GADApplicationIdentifier` in `Info.plist`; Android apps must set the `com.google.android.gms.ads.APPLICATION_ID` `<meta-data>` entry in `AndroidManifest.xml`. See the platform guides for details.
 :::
 

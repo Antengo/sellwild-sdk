@@ -27,12 +27,12 @@ Optionally, you may also receive:
 ### 1. Install dependencies
 
 ```bash
-npm install @sellwild/react-native-sdk react-native-webview
+npm install @sellwild/react-native-sdk
 # or
-yarn add @sellwild/react-native-sdk react-native-webview
+yarn add @sellwild/react-native-sdk
 ```
 
-### 2. iOS — link WebView (React Native 0.60+, auto-linking handles this)
+### 2. iOS — install pods (React Native 0.60+, auto-linking handles the native module)
 
 ```bash
 cd ios && pod install
@@ -61,22 +61,18 @@ Or use a Network Security Config for finer control (see Android section below).
 ### 4. Use in your app
 
 ```tsx
-import { SellwildWidget, SellwildBanner } from '@sellwild/react-native-sdk'
+import { configure, SellwildFeed, SellwildBanner } from '@sellwild/react-native-sdk'
 
-// Full marketplace widget
-<SellwildWidget
-  config={{
-    partnerCode: 'mysite',
-    gamTag: '/12345678/mysite-mobile',
-    bannerZid: '98765',
-    mobileZids: ['11111', '22222'],
-    adRefreshMaxMobile: 5,
-    adRefreshInterval: 30000,
-  }}
+const config = await configure('mysite', 'mysite-main')
+
+// All-in-one native feed (listings + interleaved ads)
+<SellwildFeed
+  config={config}
   style={{ flex: 1 }}
-  onListingPress={(listing) => {
-    // listing.url is the Sellwild product page
+  onListingTap={(listing) => {
+    // Return true to consume; otherwise the SDK opens listing.url in-app
     Linking.openURL(listing.url)
+    return true
   }}
 />
 
@@ -122,7 +118,7 @@ Then run `pod install`.
 
 ### 2. Info.plist — allow ad network traffic
 
-Sellwild loads ad scripts from Google, Prebid CDN, and ad networks. Add:
+Ad creatives load from Google and third-party ad networks. Add:
 ```xml
 <!-- ios/YourApp/Info.plist -->
 <key>NSAppTransportSecurity</key>
@@ -165,27 +161,27 @@ class MyViewController: UIViewController {
         config.bannerZid = "98765"
         config.adRefreshMaxMobile = 5
 
-        let widget = SellwildWidgetView(config: config)
-        widget.delegate = self
-        widget.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(widget)
+        // All-in-one native feed (listings + interleaved ads)
+        let feed = SellwildFeedView(config: config)
+        feed.delegate = self
+        feed.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(feed)
 
         NSLayoutConstraint.activate([
-            widget.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            widget.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            widget.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            widget.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            feed.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            feed.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            feed.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            feed.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
-        widget.load()
+        feed.load()
     }
 }
 
-extension MyViewController: SellwildWidgetViewDelegate {
-    func sellwildWidgetView(_ widgetView: SellwildWidgetView, didTapListing listing: SellwildListing) {
-        if let urlStr = listing.url, let url = URL(string: urlStr) {
-            UIApplication.shared.open(url)
-        }
+extension MyViewController: SellwildFeedViewDelegate {
+    // Return false to let the SDK open listing.url in SFSafariViewController.
+    func sellwildFeed(_ feed: SellwildFeedView, didTapListing listing: SellwildListing) -> Bool {
+        false
     }
 }
 ```
@@ -206,12 +202,8 @@ struct ContentView: View {
     }()
 
     var body: some View {
-        SellwildWidget(config: config) { listing in
-            if let url = listing.url.flatMap(URL.init) {
-                UIApplication.shared.open(url)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        SellwildFeed(config: config)   // SDK opens listing taps in SFSafariViewController
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 ```
@@ -296,28 +288,28 @@ class MainActivity : AppCompatActivity() {
             adRefreshMaxMobile = 5,
         )
 
-        val widget = SellwildWidgetView(this)
-        widget.setup(config)
-        widget.listener = object : SellwildWidgetView.Listener {
-            override fun onListingTapped(listing: SellwildListing) {
-                listing.url?.let { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
-            }
+        // All-in-one native feed (listings + interleaved ads)
+        val feed = SellwildFeedView(this)
+        feed.setup(config)
+        feed.listener = object : SellwildFeedView.Listener {
+            // Return false to let the SDK open listing.url in Chrome Custom Tabs.
+            override fun onListingTap(listing: SellwildListing): Boolean = false
         }
 
-        setContentView(widget)
-        widget.load()
+        setContentView(feed)
+        feed.load()
     }
 }
 ```
 
-**Lifecycle — important:** Wire up pause/resume to avoid WebView memory leaks:
+**Lifecycle — standalone banners:** forward pause/resume/destroy to each `SellwildAdView`:
 ```kotlin
-override fun onResume() { super.onResume(); widget.resume() }
-override fun onPause()  { super.onPause();  widget.pause()  }
-override fun onDestroy(){ super.onDestroy(); widget.destroy() }
+override fun onResume() { super.onResume(); banner.resume() }
+override fun onPause()  { super.onPause();  banner.pause()  }
+override fun onDestroy(){ super.onDestroy(); banner.destroy() }
 ```
 
-### 4. Coroutines — fetch listings natively (without WebView)
+### 4. Coroutines — fetch listings and render your own UI
 
 ```kotlin
 // ViewModel
@@ -415,44 +407,19 @@ The native banner path (Prebid Mobile → Google Mobile Ads) supports two demand
 
 **You must set at least one** of `gamTag` or a zone ID for ads to render. If both are set, GAM takes priority unless `disableGpt: true`.
 
-### Prebid.js bundle (`prebidSrc`) — marketplace widget only
-
-`prebidSrc` and the bundled Prebid.js apply **only** to the deprecated `SellwildWidget` marketplace surface, which renders listings in a WebView. They do **not** affect native banner ads — those run Prebid Mobile in-process, with no Prebid.js. If you use the widget and have a custom Prebid.js build, point `prebidSrc` at your hosted URL:
-```
-prebidSrc: 'https://cdn.yoursite.com/prebid.js'
-```
-Otherwise the widget loads the default bundle from `https://widget.sellwild.com/prebid.js`.
-
 ---
 
 ## In-app signals (native path)
 
-Prebid Mobile builds the OpenRTB request in-process and forwards real in-app signals automatically — there is no WebView injection to configure:
+Prebid Mobile builds the OpenRTB request in-process and forwards real in-app signals automatically:
 
 1. **ortb2.app** — set `appBundleId` (your iOS bundle ID or Android package name) and `appStoreUrl` in `SellwildConfig` so the auction carries `app.bundle` / `app.storeurl`. Prebid Mobile sends `app{}` (not `site{}`) natively.
 
 2. **Device + consent** — IDFV / AAID, ATT status, and the IAB consent strings your CMP writes to device storage are read and forwarded by Prebid Mobile / GMA automatically. Initialize your CMP **before** the first ad request.
 
-3. **Prebid Server S2S** — the auction resolves server-to-server through `prebid.sellwild.com`, which sidesteps the cookie/IDFA limits a client-side WebView auction would hit.
+3. **Prebid Server S2S** — the auction resolves server-to-server through `prebid.sellwild.com`. No third-party cookies required.
 
 **Full Prebid documentation:** [PREBID.md](./PREBID.md)
-
----
-
-## Android — Multi-process WebView (API 28+)
-
-If your app uses multiple processes, call this before creating any WebView:
-
-```kotlin
-class MyApplication : Application() {
-    override fun onCreate() {
-        super.onCreate()
-        SellwildWebViewCompat.configureForMultiProcess(this)
-    }
-}
-```
-
-This sets a process-specific WebView data directory suffix to prevent crashes (crbug.com/558377).
 
 ---
 
@@ -496,7 +463,7 @@ Set `adRefreshMax: 0` and `adRefreshMaxMobile: 0` to disable refresh entirely.
 
 ## Debugging
 
-Set `debug: true` in your config to enable console logging from the widget:
+Set `debug: true` in your config to enable verbose SDK and Prebid Mobile logging:
 
 ```ts
 config: {
@@ -505,10 +472,4 @@ config: {
 }
 ```
 
-On Android, also enable WebView debugging to inspect the embedded HTML:
-```kotlin
-WebView.setWebContentsDebuggingEnabled(true) // in Application.onCreate()
-```
-Then open `chrome://inspect` in Chrome on your dev machine.
-
-On iOS, enable WebView inspection in Safari → Develop → [your device].
+For server-side auction detail (per-bidder status, resolved request), also set `pbsDebug: true`. See [PREBID.md](./PREBID.md#debug-flags--debug-vs-pbsdebug).

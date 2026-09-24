@@ -35,7 +35,7 @@ import {
   View,
 } from 'react-native'
 import {
-  SellwildWidget,
+  SellwildFeed,
   SellwildBanner,
   SellwildListingCard,
   useSellwildListings,
@@ -52,8 +52,7 @@ import type { SellwildListing, SellwildConfig, PartialSellwildConfig } from '@se
 //   iOS / Android `SellwildAdView`, which runs a NATIVE Prebid Mobile auction
 //   and renders the winner into a NATIVE `AdManagerBannerView` (iOS) or
 //   `AdManagerAdView` (Android). There is no WebView in the banner ad path.
-//   The marketplace `SellwildWidget` still renders listings inside a WebView;
-//   that surface is intentional and unchanged.
+//   Marketplace listings render natively too, via `SellwildFeed`.
 //
 // Remote config (the first-class path, 1.2.0+):
 //   `configure(partnerCode, slug)` fetches every runtime field from the
@@ -88,31 +87,34 @@ const BASE_CONFIG: PartialSellwildConfig = {
   debug: __DEV__,
 }
 
-// ─── Screen: Marketplace Widget (WebView-rendered listings) ───────────────────
-// `SellwildWidget` renders the full marketplace listing surface inside a
-// WebView. This is intentional — only banner ads moved to native rendering in
-// 1.3.0; the marketplace listing UI is unchanged.
+// ─── Screen: All-in-one Native Feed ──────────────────────────────────────────
+// `SellwildFeed` renders native listing cards interleaved with native Prebid +
+// GAM ads, scheduled by the CDN-published COL1 string. Every row is native.
 
-function WebViewWidgetScreen() {
-  const handleListingPress = useCallback((listing: SellwildListing) => {
-    const url = listing.url
-    if (url) {
-      Linking.openURL(url).catch(() => Alert.alert('Cannot open URL', url))
-    }
+function NativeFeedScreen() {
+  const [config, setConfig] = useState<SellwildConfig | null>(null)
+
+  useEffect(() => {
+    configure('YOUR_PARTNER_CODE', 'your-partner-slug', { timeout: 5000 })
+      .then(setConfig)
   }, [])
 
-  const handleAdImpression = useCallback((zoneId: string | number) => {
-    console.log('[Sellwild] Ad impression, zoneId:', zoneId)
-  }, [])
+  if (!config) {
+    return (
+      <View style={styles.center}>
+        <Text>Loading config…</Text>
+      </View>
+    )
+  }
 
   return (
-    <SellwildWidget
-      config={BASE_CONFIG}
+    <SellwildFeed
+      config={config}
       style={styles.fullFlex}
-      onListingPress={handleListingPress}
-      onAdImpression={handleAdImpression}
-      onError={(err) => console.error('[Sellwild] Widget error:', err.message)}
-      onLoad={() => console.log('[Sellwild] Widget loaded')}
+      onListingTap={() => false /* let the SDK open the in-app browser */}
+      onAdImpression={(zoneId) => console.log('[Sellwild] Ad impression, zoneId:', zoneId)}
+      onError={(err) => console.error('[Sellwild] Feed error:', err.message)}
+      onLoad={() => console.log('[Sellwild] Feed loaded')}
     />
   )
 }
@@ -214,10 +216,10 @@ function NativeListingsScreen() {
 
 // ─── Root App ─────────────────────────────────────────────────────────────────
 
-type Tab = 'webview' | 'native'
+type Tab = 'feed' | 'native'
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('webview')
+  const [activeTab, setActiveTab] = useState<Tab>('feed')
   const [useNative, setUseNative] = useState(false)
 
   return (
@@ -225,11 +227,11 @@ export default function App() {
       {/* Tab bar */}
       <View style={styles.tabBar}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'webview' && styles.tabActive]}
-          onPress={() => setActiveTab('webview')}
+          style={[styles.tab, activeTab === 'feed' && styles.tabActive]}
+          onPress={() => setActiveTab('feed')}
         >
-          <Text style={[styles.tabText, activeTab === 'webview' && styles.tabTextActive]}>
-            WebView Widget
+          <Text style={[styles.tabText, activeTab === 'feed' && styles.tabTextActive]}>
+            Native Feed
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -243,8 +245,8 @@ export default function App() {
       </View>
 
       {/* Content */}
-      {activeTab === 'webview' ? (
-        <WebViewWidgetScreen />
+      {activeTab === 'feed' ? (
+        <NativeFeedScreen />
       ) : (
         <NativeListingsScreen />
       )}

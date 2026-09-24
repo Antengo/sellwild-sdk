@@ -123,8 +123,7 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
         // the SDK still owns whether to open the URL in
         // SFSafariViewController. Partners who want to fully consume
         // the tap can subclass via `useNativeNavigation` later;
-        // current behaviour matches the WebView widget (always opens
-        // in in-app browser) so there's no regression.
+        // current behaviour always opens in the in-app browser.
         let payload = Self.listingPayload(listing)
         onListingTap?(["listing": payload])
         return false

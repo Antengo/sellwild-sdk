@@ -8,7 +8,7 @@ Server-side header bidding for React Native applications, powered by Prebid Serv
 
 1. [Prerequisites](#prerequisites)
 2. [Installation](#installation)
-3. [Native Feed (1.3.5+)](#native-feed-1-3-5) ⭐ **Recommended**
+3. [Native Feed (1.3.5+)](#native-feed-1-3-5) **Recommended**
 4. [Localized (geo) listings](#localized-geo-listings)
 5. [Native Banner (1.3.0+)](#native-banner-path-1-3-0)
 6. [iOS Configuration](#ios-configuration)
@@ -23,7 +23,7 @@ Server-side header bidding for React Native applications, powered by Prebid Serv
 15. [GDPR and Privacy](#gdpr-and-privacy)
 16. [TypeScript Reference](#typescript-reference)
 17. [Troubleshooting](#troubleshooting)
-18. [Migration Guide: Widget → Feed](#migration-guide)
+18. [Migration Guide: Widget → Feed](./migration-widget-to-feed.md)
 
 ---
 
@@ -36,7 +36,6 @@ Server-side header bidding for React Native applications, powered by Prebid Serv
 | Xcode | 15.0+ | Required for iOS builds; macOS Sonoma or later |
 | Android Studio | Hedgehog (2023.1.1)+ | JDK 17 bundled |
 | CocoaPods | 1.14+ | `sudo gem install cocoapods` if not installed |
-| `react-native-webview` | 11.0+ | Peer dependency. Required only if you use `<SellwildWidget>` (the marketplace listings surface). The native banner path does not depend on it. |
 
 Verify your environment before proceeding:
 
@@ -60,13 +59,7 @@ Or with Yarn:
 yarn add @sellwild/react-native-sdk
 ```
 
-`react-native-webview` is declared as a peer dependency. It is only required if your integration uses `<SellwildWidget>` (the marketplace listings surface). If you do, install it alongside the SDK:
-
-```bash
-npm install react-native-webview
-# or
-yarn add react-native-webview
-```
+No other peer packages are required. Every SDK surface is native, so `react-native-webview` is not a dependency.
 
 ### 2. iOS -- Install native dependencies
 
@@ -96,7 +89,7 @@ The output should list `@sellwild/react-native-sdk` under `dependencies`.
 
 ## Native Feed (1.3.5+)
 
-> ⭐ **Recommended for marketplace listings.** Higher CPMs than the WebView widget, native scrolling performance, and reliable tap handling.
+> **Recommended for marketplace listings.** Native rendering, native Prebid + GAM demand, native scrolling, and reliable tap handling.
 
 `<SellwildFeed>` is an all-in-one native surface: a single-column scroll of native listing cards interleaved with native Prebid + GAM ads. There is **no WebView** — every row is native on both iOS (UITableView) and Android (RecyclerView).
 
@@ -169,7 +162,7 @@ When `scrollEnabled={false}`, the component sizes its **own** container from the
 
 ### Migrating from SellwildWidget
 
-If you're currently using `<SellwildWidget>` (the WebView-based component), see the [Migration Guide](./migration-widget-to-feed.md) for step-by-step instructions.
+`<SellwildWidget>` (the WebView-based component) has been removed. If your app still renders it, see the [Migration Guide](./migration-widget-to-feed.md) to move to `<SellwildFeed>`.
 
 ### Per-platform ad zones
 
@@ -199,7 +192,7 @@ Requires SDK 1.6+. See the [iOS guide](./ios.md#localized-geo-listings) for the 
 
 ## Native banner path (1.3.0+)
 
-As of 1.3.0, `<SellwildBanner>` is backed by a native iOS/Android view bridged through `RCTViewManager`. The ad-rendering path no longer uses `react-native-webview` — it runs a Prebid Mobile auction natively and renders the winning bid in `AdManagerBannerView` (iOS) or `AdManagerAdView` (Android).
+As of 1.3.0, `<SellwildBanner>` is backed by a native iOS/Android view bridged through `RCTViewManager`. It runs a Prebid Mobile auction natively and renders the winning bid in `AdManagerBannerView` (iOS) or `AdManagerAdView` (Android).
 
 ```tsx
 import { SellwildBanner } from '@sellwild/react-native-sdk';
@@ -237,7 +230,7 @@ The slot's **baseline is the bounding box of the requested size set** (the wides
 
 **Required platform setup.** GMA still needs `GADApplicationIdentifier` (iOS `Info.plist`) and `com.google.android.gms.ads.APPLICATION_ID` (Android `AndroidManifest.xml`) to initialize. See the [iOS Configuration](#ios-configuration) and [Android Configuration](#android-configuration) sections below.
 
-**Marketplace listings.** `<SellwildWidget>` is a separate component for the marketplace listings surface and is not part of the ad path. If your integration only requires banner ads, you do not need to install `react-native-webview` or use this component.
+**Marketplace listings.** Use [`<SellwildFeed>`](#native-feed-1-3-5) for the all-in-one listings surface.
 
 ---
 
@@ -249,7 +242,7 @@ Add the following entries to `ios/<YourApp>/Info.plist`.
 
 #### App Transport Security
 
-Allow the SDK to communicate with Sellwild auction and widget endpoints over HTTPS. If your app already permits arbitrary loads, this block is not required.
+Allow the SDK to communicate with the Sellwild auction endpoint and config CDN over HTTPS. If your app already permits arbitrary loads, this block is not required.
 
 ```xml
 <key>NSAppTransportSecurity</key>
@@ -339,7 +332,7 @@ Reference it in your manifest:
 
 ## Basic Integration
 
-The following `App.tsx` demonstrates a complete integration with banner ads and the full listing widget.
+The following `App.tsx` demonstrates a complete integration with two banner ads. For marketplace listings, add [`<SellwildFeed>`](#native-feed-1-3-5).
 
 ::: tip Recommended: use `configure()`
 For most integrations, call `configure(partnerCode, slug)` instead of building
@@ -361,11 +354,9 @@ The static example below is shown only to document each field.
 import React, { useCallback } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Alert } from 'react-native';
 import {
-  SellwildWidget,
   SellwildBanner,
   buildConfig,
   type SellwildConfig,
-  type SellwildListing,
   type PartialSellwildConfig,
 } from '@sellwild/react-native-sdk';
 
@@ -415,13 +406,6 @@ export default function App() {
     console.warn('[Sellwild] Banner error:', error.message);
   }, []);
 
-  const handleListingPress = useCallback((listing: SellwildListing) => {
-    // Navigate to the listing URL or a detail screen.
-    if (listing.url) {
-      console.log('[Sellwild] Listing tapped:', listing.url);
-    }
-  }, []);
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -435,24 +419,6 @@ export default function App() {
           onImpression={handleImpression}
           onError={handleBannerError}
           style={styles.banner}
-        />
-
-        {/* ----------------------------------------------------------------- */}
-        {/* Full listing widget with embedded Prebid header bidding            */}
-        {/* ----------------------------------------------------------------- */}
-        <SellwildWidget
-          config={partialConfig}
-          onListingPress={handleListingPress}
-          onAdImpression={(zoneId) => {
-            console.log('[Sellwild] Widget ad impression, zone:', zoneId);
-          }}
-          onError={(error) => {
-            console.warn('[Sellwild] Widget error:', error.message);
-          }}
-          onLoad={() => {
-            console.log('[Sellwild] Widget loaded');
-          }}
-          style={styles.widget}
         />
 
         {/* ----------------------------------------------------------------- */}
@@ -480,10 +446,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginVertical: 12,
   },
-  widget: {
-    height: 420,
-    marginHorizontal: 8,
-  },
   mediumRectangle: {
     alignSelf: 'center',
     marginVertical: 16,
@@ -495,10 +457,10 @@ const styles = StyleSheet.create({
 
 | Component | Config Type | Description |
 |-----------|------------|-------------|
-| `SellwildWidget` | `PartialSellwildConfig` | Full listing carousel with embedded Prebid auctions |
+| `SellwildFeed` | `SellwildConfig` (full) | All-in-one native feed: listings interleaved with native Prebid + GAM ads |
 | `SellwildBanner` | `SellwildConfig` (full) | Standalone IAB banner ad unit |
 
-`SellwildWidget` calls `buildConfig()` internally. `SellwildBanner` requires a pre-built `SellwildConfig` -- call `buildConfig()` before passing it.
+Both components take a full `SellwildConfig`. Use `configure()` or call `buildConfig()` before passing it.
 
 ---
 
@@ -874,49 +836,7 @@ function handleAuctionResponse(response: PrebidBidResponse): void {
 
 > **Note:** This is an advanced escape hatch for partners who want to render `adm` themselves instead of using `<SellwildBanner>`. It does not use Google Ad Manager or the SDK's native ad path -- you are responsible for impression tracking, viewability measurement, and click handling. The supported integration is `<SellwildBanner>`, which renders through `AdManagerBannerView` (iOS) or `AdManagerAdView` (Android) without a WebView.
 
-If you choose to render the winning `adm` yourself, the simplest approach is to wrap the HTML creative in a WebView. You will need to install `react-native-webview` for this path.
-
-```tsx
-import React from 'react';
-import { View } from 'react-native';
-import { WebView } from 'react-native-webview';
-
-interface WinningBidProps {
-  adMarkup: string;
-  width: number;
-  height: number;
-}
-
-function WinningBidRenderer({ adMarkup, width, height }: WinningBidProps) {
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    * { margin: 0; padding: 0; }
-    html, body { width: ${width}px; height: ${height}px; overflow: hidden; }
-  </style>
-</head>
-<body>${adMarkup}</body>
-</html>`;
-
-  return (
-    <View style={{ width, height }}>
-      <WebView
-        source={{ html }}
-        style={{ width, height }}
-        javaScriptEnabled
-        domStorageEnabled
-        scrollEnabled={false}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
-        originWhitelist={['*']}
-      />
-    </View>
-  );
-}
-```
+The SDK does not ship an `adm` renderer and does not depend on `react-native-webview`. If you render `adm` yourself, the renderer is yours to build and maintain in your app.
 
 ---
 
@@ -1174,7 +1094,7 @@ import type {
 
 // Component props
 import type {
-  SellwildWidgetProps,
+  SellwildFeedProps,
   SellwildBannerProps,
   SellwildListingCardProps,
   UseSellwildListingsResult,
@@ -1326,7 +1246,7 @@ If developing against a local SDK checkout, ensure `extraNodeModules` is configu
 
 ### `pod install` fails on iOS
 
-**Symptom:** `[!] CocoaPods could not find compatible versions for pod "SellwildSDK"` or `"react-native-webview"`.
+**Symptom:** `[!] CocoaPods could not find compatible versions for pod "SellwildSDK"` .
 
 **Fix:**
 
@@ -1459,7 +1379,6 @@ npm install @sellwild/react-native-sdk@latest
 ## Further Reading
 
 - [Prebid Server OpenRTB Auction Endpoint](https://docs.prebid.org/prebid-server/endpoints/openrtb2/pbs-endpoint-auction.html)
-- [Prebid.js S2S Module Documentation](https://docs.prebid.org/dev-docs/modules/prebidServer.html)
 - [OpenRTB 2.6 Specification](https://www.iab.com/wp-content/uploads/2022/04/OpenRTB-2-6_FINAL.pdf)
 - [IAB TCF v2.2](https://iabeurope.eu/tcf-2-0/)
 - [Prebid Server Configuration](/guide/prebid-server)

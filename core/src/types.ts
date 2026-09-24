@@ -253,11 +253,9 @@ export interface SellwildConfig {
    * Raw remote-config payload as fetched from the CDN.
    * Populated by `configure(partnerCode, slug)` with the entire JSON document.
    *
-   * The widget's WebView attribute parser is case-insensitive and accepts
-   * CONSTANT_CASE keys, so every entry in `remote` is forwarded to the widget
-   * verbatim. This means the SDK does NOT need a release whenever the CMS
-   * adds a new bidder or remote setting — partners receive new fields
-   * automatically the moment the CDN JSON includes them.
+   * Every entry is kept verbatim (CONSTANT_CASE keys), so CMS-defined
+   * settings with no typed field (new bidders, feature flags) stay readable
+   * — and flow through to the native bridges — without an SDK release.
    *
    * Static callers using `buildConfig({...})` may set this manually.
    */
@@ -272,9 +270,9 @@ export interface SellwildConfig {
   growthcode: string
   bhTag: string
 
-  // Prebid Server S2S — routes header bidding through a Prebid Server instance instead of
-  // running client-side adapters in the WebView. Solves cookie/IDFA limitations.
-  // Leave undefined to use the default Prebid.js client-side mode.
+  // Prebid Server the native Prebid Mobile auction targets (account ID, endpoint,
+  // bidders, timeout). Leave undefined to use the SDK's default Sellwild Prebid
+  // Server settings.
   prebidServer?: PrebidServerConfig
 
   // GrowthCode Signal Resolve (native mobile identity) — local overrides for the
@@ -287,16 +285,16 @@ export interface SellwildConfig {
   // `LOCALIZED_LISTINGS` integration object. Each set field wins over remote.
   localizedListings?: LocalizedListingsConfig
 
-  // Mobile app identity — used to populate ortb2.app when Prebid.js runs in a native WebView.
-  // Without these, Prebid.js sends bids as web (ortb2.site) traffic instead of in-app traffic,
-  // which suppresses fill from DSPs that buy app inventory differently and breaks app-ads.txt enforcement.
+  // Mobile app identity — populates the OpenRTB `app` object on native Prebid auctions.
+  // Without these, bids go out as web (site) traffic instead of in-app traffic, which
+  // suppresses fill from DSPs that buy app inventory differently and breaks app-ads.txt enforcement.
   appBundleId?: string    // iOS bundle ID or Android package name (e.g., "com.mycompany.myapp")
   appStoreUrl?: string    // App Store or Google Play URL for the host app
 
   // OpenRTB app.publisher.id — must equal the sellers.json seller id (== schain
   // sid) for supply-chain coherence. Sourced from the CDN top-level PUBLISHER_ID
   // (fallback SELLER_ID). Native platforms inject it into the oRTB auction; kept
-  // here for typed/webview passthrough parity.
+  // here for typed parity with the native mappers.
   appPublisherId?: string
 
   // Geo — partner-supplied location. On native (iOS/Android) it is emitted as
@@ -409,21 +407,11 @@ export type PartialSellwildConfig = Partial<SellwildConfig> & {
 
 // ─── Prebid Server (S2S) configuration ───────────────────────────────────────
 //
-// Two Prebid modes are supported by this SDK:
-//
-//  Mode A — Prebid.js in WebView (default)
-//    Prebid.js runs client-side inside the WebView. Each bidder adapter makes
-//    direct HTTP requests from the WebView. Works without any additional setup
-//    but has the limitations described in VALIDATION.md (cookies, IDFA, etc.).
-//
-//  Mode B — Prebid Server S2S
-//    Prebid.js in the WebView routes all bids through a Prebid Server instance
-//    using the s2sConfig module. The WebView makes one server call; Prebid Server
-//    fans out to all configured bidders server-side. Solves cookie and IDFA
-//    issues because the auction happens server-to-server.
-//    Requires a running Prebid Server (self-hosted or AppNexus/Magnite hosted).
-//
-// Set `prebidServer` on SellwildConfig to enable Mode B.
+// The mobile SDKs run a native Prebid Mobile auction against Prebid Server;
+// Prebid Server fans out to all configured bidders server-to-server and GAM
+// renders the winner. Set `prebidServer` on SellwildConfig to point the
+// auction at a specific Prebid Server account/endpoint; leave it undefined to
+// use the Sellwild-hosted default.
 
 export interface PrebidServerConfig {
   /** Your Prebid Server account ID */

@@ -66,8 +66,8 @@ NATIVE_MAX_HEIGHT, NATIVE_MAX_HEIGHT_BY_ZONE          (dp/pt)
 BANNER_SIZES, BANNER_SIZES_BY_ZONE                    (["300x250","320x50"])
 PBS_DEBUG
 ```
-All added to the Android `NON_BIDDER_REMOTE_KEYS` deny list so format toggles
-don't leak into the `.both` auction ext.
+None of these leak into the auction ext: Android sends empty inline bidder
+params, like iOS. Bidder params live in the Prebid Server stored imp.
 
 ---
 

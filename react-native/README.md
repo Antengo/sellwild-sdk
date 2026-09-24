@@ -5,7 +5,7 @@ Sellwild mobile advertising SDK for React Native. Server-side header bidding thr
 ## Install
 
 ```bash
-npm install @sellwild/react-native-sdk react-native-webview
+npm install @sellwild/react-native-sdk
 cd ios && pod install && cd ..
 ```
 
@@ -67,7 +67,7 @@ export default function App() {
 ## Components
 
 - **`SellwildBanner`** — Display ad (300x250, 320x50, 728x90)
-- **`SellwildWidget`** — Full marketplace widget with listings and ads
+- **`SellwildFeed`** — All-in-one native feed: listings interleaved with native ads
 - **`SellwildListingCard`** — Individual listing card component
 - **`useSellwildListings`** — Hook for fetching listings data
 

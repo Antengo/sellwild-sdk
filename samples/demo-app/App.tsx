@@ -15,7 +15,6 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import {
-  SellwildWidget,
   SellwildBanner,
   SellwildFeed,
   useSellwildListings,
@@ -25,7 +24,6 @@ import {
 } from '@sellwild/react-native-sdk'
 import type { SellwildListing, SellwildConfig, PartialSellwildConfig } from '@sellwild/react-native-sdk'
 import { currencyToSymbol, type AdStack } from '@sellwild/sdk-core'
-import { WebView } from 'react-native-webview'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const CARD_GAP = 10
@@ -53,7 +51,6 @@ const STATIC_CONFIG: PartialSellwildConfig = {
   cardWidth: '300px',
   bannerZid: '43',
   mobileZids: ['280'],
-  widgetJsUrl: 'https://widget.sellwild.com/partner/index.js',
   debug: true,
 } as PartialSellwildConfig
 
@@ -208,62 +205,6 @@ async function runMultiSlotAuction(): Promise<MultiAuctionResult> {
     }
   }
   return { loading: false, auctionId: '', slots: [], totalTimeMs: Date.now() - start, responseTimes: {} }
-}
-
-// ─── Ad Creative Renderer ────────────────────────────────────────────────────
-
-function isRenderable(adm: string): boolean {
-  if (!adm || adm.length < 20) return false
-  // VAST video — we can render these now
-  if (adm.includes('<VAST') || adm.includes('<?xml')) return true
-  // HTML display
-  return adm.includes('<img') || adm.includes('<div') || adm.includes('<a ') ||
-         adm.includes('<script') || adm.includes('<iframe')
-}
-
-function buildCreativeHtml(adm: string, width: number, height: number): string {
-  if (adm.includes('<VAST') || adm.includes('<?xml')) {
-    // VAST video — parse out MediaFile and companion image
-    const mp4Match = adm.match(/type='video\/mp4'[^>]*>\s*<!\[CDATA\[(.*?)\]\]>/s)
-    const companionMatch = adm.match(/creativeType='image\/jpeg'[^>]*>\s*<!\[CDATA\[(.*?)\]\]>/s)
-    const videoUrl = mp4Match?.[1]?.trim() || ''
-    const companionUrl = companionMatch?.[1]?.trim() || ''
-
-    // 300x250+: show video. 320x50: show companion image (video doesn't fit a banner)
-    const useVideo = videoUrl && height >= 200
-    const tag = useVideo
-      ? `<video src="${videoUrl}" autoplay muted playsinline loop style="width:100%;height:100%;object-fit:contain"></video>`
-      : companionUrl
-        ? `<img src="${companionUrl}" style="width:100%;height:100%;object-fit:cover">`
-        : `<div style="color:#fff;font-size:12px;text-align:center;padding-top:14px">Ad</div>`
-
-    return `<!DOCTYPE html><html><head>
-      <meta name="viewport" content="width=device-width,initial-scale=1">
-      <style>*{margin:0;padding:0}html,body{width:${width}px;height:${height}px;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}</style>
-      </head><body>${tag}</body></html>`
-  }
-  // Regular HTML creative
-  return `<!DOCTYPE html><html><head>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <style>*{margin:0;padding:0}html,body{width:${width}px;height:${height}px;overflow:hidden;background:transparent}</style>
-    </head><body>${adm}</body></html>`
-}
-
-function AdCreative({ adm, width, height }: { adm: string; width: number; height: number }) {
-  const html = buildCreativeHtml(adm, width, height)
-  return (
-    <View style={{ width, height, borderRadius: 10, overflow: 'hidden' }}>
-      <WebView
-        source={{ html, baseUrl: 'https://widget.sellwild.com/' }}
-        style={{ width, height, backgroundColor: '#000' }}
-        scrollEnabled={false}
-        javaScriptEnabled
-        allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction={false}
-        originWhitelist={['*']}
-      />
-    </View>
-  )
 }
 
 function WinnerAd({ bid, size }: { bid: AuctionBid; size: '300x250' | '320x50' }) {
@@ -492,7 +433,7 @@ function NativeScreen() {
   useEffect(() => {
     configure(STATIC_CONFIG.partnerCode!, REMOTE_SLUG, { timeout: 5000, overrides: STATIC_CONFIG })
       .then((cfg) => {
-        // Passthrough verification: log every key that flows from CDN → widget.
+        // Passthrough verification: log every key kept from the CDN payload.
         // Confirms unmapped bidders (MEDIANET, AMX, SOVRN, etc.) survive.
         const remoteKeys = cfg.remote ? Object.keys(cfg.remote).sort() : []
         console.log('[Sellwild] configure() resolved. remote passthrough keys:', remoteKeys)
@@ -559,8 +500,6 @@ function NativeScreen() {
           <View style={[a.filledAd, { backgroundColor: '#F1F5F9' }]}>
             <ActivityIndicator size="small" color="#94A3B8" />
           </View>
-        ) : bannerAuction && bannerAuction.bids.length > 0 && isRenderable(bannerAuction.bids[0].adm) ? (
-          <AdCreative adm={bannerAuction.bids[0].adm} width={320} height={50} />
         ) : bannerAuction && bannerAuction.bids.length > 0 ? (
           <WinnerAd bid={bannerAuction.bids[0]} size="320x50" />
         ) : (
@@ -591,8 +530,6 @@ function NativeScreen() {
           <View style={[a.filledAd, { height: 250, width: 300, backgroundColor: '#F1F5F9' }]}>
             <ActivityIndicator size="small" color="#94A3B8" />
           </View>
-        ) : mrecAuction && mrecAuction.bids.length > 0 && isRenderable(mrecAuction.bids[0].adm) ? (
-          <AdCreative adm={mrecAuction.bids[0].adm} width={300} height={250} />
         ) : mrecAuction && mrecAuction.bids.length > 0 ? (
           <WinnerAd bid={mrecAuction.bids[0]} size="300x250" />
         ) : (
@@ -621,33 +558,6 @@ function NativeScreen() {
 
       <View style={{ height: 40 }} />
     </ScrollView>
-  )
-}
-
-// ─── Widget Screen ───────────────────────────────────────────────────────────
-
-function WidgetScreen() {
-  const [config, setConfig] = useState<PartialSellwildConfig>(STATIC_CONFIG)
-
-  useEffect(() => {
-    configure(STATIC_CONFIG.partnerCode!, REMOTE_SLUG, { timeout: 5000, overrides: STATIC_CONFIG })
-      .then((cfg) => {
-        const remoteKeys = cfg.remote ? Object.keys(cfg.remote).sort() : []
-        console.log('[Sellwild] WidgetScreen configure() resolved. remote passthrough keys:', remoteKeys)
-        setConfig(cfg)
-      })
-  }, [])
-
-  return (
-    <SellwildWidget
-      config={config}
-      style={s.flex}
-      onListingPress={(listing: SellwildListing) => {
-        if (listing.url) Linking.openURL(listing.url)
-      }}
-      onLoad={() => console.log('[Sellwild] Widget loaded')}
-      onError={(err: Error) => console.error('[Sellwild] Error:', err.message)}
-    />
   )
 }
 
@@ -777,8 +687,8 @@ function BannerScreen() {
 
 // ─── Feed Screen — exercises the native <SellwildFeed> bridge ───────────────
 //
-// Drop-in native replacement for the WebView widget. Renders listings + ads
-// inline via Prebid Mobile + GAM (no WebView in the pipeline). The CDN config
+// All-in-one native feed. Renders listings + ads inline via Prebid Mobile +
+// GAM (no WebView in the pipeline). The CDN config
 // COL1 schedule (L=listing, G=GAM, D=direct, B=banner) drives row layout.
 
 function FeedScreen() {
@@ -819,13 +729,12 @@ function FeedScreen() {
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'feed' | 'banner' | 'native' | 'widget'
+type Tab = 'feed' | 'banner' | 'native'
 
 const TAB_LABELS: Record<Tab, string> = {
   feed: 'Feed',
   banner: 'Native Banner',
   native: 'Auction Demo',
-  widget: 'Widget',
 }
 
 export default function App() {
@@ -843,7 +752,7 @@ export default function App() {
         </View>
       </SafeAreaView>
       <View style={s.tabBar}>
-        {(['feed', 'banner', 'native', 'widget'] as Tab[]).map(t => (
+        {(['feed', 'banner', 'native'] as Tab[]).map(t => (
           <TouchableOpacity key={t} style={[s.tab, tab === t && s.tabActive]} onPress={() => setTab(t)}>
             <Text style={[s.tabLabel, tab === t && s.tabLabelActive]}>
               {TAB_LABELS[t]}
@@ -852,7 +761,7 @@ export default function App() {
         ))}
       </View>
       <View style={s.flex}>
-        {tab === 'feed' ? <FeedScreen /> : tab === 'banner' ? <BannerScreen /> : tab === 'native' ? <NativeScreen /> : <WidgetScreen />}
+        {tab === 'feed' ? <FeedScreen /> : tab === 'banner' ? <BannerScreen /> : <NativeScreen />}
       </View>
     </View>
   )

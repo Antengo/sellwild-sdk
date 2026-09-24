@@ -58,7 +58,7 @@ The rest of this page documents every field that the CMS can populate.
 
 ## SellwildConfig
 
-The primary configuration object passed to all SDK components. Every ad view, widget, and API client reads from this object. All fields below can be set by the CDN via [Remote Config](#remote-config); only `partnerCode` is truly required.
+The primary configuration object passed to all SDK components. Every ad view, feed, and API client reads from this object. All fields below can be set by the CDN via [Remote Config](#remote-config); only `partnerCode` is truly required.
 
 ### Identity
 
@@ -80,18 +80,17 @@ These fields ensure bid requests are classified as in-app traffic. Without them,
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `prebidServer` | `PrebidServerConfig?` | `null` | Prebid Server configuration used by the native Prebid Mobile auction. See [PrebidServerConfig](#prebidserverconfig). When `null`, no programmatic auction runs and only `gamTag` / zone fallbacks are used. |
-| `prebidSrc` | `String?` | `null` | Reserved. Used only by `SellwildWidget` (marketplace listings) when it needs to load a custom Prebid.js bundle inside its WebView surface. Does not affect banner ads. |
 
 ### Display Customization
 
-These fields control the appearance of the listing widget and listing cards.
+These fields control the appearance of the native feed and listing cards.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `title` | `String?` | `null` | Widget header title text. |
-| `titleColor` | `String` | `"#000000"` | Widget title color (CSS hex). |
-| `titleSize` | `Int` | `16` | Widget title font size in pixels. |
-| `linkText` | `String?` | `"View all"` | Text for the "view all" link in the widget header. |
+| `title` | `String?` | `null` | Header title text. |
+| `titleColor` | `String` | `"#000000"` | Title color (CSS hex). |
+| `titleSize` | `Int` | `16` | Title font size in pixels. |
+| `linkText` | `String?` | `"View all"` | Text for the "view all" link in the header. |
 | `linkColor` | `String` | `"#0066cc"` | Link text color (CSS hex). |
 | `buyNowText` | `String?` | `"Buy now"` | Call-to-action button text. |
 | `fontSize` | `Int` | `13` | Listing title font size in pixels. |
@@ -109,7 +108,7 @@ These fields control the appearance of the listing widget and listing cards.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `watermark` | `Bool` | `false` | Show a watermark on the widget. |
+| `watermark` | `Bool` | `false` | Show a watermark. |
 | `watermarkTitle` | `String` | `"Powered by Sellwild"` | Watermark text content. |
 
 ### Ad Zone IDs
@@ -126,13 +125,13 @@ These fields control the appearance of the listing widget and listing cards.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `gamTag` | `String?` | `null` | Google Ad Manager ad unit path (e.g., `"/12345678/weatherbug_mrec"`). Enables GAM as the primary ad server with Prebid as header bidding. |
-| `gptProxyUrl` | `String?` | `null` | Proxy URL for the GPT (Google Publisher Tag) script. Use when direct GPT loading is blocked. |
 | `disableGpt` | `Bool` | `false` | Disable Google Publisher Tag entirely. |
 | `adDisableDisplay` | `Bool` | `false` | Disable all display ad rendering. Listings still load. |
-| `hideBannerTop` | `Bool` | `false` | Hide the top banner ad placement in the widget. |
-| `hideBannerBottom` | `Bool` | `false` | Hide the bottom banner ad placement in the widget. |
-| `adType` | `String?` | `null` | Ad system selection. Defaults to `"PrebidOnly"` when `null`. |
+| `hideBannerTop` | `Bool` | `false` | Hide the top banner ad placement. |
+| `hideBannerBottom` | `Bool` | `false` | Hide the bottom banner ad placement. |
 | `floorMultiplier` | `Double` | `1.0` | Multiplier applied to bid floor prices. Values above `1.0` raise floors. |
+
+> **Removed fields.** `adType`, `gptProxyUrl`, and `prebidSrc` no longer exist on the iOS or Android `SellwildConfig`, and `widgetJsUrl` is gone from iOS. They only fed the removed WebView widget. The core TypeScript type still declares `gptProxyUrl` and `prebidSrc`; no mobile surface reads them.
 
 ### Ad Refresh
 
@@ -151,8 +150,8 @@ See [Privacy & Consent](/guide/privacy) for detailed usage.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `gppEnabled` | `Bool` | `false` | Enable IAB Global Privacy Platform support. |
-| `tcfVersion` | `Int` | `0` | TCF version. `0` = disabled, `2` = TCF v2.x. |
+| `gppEnabled` | `Bool` | `false` | Reserved. The native auction reads GPP from your CMP's `IABGPP_*` keys. See [Privacy](/guide/privacy#gpp-framework). |
+| `tcfVersion` | `Int` | `0` | Reserved. The native auction reads TCF from your CMP's `IABTCF_*` keys. See [Privacy](/guide/privacy). |
 | `gdprApplies` | `Bool?` | `null` | Whether GDPR applies. `null` = determined by Prebid Server. RN/Flutter only. |
 | `tcString` | `String?` | `null` | TCF v2 consent string. RN/Flutter only. |
 | `iabCats` | `List<String>` | `[]` | IAB content category codes for brand safety (e.g., `["IAB15", "IAB15-10"]`). |
@@ -298,7 +297,7 @@ The SDK supports automatic ad refresh -- after a successful impression, the ad s
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `adRefreshMaxMobile` | `Int` | `0` (disabled) | Maximum number of refresh cycles per ad view instance on mobile. Set to `0` to disable ad refresh. |
-| `adRefreshMax` | `Int` | `0` | Maximum refresh cycles for desktop/tablet widget layouts. `adRefreshMaxMobile` takes precedence on mobile when nonzero. |
+| `adRefreshMax` | `Int` | `0` | Maximum refresh cycles. `adRefreshMaxMobile` takes precedence on mobile when nonzero. |
 | `adRefreshInterval` | `Duration` | `30 seconds` | Time between refresh cycles. IAB guidelines recommend a minimum of 30 seconds. |
 | `maxFailedAuctions` | `Int` | `3` | Number of consecutive no-fill auctions before the SDK stops refreshing that ad slot. |
 

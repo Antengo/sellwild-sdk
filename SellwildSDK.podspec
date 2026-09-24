@@ -27,8 +27,8 @@ Pod::Spec.new do |s|
 
   # Native ad stack — required, not optional.
   # SellwildAdView runs a Prebid Mobile auction and renders in a GAMBannerView.
-  # The widget surface (SellwildWidgetView / SellwildWidget) still uses WKWebView
-  # for marketplace listings; that is intentional.
+  # Marketplace listings render natively (SellwildFeedView). WebKit is linked
+  # only so SellwildAdAudioGuard can reach the ad SDK's own creative WKWebViews.
   #
   # SellwildPrebid is our namespace-shaded fork of Prebid Mobile SDK. This
   # allows Sellwild ads to coexist with a partner's own Prebid implementation

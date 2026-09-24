@@ -61,8 +61,8 @@ public enum SellwildSDK {
                let raw = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 config = apply(raw, to: config)
                 // Stash the raw payload so unmapped CDN keys (new bidders,
-                // forward-compatible settings) flow through to the WebView
-                // attribute serializer without an SDK release.
+                // forward-compatible settings) stay readable via remoteValues
+                // without an SDK release.
                 config.remoteJSON = data
             }
         } catch {
@@ -124,7 +124,7 @@ public enum SellwildSDK {
         if let v = raw["BOTTOM_BANNER_ZID"]  as? String   { c.bottomBannerZid = v }
 
         // Per-platform placement resolution (this mapper only ever runs on iOS
-        // — the Swift SDK — so RN / Flutter hosts on iOS resolve here too).
+        // — the Swift SDK — so RN hosts on iOS resolve here too).
         // Three tiers, most specific first, per placement:
         //   1. per-placement per-platform  (MOBILE_ZID_IOS / MOBILE_BANNER_ZID_IOS)
         //   2. platform-wide "ALL"         (MOBILE_ZID_ALL_IOS — one value every
