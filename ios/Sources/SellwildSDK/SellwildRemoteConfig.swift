@@ -165,7 +165,13 @@ public enum SellwildSDK {
         // Compliance
         if let v = raw["GPP_ENABLED"] as? Bool     { c.gppEnabled = v }
         if let v = raw["TCF_VERSION"] as? Int      { c.tcfVersion = v }
-        if let v = raw["IAB_CATS"]    as? [String] { c.iabCats = v }
+        // IAB_CATS ships as an array OR a string — one value ("IAB15") or
+        // comma-separated ("IAB15,IAB19"). Trim entries and drop blanks.
+        let rawCats: [String]? = (raw["IAB_CATS"] as? [String])
+            ?? (raw["IAB_CATS"] as? String)?.components(separatedBy: ",")
+        if let v = rawCats {
+            c.iabCats = v.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        }
 
         // Mobile ad controls
         if let v = raw["ENABLE_INTERSTITIAL"]         as? Bool { c.enableInterstitial = v }
