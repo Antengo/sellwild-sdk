@@ -1,0 +1,188 @@
+{
+  "platform": "flutter",
+  "generatedAt": "2026-09-24T05:31:14.837Z",
+  "tool": "flutter test --coverage --branch-coverage (package:coverage lcov)",
+  "commands": [
+    "cd flutter && flutter test --coverage --branch-coverage",
+    "node contracts/scripts/validate.mjs --out flutter-harness",
+    "node contracts/scripts/validate.mjs --out flutter",
+    "node scripts/coverage/flutter-summary.mjs"
+  ],
+  "gate": {
+    "include": [
+      "lib/src/**"
+    ],
+    "complete": true,
+    "lines": {
+      "covered": 842,
+      "total": 930,
+      "pct": 90.54
+    },
+    "branches": {
+      "covered": 338,
+      "total": 375,
+      "pct": 90.13
+    },
+    "regions": null,
+    "functions": null,
+    "unmeasured": []
+  },
+  "whole": {
+    "include": [
+      "lib/**"
+    ],
+    "complete": true,
+    "lines": {
+      "covered": 842,
+      "total": 930,
+      "pct": 90.54
+    },
+    "branches": {
+      "covered": 338,
+      "total": 375,
+      "pct": 90.13
+    },
+    "regions": null,
+    "functions": null,
+    "unmeasured": []
+  },
+  "excluded": [
+    {
+      "path": "lib/sellwild_sdk.dart",
+      "reason": "directives only (library/import/export/part): no executable lines"
+    },
+    {
+      "path": "lib/src/failures/sellwild_failure_code.dart",
+      "reason": "constants only no executable lines"
+    }
+  ],
+  "ignoredLines": [
+    {
+      "path": "lib/src/failures/sellwild_failure_code.dart",
+      "line": 10,
+      "directive": "ignore-file",
+      "reason": "constants only no executable lines"
+    },
+    {
+      "path": "lib/src/sellwild_sdk_configure.dart",
+      "line": 33,
+      "directive": "ignore-line",
+      "reason": "static only class never built"
+    }
+  ],
+  "perFile": [
+    {
+      "path": "lib/src/failures/failures_core.dart",
+      "lines": 100,
+      "branches": 100,
+      "functions": null,
+      "inGate": true,
+      "linesCovered": 319,
+      "linesTotal": 319,
+      "missedLines": "",
+      "missedBranchLines": ""
+    },
+    {
+      "path": "lib/src/failures/sellwild_failures.dart",
+      "lines": 100,
+      "branches": 100,
+      "functions": null,
+      "inGate": true,
+      "linesCovered": 80,
+      "linesTotal": 80,
+      "missedLines": "",
+      "missedBranchLines": ""
+    },
+    {
+      "path": "lib/src/failures/sellwild_log.dart",
+      "lines": 100,
+      "branches": 100,
+      "functions": null,
+      "inGate": true,
+      "linesCovered": 5,
+      "linesTotal": 5,
+      "missedLines": "",
+      "missedBranchLines": ""
+    },
+    {
+      "path": "lib/src/sellwild_api.dart",
+      "lines": 100,
+      "branches": 100,
+      "functions": null,
+      "inGate": true,
+      "linesCovered": 85,
+      "linesTotal": 85,
+      "missedLines": "",
+      "missedBranchLines": ""
+    },
+    {
+      "path": "lib/src/sellwild_config.dart",
+      "lines": 100,
+      "branches": 100,
+      "functions": null,
+      "inGate": true,
+      "linesCovered": 57,
+      "linesTotal": 57,
+      "missedLines": "",
+      "missedBranchLines": ""
+    },
+    {
+      "path": "lib/src/sellwild_listing_card.dart",
+      "lines": 0,
+      "branches": 0,
+      "functions": null,
+      "inGate": true,
+      "linesCovered": 0,
+      "linesTotal": 48,
+      "missedLines": "11,18,20-27,29-31,33,35,45,48,50,53,55-58,60,63,65,68-69,77,79,81-82,95,97-99,101,104,112,121,127,129,131-132,138-141",
+      "missedBranchLines": "11,18,30,57,60,63,65,95,97,100,104,121,127"
+    },
+    {
+      "path": "lib/src/sellwild_models.dart",
+      "lines": 100,
+      "branches": 100,
+      "functions": null,
+      "inGate": true,
+      "linesCovered": 50,
+      "linesTotal": 50,
+      "missedLines": "",
+      "missedBranchLines": ""
+    },
+    {
+      "path": "lib/src/sellwild_sdk_configure.dart",
+      "lines": 100,
+      "branches": 100,
+      "functions": null,
+      "inGate": true,
+      "linesCovered": 126,
+      "linesTotal": 126,
+      "missedLines": "",
+      "missedBranchLines": ""
+    },
+    {
+      "path": "lib/src/sellwild_widget.dart",
+      "lines": 75,
+      "branches": 56.36,
+      "functions": null,
+      "inGate": true,
+      "linesCovered": 120,
+      "linesTotal": 160,
+      "missedLines": "30-37,39-42,107,126,129-130,132,135,140-142,144-146,163,214-223,349-350,357,370,400",
+      "missedBranchLines": "18-19,30,40,45,107,126,131,133,140,144,149,163,181-182,213-215,217,349,353,357,369,400"
+    }
+  ],
+  "tests": {
+    "exitCode": 0,
+    "passed": true
+  },
+  "contracts": "passed",
+  "contractsHarness": "passed",
+  "notes": [
+    "functions is null: flutter test does not collect function coverage (flutter_tools test/coverage_collector.dart never passes functionCoverage to package:coverage), so lcov.info has no FN/FNDA records.",
+    "complete is false when a file in that scope is missing from lcov.info; its pct values are then null, and covered/total count measured files only.",
+    "regions is null: Dart coverage has no region data.",
+    "branches come from Dart VM branch coverage (BRDA). A branch counts as covered when its taken count is above 0.",
+    "JavaScript inside Dart string literals (sellwild_widget.dart HTML builders) counts as covered once the Dart builder runs; its runtime behavior is not measured here.",
+    "Lines under // coverage:ignore-* comments are dropped by flutter test before lcov.info is written; every such comment is listed in ignoredLines."
+  ]
+}
