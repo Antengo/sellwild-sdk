@@ -55,18 +55,18 @@ jobs:
       # `ci`) because the swapped spec no longer matches the lockfile.
       - run: npm pkg set "dependencies.@sellwild/sdk-core=file:../core"
       - run: npm install --legacy-peer-deps --no-audit --no-fund
-      # tsc isn't clean yet (react-native-webview types, lib ES2017 lacking
-      # Promise#finally / global crypto, a ViewStyle typing). Fail on any error
+      # tsc isn't clean yet (lib ES2017 lacking Promise#finally / global crypto,
+      # a ViewStyle typing). Fail on any error
       # beyond that baseline so new type errors can't hide; lower the baseline
-      # as they're fixed (#79 removes 3), and drop the gate once tsc is clean.
+      # as they're fixed, and drop the gate once tsc is clean.
       - name: tsc (error baseline)
         run: |
           set +e
           npx tsc --noEmit -p . > tsc.log 2>&1
           errors=$(grep -c "error TS" tsc.log)
           cat tsc.log
-          echo "tsc errors: $errors (baseline 6)"
-          [ "$errors" -le 6 ]
+          echo "tsc errors: $errors (baseline 3)"
+          [ "$errors" -le 3 ]
 
   dashboard:
     name: dashboard (tsc)
