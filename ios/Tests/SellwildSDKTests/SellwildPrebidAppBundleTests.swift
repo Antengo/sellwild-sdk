@@ -3,9 +3,9 @@ import XCTest
 
 /// Unit tests for the OpenRTB `app.bundle` derivation. On iOS/iPadOS `app.bundle`
 /// must be the numeric App Store ID (buyers key on it), parsed from the store URL —
-/// NOT the reverse-DNS bundle the app carries. Both the native path
-/// (`SellwildPrebidMobile`) and the WebView widget (`SellwildWidgetView`) rely on
-/// `appStoreId(from:)` for this, so pin its behavior here.
+/// NOT the reverse-DNS bundle the app carries. The native path
+/// (`SellwildPrebidMobile`) relies on `appStoreId(from:)` for this, so pin its
+/// behavior here.
 final class SellwildPrebidAppBundleTests: XCTestCase {
 
     func testParsesNumericAppStoreId() {

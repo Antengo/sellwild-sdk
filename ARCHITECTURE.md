@@ -1,6 +1,6 @@
 # Sellwild SDK Architecture
 
-A grounded, current-as-of-1.7.0 picture of what the SDK actually is, how data flows through it, and which parts are native vs. WebView. No aspirational diagrams.
+A grounded, current-as-of-1.7.0 picture of what the SDK actually is, how data flows through it, and what renders where. No aspirational diagrams.
 
 ---
 
@@ -8,8 +8,8 @@ A grounded, current-as-of-1.7.0 picture of what the SDK actually is, how data fl
 
 - **Config** is fetched from a CDN as JSON. Identical flow on every platform.
 - **Ad rendering is native** on iOS, Android, and React Native: `SellwildAdView` / `SellwildBanner` runs a **Prebid Mobile** auction and renders through **Google Mobile Ads** (GAM). There is **no WebView in the ad path** on those platforms.
-- **The marketplace widget** surface (`SellwildWidget` / `SellwildWidgetView`) renders *listings* in a WebView on every platform. That surface is intentionally a WebView; the banner/ad units above it are not.
-- **`config.remote`** is a passthrough bag of the raw CDN JSON. It exists so new bidders / new fields the CMS adds reach the auction (native serializer + WebView passthrough) without an SDK release.
+- **Listings render natively** too: the all-in-one `SellwildFeedView` / `SellwildFeed` interleaves native listing cards with native ad rows, or partners render their own UI over `fetchListings` / `useSellwildListings`. The WebView marketplace widget (`SellwildWidgetView` / `SellwildWidget`) has been removed from iOS, Android, and React Native.
+- **`config.remote`** is a passthrough bag of the raw CDN JSON. It exists so new fields the CMS adds (ad stack, video/native toggles, S2S config) reach native code without an SDK release.
 
 ---
 
@@ -26,7 +26,7 @@ flowchart TD
         Configure["SellwildSDK.configure(partnerCode, slug)"]
         Config["SellwildConfig<br/>(typed fields + config.remote)"]
         AdView["SellwildAdView / SellwildBanner<br/>(banner placements — native)"]
-        Widget["SellwildWidget<br/>(marketplace listings)"]
+        Feed["SellwildFeedView / SellwildFeed<br/>(listings + ad rows — native)"]
     end
 
     subgraph NativeAds["Native ad stack (iOS / Android / RN)"]
@@ -34,8 +34,8 @@ flowchart TD
         GMA["Google Mobile Ads<br/>(GAMBannerView render)"]
     end
 
-    subgraph WebView["WebView (WKWebView / Android WebView / react-native-webview)"]
-        Listings["Listing carousel JS"]
+    subgraph ListingsAPI["Sellwild listings API"]
+        Listings["listings JSON"]
     end
 
     subgraph Auction["Auction Infra"]
@@ -48,7 +48,7 @@ flowchart TD
     Configure -->|"map CONSTANT_CASE → typed fields<br/>+ stash raw under .remote"| Config
 
     Config --> AdView
-    Config --> Widget
+    Config --> Feed
 
     AdView -->|"fetchDemand()"| PrebidMobile
     PrebidMobile -->|"OpenRTB2 (native HTTPS)"| PBS
@@ -58,7 +58,8 @@ flowchart TD
     PrebidMobile --> GMA
     GMA -->|"creative (native)"| AdView
 
-    Widget -->|"htmlBuilder<br/>+ data attrs incl. config.remote"| Listings
+    Feed -->|"fetchListings (native HTTPS)"| Listings
+    Feed -->|"ad rows"| AdView
 ```
 
 > The `.prebidOnly` ad stack (see below) skips GAM entirely and renders through Prebid Mobile's own `BannerView`.
@@ -144,24 +145,27 @@ Implementation:
 
 ---
 
-## Ad rendering: the WebView surface
+## Listings: the native feed
 
-One thing still legitimately uses a WebView: **the marketplace widget** (`SellwildWidget` / `SellwildWidgetView`), which renders the listing carousel from generated HTML on every platform. Clicks/impressions come back over the JS bridge (`WKScriptMessageHandler`, `@JavascriptInterface`, RN bridge).
+`SellwildFeedView` (iOS/Android), SwiftUI `SellwildFeed`, and RN `SellwildFeed` are the all-in-one listings surface. The CDN `COL1` token string schedules the rows; listing cards and ad rows are native views, and each ad row runs the same native auction as `SellwildAdView`. Listing taps go to the delegate / listener first; unconsumed taps open `listing.url` in `SFSafariViewController` (iOS) or Chrome Custom Tabs (Android).
 
 ```mermaid
 sequenceDiagram
     participant App as Partner App
-    participant Widget as SellwildWidget
-    participant WV as WKWebView / WebView
-    participant Listings as Listing carousel JS
+    participant Feed as SellwildFeedView / SellwildFeed
+    participant API as Sellwild listings API
+    participant Ad as SellwildAdView (ad row)
 
-    App->>Widget: init(config:)
-    App->>Widget: load()
-    Widget->>WV: loadHTMLString(html, base: widget.sellwild.com)
-    WV->>Listings: render listings (+ config.remote data attrs)
-    WV->>Widget: postMessage("listingTap") via JS bridge
-    Widget->>App: delegate.onListingTapped
+    App->>Feed: init(config:) + load()
+    Feed->>API: fetchListings (native HTTPS)
+    API-->>Feed: listings
+    Feed->>Ad: schedule ad rows from COL1
+    Ad->>Ad: Prebid Mobile auction → GMA render
+    Feed->>App: onFeedReady(listingCount)
+    Feed->>App: onListingTap(listing) → consume or open in-app browser
 ```
+
+To build your own listings UI, call `SellwildAPIClient.fetchListings` (iOS/Android) or `useSellwildListings` (RN) and render with `SellwildListingCard`.
 
 ---
 
@@ -197,7 +201,7 @@ flowchart LR
     K5 --> R
     K6 --> R
 
-    R -->|"native: Prebid params / WebView: data attrs"| Sink["auction + widget"]
+    R -->|"native: ad stack, S2S, format toggles"| Sink["auction + feed"]
     T1 --> Sink
     T2 --> Sink
     T3 --> Sink
@@ -206,7 +210,7 @@ flowchart LR
 
 **Why both?**
 - Typed fields exist for native code that *behaves* on values (e.g. `config.adRefreshInterval` drives the refresh timer / floor).
-- `config.remote` exists so new bidders the CMS adds (Weatherbug has 15 unmapped today: MEDIANET, AMX, SOVRN, etc.) reach the auction — as Prebid Mobile params on native, and as WebView data attributes on the widget — without an SDK release.
+- `config.remote` exists so new keys the CMS adds reach native code without an SDK release. Bidder params (Weatherbug has 15 unmapped today: MEDIANET, AMX, SOVRN, etc.) are configured server-side in the Prebid Server stored request; the native SDKs send empty inline bidder params on iOS and Android.
 - Typed bidder fields (`ix`, `openx`, `pubmatic`, `appnexus`) are `@deprecated`. Read from `config.remote["IX"]` etc. going forward.
 
 ---

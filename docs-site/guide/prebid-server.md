@@ -31,7 +31,7 @@ This document covers the Sellwild managed Prebid Server instance at `prebid.sell
 
 **Key benefits:**
 
-- Native device signals (IDFV / AAID, ATT status, OS version) are passed to demand instead of being scrubbed by WebView restrictions.
+- Native device signals (IDFV / AAID, ATT status, OS version) are passed to demand directly.
 - Reduces client-side JavaScript payload -- no individual bidder adapter scripts run on the device.
 - Centralizes bidder timeout enforcement on the server.
 - Enables server-side GDPR and consent enforcement via `regs.ext.gdpr`.
@@ -782,18 +782,18 @@ When no SSP returns a bid (a "no-fill"), the SDK falls back through the followin
 
 1. **Prebid Server auction** -- if configured via `PrebidServerConfig`, Prebid Mobile sends the S2S request. If `seatbid` is empty, Prebid Mobile reports no demand.
 
-2. **GAM passback** -- if `gamTag` is set in `SellwildConfig`, GPT requests the GAM ad unit. GAM can be configured with house ad line items that fill at a $0.00 CPM floor.
+2. **GAM passback** -- if `gamTag` is set in `SellwildConfig`, the Google Mobile Ads SDK requests the GAM ad unit. GAM can be configured with house ad line items that fill at a $0.00 CPM floor.
 
-3. **Zone-based fallback** -- if `bannerZid` or `zoneId` is set, the SDK loads a creative from `bidstream.sellwild.com`. This can serve a house ad or a direct-sold campaign.
+3. **House ad backdrop** -- if `MOBILE_HOUSE_AD_ENABLED` is on, the SDK shows the house creative configured via `MOBILE_HOUSE_AD_*` (per zone, then per size, then app-wide). In the native feed, an MREC slot with no configured image can fall back to a Sellwild listing. See [Configuration → House ads](./configuration#house-ads-mobile).
 
-4. **Blank slot** -- if all of the above return empty, the ad slot renders as transparent. The ad view stays empty at the specified dimensions.
+4. **Blank slot** -- if all of the above return empty, the ad slot renders as transparent and keeps its declared dimensions.
 
 ### Configuring House Ads
 
 To ensure a house ad always fills when programmatic demand is unavailable:
 
 - **In GAM:** Create a "House" line item with priority 16, $0.00 CPM, and assign a house creative. Target it to the same ad unit path used in `gamTag`.
-- **Via Sellwild zones:** Contact the Sellwild ad operations team to configure a house creative on your zone ID. The zone ad server at `bidstream.sellwild.com` will return the house creative when no programmatic fill is available.
+- **Via remote config:** Set the `MOBILE_HOUSE_AD_*` keys in the CMS. No app release is needed. See [Configuration → House ads](./configuration#house-ads-mobile).
 
 ### Controlling Refresh on No-Fill
 

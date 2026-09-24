@@ -23,8 +23,8 @@ import { resolveAppIdentity } from './appIdentity'
 // iOS:     SellwildFeedView (UITableView-backed)
 // Android: com.sellwild.sdk.SellwildFeedView (RecyclerView-backed)
 //
-// This component is the drop-in native replacement for the WebView-based
-// <SellwildWidget>. Same one-component integration shape; native rails.
+// This is the one-component marketplace surface for React Native (the
+// WebView-based <SellwildWidget> has been removed).
 
 const NATIVE_NAME = 'SellwildFeedView'
 

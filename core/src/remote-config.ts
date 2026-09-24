@@ -79,7 +79,7 @@ const KEY_MAP: Record<string, keyof SellwildConfig> = {
 
   // OpenRTB app.publisher.id (== sellers.json seller id / schain sid). Ships as
   // a top-level CDN key; native resolvers read it directly for oRTB injection.
-  // Mapped here for typed/webview passthrough parity.
+  // Mapped here for typed parity with the native mappers.
   PUBLISHER_ID: 'appPublisherId',
 
   // Ad network objects — mapped as-is (lowercase key)
@@ -127,8 +127,8 @@ const KEY_MAP: Record<string, keyof SellwildConfig> = {
  * Behavior:
  *  - Known CONSTANT_CASE keys are mapped to their typed camelCase counterparts.
  *  - The raw payload is stashed on `remote` so unknown / forward-compatible
- *    keys (e.g. new bidders the CMS adds after the SDK ships) flow through to
- *    the WebView attribute serializer without an SDK release.
+ *    keys (e.g. new bidders the CMS adds after the SDK ships) stay readable
+ *    without an SDK release.
  */
 export function mapRemoteConfig(raw: Record<string, unknown>): Partial<SellwildConfig> {
   const mapped: Record<string, unknown> = { remote: raw }

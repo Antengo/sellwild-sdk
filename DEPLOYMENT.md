@@ -358,20 +358,13 @@ jobs:
 
 ## What `widget.sellwild.com` needs to serve
 
-The marketplace **widget** surface (`SellwildWidget`) loads two scripts from the CDN:
+The native SDKs (iOS, Android, React Native) load one thing from the CDN: the per-partner app config JSON.
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `https://widget.sellwild.com/widget.js` | The compiled sellwild-widget bundle |
-| `https://widget.sellwild.com/prebid.js` | Prebid.js with configured bidder adapters |
+| `https://widget.sellwild.com/app/{partnerCode}/{slug}.json` | Remote config fetched by `SellwildSDK.configure(partnerCode, slug)` |
 
-These are already built and deployed by the existing `sellwild-widget` deploy pipeline (`npm run deploy`); the widget WebView simply loads whatever is live at that URL. **Native banner ads do not load these bundles** — they run Prebid Mobile in-process, so the CDN scripts are irrelevant to the native ad path.
-
-**To use a staging version**, set `prebidSrc` and override the widget URL via the `__SELLWILD_SDK_CONFIG__` window object injected into the WebView HTML (see `htmlBuilder.ts`, `SellwildWidgetView.swift`, `SellwildWidgetView.kt`).
-
-### Zone-based ad delivery
-
-The zone script URL `https://bidstream.sellwild.com/ads?zone=<ID>&w=<W>&h=<H>` must be set up on the Sellwild infrastructure side. Confirm the correct base URL with the ad ops team before enabling zone-based delivery for a publisher.
+The CMS publishes this file. Native ads run Prebid Mobile in-process and native listings come from the listings API, so no widget or Prebid.js bundle is involved on these platforms.
 
 ---
 
@@ -480,11 +473,11 @@ The Vite dev server proxies `/.netlify/functions/*` to `localhost:8888` so both 
 ## Checklist before first release
 
 - [ ] Partner code and listings URL confirmed with publisher
-- [ ] `widget.sellwild.com/widget.js` is live and serving the latest build
+- [ ] `widget.sellwild.com/app/{partnerCode}/{slug}.json` is published and returns 200
 - [ ] GAM ad unit path created in Google Ad Manager for the publisher
 - [ ] Zone IDs provisioned for publisher (if using zone-based delivery)
 - [ ] Prebid bidder credentials collected from ad networks
 - [ ] ATS / cleartext traffic configured in host app
-- [ ] WebView debugging tested end-to-end in simulator/emulator
+- [ ] Native ad + feed render verified end-to-end in simulator/emulator
 - [ ] Ad refresh limits confirmed with ad ops (typical: 5 refreshes / 30s interval)
 - [ ] SDK version tagged and published to the appropriate registry

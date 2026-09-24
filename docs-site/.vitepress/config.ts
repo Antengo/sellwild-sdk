@@ -51,6 +51,7 @@ export default defineConfig({
           text: 'Reference',
           items: [
             { text: 'API Reference', link: '/guide/api-reference' },
+            { text: 'Migration: Widget to Feed', link: '/guide/migration-widget-to-feed' },
           ],
         },
       ],

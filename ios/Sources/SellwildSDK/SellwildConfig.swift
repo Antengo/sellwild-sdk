@@ -68,8 +68,7 @@ public struct SellwildConfig: Codable {
     public var watermarkTitle: String
 
     // MARK: Ads - Display
-    /// Ad system to initialize. Defaults to "PrebidOnly". AdStack silently
-    /// no-ops if this is unset, so the SDK always sets it. See htmlBuilder.
+    /// No-op since the WebView widget was removed; kept for source compatibility.
     public var adType: String?
     public var bannerZid: String?
     public var bottomBannerZid: String?
@@ -78,6 +77,7 @@ public struct SellwildConfig: Codable {
     public var hideBannerTop: Bool
     public var hideBannerBottom: Bool
     public var gamTag: String?
+    /// No-op since the WebView widget was removed; kept for source compatibility.
     public var gptProxyUrl: String?
     public var disableGpt: Bool
     public var adDisableDisplay: Bool
@@ -87,6 +87,7 @@ public struct SellwildConfig: Codable {
     public var adRefreshMaxMobile: Int
     public var adRefreshInterval: TimeInterval
     public var maxFailedAuctions: Int
+    /// No-op since the WebView widget was removed; kept for source compatibility.
     public var prebidSrc: String?
 
     // MARK: Ads - Compliance
@@ -120,11 +121,9 @@ public struct SellwildConfig: Codable {
     /// Raw remote-config payload as fetched from the CDN, stored as the
     /// original JSON bytes. Populated by `SellwildRemoteConfig.configure`.
     ///
-    /// The widget's WebView attribute parser is case-insensitive and accepts
-    /// arbitrary keys, so every entry in `remoteJSON` is forwarded to the
-    /// widget verbatim. This means the SDK does NOT need a release whenever
-    /// the CMS adds a new bidder or remote setting — partners receive new
-    /// fields automatically the moment the CDN JSON includes them.
+    /// Every entry is kept verbatim, so native surfaces can read CMS-defined
+    /// settings (bidders, feature flags, ad-network settings) that have no
+    /// typed field without an SDK release.
     ///
     /// Stored as `Data?` rather than `[String: Any]?` so the struct stays
     /// Codable. Use `remoteValues` for an `[String: Any]` view.
@@ -142,10 +141,11 @@ public struct SellwildConfig: Codable {
     public var boltiveClientId: String
     public var lotame: Bool
 
-    // MARK: Mobile app identity (for ortb2.app in Prebid.js)
+    // MARK: Mobile app identity (OpenRTB `app` object)
     /// iOS bundle identifier of the host app (e.g. "com.mycompany.myapp").
-    /// Used to populate `ortb2.app.bundle` so Prebid.js declares in-app inventory
-    /// rather than web (ortb2.site) traffic. Without this, DSPs that buy app inventory
+    /// Used as the OpenRTB `app.bundle` fallback (when no numeric App Store ID
+    /// can be parsed from `appStoreUrl`) so auctions declare in-app inventory
+    /// rather than web (site) traffic. Without this, DSPs that buy app inventory
     /// separately will not bid and app-ads.txt enforcement is bypassed.
     public var appBundleId: String?
     /// App Store URL of the host app. Populates `ortb2.app.storeurl`.
@@ -165,9 +165,9 @@ public struct SellwildConfig: Codable {
     public var videoTakeoversPerSession: Int
 
     // MARK: Prebid Server S2S (optional)
-    /// Route all Prebid.js bidder calls through a Prebid Server instance instead of
-    /// running client-side adapters in the WebView. Solves cookie/IDFA limitations.
-    /// Leave nil to use the default Prebid.js client-side mode.
+    /// Prebid Server instance the native Prebid Mobile auction targets
+    /// (account ID, endpoint, bidders, timeout). Leave nil to use the SDK's
+    /// default Sellwild Prebid Server settings.
     public var prebidServer: PrebidServerConfig?
 
     // MARK: GrowthCode Signal Resolve (identity)
@@ -182,10 +182,7 @@ public struct SellwildConfig: Codable {
     /// remote value applies. Leave nil to drive entirely from the CMS.
     public var localizedListings: SellwildLocalizedListingsConfig? = nil
 
-    // MARK: Widget override
-    /// Override the widget JS bundle URL. Leave nil to use the default generic bundle
-    /// at https://widget.sellwild.com/partner.js, which reads all config from element attributes.
-    /// Set to a publisher-specific compiled bundle URL to skip attribute serialization.
+    /// No-op since the WebView widget was removed; kept for source compatibility.
     public var widgetJsUrl: String?
 
     // MARK: Debug
@@ -245,7 +242,6 @@ public struct SellwildConfig: Codable {
         self.appStoreUrl = nil
         self.geo = nil
         self.prebidServer = nil
-        self.widgetJsUrl = nil
         self.debug = false
         self.pbsDebug = false
         self.remoteJSON = nil
@@ -254,8 +250,7 @@ public struct SellwildConfig: Codable {
 
 // MARK: - Prebid Server S2S Configuration
 
-/// Configuration for routing Prebid.js header bidding through a Prebid Server instance.
-/// Solves cookie and IDFA limitations that affect Prebid.js running in a native WebView.
+/// Prebid Server settings for the native Prebid Mobile auction.
 public struct PrebidServerConfig: Codable {
     /// Your Prebid Server account ID.
     public var accountId: String

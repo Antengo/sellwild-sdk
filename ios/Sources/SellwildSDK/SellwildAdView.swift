@@ -41,9 +41,8 @@ public final class SellwildFirstAdViewedGuard {
 //   - .prebidOnly — Prebid's own rendering BannerView, NO GAM request (and so
 //                   no GAM request/serving fees).
 //
-// The widget surface (SellwildWidget / SellwildWidgetView) still uses a
-// WebView for marketplace listings — that surface is intentionally a WebView.
-// Banners and other monetizing ad units render natively.
+// Marketplace listings render natively too, via `SellwildFeedView` — the SDK
+// ships no WebView-based surfaces.
 //
 // USAGE
 // ─────
@@ -73,7 +72,7 @@ public final class SellwildAdView: UIView {
     /// `SellwildFeedView` injects `base#n` here so two ad slots that share a base
     /// on one screen stay unique. Standalone views leave this nil and auto-resolve
     /// the bare base from config. Internal on purpose: gpid is resolved from CMS
-    /// config, not a public RN/Flutter-facing property.
+    /// config, not a public RN-facing property.
     var gpidOverride: String?
 
     public weak var delegate: SellwildAdViewDelegate?

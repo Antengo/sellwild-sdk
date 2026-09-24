@@ -17,7 +17,7 @@ Per-platform reference for all public classes, methods, delegates, and types in 
 
 ### SellwildConfig
 
-Primary configuration struct. All ad views and widgets read from this object.
+Primary configuration struct. All ad views and feeds read from this object.
 
 ```swift
 public struct SellwildConfig: Codable {
@@ -151,46 +151,9 @@ The view calls `load()` automatically when it appears. Refresh timers are manage
 
 ---
 
-### SellwildWidgetView (UIKit)
+### Marketplace feed
 
-A `UIView` subclass that renders the full Sellwild marketplace widget (listing carousel with embedded ad placements) in a WebView.
-
-**Properties:**
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `delegate` | `SellwildWidgetViewDelegate?` | Delegate for widget lifecycle callbacks. |
-
-**Methods:**
-
-| Method | Description |
-|--------|-------------|
-| `pause()` | Pause WebView and ad refresh. |
-| `resume()` | Resume WebView rendering. |
-| `destroy()` | Release all WebView resources. Do not use the instance after calling. |
-
----
-
-### SellwildWidget (SwiftUI)
-
-SwiftUI wrapper for the marketplace widget. Requires iOS 14+.
-
-```swift
-SellwildWidget(
-    config: config,
-    onListingTap: { listing in /* ... */ },
-    onLoad: { /* ... */ },
-    onError: { error in /* ... */ }
-)
-.frame(height: 400)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `config` | `SellwildConfig` | Yes | SDK configuration. |
-| `onListingTap` | `((SellwildListing) -> Void)?` | No | Called when the user taps a listing. |
-| `onLoad` | `(() -> Void)?` | No | Called when the widget finishes loading. |
-| `onError` | `((Error) -> Void)?` | No | Called on widget errors. |
+`SellwildWidgetView`, `SellwildWidgetViewDelegate`, and the SwiftUI `SellwildWidget` have been removed. Use the native feed instead: `SellwildFeedView` (UIKit) or `SellwildFeed` (SwiftUI). See [Native Marketplace Feed](/guide/ios#native-marketplace-feed-1-3-5).
 
 ---
 
@@ -341,28 +304,9 @@ All callbacks are dispatched on the main thread. All methods have default (empty
 
 ---
 
-### SellwildWidgetView
+### Marketplace feed
 
-A `FrameLayout` subclass that renders the full marketplace widget.
-
-**Methods:**
-
-| Method | Description |
-|--------|-------------|
-| `pause()` | Pause WebView and ad refresh. |
-| `resume()` | Resume WebView rendering. |
-| `destroy()` | Release all resources. |
-
-**Listener:**
-
-```kotlin
-interface Listener {
-    fun onWidgetLoaded() {}
-    fun onListingTap(listing: SellwildListing) {}
-    fun onAdImpression(zoneId: String) {}
-    fun onError(message: String) {}
-}
-```
+`SellwildWidgetView` and its `Listener` have been removed. Use `SellwildFeedView` instead. See [Native Marketplace Feed](/guide/android#native-marketplace-feed-1-3-5).
 
 ---
 
@@ -436,31 +380,9 @@ import { SellwildBanner, buildConfig } from '@sellwild/react-native-sdk';
 
 ---
 
-### SellwildWidget
+### SellwildFeed
 
-Full marketplace widget with listing carousel and embedded ad placements.
-
-```tsx
-import { SellwildWidget, type PartialSellwildConfig } from '@sellwild/react-native-sdk';
-
-<SellwildWidget
-  config={partialConfig}
-  onListingPress={(listing) => {}}
-  onAdImpression={(zoneId) => {}}
-  onLoad={() => {}}
-  onError={(error) => {}}
-  style={{ height: 420 }}
-/>
-```
-
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `config` | `PartialSellwildConfig` | Yes | Partial config (calls `buildConfig()` internally). |
-| `onListingPress` | `(listing: SellwildListing) => void` | No | Called when a listing is tapped. |
-| `onAdImpression` | `(zoneId: string) => void` | No | Called on ad impression. |
-| `onLoad` | `() => void` | No | Called when the widget finishes loading. |
-| `onError` | `(error: Error) => void` | No | Called on widget errors. |
-| `style` | `ViewStyle` | No | React Native style object. |
+`<SellwildWidget>` and `SellwildWidgetProps` have been removed. Use `<SellwildFeed>`, the native all-in-one feed. See [Native Feed](/guide/react-native#native-feed-1-3-5) and the [migration guide](/guide/migration-widget-to-feed).
 
 ---
 
@@ -527,7 +449,7 @@ const config: SellwildConfig = buildConfig({
 });
 ```
 
-`SellwildBanner` requires a full `SellwildConfig` (call `buildConfig()` first). `SellwildWidget` accepts `PartialSellwildConfig` and calls `buildConfig()` internally.
+`SellwildBanner` requires a full `SellwildConfig`. Call `buildConfig()` first.
 
 ---
 
@@ -737,7 +659,7 @@ Ad dimensions. See [Ad Size Reference](/guide/configuration#ad-size-reference) f
 
 ### AdPlacement
 
-Describes a single ad placement within the widget layout.
+Describes a single ad placement within a listings layout.
 
 | Field | Type | Description |
 |-------|------|-------------|

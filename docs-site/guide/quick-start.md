@@ -30,7 +30,7 @@ end
 
 Then run `pod install` and open the `.xcworkspace` file.
 
-### 2. Marketplace Feed ⭐ Recommended
+### 2. Marketplace Feed (Recommended)
 
 Drop in a full native marketplace feed with listings and interleaved ads — one component, native scrolling, higher CPMs:
 
@@ -207,7 +207,7 @@ In `AndroidManifest.xml`:
 <uses-permission android:name="android.permission.INTERNET" />
 ```
 
-### 3. Marketplace Feed ⭐ Recommended
+### 3. Marketplace Feed (Recommended)
 
 Drop in a full native marketplace feed with listings and interleaved ads — one component, native scrolling, higher CPMs:
 
@@ -344,7 +344,7 @@ npm install @sellwild/react-native-sdk
 cd ios && pod install && cd ..
 ```
 
-### 2. Marketplace Feed ⭐ Recommended
+### 2. Marketplace Feed (Recommended)
 
 Drop in a full native marketplace feed — no WebView, native scrolling on both platforms:
 
@@ -407,11 +407,11 @@ import { SellwildBanner } from '@sellwild/react-native-sdk';
 
 After `load()` is called (or the SwiftUI/Compose view appears), the SDK:
 
-1. Builds a lightweight WebView with Prebid.js configured in S2S mode.
-2. Sends a single OpenRTB request to `prebid.sellwild.com/openrtb2/auction`.
+1. Builds an OpenRTB request natively with Prebid Mobile.
+2. Sends a single request to `prebid.sellwild.com/openrtb2/auction`.
 3. Prebid Server fans out to all configured SSPs in parallel.
-4. The winning bid's creative renders in the ad slot.
-5. Impression and click events fire through the JS bridge to your native callbacks.
+4. The winning bid's keywords go to Google Ad Manager, which renders the creative in a native `AdManagerBannerView` / `AdManagerAdView`.
+5. Impression and click events fire to your native callbacks.
 
 No client-side bidder SDKs. No waterfall. No cookies. Total auction time: under 200ms.
 

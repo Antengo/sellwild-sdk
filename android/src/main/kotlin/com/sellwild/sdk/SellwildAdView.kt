@@ -60,9 +60,8 @@ class SellwildFirstAdViewedGuard {
  *   - [SellwildAdStack.PREBID_ONLY] Prebid's own rendering [PrebidBannerView],
  *                                   NO GAM request (and so no GAM request fees).
  *
- * The widget surface ([SellwildWidgetView]) still uses a WebView for
- * marketplace listings — that surface is intentionally a WebView. Banners and
- * other monetizing ad units render natively.
+ * Marketplace listings render natively too, via [SellwildFeedView] — the SDK
+ * ships no WebView-based surfaces.
  *
  * Usage:
  * ```kotlin
@@ -136,7 +135,7 @@ open class SellwildAdView @JvmOverloads constructor(
      * Effective GPID override for this placement. When set, wins over the
      * remotely-resolved [SellwildGpid.resolveBase] base — the feed sets it to
      * inject the per-slot occurrence suffix (`base#n`). Standalone views leave
-     * it null and auto-resolve the bare base. Internal — not a public RN/Flutter
+     * it null and auto-resolve the bare base. Internal — not a public RN-facing
      * prop; set before [setup]/[load] so the prebidOnly imp-ext picks it up.
      */
     var gpidOverride: String? = null

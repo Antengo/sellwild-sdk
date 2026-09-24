@@ -89,8 +89,8 @@ final class SellwildRemoteConfigTests: XCTestCase {
 
     /// Verifies remote-config passthrough: arbitrary CDN keys (including
     /// bidders the SDK was never built to know about — MEDIANET, AMX, SOVRN)
-    /// must surface via `remoteValues` so the WebView attribute serializer
-    /// can forward them to the widget.
+    /// must surface via `remoteValues` so native surfaces can read them
+    /// without an SDK release.
     func testRemoteJSONExposesUnmappedKeys() throws {
         var config = SellwildConfig(partnerCode: "weatherbug")
         let payload: [String: Any] = [

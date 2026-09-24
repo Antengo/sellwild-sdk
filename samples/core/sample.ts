@@ -35,13 +35,11 @@ import {
 
 // ─── 1. Build a config ───────────────────────────────────────────────────────
 
-// ─── MODE A: Prebid.js client-side in WebView (default) ──────────────────────
-// Each bidder adapter runs client-side inside the WebView.
-// Provide appBundleId so Prebid.js declares in-app (ortb2.app) inventory.
+// Provide appBundleId so native auctions declare in-app (OpenRTB app) inventory.
 const config = buildConfig({
   partnerCode: 'demo',
 
-  // Required: declares in-app inventory for Prebid.js (ortb2.app).
+  // Required: declares in-app inventory (OpenRTB app object).
   appBundleId: 'com.mycompany.myapp',
   appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXX',
 
@@ -56,16 +54,16 @@ const config = buildConfig({
   adRefreshMaxMobile: 5,
   adRefreshInterval: 30000,
 
-  // Optional: Prebid bidder credentials (client-side mode)
+  // Optional: typed bidder credentials (read by buildPrebidAdUnit below)
   ix: { siteIdM: 'ix-mobile-id', siteIdMB: '', siteIdD: 'ix-desktop-id',
         siteIdDB: '', siteIdD160x600: '', siteIdD300x600: '' },
 
   debug: true,
 })
 
-// ─── MODE B: Prebid Server S2S (optional, solves cookie/IDFA limitations) ─────
-// Uncomment to route all Prebid bids server-side through your Prebid Server instance.
-// The WebView makes one request; the server fans out to all configured bidders.
+// ─── Prebid Server (optional override) ───────────────────────────────────────
+// Uncomment to point the native auction at your own Prebid Server account.
+// The device makes one request; the server fans out to all configured bidders.
 // See https://docs.prebid.org/prebid-server/overview/prebid-server-overview.html
 //
 // const configWithS2S = buildConfig({

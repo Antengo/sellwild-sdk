@@ -197,15 +197,10 @@ struct DocsIos_b10_L346_AdContentView: View {
             )
             .frame(width: 300, height: 250)
             Spacer()
-            SellwildWidget(
+            SellwildFeed(
                 config: config,
-                onListingTap: { listing in
-                    if let url = listing.url, let link = URL(string: url) {
-                        UIApplication.shared.open(link)
-                    }
-                },
-                onLoad: { print("[Sellwild] Widget loaded") },
-                onError: { error in print("[Sellwild] Widget error: \(error.localizedDescription)") }
+                onLoad: { print("[Sellwild] Feed loaded") },
+                onError: { message in print("[Sellwild] Feed error: \(message)") }
             )
             .frame(height: 400)
             SellwildAdBanner(
@@ -476,29 +471,6 @@ struct DocsIos_b24_L862_View: View {
             }
         )
         .frame(width: 320, height: 50)
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// ios.md, block 25 (L875) — SellwildWidget SwiftUI expression.
-// ─────────────────────────────────────────────────────────────────────────
-@available(iOS 14.0, *)
-struct DocsIos_b25_L875_View: View {
-    let config: SellwildConfig
-    var body: some View {
-        SellwildWidget(
-            config: config,
-            onListingTap: { listing in
-                _ = listing
-                /* ... */
-            },
-            onLoad: { /* ... */ },
-            onError: { error in
-                _ = error
-                /* ... */
-            }
-        )
-        .frame(height: 400)
     }
 }
 
