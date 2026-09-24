@@ -13,6 +13,7 @@
 // SellwildFeedHostView.
 RCT_EXPORT_VIEW_PROPERTY(config, NSDictionary)
 RCT_EXPORT_VIEW_PROPERTY(scrollEnabled, BOOL)
+RCT_EXPORT_VIEW_PROPERTY(consumeListingTaps, BOOL)
 
 // Direct events emitted to JS callbacks.
 RCT_EXPORT_VIEW_PROPERTY(onFeedLoaded, RCTDirectEventBlock)

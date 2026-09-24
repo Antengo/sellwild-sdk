@@ -13,6 +13,9 @@ import UIKit
 ///       The bridge re-runs the CDN decoder against `config.remote` so
 ///       feed-specific fields (COL1, bgColor, mobileZids, …) are
 ///       populated even though they're not all typed on the JS side.
+///   - scrollEnabled: bool — disable internal scrolling for embedding.
+///   - consumeListingTaps: bool — when true the host owns listing taps;
+///       the SDK does not open SFSafariViewController.
 ///
 /// Events emitted to JS:
 ///   - onFeedLoaded
@@ -41,6 +44,10 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
     /// Disable the feed's internal scrolling so it can be embedded inside a
     /// parent scroll view. Applied live and on feed creation.
     @objc var scrollEnabled: Bool = true { didSet { feedView?.scrollEnabled = scrollEnabled } }
+    /// When true, listing taps are only forwarded to JS (`onListingTap`) and
+    /// the SDK does NOT open SFSafariViewController. Read at tap time, so it
+    /// applies live without rebuilding the feed. Default false = SDK opens.
+    @objc var consumeListingTaps: Bool = false
 
     // MARK: RN events
 
@@ -122,15 +129,12 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
 
     func sellwildFeed(_ feed: SellwildFeedView, didTapListing listing: SellwildListing) -> Bool {
         // Forward the listing payload to JS as a plain dictionary. JS
-        // can't return a value back through a direct event block, so
-        // the SDK still owns whether to open the URL in
-        // SFSafariViewController. Partners who want to fully consume
-        // the tap can subclass via `useNativeNavigation` later;
-        // current behaviour matches the WebView widget (always opens
-        // in in-app browser) so there's no regression.
+        // can't return a value back through a direct event block (events
+        // are async), so whether the SDK opens SFSafariViewController is
+        // decided here from the `consumeListingTaps` prop instead.
         let payload = Self.listingPayload(listing)
         onListingTap?(["listing": payload])
-        return false
+        return consumeListingTaps
     }
 
     func sellwildFeed(_ feed: SellwildFeedView, didRecordAdImpressionForZoneId zoneId: String) {
