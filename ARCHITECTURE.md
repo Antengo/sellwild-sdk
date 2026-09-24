@@ -8,7 +8,6 @@ A grounded, current-as-of-1.7.0 picture of what the SDK actually is, how data fl
 
 - **Config** is fetched from a CDN as JSON. Identical flow on every platform.
 - **Ad rendering is native** on iOS, Android, and React Native: `SellwildAdView` / `SellwildBanner` runs a **Prebid Mobile** auction and renders through **Google Mobile Ads** (GAM). There is **no WebView in the ad path** on those platforms.
-- **Flutter** still renders ads through a WebView (Prebid.js in `webview_flutter`) — the legacy track, kept for parity until the native Flutter view lands.
 - **Listings render natively** too: the all-in-one `SellwildFeedView` / `SellwildFeed` interleaves native listing cards with native ad rows, or partners render their own UI over `fetchListings` / `useSellwildListings`. The WebView marketplace widget (`SellwildWidgetView` / `SellwildWidget`) has been removed from iOS, Android, and React Native.
 - **`config.remote`** is a passthrough bag of the raw CDN JSON. It exists so new fields the CMS adds (ad stack, video/native toggles, S2S config) reach native code without an SDK release.
 
@@ -63,7 +62,7 @@ flowchart TD
     Feed -->|"ad rows"| AdView
 ```
 
-> The `.prebidOnly` ad stack (see below) skips GAM entirely and renders through Prebid Mobile's own `BannerView`. Flutter renders the banner through a WebView instead of the native stack.
+> The `.prebidOnly` ad stack (see below) skips GAM entirely and renders through Prebid Mobile's own `BannerView`.
 
 ---
 
@@ -95,7 +94,7 @@ sequenceDiagram
 **Key invariants**
 - `configure(partnerCode, slug)` never throws. Network failure → defaults.
 - `config.remote` always populated when fetch succeeds; contains *every* CDN key including ones the SDK doesn't have a typed field for.
-- All five platforms (TS core, RN, iOS, Android, Flutter) have their own `configure()` with the same shape.
+- All four platforms (TS core, RN, iOS, Android) have their own `configure()` with the same shape.
 - On the native platforms, `configure()` also bootstraps Prebid Mobile + the Google Mobile Ads SDK (idempotent) so the first ad load doesn't race an uninitialized auction.
 
 ---
@@ -133,11 +132,11 @@ sequenceDiagram
 | `.prebidOnly` | Prebid Mobile's own rendering `BannerView`, **no GAM request** (no GAM serving fees). Auto-refresh is internal to Prebid, floored + capped by the SDK. |
 
 **What lives where**
-| Layer | iOS | Android | RN | Flutter |
-|---|---|---|---|---|
-| Native ad view | `SellwildAdView: UIView` | `SellwildAdView: FrameLayout` | `SellwildBanner` (native view) | *(WebView — legacy)* |
-| Auction + render | Prebid Mobile → GMA | Prebid Mobile → GMA | bridges the native view | Prebid.js in `webview_flutter` |
-| Click/impression | delegate | listener | RN bridge | platform channel |
+| Layer | iOS | Android | RN |
+|---|---|---|---|
+| Native ad view | `SellwildAdView: UIView` | `SellwildAdView: FrameLayout` | `SellwildBanner` (native view) |
+| Auction + render | Prebid Mobile → GMA | Prebid Mobile → GMA | bridges the native view |
+| Click/impression | delegate | listener | RN bridge |
 
 Implementation:
 - iOS: `ios/Sources/SellwildSDK/SellwildAdView.swift` + `SellwildPrebidMobile.swift`
@@ -167,8 +166,6 @@ sequenceDiagram
 ```
 
 To build your own listings UI, call `SellwildAPIClient.fetchListings` (iOS/Android) or `useSellwildListings` (RN) and render with `SellwildListingCard`.
-
-**Flutter** is the one remaining WebView track: `SellwildBanner` (Flutter) renders ads through `webview_flutter` with Prebid.js inside, retained until the native Flutter view ships.
 
 ---
 
@@ -261,8 +258,6 @@ flowchart TD
 | React Native | `@sellwild/react-native-sdk` | npm | 1.7.0 | ✅ live |
 | iOS | `SellwildSDK` | CocoaPods + SPM | 1.7.0 | ✅ live |
 | Android | `com.sellwild:sdk` | `s3://maven.sellwild.com/releases/` | 1.7.0 | ✅ live |
-| Flutter | `sellwild_sdk` | pub.dev | 1.3.0 | ✅ live (WebView ad track) |
 
 **Open follow-ups**
-- Flutter still renders ads through a WebView; a native Flutter ad view would bring it to parity with iOS/Android/RN.
 - iOS `load()` / Android three-call ceremony could collapse into the initializer.

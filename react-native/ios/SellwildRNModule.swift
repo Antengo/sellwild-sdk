@@ -48,7 +48,7 @@ final class SellwildRNModule: NSObject {
     /// Android's `SellwildSDK.prewarm`.
     @objc(prewarm:)
     func prewarm(_ config: NSDictionary) {
-        let cfg = SellwildBannerViewManager.configFromMap(config)
+        let cfg = SellwildBannerHostView.configFromMap(config)
         DispatchQueue.main.async {
             _ = SellwildPrebidMobile.bootstrap(with: cfg)
         }

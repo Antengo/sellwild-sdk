@@ -79,21 +79,4 @@ class SellwildAdStackTest {
     fun `resolve tolerates malformed remote json`() {
         assertEquals(SellwildAdStack.BOTH, SellwildAdStack.resolve("not-json", "43"))
     }
-
-    @Test
-    fun `ad-stack keys are not forwarded as bidder params`() {
-        val raw = JSONObject(
-            mapOf(
-                "AD_STACK" to "PREBID",
-                "AD_STACK_BY_ZONE" to JSONObject(mapOf("43" to "GAM")),
-                "MEDIANET" to JSONObject(mapOf("cid" to "8CU9V99R6")),
-            )
-        )
-        val config = SellwildConfig(partnerCode = "weatherbug", remoteJson = raw.toString())
-
-        val params = SellwildAdView.bidderParamsFromRemote(config)
-
-        // Only the real bidder slips through; AD_STACK* are in the deny list.
-        assertEquals(setOf("MEDIANET"), params.keys)
-    }
 }

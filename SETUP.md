@@ -328,75 +328,6 @@ viewModelScope.launch {
 
 ---
 
-## Flutter
-
-### 1. Add to pubspec.yaml
-
-```yaml
-dependencies:
-  sellwild_sdk: ^1.0.0
-```
-
-Run:
-```bash
-flutter pub get
-```
-
-### 2. iOS — Info.plist
-
-Same as the iOS section above — add `NSAllowsArbitraryLoads` or domain exceptions.
-
-### 3. Android — AndroidManifest.xml
-
-Same as the Android section above — add INTERNET permission and cleartext traffic.
-
-### 4. iOS — enable WKWebView inline media
-
-In `ios/Runner/AppDelegate.swift`:
-```swift
-// Already set by default in Flutter, but confirm:
-GeneratedPluginRegistrant.register(with: self)
-```
-
-The `webview_flutter` plugin on iOS uses `WKWebView`. No extra config needed.
-
-### 5. Usage
-
-```dart
-import 'package:sellwild_sdk/sellwild_sdk.dart';
-
-const config = SellwildConfig(
-  partnerCode: 'mysite',
-  gamTag: '/12345678/mysite-mobile',
-  bannerZid: '98765',
-  adRefreshMaxMobile: 5,
-);
-
-// Full widget
-class WidgetScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: SellwildWidget(
-      config: config,
-      onListingTap: (listing) {
-        if (listing.url != null) {
-          launchUrl(Uri.parse(listing.url!));
-        }
-      },
-    ),
-  );
-}
-
-// Banner
-SellwildBanner(
-  config: config,
-  adSize: SellwildAdSize.mrec300x250,
-  zoneId: '98765',
-)
-```
-
----
-
 ## Zone IDs and Ad Delivery
 
 The native banner path (Prebid Mobile → Google Mobile Ads) supports two demand mechanisms:
@@ -473,7 +404,6 @@ adRefreshMax: 10        // max refreshes on desktop (web)
 adRefreshMaxMobile: 5   // max refreshes on mobile (overrides adRefreshMax)
 adRefreshInterval: 30000 // ms between refreshes (React Native / core)
 adRefreshIntervalMs: 30000 // Android
-adRefreshInterval: Duration(seconds: 30) // Flutter
 ```
 
 Set `adRefreshMax: 0` and `adRefreshMaxMobile: 0` to disable refresh entirely.

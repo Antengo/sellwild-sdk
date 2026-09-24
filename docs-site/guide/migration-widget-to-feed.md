@@ -72,10 +72,9 @@ import { SellwildFeed } from '@sellwild/react-native-sdk';
   style={{ flex: 1 }}
   onLoad={() => console.log('Feed loaded')}
   onListingTap={(listing) => {
-    // Return true to consume the tap (handle yourself)
-    // Return false/undefined to let SDK open in-app browser
+    // Notification only — the SDK opens listing.url in the in-app browser.
+    // To handle navigation yourself, set `consumeListingTaps` (see Step 3).
     console.log('Tapped:', listing.title);
-    return false; // SDK opens listing.url
   }}
   onAdImpression={(zoneId) => console.log('Ad impression:', zoneId)}
   onAdClicked={(zoneId) => console.log('Ad clicked:', zoneId)}
@@ -92,7 +91,9 @@ The key behavioral difference is in `onListingTap`:
 | Behavior | SellwildWidget (removed) | SellwildFeed |
 |----------|----------------|--------------|
 | Default tap action | Opens URL via WebView `<a>` tag | Opens URL in in-app browser (Custom Tabs / SFSafariViewController) |
-| Custom handling | Not reliable (WebView navigation issues) | Return `true` from callback to consume tap |
+| Custom handling | Not reliable (WebView navigation issues) | Set the `consumeListingTaps` prop; the SDK then only fires `onListingTap` |
+
+> The `onListingTap` return value is ignored: React Native delivers native events to JS asynchronously, after the tap has already been handled, so a callback can't veto the SDK's navigation. Use the `consumeListingTaps` prop instead.
 
 ### Example: Custom Product Detail Screen
 
@@ -106,6 +107,7 @@ function MarketplaceFeed({ config }) {
     <SellwildFeed
       config={config}
       style={{ flex: 1 }}
+      consumeListingTaps // SDK won't open the browser
       onListingTap={(listing) => {
         // Navigate to your own product detail screen
         navigation.navigate('ProductDetail', { 
@@ -113,7 +115,6 @@ function MarketplaceFeed({ config }) {
           title: listing.title,
           url: listing.url,
         });
-        return true; // Consume tap — SDK won't open browser
       }}
     />
   );
@@ -127,9 +128,8 @@ function MarketplaceFeed({ config }) {
   config={config}
   style={{ flex: 1 }}
   onListingTap={(listing) => {
-    // Log analytics, then let SDK open the URL
+    // Log analytics; the SDK opens the in-app browser (default)
     analytics.track('listing_tap', { id: listing.id });
-    return false; // SDK opens in-app browser
   }}
 />
 ```
@@ -158,7 +158,8 @@ cd ios && pod install && cd ..
 | `config` | `SellwildConfig` | Yes | Config from `configure()` or `buildConfig()` |
 | `style` | `ViewStyle` | | Optional style override |
 | `onLoad` | `() => void` | | Fired when listings fetch completes |
-| `onListingTap` | `(listing: SellwildListing) => boolean \| void` | | Tap handler. Return `true` to consume. |
+| `consumeListingTaps` | `boolean` | | Default `false`. When `true`, the SDK does not open the in-app browser on listing tap — handle navigation in `onListingTap`. |
+| `onListingTap` | `(listing: SellwildListing) => void` | | Tap notification. Return value is ignored; use `consumeListingTaps` to take over navigation. |
 | `onAdImpression` | `(zoneId: string) => void` | | Fired on ad impression |
 | `onAdClicked` | `(zoneId: string) => void` | | Fired on ad click |
 | `scrollEnabled` | `boolean` | | Defaults to `true`. Set `false` to embed in a parent `ScrollView`. |

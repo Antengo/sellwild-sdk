@@ -90,6 +90,9 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
         // only call setup() + load() once per identity tuple. Refresh of
         // the rendered ad is driven by the SDK's internal timer.
         var lastAppliedKey: String? = null,
+        // Last applied config, compared by value. A hashCode() in the key is
+        // only a probabilistic match (collisions ⇒ a real change is skipped).
+        var lastAppliedConfig: Map<String, Any?>? = null,
     )
 
     override fun createViewInstance(reactContext: ThemedReactContext): SellwildAdView {
@@ -167,9 +170,11 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
         val adSize = adSizeFromLabel(sizeLabel) ?: return
 
         // Skip if the props identity hasn't changed since last apply.
-        val key = "$sizeLabel|$zoneId|${p.adStack}|${configMap.hashCode()}"
-        if (p.lastAppliedKey == key) return
+        val key = "$sizeLabel|$zoneId|${p.adStack}"
+        val configValue = configMap.toHashMap()
+        if (p.lastAppliedKey == key && p.lastAppliedConfig == configValue) return
         p.lastAppliedKey = key
+        p.lastAppliedConfig = configValue
 
         val config = configFromMap(configMap)
         // JS resolves the stack from config and passes it as the override so

@@ -114,8 +114,7 @@ export default function MarketplaceScreen() {
         style={{ flex: 1 }}
         onLoad={() => console.log('Feed loaded')}
         onListingTap={(listing) => {
-          console.log('Tapped:', listing.title);
-          return false; // Let SDK open in browser
+          console.log('Tapped:', listing.title); // SDK opens it in the in-app browser
         }}
         onAdImpression={(zoneId) => console.log('Ad impression:', zoneId)}
         onError={(err) => console.warn('Feed error:', err.message)}
@@ -132,17 +131,30 @@ export default function MarketplaceScreen() {
 | `config` | `SellwildConfig` | Resolved config from `configure(partnerCode, slug)`. |
 | `style` | `ViewStyle?` | Optional style override. Feed expands to fill container by default. |
 | `scrollEnabled` | `boolean?` | Defaults to `true`. Set `false` to embed inside a parent `ScrollView` — see [Embedding in a ScrollView](#embedding-in-a-scrollview-140). |
+| `consumeListingTaps` | `boolean?` | Defaults to `false` (the SDK opens the tapped listing in the in-app browser — Custom Tabs / SFSafariViewController). Set `true` to handle navigation yourself: the SDK only fires `onListingTap` and does not open the browser. |
 
 ### Events
 
 | Event | Signature | Fires when |
 |-------|-----------|------------|
 | `onLoad` | `() => void` | Initial listings fetch completes successfully. |
-| `onListingTap` | `(listing: SellwildListing) => boolean \| void` | User taps a listing card. Return `true` to consume (handle yourself); return `false`/omit to let SDK open the URL in-app browser. |
+| `onListingTap` | `(listing: SellwildListing) => void` | User taps a listing card. Notification only — the return value is ignored (RN events are async). To stop the SDK opening the in-app browser, set `consumeListingTaps`. |
 | `onAdImpression` | `(zoneId: string) => void` | A native ad row records an impression. |
 | `onAdClicked` | `(zoneId: string) => void` | A native ad row is clicked. |
 | `onContentSizeChange` | `(e: { width?: number; height: number }) => void` | The feed's content height changes. `height` is in points/dp. |
 | `onError` | `(error: Error) => void` | Listings fetch fails or a row fails to render. |
+
+### Handling listing taps yourself
+
+`onListingTap` can't veto the SDK's navigation — React Native delivers native events to JS asynchronously, after the tap has already been handled. To route listings through your own navigation, opt out with the `consumeListingTaps` prop:
+
+```tsx
+<SellwildFeed
+  config={config}
+  consumeListingTaps
+  onListingTap={(listing) => navigation.navigate('Listing', { listing })}
+/>
+```
 
 ### Embedding in a ScrollView (1.4.0+)
 

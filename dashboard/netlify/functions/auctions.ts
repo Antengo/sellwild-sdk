@@ -16,13 +16,20 @@
 
 import type { Handler } from '@netlify/functions'
 import { queryAthena } from './lib/athena-client'
+import { isAuthenticated, UNAUTHORIZED, clampHours } from './lib/identity'
+
+// Athena bills per TB scanned; cap the window (UI max is 24h).
+const MAX_HOURS = 720
+
+// PBS adapter names are lowercase identifiers; anything else never reaches SQL.
+const BIDDER_RE = /^[A-Za-z0-9_-]{1,64}$/
 
 function param(url: URL, key: string): string | undefined {
   return url.searchParams.get(key) || undefined
 }
 
 function hoursParam(url: URL): number {
-  return parseInt(param(url, 'hours') || '24', 10) || 24
+  return clampHours(param(url, 'hours'), 24, MAX_HOURS)
 }
 
 function bucketForHours(hours: number): string {
@@ -39,7 +46,9 @@ function json(body: unknown, status = 200) {
   }
 }
 
-export const handler: Handler = async (event) => {
+export const handler: Handler = async (event, context) => {
+  if (!isAuthenticated(context)) return UNAUTHORIZED
+
   const url = new URL(event.rawUrl)
   const type = param(url, 'type') || 'overview'
   const hours = hoursParam(url)
@@ -312,7 +321,10 @@ export const handler: Handler = async (event) => {
         if (!bidder) {
           return json({ error: 'bidder param required' }, 400)
         }
-        const safeBidder = bidder.replace(/'/g, "''")
+        if (!BIDDER_RE.test(bidder)) {
+          return json({ error: 'Invalid bidder' }, 400)
+        }
+        const safeBidder = bidder
         const bucket = bucketForHours(hours)
 
         const [counts, priceTrend] = await Promise.all([
@@ -371,8 +383,9 @@ export const handler: Handler = async (event) => {
         return json({ error: `Unknown type: ${type}` }, 400)
     }
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    console.error('[Athena] Query error:', message)
-    return json({ error: message }, 500)
+    // Log the detail server-side only: Athena/AWS errors can carry account ids,
+    // ARNs and query text.
+    console.error('[Athena] Query error:', err instanceof Error ? err.message : err)
+    return json({ error: 'Query failed' }, 500)
   }
 }

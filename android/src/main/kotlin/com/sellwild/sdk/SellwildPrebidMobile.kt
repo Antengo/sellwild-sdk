@@ -42,6 +42,7 @@ object SellwildPrebidMobile {
 
     private const val TAG = "SellwildPrebidMobile"
     private const val DEFAULT_PREBID_ENDPOINT = "https://prebid.sellwild.com/openrtb2/auction"
+    private const val DEFAULT_TIMEOUT_MS = 1500
 
     private val lock = Any()
     @Volatile private var didBootstrap = false
@@ -55,24 +56,52 @@ object SellwildPrebidMobile {
     @Volatile private var resolvedPublisherId: String? = null
     @Volatile private var resolvedCats: List<String>? = null
 
+    // Last per-config fields applied by bootstrap (guarded by `lock`), so a later
+    // bootstrap with a different effective config can re-apply them.
+    private var appliedFields: PerConfigFields? = null
+
     /** True once Prebid Mobile has reported a successful init. */
     @JvmStatic
     fun isReady(): Boolean = prebidReady
 
     /**
      * Initialize Prebid Mobile + GMA from a [SellwildConfig]. Idempotent —
-     * subsequent calls are no-ops.
+     * only the first call initializes the SDKs. Later calls with the same
+     * effective config are no-ops; a later call with a DIFFERENT config
+     * re-applies the per-config Prebid fields (account id, server host/timeout,
+     * bundle / store URL, publisher id, app categories) without re-running
+     * SDK initialization.
      *
-     * Resolution order for the Prebid Server URL + account id:
+     * Resolution order for the Prebid Server URL + account id + timeout:
      *   1. Typed [SellwildConfig.prebidServer] (set by SDK code or a partner override).
-     *   2. Raw CDN passthrough at `config.remoteJson["S2S_CONFIG"]`.
+     *   2. CDN `config.remoteJson["S2S_CONFIG"]` (usually a JS object-literal
+     *      string — see [SellwildS2SConfig]).
      *   3. Sellwild's hosted Prebid Server (so the SDK does *something* on
      *      partial CMS configuration).
      */
     @JvmStatic
     fun bootstrap(context: Context, config: SellwildConfig): Boolean {
         synchronized(lock) {
-            if (didBootstrap) return true
+            // Parse remoteJson ONCE per bootstrap — the S2S_CONFIG and top-level
+            // PUBLISHER_ID/SELLER_ID lookups share it, and each parse allocates a
+            // fresh JSONObject tree over what can be a multi-KB blob.
+            val remoteRoot = config.remoteJson?.let {
+                runCatching { JSONObject(it) }.getOrNull()
+            }
+            val specified = perConfigFields(config, remoteRoot)
+            if (didBootstrap) {
+                // Only fields this config actually specifies overwrite; absent
+                // ones keep their last value, so a bare SellwildConfig(partnerCode)
+                // (or an RN-rebuilt config without remoteJson) can't wipe a
+                // CDN-resolved account / publisher id.
+                val merged = specified.overlaying(appliedFields)
+                // Only swap the shared host when the URL itself changed (it's read by
+                // in-flight bid requests).
+                if (merged != appliedFields) {
+                    applyPerConfigFields(merged, updateHost = merged.serverUrl != appliedFields?.serverUrl)
+                }
+                return true
+            }
 
             // GMA first — Prebid hands off to GAM, GAM must be live before any
             // ad request runs. start() is idempotent on the GMA side too.
@@ -82,17 +111,13 @@ object SellwildPrebidMobile {
                 Log.w(TAG, "MobileAds.initialize threw: ${e.message}")
             }
 
-            // Parse remoteJson ONCE per bootstrap — resolvePrebidServer reads
-            // S2S_CONFIG out of it and resolvePublisherId reads the top-level
-            // PUBLISHER_ID/SELLER_ID key, and each parse allocates a fresh
-            // JSONObject tree over what can be a multi-KB blob.
-            val remoteRoot = config.remoteJson?.let {
-                runCatching { JSONObject(it) }.getOrNull()
-            }
-            val resolved = resolvePrebidServer(config, remoteRoot)
-
-            SellwildPrebid.setPrebidServerAccountId(resolved.accountId)
-            SellwildPrebid.setTimeoutMillis(config.prebidServer?.timeout ?: 1500)
+            val fields = specified.overlaying(
+                PerConfigFields(
+                    serverUrl = DEFAULT_PREBID_ENDPOINT,
+                    accountId = config.partnerCode,
+                    timeout = DEFAULT_TIMEOUT_MS,
+                )
+            )
             SellwildPrebid.setShareGeoLocation(true)
             if (config.debug) {
                 SellwildPrebid.setLogLevel(SellwildPrebid.LogLevel.DEBUG)
@@ -101,27 +126,16 @@ object SellwildPrebidMobile {
             // so the PBS response carries the full debug block. Separate from log level.
             SellwildPrebid.setPbsDebug(config.pbsDebug)
 
-            // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
-            config.appBundleId?.let { TargetingParams.setBundleName(it) }
-            config.appStoreUrl?.let { TargetingParams.setStoreUrl(it) }
-
-            // app.publisher.id must equal the sellers.json seller id (== schain
-            // sid) for supply-chain coherence. No dedicated setter maps to
-            // app.publisher.id, so inject it via the global ORTB config, sourced
-            // from the CDN S2S_CONFIG blob (publisherId / sellerId).
-            // Capture the resolved publisher id + declared geo, then emit ONE
-            // combined global ORTB config (app.publisher.id + device.geo).
-            // setGlobalOrtbConfig is last-write-wins, so both live in a single
-            // object; a later setGeo(...) re-emits it with updated geo.
-            resolvedPublisherId = resolvePublisherId(remoteRoot)
-            // IAB content categories (IAB_CATS) → ORTB app.cat (content taxonomy /
-            // brand-safety context, not consent). Safe to attach when set.
-            resolvedCats = config.iabCats.takeIf { it.isNotEmpty() }
             if (SellwildGeoStore.current == null) SellwildGeoStore.current = config.geo
-            applyGlobalOrtb()
+            // Account / timeout / app identity / publisher id / cats, then the
+            // combined global ORTB emit. The host is set by initializeSdk below.
+            applyPerConfigFields(fields, updateHost = false)
 
             try {
-                SellwildPrebid.initializeSdk(context.applicationContext, resolved.url) { status ->
+                SellwildPrebid.initializeSdk(
+                    context.applicationContext,
+                    fields.serverUrl ?: DEFAULT_PREBID_ENDPOINT,
+                ) { status ->
                     Log.d(TAG, "SellwildPrebid.initializeSdk status: $status")
                     // Ready = the init completion fired at all (init finished),
                     // NOT an exact status-token match. Matching "SUCCEEDED" was
@@ -270,7 +284,79 @@ object SellwildPrebidMobile {
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    internal data class PrebidServerResolution(val url: String, val accountId: String)
+    internal data class PrebidServerResolution(
+        val url: String,
+        val accountId: String,
+        val timeout: Int = DEFAULT_TIMEOUT_MS,
+    )
+
+    /**
+     * Per-config Prebid fields [bootstrap] applies (and re-applies when a later
+     * config differs). null = "this config doesn't specify it".
+     */
+    internal data class PerConfigFields(
+        val serverUrl: String? = null,
+        val accountId: String? = null,
+        val timeout: Int? = null,
+        val bundleName: String? = null,
+        val storeUrl: String? = null,
+        val publisherId: String? = null,
+        val cats: List<String>? = null,
+    ) {
+        /** Fill fields this value leaves null from [base]. */
+        fun overlaying(base: PerConfigFields?): PerConfigFields = if (base == null) this else PerConfigFields(
+            serverUrl = serverUrl ?: base.serverUrl,
+            accountId = accountId ?: base.accountId,
+            timeout = timeout ?: base.timeout,
+            bundleName = bundleName ?: base.bundleName,
+            storeUrl = storeUrl ?: base.storeUrl,
+            publisherId = publisherId ?: base.publisherId,
+            cats = cats ?: base.cats,
+        )
+    }
+
+    internal fun perConfigFields(config: SellwildConfig, remoteRoot: JSONObject?): PerConfigFields {
+        val server = specifiedPrebidServer(config, remoteRoot)
+        return PerConfigFields(
+            serverUrl = server?.endpoint,
+            accountId = server?.accountId,
+            timeout = server?.timeout,
+            bundleName = config.appBundleId,
+            storeUrl = config.appStoreUrl,
+            publisherId = resolvePublisherId(remoteRoot),
+            // IAB content categories (IAB_CATS) → ORTB app.cat (content taxonomy /
+            // brand-safety context, not consent). Safe to attach when set.
+            cats = config.iabCats.takeIf { it.isNotEmpty() },
+        )
+    }
+
+    /**
+     * Push [f] into Prebid targeting and re-emit the global ORTB config.
+     * Caller holds [lock]. Null fields are left untouched.
+     */
+    private fun applyPerConfigFields(f: PerConfigFields, updateHost: Boolean) {
+        f.accountId?.let { SellwildPrebid.setPrebidServerAccountId(it) }
+        f.timeout?.let { SellwildPrebid.setTimeoutMillis(it) }
+        // Host is otherwise only set by initializeSdk (one-time); the shaded
+        // fork's CUSTOM host is a mutable singleton, so update it in place.
+        if (updateHost) f.serverUrl?.let { com.sellwild.prebid.Host.createCustomHost(it) }
+
+        // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
+        f.bundleName?.let { TargetingParams.setBundleName(it) }
+        f.storeUrl?.let { TargetingParams.setStoreUrl(it) }
+
+        // app.publisher.id must equal the sellers.json seller id (== schain
+        // sid) for supply-chain coherence. No dedicated setter maps to
+        // app.publisher.id, so inject it via the global ORTB config.
+        // Capture the resolved publisher id + cats + declared geo, then emit ONE
+        // combined global ORTB config (app.publisher.id + app.cat + device.geo).
+        // setGlobalOrtbConfig is last-write-wins, so all live in a single
+        // object; a later setGeo(...) re-emits it with updated geo.
+        resolvedPublisherId = f.publisherId
+        resolvedCats = f.cats
+        appliedFields = f
+        applyGlobalOrtb()
+    }
 
     /**
      * Pull the OpenRTB app.publisher.id (== sellers.json seller id / schain sid)
@@ -292,7 +378,8 @@ object SellwildPrebidMobile {
     }
 
     /**
-     * Resolve the Prebid Server URL + account id. [remoteRoot] is the
+     * Resolve the Prebid Server URL + account id + timeout, with Sellwild
+     * defaults for anything the config doesn't specify. [remoteRoot] is the
      * already-parsed [SellwildConfig.remoteJson]; callers should parse once and
      * share it across resolvers to avoid duplicate work.
      */
@@ -300,28 +387,24 @@ object SellwildPrebidMobile {
         config: SellwildConfig,
         remoteRoot: JSONObject?,
     ): PrebidServerResolution {
-        // 1. Typed config.
-        config.prebidServer?.let {
-            return PrebidServerResolution(url = it.endpoint, accountId = it.accountId)
-        }
-
-        // 2. Raw CDN passthrough.
-        val s2s = remoteRoot?.optJSONObject("S2S_CONFIG")
-        if (s2s != null) {
-            val url = s2s.optString("endpoint", "")
-                .ifEmpty { s2s.optString("url", "") }
-                .ifEmpty { DEFAULT_PREBID_ENDPOINT }
-            val account = s2s.optString("accountId", "")
-                .ifEmpty { s2s.optString("account", "") }
-                .ifEmpty { config.partnerCode }
-            return PrebidServerResolution(url = url, accountId = account)
-        }
-
-        // 3. Sellwild-hosted default.
+        val s = specifiedPrebidServer(config, remoteRoot)
         return PrebidServerResolution(
-            url = DEFAULT_PREBID_ENDPOINT,
-            accountId = config.partnerCode,
+            url = s?.endpoint ?: DEFAULT_PREBID_ENDPOINT,
+            accountId = s?.accountId ?: config.partnerCode,
+            timeout = s?.timeout ?: DEFAULT_TIMEOUT_MS,
         )
+    }
+
+    /**
+     * Prebid Server fields the config actually specifies: typed
+     * [SellwildConfig.prebidServer] wins, else the CDN `S2S_CONFIG` (string,
+     * object or array — see [SellwildS2SConfig]). Null when neither is usable.
+     */
+    private fun specifiedPrebidServer(config: SellwildConfig, remoteRoot: JSONObject?): SellwildS2SConfig? {
+        config.prebidServer?.let {
+            return SellwildS2SConfig(accountId = it.accountId, endpoint = it.endpoint, timeout = it.timeout)
+        }
+        return SellwildS2SConfig.parse(remoteRoot?.opt("S2S_CONFIG"))
     }
 
     /**
@@ -336,7 +419,10 @@ object SellwildPrebidMobile {
 
     // Test-only seam to reset the bootstrap latch.
     internal fun resetForTesting() {
-        synchronized(lock) { didBootstrap = false }
+        synchronized(lock) {
+            didBootstrap = false
+            appliedFields = null
+        }
     }
 }
 

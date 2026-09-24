@@ -136,6 +136,9 @@ public final class SellwildAdView: UIView {
     // it (so its viewability tracker can fire the impression/burl) rather than
     // discarding it with a fresh auction.
     private var prebidHasRenderedCreative = false
+    // True while a .prebidOnly click has an ad modal (in-app browser / store
+    // sheet) open, so a leave-app from inside it isn't counted as a 2nd click.
+    private var prebidClickModalOpen = false
 
     /// Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
     /// when set, else the shared `AD_REFRESH_MAX` (matches Android + web). iOS
@@ -143,6 +146,14 @@ public final class SellwildAdView: UIView {
     /// its refresh revenue — for partners who set only `AD_REFRESH_MAX`.
     private var effectiveRefreshMax: Int {
         config.adRefreshMaxMobile > 0 ? config.adRefreshMaxMobile : config.adRefreshMax
+    }
+
+    /// Whether another .prebidOnly auction fits the refresh cap. The budget is
+    /// the first render + up to effectiveRefreshMax refreshes; prebidRefreshCount
+    /// counts renders, so it's spent once the count exceeds the max (the same
+    /// point the render delegate calls stopRefresh()).
+    private var hasPrebidRefreshBudget: Bool {
+        effectiveRefreshMax > 0 && prebidRefreshCount <= effectiveRefreshMax
     }
 
     // Cold-start guard: Prebid init is async and can race the first load(). Wait
@@ -256,7 +267,9 @@ public final class SellwildAdView: UIView {
             // Flag on: keep the already-rendered creative so its tracker fires the
             // impression/burl now that we're back on screen, and resume the cadence
             // on a DELAYED refresh instead of an immediate re-auction.
-            if effectiveRefreshMax > 0 {
+            // Either way, only while the refresh cap has budget: once it is spent,
+            // a reattach starts no new auction — the last creative stays.
+            if hasPrebidRefreshBudget {
                 // Order matters: the cheap flag short-circuits before
                 // keepsPrebidCreativeOnReattach so we skip the config lookup when
                 // there's no rendered creative to keep (common on fast scroll).
@@ -291,7 +304,7 @@ public final class SellwildAdView: UIView {
     /// fire the impression/burl. Only re-auctions if still attached and under the
     /// refresh cap. `.common` mode so it fires during scroll tracking.
     private func schedulePrebidRefresh() {
-        guard effectiveRefreshMax > 0, prebidRefreshCount < effectiveRefreshMax else { return }
+        guard hasPrebidRefreshBudget else { return }
         refreshTimer?.invalidate()
         let interval = max(config.adRefreshInterval, Self.minRefreshIntervalSec)
         let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
@@ -403,6 +416,7 @@ public final class SellwildAdView: UIView {
             pb.removeFromSuperview()
             prebidBanner = nil
             prebidHasRenderedCreative = false
+            prebidClickModalOpen = false // didDismissModal may never arrive
         }
         if let na = nativeAdView { na.removeFromSuperview(); nativeAdView = nil }
         if let existing = gamBanner { return existing }
@@ -463,6 +477,11 @@ public final class SellwildAdView: UIView {
         // COUNT is capped in the didReceiveAdWithAdSize delegate.
         if effectiveRefreshMax > 0 {
             banner.refreshInterval = max(config.adRefreshInterval, Self.minRefreshIntervalSec)
+        } else {
+            // Cap 0 = no refresh. The fork defaults refreshInterval to 60s, and
+            // its setter clamps 0 up to 15s — only a negative value stores 0,
+            // which its AutoRefreshManager treats as "don't refresh".
+            banner.refreshInterval = -1
         }
         prebidRefreshCount = 0
         prebidHasRenderedCreative = false
@@ -541,7 +560,7 @@ public final class SellwildAdView: UIView {
     private func ensureNativeAdView(configId: String) -> SellwildNativeAdView {
         // Tear down banner render paths if we previously rendered one.
         if let gb = gamBanner { gb.removeFromSuperview(); gamBanner = nil }
-        if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil; prebidHasRenderedCreative = false }
+        if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil; prebidHasRenderedCreative = false; prebidClickModalOpen = false }
         if let existing = nativeAdView { return existing }
 
         let cap = SellwildNative.maxHeight(
@@ -718,6 +737,9 @@ public final class SellwildAdView: UIView {
     private static let minRefreshIntervalSec: TimeInterval = 10
 
     private func scheduleRefresh() {
+        // Detached (paused for detach): a GAM load that lands after pause() must
+        // not re-arm refresh on an off-window view — resume() restarts it.
+        guard !isPausedForDetach else { return }
         guard effectiveRefreshMax > 0 else { return }
         guard refreshCount < effectiveRefreshMax else { return }
         refreshTimer?.invalidate() // never stack refresh timers (resume()/re-load)
@@ -891,6 +913,30 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         delegate?.sellwildAdView?(self, didFailWithError: error)
         SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adError", action: error.localizedDescription, label: zoneId ?? ""))
         recordHouseImpressionIfShowing()
+    }
+
+    // Prebid's rendering BannerView has no click callback — a click surfaces as
+    // either an ad modal (in-app browser / App Store sheet) or leaving the app.
+    // Report either as the same click the GAM path reports via
+    // bannerViewDidRecordClick (delegate + "click" event).
+    public func bannerViewWillPresentModal(_ bannerView: PrebidBannerView) {
+        prebidClickModalOpen = true
+        recordPrebidClick()
+    }
+
+    public func bannerViewDidDismissModal(_ bannerView: PrebidBannerView) {
+        prebidClickModalOpen = false
+    }
+
+    public func bannerViewWillLeaveApplication(_ bannerView: PrebidBannerView) {
+        // Leaving from inside a click-opened modal is the same click.
+        guard !prebidClickModalOpen else { return }
+        recordPrebidClick()
+    }
+
+    private func recordPrebidClick() {
+        delegate?.sellwildAdViewDidRecordClick?(self)
+        SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "click", label: zoneId ?? ""))
     }
 }
 

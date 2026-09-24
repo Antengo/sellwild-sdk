@@ -2,7 +2,7 @@
 
 The Sellwild SDK bids natively. On iOS, Android, and React Native every ad runs through **Mode C (native Prebid Mobile + Google Mobile Ads)** — bundled, no wiring required. **Mode B (Prebid Server S2S)** describes where that auction resolves: Prebid Mobile sends one OpenRTB request to Prebid Server, which fans out to the configured bidders.
 
-The former Mode A (Prebid.js in a WebView) is gone. The WebView widget that hosted it (`SellwildWidgetView` / `SellwildWidget`) has been removed from iOS, Android, and React Native. Flutter (`sellwild_sdk`) is a separate legacy track and is not covered here.
+The former Mode A (Prebid.js in a WebView) is gone. The WebView widget that hosted it (`SellwildWidgetView` / `SellwildWidget`) has been removed from iOS, Android, and React Native.
 
 ---
 

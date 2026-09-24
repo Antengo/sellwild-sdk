@@ -79,12 +79,12 @@ The following diagram illustrates the OpenRTB request flow when the SDK is confi
 
 Configure Prebid Server in the SDK by setting the `prebidServer` field on `SellwildConfig`:
 
-```dart
-prebidServer: PrebidServerConfig(
-  accountId: 'weatherbug',
-  endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
-  bidders: ['appnexus', 'pubmatic', 'ix', 'rubicon', 'openx'],
-  timeout: 1500,
+```kotlin
+prebidServer = PrebidServerConfig(
+    accountId = "weatherbug",
+    endpoint  = "https://prebid.sellwild.com/openrtb2/auction",
+    bidders   = listOf("appnexus", "pubmatic", "ix", "rubicon", "openx"),
+    timeout   = 1500,
 ),
 ```
 
@@ -93,7 +93,7 @@ prebidServer: PrebidServerConfig(
 | `accountId`    | `String`       | Yes      | --      | Your Prebid Server account ID. This is your Sellwild partner code.          |
 | `endpoint`     | `String`       | Yes      | --      | Full URL: `https://prebid.sellwild.com/openrtb2/auction`                    |
 | `bidders`      | `List<String>` | Yes      | --      | Bidder codes to include in the server-side auction. Must match server config.|
-| `timeout`      | `int`          | No       | 1500    | Maximum time (ms) the server waits for SSP responses before closing auction.|
+| `timeout`      | `Int`          | No       | 1500    | Maximum time (ms) the server waits for SSP responses before closing auction.|
 | `syncEndpoint` | `String?`      | No       | null    | Cookie sync endpoint. Derived from `endpoint` if omitted.                   |
 
 ### Server-Side Configuration
@@ -130,12 +130,12 @@ Adding a new SSP to your Prebid Server auction requires only your seat ID for th
 
 3. **Add the bidder code to your SDK configuration:**
 
-   ```dart
-   prebidServer: PrebidServerConfig(
-     accountId: 'weatherbug',
-     endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
-     bidders: ['appnexus', 'pubmatic', 'ix', 'rubicon', 'openx', 'new_ssp'],
-     timeout: 1500,
+   ```kotlin
+   prebidServer = PrebidServerConfig(
+       accountId = "weatherbug",
+       endpoint  = "https://prebid.sellwild.com/openrtb2/auction",
+       bidders   = listOf("appnexus", "pubmatic", "ix", "rubicon", "openx", "new_ssp"),
+       timeout   = 1500,
    ),
    ```
 
@@ -280,7 +280,7 @@ The SDK serializes these into the bid request:
 }
 ```
 
-Pass an empty array/list to clear the IDs (e.g. on logout). React Native and Flutter bridges are pending — these APIs are native iOS/Android today.
+Pass an empty array/list to clear the IDs (e.g. on logout). React Native bridges are pending — these APIs are native iOS/Android today.
 
 ### `atype` (OpenRTB agent type)
 
@@ -799,11 +799,11 @@ To ensure a house ad always fills when programmatic demand is unavailable:
 
 The SDK respects `maxFailedAuctions` in `SellwildConfig` (default: 3). After three consecutive no-fill auctions on an ad slot, the SDK stops refreshing that slot to conserve bandwidth and battery.
 
-```dart
+```kotlin
 SellwildConfig(
-  partnerCode: 'weatherbug',
-  maxFailedAuctions: 5,          // Allow more retries before stopping
-  adRefreshInterval: Duration(seconds: 45),  // Slow down refresh rate
+    partnerCode = "weatherbug",
+    maxFailedAuctions = 5,           // Allow more retries before stopping
+    adRefreshIntervalMs = 45_000L,   // Slow down refresh rate
 )
 ```
 

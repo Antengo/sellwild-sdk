@@ -168,7 +168,7 @@ object SellwildSDK {
             // Compliance
             gppEnabled = raw.optBooleanOrNull("GPP_ENABLED") ?: base.gppEnabled,
             tcfVersion = raw.optIntOrNull("TCF_VERSION") ?: base.tcfVersion,
-            iabCats = raw.optStringListOrNull("IAB_CATS") ?: base.iabCats,
+            iabCats = raw.optCsvStringListOrNull("IAB_CATS") ?: base.iabCats,
 
             // Mobile ad controls
             enableInterstitial = raw.optBooleanOrNull("ENABLE_INTERSTITIAL")
@@ -226,6 +226,21 @@ private fun JSONObject.optStringListOrNull(key: String): List<String>? {
     if (!has(key) || isNull(key)) return null
     val arr = optJSONArray(key) ?: return null
     return List(arr.length()) { i -> arr.optString(i) }
+}
+
+/**
+ * A string list that the CDN may ship as a JSON array OR a scalar string — a
+ * single value ("IAB15") or comma-separated ("IAB15,IAB19"). Entries are
+ * trimmed and blanks dropped. Used for IAB_CATS, whose live value is a string.
+ */
+private fun JSONObject.optCsvStringListOrNull(key: String): List<String>? {
+    if (!has(key) || isNull(key)) return null
+    val items = when (val v = opt(key)) {
+        is JSONArray -> List(v.length()) { i -> v.optString(i) }
+        is String -> v.split(",")
+        else -> return null
+    }
+    return items.map { it.trim() }.filter { it.isNotEmpty() }
 }
 
 /** Like [optStringOrNull] but also treats an empty string as absent. */

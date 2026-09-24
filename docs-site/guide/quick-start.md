@@ -3,7 +3,7 @@
 Get a native marketplace feed or banner ad rendering with server-side header bidding in under 5 minutes. Choose your platform below.
 
 For full integration guides with all ad formats, GDPR, lifecycle management, and troubleshooting, see the dedicated platform pages:
-[iOS](/guide/ios) | [Android](/guide/android) | [React Native](/guide/react-native) | [Flutter](/guide/flutter)
+[iOS](/guide/ios) | [Android](/guide/android) | [React Native](/guide/react-native)
 
 ---
 
@@ -400,89 +400,6 @@ import { SellwildBanner } from '@sellwild/react-native-sdk';
 ```
 
 **Next:** [Full React Native Guide](/guide/react-native) -- TypeScript, Metro config, GDPR, troubleshooting.
-
----
-
-## Flutter
-
-### 1. Install
-
-Add to `pubspec.yaml`:
-
-```yaml
-dependencies:
-  sellwild_sdk: ^1.4.0
-```
-
-Then run:
-
-```bash
-flutter pub get
-```
-
-### 2. Platform setup
-
-**iOS:** Add to `ios/Runner/Info.plist`:
-
-```xml
-<key>NSAppTransportSecurity</key>
-<dict>
-  <key>NSAllowsArbitraryLoadsInWebContent</key>
-  <true/>
-</dict>
-```
-
-**Android:** Add to `android/app/src/main/AndroidManifest.xml`:
-
-```xml
-<uses-permission android:name="android.permission.INTERNET" />
-```
-
-### 3. Render
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:sellwild_sdk/sellwild_sdk.dart';
-
-class MyApp extends StatefulWidget {
-  @override
-  _MyAppState createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  SellwildConfig? _config;
-
-  @override
-  void initState() {
-    super.initState();
-    _initSellwild();
-  }
-
-  Future<void> _initSellwild() async {
-    final config = await SellwildSDK.configure(
-      partnerCode: 'weatherbug',
-      slug: 'weatherbug-weatherbug',
-    );
-    setState(() => _config = config);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_config == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return SellwildBanner(
-      config: _config!,
-      size: AdSize.mrec300x250,
-      onImpression: () => print('Ad impression'),
-      onError: (error) => print('Error: $error'),
-    );
-  }
-}
-```
-
-**Next:** [Full Flutter Guide](/guide/flutter) -- Platform setup, GDPR, troubleshooting.
 
 ---
 
