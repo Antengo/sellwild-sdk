@@ -61,6 +61,8 @@ data class SellwildConfig(
     val watermarkTitle: String = "Powered by Sellwild",
 
     // Ads - Display
+    /** No-op since the WebView widget was removed; kept for source compatibility. */
+    val adType: String? = null,
     val bannerZid: String? = null,
     val bottomBannerZid: String? = null,
     val mobileBannerZid: String? = null,
@@ -68,6 +70,8 @@ data class SellwildConfig(
     val hideBannerTop: Boolean = false,
     val hideBannerBottom: Boolean = false,
     val gamTag: String? = null,
+    /** No-op since the WebView widget was removed; kept for source compatibility. */
+    val gptProxyUrl: String? = null,
     val disableGpt: Boolean = false,
     val adDisableDisplay: Boolean = false,
 
@@ -76,6 +80,8 @@ data class SellwildConfig(
     val adRefreshMaxMobile: Int = 0,
     val adRefreshIntervalMs: Long = 30_000L,
     val maxFailedAuctions: Int = 3,
+    /** No-op since the WebView widget was removed; kept for source compatibility. */
+    val prebidSrc: String? = null,
     val floorMultiplier: Float = 1.0f,
 
     // Ads - Compliance

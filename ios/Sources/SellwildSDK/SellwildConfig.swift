@@ -68,6 +68,8 @@ public struct SellwildConfig: Codable {
     public var watermarkTitle: String
 
     // MARK: Ads - Display
+    /// No-op since the WebView widget was removed; kept for source compatibility.
+    public var adType: String?
     public var bannerZid: String?
     public var bottomBannerZid: String?
     public var mobileBannerZid: String?
@@ -75,6 +77,8 @@ public struct SellwildConfig: Codable {
     public var hideBannerTop: Bool
     public var hideBannerBottom: Bool
     public var gamTag: String?
+    /// No-op since the WebView widget was removed; kept for source compatibility.
+    public var gptProxyUrl: String?
     public var disableGpt: Bool
     public var adDisableDisplay: Bool
 
@@ -83,6 +87,8 @@ public struct SellwildConfig: Codable {
     public var adRefreshMaxMobile: Int
     public var adRefreshInterval: TimeInterval
     public var maxFailedAuctions: Int
+    /// No-op since the WebView widget was removed; kept for source compatibility.
+    public var prebidSrc: String?
 
     // MARK: Ads - Compliance
     public var gppEnabled: Bool
@@ -175,6 +181,9 @@ public struct SellwildConfig: Codable {
     /// entirely over the remote `LOCALIZED_LISTINGS` object; otherwise the
     /// remote value applies. Leave nil to drive entirely from the CMS.
     public var localizedListings: SellwildLocalizedListingsConfig? = nil
+
+    /// No-op since the WebView widget was removed; kept for source compatibility.
+    public var widgetJsUrl: String?
 
     // MARK: Debug
     public var debug: Bool
