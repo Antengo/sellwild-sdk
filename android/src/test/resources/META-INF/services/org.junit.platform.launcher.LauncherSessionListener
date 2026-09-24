@@ -1,0 +1,2 @@
+# Blocks http/https for the whole unit-test JVM before the first test runs (contract A8).
+com.sellwild.sdk.support.NetworkBlockSessionListener

@@ -1,11 +1,16 @@
 package com.sellwild.sdk
 
 import android.content.Context
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailures
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
 
 /**
@@ -25,7 +30,8 @@ import java.net.URL
  *
  * On any network failure, timeout, or 404 the call returns a
  * `SellwildConfig(partnerCode = ...)` with deterministic defaults (the
- * listings endpoint is derived from `partnerCode`), so ads still render.
+ * listings endpoint is derived from `partnerCode`), so ads still render. The
+ * failure is reported once through logFailure (config.fetch.*).
  */
 object SellwildSDK {
 
@@ -53,11 +59,18 @@ object SellwildSDK {
         timeoutMs: Int = 5000,
         overrides: ((SellwildConfig) -> SellwildConfig)? = null,
     ): SellwildConfig = withContext(Dispatchers.IO) {
+        // Partner first, before any fetch, so a config failure carries it. The remote flags
+        // are unset until this fetch loads them (FAILURES.md 3.2.4), so a second configure()
+        // is not gated by the last config's kill switch or sample rate.
+        SellwildFailures.setContext {
+            it.copy(partnerCode = partnerCode, eventsEnabled = null, failuresEnabled = null, failuresSampleRate = null)
+        }
         var config = SellwildConfig(partnerCode = partnerCode)
+        var remote: JSONObject? = null
+        val url = configUrl(partnerCode, slug)
 
         runCatching {
-            val url = URL("https://widget.sellwild.com/app/$partnerCode/$slug.json")
-            val connection = url.openConnection() as HttpURLConnection
+            val connection = URL(url).openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
             connection.connectTimeout = timeoutMs
             connection.readTimeout = timeoutMs
@@ -65,18 +78,58 @@ object SellwildSDK {
             // events kill switch) and lands in CloudFront cs(User-Agent) logs for
             // an installed-base census.
             connection.setRequestProperty("User-Agent", "SellwildSDK/$SDK_VERSION (android)")
-            if (connection.responseCode in 200..299) {
+            val status = connection.responseCode
+            if (status in 200..299) {
                 val body = connection.inputStream.bufferedReader().readText()
                 // Stash the raw payload so unmapped CDN keys (new bidders,
                 // forward-compatible settings) flow through to the WebView
                 // attribute serializer without an SDK release.
-                config = apply(JSONObject(body), config).copy(remoteJson = body)
+                val raw = JSONObject(body)
+                config = apply(raw, config).copy(remoteJson = body)
+                remote = raw
+            } else {
+                // A missing config is a 403 from S3, not a 404.
+                SellwildFailures.log(
+                    code = SellwildFailureCode.CONFIG_FETCH_HTTP,
+                    component = SellwildFailureComponent.REMOTE_CONFIG,
+                    message = "HTTP $status",
+                    httpStatus = status,
+                    url = url,
+                )
             }
+        }.onFailure { e ->
+            SellwildFailures.log(
+                code = configFailureCode(e),
+                component = SellwildFailureComponent.REMOTE_CONFIG,
+                error = e,
+                url = url,
+            )
         }
-        // Silent fallback — config retains defaults on any failure.
+        // Either way config keeps the defaults it could not replace, so ads still
+        // render; that fallback is not a second failure.
 
         overrides?.let { config = it(config) }
+        val flags = remote
+        SellwildFailures.setContext {
+            it.copy(
+                partnerCode = config.partnerCode,
+                debug = config.debug,
+                eventsEnabled = flags?.remoteValue("EVENTS_ENABLED"),
+                failuresEnabled = flags?.remoteValue("FAILURES_ENABLED"),
+                failuresSampleRate = flags?.remoteValue("FAILURES_SAMPLE_RATE"),
+            )
+        }
         config
+    }
+
+    internal fun configUrl(partnerCode: String, slug: String) =
+        "https://widget.sellwild.com/app/$partnerCode/$slug.json"
+
+    /** The registry code for a config fetch that threw (FAILURES.md 4.1 reasons). */
+    internal fun configFailureCode(e: Throwable): String = when (e) {
+        is SocketTimeoutException -> SellwildFailureCode.CONFIG_FETCH_TIMEOUT
+        is JSONException -> SellwildFailureCode.CONFIG_FETCH_PARSE
+        else -> SellwildFailureCode.CONFIG_FETCH_NETWORK
     }
 
     /**
@@ -98,8 +151,11 @@ object SellwildSDK {
      * @param config The config returned by [configure].
      * @return true if the ad stack is initialized (now or already), else false.
      */
-    fun prewarm(context: Context, config: SellwildConfig): Boolean =
-        SellwildPrebidMobile.bootstrap(context, config)
+    fun prewarm(context: Context, config: SellwildConfig): Boolean {
+        // The first Context the SDK sees: failures held since configure() go out now.
+        SellwildFailures.attach(context)
+        return SellwildPrebidMobile.bootstrap(context, config)
+    }
 
     /**
      * Maps CONSTANT_CASE CDN keys onto the corresponding [SellwildConfig]
@@ -197,6 +253,13 @@ object SellwildSDK {
         )
     }
 }
+
+/**
+ * A remote value as logFailure's pure core expects it: JSON null reads as absent.
+ * Other values pass through raw (Boolean, Number, String, JSONObject ...); the
+ * core coerces them (FAILURES.md 5.3, 5.4).
+ */
+private fun JSONObject.remoteValue(key: String): Any? = opt(key)?.takeIf { it != JSONObject.NULL }
 
 // Only return a genuine JSON string. org.json's `optString` COERCES a JSONArray /
 // JSONObject value to its literal `toString` ("[]" / "{}"), which then reads as a

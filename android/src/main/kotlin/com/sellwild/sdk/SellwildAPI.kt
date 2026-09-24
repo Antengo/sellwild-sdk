@@ -2,6 +2,11 @@ package com.sellwild.sdk
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
+import com.sellwild.sdk.failures.SellwildFailures
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -13,6 +18,7 @@ import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 // MARK: - Data Models
 
@@ -107,8 +113,17 @@ class SellwildAPIClient(private val context: Context) {
 
     private val listingCache = java.util.concurrent.ConcurrentHashMap<String, SellwildListingsResponse>()
 
+    /**
+     * A feed-only app never builds an ad view or calls prewarm, so this client may be
+     * the first Context the SDK sees: attach logFailure here, so failures held since
+     * configure() (and this client's own) go out. Runs on the IO dispatcher because
+     * attaching reads the queue uid from SharedPreferences. Idempotent, never throws.
+     */
+    private fun attachFailures() = SellwildFailures.attach(context)
+
     suspend fun fetchListings(config: SellwildConfig): Result<SellwildListingsResponse> =
         withContext(Dispatchers.IO) {
+            attachFailures()
             runCatching {
                 val listingsUrl = config.effectiveListingsUrl
                 listingCache[listingsUrl]?.let { return@withContext Result.success(it) }
@@ -148,6 +163,7 @@ class SellwildAPIClient(private val context: Context) {
      */
     suspend fun fetchCacheListings(url: String): Result<List<SellwildListing>> =
         withContext(Dispatchers.IO) {
+            attachFailures()
             runCatching {
                 val connection = URL(url).openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
@@ -250,9 +266,15 @@ class SellwildAPIClient(private val context: Context) {
             shippable = json.optString("shippable").ifEmpty { null },
             dataSourceId = json.optString("dataSourceId").ifEmpty { null },
             user = user,
-            remoteUrl = json.optString("remote_url").ifEmpty { null },
+            remoteUrl = json.optTextOrNull("remote_url"),
         )
     }
+
+    // The cache sends `"remote_url": null` on some items, and a device's org.json
+    // returns the text "null" from optString for JSON null (the JVM org.json used by
+    // plain unit tests returns ""), which tapUrl would then open as a URL.
+    private fun JSONObject.optTextOrNull(key: String): String? =
+        if (isNull(key)) null else optString(key).ifEmpty { null }
 
     private fun JSONObject.toMap(): Map<String, Any> {
         val map = mutableMapOf<String, Any>()
@@ -277,10 +299,87 @@ data class SellwildEvent(
     val createdTime: Long = System.currentTimeMillis(),
 )
 
-class SellwildEventQueue(context: Context) {
+/**
+ * POSTs one events batch and returns the HTTP status. Throws on a network failure.
+ * [SellwildEventQueue] owns what that means (nothing is retried, nothing is logged).
+ */
+internal fun interface SellwildEventSender {
+    fun post(url: String, body: String): Int
+}
 
-    private val prefs: SharedPreferences = context.getSharedPreferences("sellwild_sdk", Context.MODE_PRIVATE)
-    private val eventsUrl = "https://events.sellwild.com/events/queue"
+/** The production sender: one HttpURLConnection POST per batch, on a kept-alive socket. */
+internal object HttpEventSender : SellwildEventSender {
+    override fun post(url: String, body: String): Int {
+        val conn = URL(url).openConnection() as HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.setRequestProperty("Content-Type", "application/json")
+        // Persistent connection: keep the socket alive so HttpURLConnection's
+        // pool can reuse it for the next flush instead of a fresh TCP+TLS
+        // handshake per batch. events.sellwild.com is fronted by an ALB whose
+        // cost scales with NewConnectionCount — one connection per POST was
+        // ~1 new connection per request. Reuse drops that toward ~0.
+        conn.setRequestProperty("Connection", "keep-alive")
+        conn.connectTimeout = 10_000
+        conn.readTimeout = 15_000
+        conn.doOutput = true
+        OutputStreamWriter(conn.outputStream).use { it.write(body) }
+        // Fully drain + close the response stream. This is what actually
+        // returns the socket to the keep-alive pool — reading only
+        // `responseCode` leaves the body unread and the connection is dropped
+        // (no reuse). Never call disconnect(): that evicts the pooled socket
+        // and defeats the whole point.
+        val code = conn.responseCode
+        (if (code in 200..299) conn.inputStream else conn.errorStream)
+            ?.use { it.readBytes() }
+        return code
+    }
+}
+
+/**
+ * The events POST body: a JSON array of [batch], each element with the analytics
+ * attributes bag stamped ONCE. The events pipeline reads `attributes.code` for
+ * partner attribution (absent ⇒ the row lands as "Invalid") and `attributes.type`
+ * for the ios/android discriminator (the events view does
+ * JSON_EXTRACT(attributes,'type') → the `type` column); `sdkVersion` rides along
+ * for an installed-base census. Caller-supplied keys are preserved, except that
+ * these three are stamped over them.
+ */
+internal fun buildBatchJson(batch: List<SellwildEvent>, partnerCode: String?, sdkVersion: String): String =
+    JSONArray().apply {
+        batch.forEach { e ->
+            put(JSONObject().apply {
+                put("event", e.event)
+                e.action?.let { put("action", it) }
+                e.label?.let { put("label", it) }
+                put("uid", e.uid)
+                put("createdTime", e.createdTime)
+                put(
+                    "attributes",
+                    JSONObject().apply {
+                        e.attributes?.forEach { (k, v) -> put(k, v) }
+                        put("type", "android")
+                        put("sdkVersion", sdkVersion)
+                        partnerCode?.takeIf { it.isNotEmpty() }?.let { put("code", it) }
+                    },
+                )
+            })
+        }
+    }.toString()
+
+class SellwildEventQueue internal constructor(
+    uidProvider: () -> String,
+    private val sender: SellwildEventSender,
+    private val clock: () -> Long,
+    private val dispatcher: CoroutineDispatcher,
+) {
+
+    constructor(context: Context) : this(
+        uidProvider = prefsUid(context.getSharedPreferences("sellwild_sdk", Context.MODE_PRIVATE)),
+        sender = HttpEventSender,
+        clock = System::currentTimeMillis,
+        dispatcher = Dispatchers.IO,
+    )
+
     private val queue = mutableListOf<SellwildEvent>()
 
     /**
@@ -300,102 +399,114 @@ class SellwildEventQueue(context: Context) {
     @Volatile
     var partnerCode: String? = null
 
-    val uid: String by lazy {
-        prefs.getString("_sw_uid", null) ?: UUID.randomUUID().toString().also { id ->
-            prefs.edit().putString("_sw_uid", id).apply()
-        }
+    val uid: String by lazy(uidProvider)
+
+    /**
+     * POSTs that threw or were answered with a non-2xx status. The batch is dropped
+     * (no retry), and the transport never reports itself through logFailure
+     * (FAILURES.md 8.4): an outage must not feed more events into the queue.
+     */
+    internal val failedPosts = AtomicInteger()
+
+    /**
+     * Queues one event for the next [flush]. [attributes] ride in the event's attributes bag.
+     * @JvmOverloads keeps the 3-argument Java signature this had before [attributes].
+     */
+    @JvmOverloads
+    fun push(
+        event: String,
+        action: String? = null,
+        label: String? = null,
+        attributes: Map<String, Any?>? = null,
+    ) {
+        enqueue(newEvent(event, action, label, attributes))
     }
 
-    fun push(event: String, action: String? = null, label: String? = null) {
+    private fun newEvent(event: String, action: String?, label: String?, attributes: Map<String, Any?>?) =
+        SellwildEvent(event = event, action = action, label = label, attributes = attributes, uid = uid, createdTime = clock())
+
+    private fun enqueue(e: SellwildEvent) {
         // track() pushes on the caller (main) thread while flush() drains on an
         // IO coroutine — guard the shared list so concurrent ad callbacks can't
         // trigger a ConcurrentModificationException / drop events.
         synchronized(queue) {
-            queue.add(SellwildEvent(event = event, action = action, label = label, uid = uid))
+            queue.add(e)
         }
     }
 
-    suspend fun flush() = withContext(Dispatchers.IO) {
-        val batch = synchronized(queue) {
-            val snapshot = queue.toList()
-            queue.clear()
-            snapshot
-        }
-        if (batch.isEmpty()) return@withContext
-
-        runCatching {
-            val json = JSONArray().apply {
-                batch.forEach { e ->
-                    put(JSONObject().apply {
-                        put("event", e.event)
-                        e.action?.let { put("action", it) }
-                        e.label?.let { put("label", it) }
-                        put("uid", e.uid)
-                        put("createdTime", e.createdTime)
-                        // Stamp the analytics attributes bag ONCE. The events
-                        // pipeline reads `attributes.code` for partner attribution
-                        // (absent ⇒ the row lands as "Invalid") and `attributes.type`
-                        // for the ios/android discriminator (the events view does
-                        // JSON_EXTRACT(attributes,'type') → the `type` column);
-                        // `sdkVersion` rides along for an installed-base census.
-                        // Caller-supplied keys are preserved.
-                        put(
-                            "attributes",
-                            JSONObject().apply {
-                                e.attributes?.forEach { (k, v) -> put(k, v) }
-                                put("type", "android")
-                                put("sdkVersion", SellwildSDK.SDK_VERSION)
-                                partnerCode?.takeIf { it.isNotEmpty() }?.let { put("code", it) }
-                            },
-                        )
-                    })
-                }
+    /** POSTs everything queued as one batch. Never throws and never calls logFailure. */
+    suspend fun flush() {
+        withContext(dispatcher) {
+            val batch = synchronized(queue) {
+                val snapshot = queue.toList()
+                queue.clear()
+                snapshot
             }
+            if (batch.isEmpty()) return@withContext
 
-            val conn = URL(eventsUrl).openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.setRequestProperty("Content-Type", "application/json")
-            // Persistent connection: keep the socket alive so HttpURLConnection's
-            // pool can reuse it for the next flush instead of a fresh TCP+TLS
-            // handshake per batch. events.sellwild.com is fronted by an ALB whose
-            // cost scales with NewConnectionCount — one connection per POST was
-            // ~1 new connection per request. Reuse drops that toward ~0.
-            conn.setRequestProperty("Connection", "keep-alive")
-            conn.connectTimeout = 10_000
-            conn.readTimeout = 15_000
-            conn.doOutput = true
-            OutputStreamWriter(conn.outputStream).use { it.write(json.toString()) }
-            // Fully drain + close the response stream. This is what actually
-            // returns the socket to the keep-alive pool — reading only
-            // `responseCode` leaves the body unread and the connection is dropped
-            // (no reuse). Never call disconnect(): that evicts the pooled socket
-            // and defeats the whole point.
-            val code = conn.responseCode
-            (if (code in 200..299) conn.inputStream else conn.errorStream)
-                ?.use { it.readBytes() }
+            runCatching {
+                val status = sender.post(EVENTS_URL, buildBatchJson(batch, partnerCode, SellwildSDK.SDK_VERSION))
+                if (status !in 200..299) failedPosts.incrementAndGet()
+            }.onFailure { failedPosts.incrementAndGet() }
         }
     }
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val scope = CoroutineScope(dispatcher + SupervisorJob())
 
     /**
      * Fire-and-forget: queue one event and flush immediately. Mirrors iOS
      * `SellwildAPIClient.sendEvent` — call sites don't need their own scope.
+     * Android does not batch: every call is its own POST. @JvmOverloads as on [push].
      */
-    fun track(event: String, action: String? = null, label: String? = null) {
+    @JvmOverloads
+    fun track(
+        event: String,
+        action: String? = null,
+        label: String? = null,
+        attributes: Map<String, Any?>? = null,
+    ) {
         if (!enabled) return
-        push(event, action, label)
+        track(newEvent(event, action, label, attributes))
+    }
+
+    /** [track] for an event built elsewhere (logFailure), keeping its uid and createdTime. */
+    internal fun track(e: SellwildEvent) {
+        if (!enabled) return
+        enqueue(e)
         scope.launch { flush() }
     }
 
     companion object {
+        internal const val EVENTS_URL = "https://events.sellwild.com/events/queue"
+
         @Volatile private var instance: SellwildEventQueue? = null
 
-        /** Process-wide queue, keyed to the application context. */
-        fun shared(context: Context): SellwildEventQueue =
-            instance ?: synchronized(this) {
-                instance ?: SellwildEventQueue(context.applicationContext).also { instance = it }
+        /**
+         * Process-wide queue, keyed to the application context. Creating it also
+         * attaches logFailure, which sends through this queue from then on.
+         */
+        fun shared(context: Context): SellwildEventQueue {
+            instance?.let { return it }
+            val created = synchronized(this) {
+                instance?.let { return it }
+                SellwildEventQueue(context.applicationContext).also { instance = it }
             }
+            // Outside the lock: attaching may send failures held before any Context
+            // existed (configure() has none), and sending calls uid, which reads prefs.
+            SellwildFailures.attachQueue(created)
+            return created
+        }
+
+        /** Forgets the process-wide queue. Tests only. */
+        internal fun resetSharedForTests() {
+            instance = null
+        }
+
+        private fun prefsUid(prefs: SharedPreferences): () -> String = {
+            prefs.getString("_sw_uid", null) ?: UUID.randomUUID().toString().also { id ->
+                prefs.edit().putString("_sw_uid", id).apply()
+            }
+        }
     }
 }
 
@@ -405,10 +516,21 @@ class SellwildEventQueue(context: Context) {
  * Resolves the analytics kill switch from remote config. Events are enabled
  * unless the CMS explicitly disables them (EVENTS_ENABLED = false / "false" /
  * 0). An absent key leaves events ON so analytics are never silently dropped.
+ * Remote JSON that does not parse also leaves them on, and is reported.
  */
 object SellwildEvents {
     fun isEnabled(remoteJson: String?): Boolean {
-        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return true
+        val obj = remoteJson?.let { json ->
+            runCatching { JSONObject(json) }.getOrElse { e ->
+                SellwildFailures.log(
+                    code = SellwildFailureCode.CONFIG_REMOTE_VALUES_PARSE,
+                    component = SellwildFailureComponent.REMOTE_CONFIG,
+                    severity = SellwildFailureSeverity.WARN,
+                    error = e,
+                )
+                null
+            }
+        } ?: return true
         if (!obj.has("EVENTS_ENABLED")) return true
         return when (val v = obj.opt("EVENTS_ENABLED")) {
             is Boolean -> v

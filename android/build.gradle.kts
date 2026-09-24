@@ -6,6 +6,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("maven-publish")
+    // Coverage: Kover line/branch report for the unit tests
+    // (scripts/coverage/android.sh). Test tooling only; the AAR is unchanged.
+    id("org.jetbrains.kotlinx.kover") version "0.9.1"
 }
 
 android {
@@ -76,6 +79,13 @@ android {
         unitTests.isReturnDefaultValues = true
         targetSdk = 35
     }
+
+    sourceSets {
+        // Cross-platform contracts (schemas, fixtures, golden vectors) ride the
+        // unit-test classpath, so tests load them as resources
+        // (support/FixtureLoader.kt). A missing dir is fine.
+        getByName("test").resources.srcDir("../contracts")
+    }
 }
 
 dependencies {
@@ -132,8 +142,100 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("org.json:json:20240303")
+    // Robolectric for Uri / SharedPreferences / Looper / View shells. Plain
+    // JUnit tests keep the android.jar stubs (isReturnDefaultValues above).
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("io.mockk:mockk:1.13.17")
+    // Validates mock factories against ../contracts/schemas (JSON Schema 2020-12).
+    testImplementation("com.networknt:json-schema-validator:1.5.6")
+    // The existing JUnit 4 tests run unchanged on the vintage engine; the
+    // launcher API is for support/NetworkBlockSessionListener.kt.
+    testImplementation("org.junit.platform:junit-platform-launcher:1.11.4")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.11.4")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+}
+
+// ── Unit-test harness ────────────────────────────────────────────────────────
+// Robolectric runs offline. Gradle resolves the android-all jar for the default
+// SDK (src/test/resources/robolectric.properties) and the test JVM never
+// downloads it, because unit tests block the network
+// (src/test/kotlin/com/sellwild/sdk/support/NetworkBlock.kt).
+val robolectricAndroidAll: Configuration by configurations.creating {
+    isCanBeConsumed = false
+    isTransitive = false
+}
+dependencies {
+    // The pre-instrumented SDK 35 jar Robolectric 4.14.1 asks for
+    // (DefaultSdkProvider). Bump it together with the Robolectric version.
+    robolectricAndroidAll("org.robolectric:android-all-instrumented:15-robolectric-12650502-i7")
+}
+val robolectricDepsDir = layout.buildDirectory.dir("robolectric-deps")
+val syncRobolectricDeps = tasks.register<Sync>("syncRobolectricDeps") {
+    from(robolectricAndroidAll)
+    into(robolectricDepsDir)
+}
+// support/ContractEmitter.kt writes factory output here, and
+// contracts/scripts/validate.mjs --out android checks it. SELLWILD_CONTRACT_OUT
+// moves the root, as it does for validate.mjs (a relative path resolves from
+// this module dir; scripts/coverage/android.sh passes an absolute one).
+val contractsOutDir: File = providers.environmentVariable("SELLWILD_CONTRACT_OUT")
+    .filter { it.isNotBlank() }
+    .map { file(it).resolve("android") }
+    .getOrElse(file("../contracts/out/android"))
+// support/NetworkBlockAuditListener.kt appends every http/https attempt a test
+// did not expect (NetworkBlockRule.expectAttempts) to <task name>.txt here.
+val networkAuditDir = layout.buildDirectory.dir("network-block").get().asFile
+
+tasks.withType<Test>().configureEach {
+    dependsOn(syncRobolectricDeps)
+    // JUnit 4 tests run on the JUnit Platform (vintage engine), so
+    // support/NetworkBlockSessionListener.kt blocks the network before the
+    // first test class loads, including tests that never opt in.
+    useJUnitPlatform()
+    // Each Robolectric SDK sandbox holds a full android-all in memory.
+    maxHeapSize = "2g"
+    systemProperty("robolectric.offline", "true")
+    systemProperty("robolectric.dependency.dir", robolectricDepsDir.get().asFile.absolutePath)
+    systemProperty("sellwild.contracts.outDir", contractsOutDir.absolutePath)
+    outputs.dir(contractsOutDir)
+
+    // A test that tried the network fails the task even when it passed: SDK code
+    // swallows the blocked IOException, and a JUnit listener cannot fail a test.
+    val networkAudit = File(networkAuditDir, "$name.txt")
+    systemProperty("sellwild.test.networkBlock.report", networkAudit.absolutePath)
+    outputs.file(networkAudit)
+    doFirst { networkAudit.delete() }
+    doLast {
+        if (networkAudit.isFile && networkAudit.length() > 0) {
+            throw GradleException(
+                "Unit tests opened network connections they did not expect, or left an HttpStub " +
+                    "installed (contract A8). " +
+                    "Stub them with support/HttpStub.kt or inject a fake; a test that means to " +
+                    "hit the block calls NetworkBlockRule.expectAttempts().\n" + networkAudit.readText(),
+            )
+        }
+    }
+}
+
+// ../contracts is a test resource dir. Keep the tests' own output and any node
+// tooling off the classpath (out/ would otherwise re-trigger every test run).
+tasks.withType<Sync>().matching { it.name.endsWith("UnitTestJavaRes") }.configureEach {
+    exclude("out/**", "**/node_modules/**")
+}
+
+kover {
+    reports {
+        filters {
+            excludes {
+                // R, BuildConfig and the other classes AGP generates.
+                androidGeneratedClasses()
+            }
+        }
+        // No verify rule here: scripts/coverage/android-summary.mjs computes the
+        // gate (include list + 95% target) from the XML report.
+    }
 }
 
 publishing {

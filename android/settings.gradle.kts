@@ -22,6 +22,9 @@ dependencyResolutionManagement {
         mavenCentral()
         // JitPack for namespace-shaded Prebid Mobile fork
         maven { url = uri("https://jitpack.io") }
+        // Sellwild releases: com.sellwild:omsdk-android, a transitive dep of
+        // the Prebid fork. Without it a clean machine cannot resolve the fork.
+        maven { url = uri("https://maven.sellwild.com/releases") }
         // Local Maven repo for namespace-shaded Prebid Mobile (dev only)
         mavenLocal()
     }
