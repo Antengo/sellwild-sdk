@@ -52,6 +52,9 @@ internal class RnSellwildFeedView(context: Context) : SellwildFeedView(context) 
  *     The bridge re-runs the CDN decoder against `config.remote` so
  *     feed-specific fields (COL1, bgColor, mobileZids, listingsUrl, …)
  *     are populated identically to a native [SellwildSDK.configure] call.
+ *   - scrollEnabled: bool — disable internal scrolling for embedding.
+ *   - consumeListingTaps: bool — when true the host owns listing taps; the
+ *     SDK does not open Custom Tabs.
  *
  * Events emitted to JS:
  *   - onFeedLoaded
@@ -73,7 +76,12 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
 
     private data class PendingProps(
         var config: ReadableMap? = null,
-        var lastAppliedKey: String? = null,
+        // When true, listing taps are only forwarded to JS and the SDK does
+        // not open Custom Tabs. Read at tap time, so it applies live.
+        var consumeListingTaps: Boolean = false,
+        // Last applied config, compared by value. A hashCode() key is only a
+        // probabilistic match (collisions ⇒ a real config change is skipped).
+        var lastAppliedConfig: Map<String, Any?>? = null,
     )
 
     override fun createViewInstance(reactContext: ThemedReactContext): SellwildFeedView {
@@ -85,8 +93,10 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
                     putMap("listing", listingPayload(listing))
                 }
                 emit(reactContext, view, "onListingTap", payload)
-                // SDK still owns navigation (Custom Tabs); JS just observes.
-                return false
+                // JS can't return a value through an (async) RN event, so the
+                // `consumeListingTaps` prop decides whether the SDK opens
+                // Custom Tabs (false, default) or leaves navigation to the host.
+                return pending[view]?.consumeListingTaps ?: false
             }
 
             override fun onAdImpression(zoneId: String) {
@@ -136,15 +146,20 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
         view.scrollEnabled = value
     }
 
+    @ReactProp(name = "consumeListingTaps", defaultBoolean = false)
+    fun setConsumeListingTaps(view: SellwildFeedView, value: Boolean) {
+        pendingFor(view).consumeListingTaps = value
+    }
+
     override fun onAfterUpdateTransaction(view: SellwildFeedView) {
         super.onAfterUpdateTransaction(view)
 
         val p = pending[view] ?: return
         val configMap = p.config ?: return
 
-        val key = "${configMap.hashCode()}"
-        if (p.lastAppliedKey == key) return
-        p.lastAppliedKey = key
+        val configValue = configMap.toHashMap()
+        if (p.lastAppliedConfig == configValue) return
+        p.lastAppliedConfig = configValue
 
         val config = configFromMap(configMap)
         view.setup(config)
