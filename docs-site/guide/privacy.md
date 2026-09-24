@@ -72,7 +72,7 @@ val gdprApplies = prefs.getInt("IABTCF_gdprApplies", 0) == 1
 val tcString = prefs.getString("IABTCF_TCString", "") ?: ""
 ```
 
-**React Native / Flutter:**
+**React Native:**
 
 Pass the consent values directly through `SellwildConfig`:
 
@@ -198,11 +198,6 @@ SellwildConfig(gppEnabled = true, ...)
 ```ts
 // React Native
 buildConfig({ gppEnabled: true, ... })
-```
-
-```dart
-// Flutter
-SellwildConfig(gppEnabled: true, ...)
 ```
 
 ### How It Works
