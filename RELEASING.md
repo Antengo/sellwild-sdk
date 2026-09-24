@@ -127,6 +127,11 @@ npm view @sellwild/sdk-core version  # expect X.Y.Z
 cd ../react-native && npx tsc --noEmit
 npm publish --access public
 npm view @sellwild/react-native-sdk version  # expect X.Y.Z
+
+# 4. Refresh RN's lockfile against the now-published core and commit it
+#    (until then `npm ci` in react-native/ fails: the lockfile still pins the
+#    previous core range).
+npm install --legacy-peer-deps && git commit -am "chore(rn): refresh lockfile for core X.Y.Z"
 ```
 
 Verify in a scratch RN app: `npm install @sellwild/react-native-sdk@X.Y.Z`, then
