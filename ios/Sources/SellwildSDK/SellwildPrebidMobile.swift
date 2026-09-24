@@ -43,23 +43,39 @@ public enum SellwildPrebidMobile {
     ///
     /// Idempotent: safe to call from every `SellwildSDK.configure(...)` result
     /// and from every `SellwildAdView.load()` — only the first call performs
-    /// SDK initialization. Subsequent calls return immediately.
+    /// SDK initialization. Later calls with the same effective config return
+    /// immediately; a later call with a DIFFERENT config re-applies the
+    /// per-config Prebid fields (account id, server host/timeout, store URL,
+    /// publisher id, app categories) without re-running SDK initialization.
     @discardableResult
     public static func bootstrap(with config: SellwildConfig) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        if didBootstrap { return true }
+        let specified = perConfigFields(from: config)
+        if didBootstrap {
+            // Only fields this config actually specifies overwrite; absent ones
+            // keep their last value, so a bare `SellwildConfig(partnerCode:)`
+            // (or an RN-rebuilt config without remoteJSON) can't wipe a
+            // CDN-resolved account / publisher id.
+            let merged = specified.overlaying(appliedFields)
+            if merged != appliedFields {
+                applyPerConfigFields(merged, updateHost: true)
+            }
+            return true
+        }
 
         // GMA first — Prebid hands off to GAM, GAM must be live before any
         // ad request runs.
         MobileAds.shared.start(completionHandler: nil)
 
-        // Resolve Prebid Server URL + account id. Typed config wins; fall back
-        // to raw CDN passthrough; final fallback is Sellwild's hosted Prebid
-        // Server so the SDK still does *something* on partial CMS config.
-        let resolved = resolvePrebidServer(from: config)
-        SellwildPrebid.shared.prebidServerAccountId = resolved.accountId
-        SellwildPrebid.shared.timeoutMillis = config.prebidServer?.timeout ?? 1500
+        // Resolve Prebid Server URL + account id + timeout. Typed config wins;
+        // fall back to the CDN S2S_CONFIG; final fallback is Sellwild's hosted
+        // Prebid Server so the SDK still does *something* on partial CMS config.
+        let fields = specified.overlaying(PerConfigFields(
+            serverURL: defaultPrebidEndpoint,
+            accountId: config.partnerCode,
+            timeout: defaultTimeoutMillis
+        ))
         SellwildPrebid.shared.shareGeoLocation = true
         if config.debug {
             SellwildPrebid.shared.logLevel = .debug
@@ -68,45 +84,10 @@ public enum SellwildPrebidMobile {
         // so the PBS response carries the full debug block. Separate from log level.
         SellwildPrebid.shared.pbsDebug = config.pbsDebug
 
-        // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
-        // OpenRTB app identity. In Prebid Mobile, Targeting.itunesID maps to
-        // app.bundle; Targeting.sourceapp maps to app.NAME (not the bundle).
-        // On iOS app.bundle must be the NUMERIC App Store ID — buyers key on it
-        // (app-ads.txt / DSP allow-lists); reverse-DNS breaks matching. Derive
-        // the numeric id from the store URL's `/idNNNNN` segment and set it via
-        // itunesID. If we can't parse one, leave app.bundle to Prebid's default
-        // (reverse-DNS Bundle id) and let the edge Lambda backstop it.
-        //
-        // NOTE: we deliberately no longer assign the bundle id to `sourceapp` —
-        // that was polluting app.name with the reverse-DNS bundle. app.name is
-        // left to Prebid's auto-detected display name.
-        if let numericId = appStoreId(from: config.appStoreUrl) {
-            Targeting.shared.itunesID = numericId
-        }
-        // storeURL is independent of the bundle id — set it whenever configured
-        // so a valid appStoreUrl is never dropped just because appBundleId is nil.
-        if let store = config.appStoreUrl {
-            Targeting.shared.storeURL = store
-        }
-
-        // app.publisher.id must equal the sellers.json seller id (== schain sid)
-        // for supply-chain coherence. No Targeting property maps to
-        // app.publisher.id, so inject it via the global ORTB config. Sourced
-        // from the CDN S2S_CONFIG blob (publisherId / sellerId).
-        // Capture the resolved publisher id + any declared geo, then emit ONE
-        // combined global ORTB config (app.publisher.id + device.geo).
-        // setGlobalORTBConfig is last-write-wins, so both must live in a single
-        // object; a later setGeo(_:) re-emits it with updated geo.
-        // resolvedPublisherId is protected by `lock` — we're already inside it
-        // for the duration of bootstrap. applyGlobalORTB() takes a snapshot
-        // under the same lock, so a concurrent setGeo() can't race the emit.
-        resolvedPublisherId = resolvePublisherId(from: config)
-        // IAB content categories (IAB_CATS) → ORTB app.cat, so DSPs get content
-        // taxonomy / brand-safety context on the bid request. Content signal, not
-        // consent — safe to always attach when the CMS provides it.
-        resolvedCats = config.iabCats.isEmpty ? nil : config.iabCats
         if SellwildGeoStore.current == nil { SellwildGeoStore.current = config.geo }
-        applyGlobalORTB()
+        // Account / timeout / app identity / publisher id / cats, then the
+        // combined global ORTB emit. The host is set by initializeSDK below.
+        applyPerConfigFields(fields, updateHost: false)
 
         do {
             // Prebid 3.x signature: serverURL is required, GMA version is
@@ -114,7 +95,7 @@ public enum SellwildPrebidMobile {
             let v = MobileAds.shared.versionNumber
             let gmaVersion = "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
             try SellwildPrebid.initializeSDK(
-                serverURL: resolved.url,
+                serverURL: fields.serverURL ?? defaultPrebidEndpoint,
                 gadMobileAdsVersion: gmaVersion
             ) { status, error in
                 if let error {
@@ -203,34 +184,110 @@ public enum SellwildPrebidMobile {
 
     // MARK: - Helpers
 
-    private struct PrebidServerResolution {
-        let url: String
-        let accountId: String
+    /// Per-config Prebid fields `bootstrap` applies (and re-applies when a later
+    /// config differs). nil = "this config doesn't specify it".
+    private struct PerConfigFields: Equatable {
+        var serverURL: String?
+        var accountId: String?
+        var timeout: Int?
+        var storeURL: String?
+        var publisherId: String?
+        var cats: [String]?
+
+        /// Fill fields this value leaves nil from `base`.
+        func overlaying(_ base: PerConfigFields?) -> PerConfigFields {
+            guard let base else { return self }
+            return PerConfigFields(
+                serverURL: serverURL ?? base.serverURL,
+                accountId: accountId ?? base.accountId,
+                timeout: timeout ?? base.timeout,
+                storeURL: storeURL ?? base.storeURL,
+                publisherId: publisherId ?? base.publisherId,
+                cats: cats ?? base.cats
+            )
+        }
     }
 
-    private static func resolvePrebidServer(
-        from config: SellwildConfig
-    ) -> PrebidServerResolution {
-        // 1. Typed config (set by SDK code or partner override).
-        if let p = config.prebidServer {
-            return PrebidServerResolution(url: p.endpoint, accountId: p.accountId)
-        }
-        // 2. Raw CDN passthrough.
-        if let s2s = config.remoteValues?["S2S_CONFIG"] as? [String: Any] {
-            let url = (s2s["endpoint"] as? String)
-                ?? (s2s["url"] as? String)
-                ?? defaultPrebidEndpoint
-            let acct = (s2s["accountId"] as? String)
-                ?? (s2s["account"] as? String)
-                ?? config.partnerCode
-            return PrebidServerResolution(url: url, accountId: acct)
-        }
-        // 3. Sellwild-hosted default.
-        return PrebidServerResolution(
-            url: defaultPrebidEndpoint,
-            accountId: config.partnerCode
+    /// Last fields applied by `bootstrap`. Protected by `lock`.
+    private static var appliedFields: PerConfigFields?
+
+    private static func perConfigFields(from config: SellwildConfig) -> PerConfigFields {
+        let server = specifiedPrebidServer(from: config)
+        return PerConfigFields(
+            serverURL: server?.endpoint,
+            accountId: server?.accountId,
+            timeout: server?.timeout,
+            storeURL: config.appStoreUrl,
+            publisherId: resolvePublisherId(from: config),
+            // IAB content categories (IAB_CATS) → ORTB app.cat, so DSPs get content
+            // taxonomy / brand-safety context on the bid request. Content signal, not
+            // consent — safe to always attach when the CMS provides it.
+            cats: config.iabCats.isEmpty ? nil : config.iabCats
         )
     }
+
+    /// Push `f` into Prebid targeting and re-emit the global ORTB config.
+    /// Caller holds `lock`. nil fields are left untouched.
+    private static func applyPerConfigFields(_ f: PerConfigFields, updateHost: Bool) {
+        if let acct = f.accountId { SellwildPrebid.shared.prebidServerAccountId = acct }
+        if let t = f.timeout { SellwildPrebid.shared.timeoutMillis = t }
+        if updateHost, let url = f.serverURL {
+            do {
+                try Host.shared.setHostURL(url, nonTrackingURLString: nil)
+            } catch {
+                log("SellwildPrebid host update failed: \(error.localizedDescription)")
+            }
+        }
+
+        // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
+        // OpenRTB app identity. In Prebid Mobile, Targeting.itunesID maps to
+        // app.bundle; Targeting.sourceapp maps to app.NAME (not the bundle).
+        // On iOS app.bundle must be the NUMERIC App Store ID — buyers key on it
+        // (app-ads.txt / DSP allow-lists); reverse-DNS breaks matching. Derive
+        // the numeric id from the store URL's `/idNNNNN` segment and set it via
+        // itunesID. If we can't parse one, leave app.bundle to Prebid's default
+        // (reverse-DNS Bundle id) and let the edge Lambda backstop it.
+        //
+        // NOTE: we deliberately no longer assign the bundle id to `sourceapp` —
+        // that was polluting app.name with the reverse-DNS bundle. app.name is
+        // left to Prebid's auto-detected display name.
+        if let numericId = appStoreId(from: f.storeURL) {
+            Targeting.shared.itunesID = numericId
+        }
+        // storeURL is independent of the bundle id — set it whenever configured
+        // so a valid appStoreUrl is never dropped just because appBundleId is nil.
+        if let store = f.storeURL {
+            Targeting.shared.storeURL = store
+        }
+
+        // app.publisher.id must equal the sellers.json seller id (== schain sid)
+        // for supply-chain coherence. No Targeting property maps to
+        // app.publisher.id, so inject it via the global ORTB config.
+        // Capture the resolved publisher id + cats, then emit ONE combined global
+        // ORTB config (app.publisher.id + app.cat + device.geo).
+        // setGlobalORTBConfig is last-write-wins, so all must live in a single
+        // object; a later setGeo(_:) re-emits it with updated geo.
+        // resolvedPublisherId is protected by `lock` — the caller holds it.
+        // applyGlobalORTB() takes a snapshot under the same (recursive) lock, so
+        // a concurrent setGeo() can't race the emit.
+        resolvedPublisherId = f.publisherId
+        resolvedCats = f.cats
+        appliedFields = f
+        applyGlobalORTB()
+    }
+
+    /// Prebid Server fields the config actually specifies: typed
+    /// `prebidServer` (SDK code / partner override) wins, else the CDN
+    /// `S2S_CONFIG` (usually a JS object-literal string — see
+    /// `SellwildS2SConfig`). nil when neither is usable.
+    private static func specifiedPrebidServer(from config: SellwildConfig) -> SellwildS2SConfig? {
+        if let p = config.prebidServer {
+            return SellwildS2SConfig(accountId: p.accountId, endpoint: p.endpoint, timeout: p.timeout)
+        }
+        return SellwildS2SConfig.parse(config.remoteValues?["S2S_CONFIG"])
+    }
+
+    private static let defaultTimeoutMillis = 1500
 
     private static let defaultPrebidEndpoint =
         "https://prebid.sellwild.com/openrtb2/auction"
