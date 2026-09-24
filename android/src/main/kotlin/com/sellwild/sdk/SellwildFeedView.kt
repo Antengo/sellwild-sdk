@@ -515,12 +515,6 @@ open class SellwildFeedView @JvmOverloads constructor(
             }
         }
 
-        // A recycled holder is off-screen and headed for the pool (where it may
-        // be dropped without notice): destroy its ad view so the refresh loop
-        // stops. A later bind creates a fresh one.
-        override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
-            (holder as? AdHolder)?.view?.destroyAd()
-        }
 
         fun destroyAdRows() {
             adRows.forEach { it.destroyAd() }

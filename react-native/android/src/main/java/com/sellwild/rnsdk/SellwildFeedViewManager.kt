@@ -153,6 +153,9 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
 
     override fun onDropViewInstance(view: SellwildFeedView) {
         pending.remove(view)
+        // RN unmounted the feed for good: stop its ad rows' refresh and release
+        // the Activity (detach alone doesn't when MOBILE_PAUSE_REFRESH_DETACHED=false).
+        view.destroy()
         super.onDropViewInstance(view)
     }
 
