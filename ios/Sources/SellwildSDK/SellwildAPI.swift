@@ -156,17 +156,30 @@ public final class SellwildAPIClient {
     private let session: URLSession
     private let listingCache = NSCache<NSString, ListingsCacheEntry>()
 
-    /// Analytics kill switch. Defaults on; `SellwildAdView` sets this from the
-    /// resolved remote config (EVENTS_ENABLED) so events can be stopped via CMS
-    /// without an app release. When off, `sendEvent` is a no-op.
-    public var eventsEnabled: Bool = true
+    /// Analytics kill switch. Defaults on; `SellwildSDK.configure` and
+    /// `SellwildAdView` set this from the resolved remote config (EVENTS_ENABLED)
+    /// so events can be stopped via CMS without an app release. When off,
+    /// `sendEvent` is a no-op.
+    public var eventsEnabled: Bool {
+        get { withEventSettings { _eventsEnabled } }
+        set { withEventSettings { _eventsEnabled = newValue } }
+    }
 
     /// Partner attribution. Set from the resolved config (CODE / partnerCode) so
     /// every event carries `attributes.code` — the events pipeline keys the
     /// partner off that field. When absent, the server stamps the partner as
     /// "Invalid", so this must be populated before any emit. Applied in
     /// `stampEvent` so it rides every batched event.
-    public var partnerCode: String?
+    public var partnerCode: String? {
+        get { withEventSettings { _partnerCode } }
+        set { withEventSettings { _partnerCode = newValue } }
+    }
+
+    // `configure` writes the two settings above off the main thread,
+    // `SellwildAdView` on it, and `sendEvent` reads them on the caller's thread.
+    private let eventSettingsLock = NSLock()
+    private var _eventsEnabled = true
+    private var _partnerCode: String?
 
     // MARK: Event batching
     // Analytics events are coalesced into array POSTs to /events/queue instead of
@@ -180,14 +193,26 @@ public final class SellwildAPIClient {
     private let maxEventQueue = 1000
     private let eventFlushInterval: TimeInterval = 10
     private var eventBuffer: [SellwildEvent] = []
-    private var eventFlushTimer: DispatchSourceTimer?
+    private var cancelEventFlush: (() -> Void)?
     private var hasFlushedFirstEvent = false
     private var lifecycleObservers: [NSObjectProtocol] = []
+    private let eventTransport: SellwildEventTransport
+    /// Time for the events queue: the batch timer, and each clientFailure's
+    /// `createdTime` (`SellwildFailures` reads it).
+    let eventClock: SellwildEventClock
 
     public static let shared = SellwildAPIClient()
 
-    public init(session: URLSession = .shared) {
+    public convenience init(session: URLSession = .shared) {
+        self.init(session: session, eventTransport: .session(session), eventClock: .system)
+    }
+
+    /// Tests inject a transport that captures batches and a clock they
+    /// advance by hand.
+    init(session: URLSession, eventTransport: SellwildEventTransport, eventClock: SellwildEventClock) {
         self.session = session
+        self.eventTransport = eventTransport
+        self.eventClock = eventClock
         registerLifecycleFlush()
     }
 
@@ -388,6 +413,12 @@ public final class SellwildAPIClient {
         eventQueue.async { self.flushEventsLocked() }
     }
 
+    /// Returns once the queue work submitted before this call has run. Tests
+    /// use it instead of sleeping.
+    func waitForEventQueue() {
+        eventQueue.sync {}
+    }
+
     /// Stamp platform + sdkVersion into the free-form `attributes` bag for an
     /// installed-base census (queryable in BigQuery, no server change). Caller
     /// keys are preserved; the SDK-reserved keys are applied last.
@@ -400,18 +431,28 @@ public final class SellwildAPIClient {
         attributes["type"] = "ios"
         attributes["sdkVersion"] = SellwildSDK.sdkVersion
         // Partner attribution: the events pipeline keys the partner off
-        // attributes.code; without it every event lands as "Invalid".
-        if let code = partnerCode, !code.isEmpty {
+        // attributes.code; without it every event lands as "Invalid". A
+        // clientFailure keeps the code logFailure set (bounded, or "unknown"),
+        // so its wire form matches the contract (FAILURES.md 6.3).
+        let keepsCode = stamped.event == "clientFailure" && attributes["code"] != nil
+        if let code = partnerCode, !code.isEmpty, !keepsCode {
             attributes["code"] = code
         }
         stamped.attributes = attributes
         return stamped
     }
 
-    // Must run on `eventQueue`.
+    private func withEventSettings<T>(_ body: () -> T) -> T {
+        eventSettingsLock.lock()
+        defer { eventSettingsLock.unlock() }
+        return body()
+    }
+
+    // Must run on `eventQueue`. Transport: never calls SellwildFailures.log,
+    // which would feed an outage back into this queue (FAILURES.md 8.4).
     private func flushEventsLocked() {
-        eventFlushTimer?.cancel()
-        eventFlushTimer = nil
+        cancelEventFlush?()
+        cancelEventFlush = nil
         guard !eventBuffer.isEmpty else { return }
         let batch = Array(eventBuffer.prefix(maxEventBatch))
         eventBuffer.removeFirst(batch.count)
@@ -422,7 +463,7 @@ public final class SellwildAPIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
 
-        session.dataTask(with: request) { [weak self] _, _, error in
+        eventTransport.send(request) { [weak self] error in
             guard let self = self, error != nil else { return }
             // Re-queue on failure (capped) and reschedule so a transient outage
             // recovers without waiting for the next event.
@@ -433,17 +474,15 @@ public final class SellwildAPIClient {
                 }
                 self.scheduleEventFlushLocked()
             }
-        }.resume()
+        }
     }
 
     // Must run on `eventQueue`.
     private func scheduleEventFlushLocked() {
-        guard eventFlushTimer == nil else { return }
-        let timer = DispatchSource.makeTimerSource(queue: eventQueue)
-        timer.schedule(deadline: .now() + eventFlushInterval)
-        timer.setEventHandler { [weak self] in self?.flushEventsLocked() }
-        eventFlushTimer = timer
-        timer.resume()
+        guard cancelEventFlush == nil else { return }
+        cancelEventFlush = eventClock.schedule(eventFlushInterval, eventQueue) { [weak self] in
+            self?.flushEventsLocked()
+        }
     }
 
     private func registerLifecycleFlush() {
@@ -508,13 +547,53 @@ public struct SellwildEvent: Codable {
     public let createdTime: Int64
 
     public init(event: String, action: String? = nil, label: String? = nil, attributes: [String: String]? = nil) {
+        self.init(event: event, action: action, label: label, attributes: attributes,
+                  uid: SellwildSession.shared.uid, createdTime: Int64(Date().timeIntervalSince1970 * 1000))
+    }
+
+    init(event: String, action: String?, label: String?, attributes: [String: String]?, uid: String, createdTime: Int64) {
         self.event = event
         self.action = action
         self.label = label
         self.attributes = attributes
-        self.uid = SellwildSession.shared.uid
-        self.createdTime = Int64(Date().timeIntervalSince1970 * 1000)
+        self.uid = uid
+        self.createdTime = createdTime
     }
+}
+
+// MARK: - Event transport and clock
+
+/// Sends one events batch (a POST to /events/queue) and reports the
+/// transport error, or nil. Like the rest of the queue it never reports its
+/// own failures.
+struct SellwildEventTransport {
+    var send: (_ request: URLRequest, _ completion: @escaping (Error?) -> Void) -> Void
+
+    static func session(_ session: URLSession) -> SellwildEventTransport {
+        SellwildEventTransport { request, completion in
+            session.dataTask(with: request) { _, _, error in completion(error) }.resume()
+        }
+    }
+}
+
+/// The events queue's time source.
+struct SellwildEventClock {
+    /// Epoch milliseconds.
+    var now: () -> Int64
+    /// Runs `work` on `queue` after `delay` seconds. The returned closure
+    /// cancels it.
+    var schedule: (_ delay: TimeInterval, _ queue: DispatchQueue, _ work: @escaping () -> Void) -> () -> Void
+
+    static let system = SellwildEventClock(
+        now: { Int64(Date().timeIntervalSince1970 * 1000) },
+        schedule: { delay, queue, work in
+            let timer = DispatchSource.makeTimerSource(queue: queue)
+            timer.schedule(deadline: .now() + delay)
+            timer.setEventHandler(handler: work)
+            timer.resume()
+            return { timer.cancel() }
+        }
+    )
 }
 
 // MARK: - Analytics kill switch
