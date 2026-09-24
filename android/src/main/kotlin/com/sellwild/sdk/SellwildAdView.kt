@@ -178,6 +178,15 @@ open class SellwildAdView @JvmOverloads constructor(
     private val effectiveRefreshMax: Int
         get() = if (config.adRefreshMaxMobile > 0) config.adRefreshMaxMobile else config.adRefreshMax
 
+    /**
+     * Whether another prebidOnly auction fits the refresh cap. The budget is the
+     * first render + up to [effectiveRefreshMax] refreshes; [prebidRefreshCount]
+     * counts renders, so it's spent once the count exceeds the max (the same
+     * point the render listener calls stopRefresh()).
+     */
+    private val hasPrebidRefreshBudget: Boolean
+        get() = effectiveRefreshMax > 0 && prebidRefreshCount <= effectiveRefreshMax
+
     // Cold-start guard: Prebid Mobile init is async and races the first load().
     // Wait up to ~1.2s (8 × 150ms) for init before falling back to GAM-only, so
     // the first impression isn't silently downgraded and loses Prebid demand.
@@ -244,6 +253,10 @@ open class SellwildAdView @JvmOverloads constructor(
      * multiple times; each call triggers a fresh load.
      */
     fun load() {
+        if (!::config.isInitialized) {
+            Log.w(TAG, "load() called before setup(); ignoring.")
+            return
+        }
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(context, config)
 
@@ -283,6 +296,10 @@ open class SellwildAdView @JvmOverloads constructor(
     }
 
     fun resume() {
+        if (!::config.isInitialized) {
+            Log.w(TAG, "resume() called before setup(); ignoring.")
+            return
+        }
         if (needsReloadOnResume) {
             needsReloadOnResume = false
             load() // the first auction never completed (paused mid cold-start)
@@ -297,7 +314,9 @@ open class SellwildAdView @JvmOverloads constructor(
         when (resolvedAdStack) {
             SellwildAdStack.BOTH, SellwildAdStack.GAM_ONLY -> scheduleRefresh()
             SellwildAdStack.PREBID_ONLY ->
-                if (effectiveRefreshMax > 0 && !nativeEnabled) {
+                // Only while the refresh cap has budget: once it is spent, a reattach
+                // starts no new auction (with either flag) — the last creative stays.
+                if (hasPrebidRefreshBudget && !nativeEnabled) {
                     // Default (flag off): re-issue loadAd() to un-latch the fork's
                     // refresh cadence — but this discards the current creative
                     // before its viewability tracker fires, so burl (the viewable
@@ -354,7 +373,7 @@ open class SellwildAdView @JvmOverloads constructor(
      * refresh cap. Reuses the shared [refreshHandler]; never stacks callbacks.
      */
     private fun schedulePrebidRefresh() {
-        if (effectiveRefreshMax <= 0 || prebidRefreshCount >= effectiveRefreshMax) return
+        if (!hasPrebidRefreshBudget) return
         val handler = refreshHandler ?: Handler(Looper.getMainLooper()).also { refreshHandler = it }
         handler.removeCallbacksAndMessages(null)
         val interval = config.adRefreshIntervalMs.coerceAtLeast(MIN_REFRESH_INTERVAL_MS)
@@ -645,12 +664,14 @@ open class SellwildAdView @JvmOverloads constructor(
 
         prebidWaitAttempts = 0
         val size = adSize
+        // Bidder params are configured server-side in the stored imp. Don't send
+        // CMS config inline — it includes non-bidder keys that PBS rejects
+        // (parity with iOS, which sends empty bidder params).
         SellwildPrebidMobile.runBannerAuction(
             adView = banner,
             configId = configId,
             widthDp = size.width,
             heightDp = size.height,
-            bidderParams = bidderParamsFromRemote(config),
             video = SellwildVideo.isEnabled(config.remoteJson, zoneId),
             adSizes = resolvedAdSizes,
             gpid = effectiveGpid,
@@ -957,6 +978,9 @@ open class SellwildAdView @JvmOverloads constructor(
     }
 
     private fun scheduleRefresh() {
+        // Detached (paused for detach): a GAM load that lands after pause() must
+        // not re-arm refresh on an off-window view — resume() restarts it.
+        if (isPausedForDetach) return
         val maxRefresh = effectiveRefreshMax
         if (maxRefresh <= 0 || refreshCount >= maxRefresh) return
 
@@ -1027,66 +1051,5 @@ open class SellwildAdView @JvmOverloads constructor(
             }
             return testUnit
         }
-
-        /**
-         * Forward bidder configs from the raw CDN payload as ext data on the
-         * Prebid auction. Each new bidder added to the CMS becomes available
-         * to every consuming app immediately, no SDK release.
-         */
-        internal fun bidderParamsFromRemote(config: SellwildConfig): Map<String, Any?> {
-            val raw = config.remoteJson ?: return emptyMap()
-            val obj = runCatching { JSONObject(raw) }.getOrNull() ?: return emptyMap()
-
-            val params = mutableMapOf<String, Any?>()
-            val keys = obj.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                // CDN ships bidder params as CONSTANT_CASE; non-bidder typed
-                // keys are skipped via the static deny list.
-                if (key != key.uppercase()) continue
-                // Zone/config keys can carry a platform/ALL suffix (…_ANDROID,
-                // _IOS, _ALL_ANDROID, _ALL_IOS); deny the base key too so
-                // per-platform variants (NATIVE_ZID_ANDROID, MOBILE_ZID_ALL_IOS…)
-                // never leak into the auction ext as bogus bidder params.
-                val base = key.removeSuffix("_ANDROID").removeSuffix("_IOS").removeSuffix("_ALL")
-                if (NON_BIDDER_REMOTE_KEYS.contains(key) || NON_BIDDER_REMOTE_KEYS.contains(base)) continue
-                params[key] = obj.opt(key)
-            }
-            return params
-        }
-
-        /** CDN keys that are first-class typed config and not bidder params. */
-        private val NON_BIDDER_REMOTE_KEYS: Set<String> = setOf(
-            "CODE", "LISTINGS", "SLUG", "NAME", "TITLE", "COLORS", "LINK_TEXT",
-            "BUY_NOW_TEXT", "FONT_FAMILY", "FONT_URL", "FONT_COLOR", "PRICE_COLOR",
-            "PRICE_FONT_COLOR", "MARGIN_BOTTOM", "CARD_WIDTH", "OVERLAY_TITLE",
-            "CSS", "WATERMARK", "WATERMARK_TITLE", "BANNER_ZID", "BOTTOM_BANNER_ZID",
-            "MOBILE_BANNER_ZID", "MOBILE_ZID", "DISPLAY_ZID", "HIDE_BANNER_TOP",
-            "HIDE_BANNER_BOTTOM", "GAM", "DISABLE_GPT", "AD_UNITS", "SAFE_FRAME",
-            "AD_DISABLE_DISPLAY", "AD_STACK", "AD_STACK_BY_ZONE", "AD_REFRESH_MAX",
-            "AD_REFRESH_MAX_MOBILE", "AD_REFRESH_INTERVAL", "MAX_FAILED_AUCTIONS",
-            "PREBID_DEFER", "PREBID_SRC", "AD_GEO_BLOCK", "AD_GEO_BLOCK_REFRESH",
-            "GPP_ENABLED", "TCF_VERSION", "CONSENT_MANAGEMENT", "SCHAIN_SID",
-            "S2S_CONFIG", "IAB_CATS", "APP_BUNDLE_ID", "APP_STORE_URL",
-            "ENABLE_INTERSTITIAL", "ENABLE_FULLSCREEN_VIDEO",
-            "INTERSTITIALS_PER_SESSION", "VIDEO_TAKEOVERS_PER_SESSION", "DEBUG",
-            "MEMBERSHIP_TYPE", "PBS_DEBUG",
-            // Ad-format toggles: read directly by SellwildVideo / SellwildNative,
-            // not bidder params — keep them out of the .both auction ext.
-            "VIDEO_ENABLED", "VIDEO_ENABLED_BY_ZONE",
-            "VIDEO_SOUND_ENABLED", "VIDEO_SOUND_ENABLED_BY_ZONE",
-            "NATIVE_ENABLED", "NATIVE_ENABLED_BY_ZONE",
-            "NATIVE_MAX_HEIGHT", "NATIVE_MAX_HEIGHT_BY_ZONE",
-            // Native placement id — read by SellwildNative.resolveConfigId. The
-            // per-platform/ALL variants (NATIVE_ZID_ANDROID, _ALL_ANDROID, …) are
-            // caught by the base-key strip in bidderParamsFromRemote.
-            "NATIVE_ZID",
-            "BANNER_SIZES", "BANNER_SIZES_BY_ZONE",
-            // GrowthCode identity: read directly by SellwildGrowthCode, not
-            // bidder params.
-            "GROWTHCODE_ENABLED", "GROWTHCODE_ENABLED_BY_ZONE",
-            "GROWTHCODE_PARTNER_ID", "GROWTHCODE_ENDPOINT", "GROWTHCODE_SYNC_URL",
-            "GROWTHCODE_SEND_MAID", "GROWTHCODE_TTL_HOURS",
-        )
     }
 }

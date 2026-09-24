@@ -1,7 +1,7 @@
 ---
 name: native-first-mobile
 description: |
-  Activate for any work on the Sellwild mobile SDKs (iOS, Android, React Native, Flutter)
+  Activate for any work on the Sellwild mobile SDKs (iOS, Android, React Native)
   involving listings, ad surfaces, the "all-in-one" widget, or partner integrations
   (WeatherBug, Sports Merch, Bargain Hunter, Rtings). Enforces our native-only directive,
   the reproduce-before-fix discipline, and the emulator/sim verification loop we hardened
@@ -25,13 +25,11 @@ NATIVE.** This is also stated in `AGENTS.md` at the repo root.
 Concretely:
 
 - The supported monetization path is **native Prebid Mobile + GAM** via
-  `SellwildAdView` / `SellwildAdBanner` (iOS, Android), the RN bindings, and the
-  forthcoming Flutter equivalent.
+  `SellwildAdView` / `SellwildAdBanner` (iOS, Android) and the RN bindings.
 - The supported listings path is **native fetch + native render**:
   - iOS: `SellwildAPIClient.fetchListings(...)`
   - Android: `SellwildAPIClient.fetchListings(...)`
   - React Native: `useSellwildListings(config)`
-  - Flutter: (TBD — pattern matches RN hook)
 - The best-of-both path is **native listings + native ads interspersed in the same
   feed**, as demonstrated in `samples/demo-app/App.tsx`.
 - The WebView widget is **deprecated**. Do not add features, do not write bug-fix

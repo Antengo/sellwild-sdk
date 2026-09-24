@@ -1,6 +1,6 @@
 # Configuration Reference
 
-Complete reference for all Sellwild SDK configuration options. These fields apply across all platforms (iOS, Android, React Native, Flutter) unless noted otherwise.
+Complete reference for all Sellwild SDK configuration options. These fields apply across all platforms (iOS, Android, React Native) unless noted otherwise.
 
 ---
 
@@ -25,13 +25,6 @@ let config = await SellwildSDK.configure(
 val config = SellwildSDK.configure(
     partnerCode = "weatherbug", slug = "weatherbug-weatherbug"
 )
-```
-
-```dart
-// Flutter
-final config = await SellwildSDK.configure(
-  partnerCode: 'weatherbug', slug: 'weatherbug-weatherbug',
-);
 ```
 
 `configure()` fetches `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`,
@@ -142,7 +135,7 @@ See [Ad Refresh Configuration](#ad-refresh-configuration) for detailed behavior.
 |-------|------|---------|-------------|
 | `adRefreshMax` | `Int` | `0` | Maximum ad refresh cycles (all platforms). `0` = disabled. |
 | `adRefreshMaxMobile` | `Int` | `0` | Maximum ad refresh cycles on mobile. Overrides `adRefreshMax` when nonzero. |
-| `adRefreshInterval` | `Duration/Number` | `30 seconds` | Time between refresh cycles. iOS uses `TimeInterval` (seconds), Android uses `Long` (milliseconds), RN/Flutter use seconds. |
+| `adRefreshInterval` | `Duration/Number` | `30 seconds` | Time between refresh cycles. iOS uses `TimeInterval` (seconds), Android uses `Long` (milliseconds), RN uses seconds. |
 | `maxFailedAuctions` | `Int` | `3` | Stop refreshing after N consecutive no-fill auctions. |
 
 ### Privacy and Consent
@@ -153,8 +146,8 @@ See [Privacy & Consent](/guide/privacy) for detailed usage.
 |-------|------|---------|-------------|
 | `gppEnabled` | `Bool` | `false` | Enable IAB Global Privacy Platform support. |
 | `tcfVersion` | `Int` | `0` | TCF version. `0` = disabled, `2` = TCF v2.x. |
-| `gdprApplies` | `Bool?` | `null` | Whether GDPR applies. `null` = determined by Prebid Server. RN/Flutter only. |
-| `tcString` | `String?` | `null` | TCF v2 consent string. RN/Flutter only. |
+| `gdprApplies` | `Bool?` | `null` | Whether GDPR applies. `null` = determined by Prebid Server. RN only. |
+| `tcString` | `String?` | `null` | TCF v2 consent string. RN only. |
 | `iabCats` | `List<String>` | `[]` | IAB content category codes for brand safety (e.g., `["IAB15", "IAB15-10"]`). |
 
 ### Third-Party Integrations
@@ -208,7 +201,7 @@ prebidServer = PrebidServerConfig(
 ```
 
 ```ts
-// React Native / Flutter
+// React Native
 prebidServer: {
   accountId: 'weatherbug',
   endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
@@ -276,7 +269,6 @@ Predefined ad dimensions for banner ad units. Use these values when constructing
 | iOS (Swift) | `AdSize` enum | `.banner320x50`, `.mrec300x250`, `.leaderboard728x90`, `.halfPage300x600`, `.wideSkyscraper160x600` |
 | Android (Kotlin) | `AdSize` enum | `BANNER_320x50`, `MREC_300x250`, `LEADERBOARD_728x90`, `HALF_PAGE_300x600`, `WIDE_SKYSCRAPER_160x600` |
 | React Native (TS) | `AdSize` string literal | `"320x50"`, `"300x250"`, `"728x90"`, `"160x600"`, `"300x600"`, `"1x1"` |
-| Flutter (Dart) | `SellwildAdSize` enum | `banner320x50`, `mrec300x250`, `leaderboard728x90`, `halfPage300x600`, `wideSkyscraper160x600` |
 
 ### Choosing Ad Sizes
 
@@ -309,7 +301,6 @@ The SDK supports automatic ad refresh -- after a successful impression, the ad s
 | iOS | `TimeInterval` (seconds, `Double`) | `config.adRefreshInterval = 30.0` |
 | Android | `Long` (milliseconds) | `adRefreshIntervalMs = 30_000L` |
 | React Native | `number` (seconds) | `adRefreshInterval: 30` |
-| Flutter | `Duration` | `adRefreshInterval: Duration(seconds: 30)` |
 
 ### Behavior
 
@@ -390,13 +381,6 @@ val config = SellwildSDK.configure(
 ) { c -> c.copy(appBundleId = packageName) }
 ```
 
-```dart [Flutter]
-final config = await SellwildSDK.configure(
-  partnerCode: 'weatherbug',
-  slug: 'weatherbug-weatherbug',
-);
-```
-
 :::
 
 See the [API Reference](./api-reference#configure) for full options.
@@ -451,7 +435,7 @@ The two mobile zone keys — `MOBILE_ZID` (interleaved feed ad zones) and `MOBIL
 
 For each placement on the device's OS: use the tier-1 per-placement key if set & non-empty; else the tier-2 platform-wide `*_ALL_*` value; else the tier-3 shared base. So you can set **one `*_ALL_*` value and every placement on that OS uses it**, and still override any individual placement — "all the same per platform, or per-placement when you want."
 
-The pick happens in the native mapper (Swift on iOS, Kotlin on Android), so it is keyed on the **runtime OS, not the SDK type**. React Native and Flutter inherit their host OS — an RN app on an iPhone resolves the iOS keys; the same app on Android resolves the Android keys.
+The pick happens in the native mapper (Swift on iOS, Kotlin on Android), so it is keyed on the **runtime OS, not the SDK type**. React Native inherits its host OS — an RN app on an iPhone resolves the iOS keys; the same app on Android resolves the Android keys.
 
 **Backward compatible**: with no suffixed/ALL keys, resolution falls through to the unsuffixed base, so existing CDN documents behave exactly as before.
 
@@ -549,17 +533,13 @@ SellwildConfig(debug = true, ...)   // Android
 buildConfig({ debug: true, ... })   // React Native
 ```
 
-```dart
-SellwildConfig(debug: true, ...)    // Flutter
-```
-
 ### What Debug Mode Enables
 
 | Feature | Description |
 |---------|-------------|
 | Prebid Mobile debug output | Enables verbose logging in Prebid Mobile (auction events, bid values, errors). |
 | GMA debug output | Enables verbose logging in the Google Mobile Ads SDK. |
-| SDK lifecycle logging | Prints ad load, impression, click, error, and refresh events to the platform logger (`print` on iOS, `Log.d` on Android, `console.log` on RN, `debugPrint` on Flutter). |
+| SDK lifecycle logging | Prints ad load, impression, click, error, and refresh events to the platform logger (`print` on iOS, `Log.d` on Android, and `console.log` on RN). |
 | Response telemetry | Logs per-bidder response times from `ext.responsetimemillis` after each auction. |
 
 ### Inspecting Native Logs
@@ -569,8 +549,6 @@ SellwildConfig(debug: true, ...)    // Flutter
 **Android:** Use `adb logcat` filtered by tag. Prebid Mobile uses tags starting with `Prebid`; GMA uses `Ads`.
 
 **React Native:** Native logs surface in Xcode (iOS) or `adb logcat` (Android). The `<SellwildBanner>` `onError` event also reports load failures back to JS.
-
-**Flutter:** Same as native -- inspect Xcode or `adb logcat` for the platform you're running on.
 
 ### Production Warning
 

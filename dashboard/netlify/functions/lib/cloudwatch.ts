@@ -110,11 +110,32 @@ function parseAuctionFromLog(logLine: string): ParsedAuction | null {
       cur: inner.cur || 'USD',
       nbr: inner.nbr,
       source,
-      ext: inner.ext || {},
+      ext: redactExt(inner.ext),
     }
   } catch {
     return null
   }
+}
+
+/**
+ * Strip PBS debug output before it leaves the function. ext.debug.resolvedrequest
+ * is the full bid request (device ifa / ip / geo, user ids) — the UI only reads
+ * its imp sizes, so keep just those.
+ */
+function redactExt(ext: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!ext) return {}
+  const { debug, ...rest } = ext as { debug?: { resolvedrequest?: { imp?: unknown[] } } }
+  const imp = debug?.resolvedrequest?.imp
+  if (!Array.isArray(imp)) return rest
+  const sizes = imp.map((i) => {
+    const { id, banner, video } = (i || {}) as { id?: string; banner?: { format?: unknown }; video?: { w?: number; h?: number } }
+    return {
+      id,
+      ...(banner && { banner: { format: banner.format } }),
+      ...(video && { video: { w: video.w, h: video.h } }),
+    }
+  })
+  return { ...rest, debug: { resolvedrequest: { imp: sizes } } }
 }
 
 export async function getRecentAuctions(hours = 24): Promise<ParsedAuction[]> {
@@ -142,7 +163,8 @@ export async function getRecentAuctions(hours = 24): Promise<ParsedAuction[]> {
 }
 
 export async function getAuctionById(auctionId: string, hours = 72): Promise<ParsedAuction | null> {
-  const safeId = auctionId.replace(/"/g, '')
+  // Defense in depth: logs.ts already restricts ids to [A-Za-z0-9_-].
+  const safeId = auctionId.replace(/[^A-Za-z0-9_-]/g, '')
   const rows = await insightsQuery(
     `fields @timestamp, @message
      | filter @message like /LogAnalyticsReporter/

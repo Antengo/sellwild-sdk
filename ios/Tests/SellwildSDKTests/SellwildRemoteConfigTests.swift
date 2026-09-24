@@ -21,6 +21,13 @@ final class SellwildRemoteConfigTests: XCTestCase {
         )
     }
 
+    func testApplyAcceptsIabCatsAsArrayOrCommaSeparatedString() {
+        let base = SellwildConfig(partnerCode: "weatherbug")
+        XCTAssertEqual(SellwildSDK.apply(["IAB_CATS": "IAB15"], to: base).iabCats, ["IAB15"])
+        XCTAssertEqual(SellwildSDK.apply(["IAB_CATS": " IAB15, IAB19 ,,"], to: base).iabCats, ["IAB15", "IAB19"])
+        XCTAssertEqual(SellwildSDK.apply(["IAB_CATS": ["IAB15", "IAB19"]], to: base).iabCats, ["IAB15", "IAB19"])
+    }
+
     func testApplyPopulatesAdZonesAndRefresh() {
         let base = SellwildConfig(partnerCode: "weatherbug")
         let raw: [String: Any] = [
