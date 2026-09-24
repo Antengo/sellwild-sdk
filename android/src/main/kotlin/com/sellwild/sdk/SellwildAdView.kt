@@ -253,6 +253,10 @@ open class SellwildAdView @JvmOverloads constructor(
      * multiple times; each call triggers a fresh load.
      */
     fun load() {
+        if (!::config.isInitialized) {
+            Log.w(TAG, "load() called before setup(); ignoring.")
+            return
+        }
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(context, config)
 
@@ -292,6 +296,10 @@ open class SellwildAdView @JvmOverloads constructor(
     }
 
     fun resume() {
+        if (!::config.isInitialized) {
+            Log.w(TAG, "resume() called before setup(); ignoring.")
+            return
+        }
         if (needsReloadOnResume) {
             needsReloadOnResume = false
             load() // the first auction never completed (paused mid cold-start)
