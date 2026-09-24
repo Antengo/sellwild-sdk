@@ -656,12 +656,14 @@ open class SellwildAdView @JvmOverloads constructor(
 
         prebidWaitAttempts = 0
         val size = adSize
+        // Bidder params are configured server-side in the stored imp. Don't send
+        // CMS config inline — it includes non-bidder keys that PBS rejects
+        // (parity with iOS, which sends empty bidder params).
         SellwildPrebidMobile.runBannerAuction(
             adView = banner,
             configId = configId,
             widthDp = size.width,
             heightDp = size.height,
-            bidderParams = bidderParamsFromRemote(config),
             video = SellwildVideo.isEnabled(config.remoteJson, zoneId),
             adSizes = resolvedAdSizes,
             gpid = effectiveGpid,
@@ -1038,66 +1040,5 @@ open class SellwildAdView @JvmOverloads constructor(
             }
             return testUnit
         }
-
-        /**
-         * Forward bidder configs from the raw CDN payload as ext data on the
-         * Prebid auction. Each new bidder added to the CMS becomes available
-         * to every consuming app immediately, no SDK release.
-         */
-        internal fun bidderParamsFromRemote(config: SellwildConfig): Map<String, Any?> {
-            val raw = config.remoteJson ?: return emptyMap()
-            val obj = runCatching { JSONObject(raw) }.getOrNull() ?: return emptyMap()
-
-            val params = mutableMapOf<String, Any?>()
-            val keys = obj.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                // CDN ships bidder params as CONSTANT_CASE; non-bidder typed
-                // keys are skipped via the static deny list.
-                if (key != key.uppercase()) continue
-                // Zone/config keys can carry a platform/ALL suffix (…_ANDROID,
-                // _IOS, _ALL_ANDROID, _ALL_IOS); deny the base key too so
-                // per-platform variants (NATIVE_ZID_ANDROID, MOBILE_ZID_ALL_IOS…)
-                // never leak into the auction ext as bogus bidder params.
-                val base = key.removeSuffix("_ANDROID").removeSuffix("_IOS").removeSuffix("_ALL")
-                if (NON_BIDDER_REMOTE_KEYS.contains(key) || NON_BIDDER_REMOTE_KEYS.contains(base)) continue
-                params[key] = obj.opt(key)
-            }
-            return params
-        }
-
-        /** CDN keys that are first-class typed config and not bidder params. */
-        private val NON_BIDDER_REMOTE_KEYS: Set<String> = setOf(
-            "CODE", "LISTINGS", "SLUG", "NAME", "TITLE", "COLORS", "LINK_TEXT",
-            "BUY_NOW_TEXT", "FONT_FAMILY", "FONT_URL", "FONT_COLOR", "PRICE_COLOR",
-            "PRICE_FONT_COLOR", "MARGIN_BOTTOM", "CARD_WIDTH", "OVERLAY_TITLE",
-            "CSS", "WATERMARK", "WATERMARK_TITLE", "BANNER_ZID", "BOTTOM_BANNER_ZID",
-            "MOBILE_BANNER_ZID", "MOBILE_ZID", "DISPLAY_ZID", "HIDE_BANNER_TOP",
-            "HIDE_BANNER_BOTTOM", "GAM", "DISABLE_GPT", "AD_UNITS", "SAFE_FRAME",
-            "AD_DISABLE_DISPLAY", "AD_STACK", "AD_STACK_BY_ZONE", "AD_REFRESH_MAX",
-            "AD_REFRESH_MAX_MOBILE", "AD_REFRESH_INTERVAL", "MAX_FAILED_AUCTIONS",
-            "PREBID_DEFER", "PREBID_SRC", "AD_GEO_BLOCK", "AD_GEO_BLOCK_REFRESH",
-            "GPP_ENABLED", "TCF_VERSION", "CONSENT_MANAGEMENT", "SCHAIN_SID",
-            "S2S_CONFIG", "IAB_CATS", "APP_BUNDLE_ID", "APP_STORE_URL",
-            "ENABLE_INTERSTITIAL", "ENABLE_FULLSCREEN_VIDEO",
-            "INTERSTITIALS_PER_SESSION", "VIDEO_TAKEOVERS_PER_SESSION", "DEBUG",
-            "MEMBERSHIP_TYPE", "PBS_DEBUG",
-            // Ad-format toggles: read directly by SellwildVideo / SellwildNative,
-            // not bidder params — keep them out of the .both auction ext.
-            "VIDEO_ENABLED", "VIDEO_ENABLED_BY_ZONE",
-            "VIDEO_SOUND_ENABLED", "VIDEO_SOUND_ENABLED_BY_ZONE",
-            "NATIVE_ENABLED", "NATIVE_ENABLED_BY_ZONE",
-            "NATIVE_MAX_HEIGHT", "NATIVE_MAX_HEIGHT_BY_ZONE",
-            // Native placement id — read by SellwildNative.resolveConfigId. The
-            // per-platform/ALL variants (NATIVE_ZID_ANDROID, _ALL_ANDROID, …) are
-            // caught by the base-key strip in bidderParamsFromRemote.
-            "NATIVE_ZID",
-            "BANNER_SIZES", "BANNER_SIZES_BY_ZONE",
-            // GrowthCode identity: read directly by SellwildGrowthCode, not
-            // bidder params.
-            "GROWTHCODE_ENABLED", "GROWTHCODE_ENABLED_BY_ZONE",
-            "GROWTHCODE_PARTNER_ID", "GROWTHCODE_ENDPOINT", "GROWTHCODE_SYNC_URL",
-            "GROWTHCODE_SEND_MAID", "GROWTHCODE_TTL_HOURS",
-        )
     }
 }
