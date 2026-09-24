@@ -347,7 +347,7 @@ class SellwildEventQueue(context: Context) {
         }
     }
 
-    suspend fun flush() = withContext(Dispatchers.IO) {
+    suspend fun flush(): Unit = withContext(Dispatchers.IO) {
         // At most MAX_BATCH per POST: after an outage the queue can hold up to
         // MAX_QUEUE re-queued events, and one oversized body rejected with a 4xx
         // would drop them all. The rest go out in follow-up POSTs below.
