@@ -1,4 +1,4 @@
-/// Sellwild domain models
+// Sellwild domain models
 
 class SellwildPhoto {
   final String url;
@@ -12,9 +12,9 @@ class SellwildPhoto {
   });
 
   factory SellwildPhoto.fromJson(Map<String, dynamic> json) => SellwildPhoto(
-        url: json['url'] as String? ?? '',
-        thumbUrl: json['thumbUrl'] as String? ?? '',
-        background: json['background'] as String?,
+        url: _text(json['url']) ?? '',
+        thumbUrl: _text(json['thumbUrl']) ?? '',
+        background: _text(json['background']),
       );
 }
 
@@ -36,12 +36,12 @@ class SellwildUser {
   });
 
   factory SellwildUser.fromJson(Map<String, dynamic> json) => SellwildUser(
-        id: json['id'] as String? ?? '',
-        firstName: json['firstName'] as String? ?? '',
-        lastName: json['lastName'] as String? ?? '',
-        username: json['username'] as String? ?? '',
-        membershipType: json['membershipType'] as String? ?? '',
-        trustLevel: json['trustLevel'] as String? ?? '',
+        id: _text(json['id']) ?? '',
+        firstName: _text(json['firstName']) ?? '',
+        lastName: _text(json['lastName']) ?? '',
+        username: _text(json['username']) ?? '',
+        membershipType: _text(json['membershipType']) ?? '',
+        trustLevel: _text(json['trustLevel']) ?? '',
       );
 }
 
@@ -92,22 +92,22 @@ class SellwildListing {
     final userJson = json['user'] as Map<String, dynamic>?;
 
     return SellwildListing(
-      id: json['id'] as String? ?? '',
-      status: json['status'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      text: json['text'] as String?,
-      url: json['url'] as String?,
-      categoryId: json['categoryId'] as String?,
-      currency: json['currency'] as String?,
-      price: json['price'] as String?,
-      strikePrice: json['strikePrice'] as String?,
-      hasPhoto: json['has_photo'] as bool? ?? false,
+      id: _text(json['id']) ?? '',
+      status: _text(json['status']) ?? '',
+      title: _text(json['title']) ?? '',
+      text: _text(json['text']),
+      url: _text(json['url']),
+      categoryId: _text(json['categoryId']),
+      currency: _text(json['currency']),
+      price: _text(json['price']),
+      strikePrice: _text(json['strikePrice']),
+      hasPhoto: _flag(json['has_photo']),
       photos: photos,
-      createdDate: json['createdDate'] as String?,
-      shippable: json['shippable'] as String?,
-      dataSourceId: json['dataSourceId'] as String?,
+      createdDate: _text(json['createdDate']),
+      shippable: _text(json['shippable']),
+      dataSourceId: _text(json['dataSourceId']),
       user: userJson != null ? SellwildUser.fromJson(userJson) : null,
-      distance: (json['distance'] as num?)?.toDouble(),
+      distance: _number(json['distance']),
     );
   }
 
@@ -131,3 +131,31 @@ class SellwildListingsResponse {
     this.widgetCacheVersionId,
   });
 }
+
+// Real listings caches send some fields with other JSON types than the model
+// uses (contracts/schemas/listing.schema.json): bool `shippable` on the
+// primary caches, numeric `price`/`strikePrice` on bargainhunter, numeric
+// ids from JSON-RPC. fromJson reads text, numbers and bools as text instead of
+// throwing. Any other type (an object or array where a scalar belongs, a
+// `user` that is not an object, `photos` that is not an array) still throws
+// TypeError; fetchListings reports that item and drops it.
+
+String? _text(Object? v) => switch (v) {
+      num() || bool() => '$v',
+      _ => v as String?,
+    };
+
+// has_photo: a bool, a number (any non-zero value, NaN included, is true) or
+// the text 'true'/'1' (trimmed, any case). Absent is false.
+bool _flag(Object? v) => switch (v) {
+      num() => v != 0,
+      String() => const ['true', '1'].contains(v.trim().toLowerCase()),
+      _ => v as bool? ?? false,
+    };
+
+// distance: a number, or text that parses as one (other text is null, as
+// displayPrice treats price).
+double? _number(Object? v) => switch (v) {
+      String() => double.tryParse(v),
+      _ => (v as num?)?.toDouble(),
+    };

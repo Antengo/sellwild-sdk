@@ -2,8 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 
+import 'failures/failures_core.dart' show coerceFlag, coerceRate;
+import 'failures/sellwild_failure_code.dart';
+import 'failures/sellwild_failures.dart';
+import 'sellwild_api.dart';
 import 'sellwild_config.dart';
 
 /// First-class entry point for configuring the Sellwild SDK.
@@ -22,15 +27,24 @@ import 'sellwild_config.dart';
 ///
 /// On any network failure, timeout, or 404 the call returns a
 /// `SellwildConfig(partnerCode: ...)` with deterministic defaults (the
-/// listings endpoint is derived from `partnerCode`), so ads still render.
+/// listings endpoint is derived from `partnerCode`), so ads still render. The
+/// failure is reported once through logFailure (config.fetch.*).
 class SellwildSDK {
-  SellwildSDK._();
+  SellwildSDK._(); // coverage:ignore-line static only class never built
+
+  /// The host OS check configure passes to [apply]: the one place the SDK
+  /// reads Platform. Tests replace it to reach the Android keys.
+  @visibleForTesting
+  static bool Function() isAndroidHost = _platformIsAndroid;
+
+  static bool _platformIsAndroid() => Platform.isAndroid;
 
   /// Build a [SellwildConfig] by fetching `partnerCode/slug.json` from the
   /// Sellwild CDN and applying it onto SDK defaults.
   ///
   /// [overrides] runs after the remote config is applied. Use it for
-  /// app-controlled values (e.g. `appBundleId` from your app package).
+  /// app-controlled values (e.g. `appBundleId` from your app package). If it
+  /// throws, the failure is reported and the exception reaches the caller.
   static Future<SellwildConfig> configure({
     required String partnerCode,
     required String slug,
@@ -38,36 +52,135 @@ class SellwildSDK {
     SellwildConfig Function(SellwildConfig)? overrides,
     http.Client? client,
   }) async {
+    // Partner first, before any fetch, so a config failure carries it
+    // (FAILURES.md 3.2), and so events stamp `attributes.code`.
+    SellwildFailures.setContext(partnerCode: partnerCode);
+    SellwildAPIClient.instance.partnerCode = partnerCode;
+
     var config = SellwildConfig(partnerCode: partnerCode);
     final httpClient = client ?? http.Client();
-    final url = Uri.parse(
-      'https://widget.sellwild.com/app/$partnerCode/$slug.json',
-    );
-
     try {
-      // Version beacon: fires on every config fetch (independent of the events
-      // kill switch) and lands in CloudFront cs(User-Agent) logs for an
-      // installed-base census.
-      final response = await httpClient.get(
-        url,
-        headers: {'User-Agent': 'SellwildSDK/$sellwildSdkVersion (flutter)'},
-      ).timeout(timeout);
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final raw = jsonDecode(response.body) as Map<String, dynamic>;
-        config = apply(raw, config);
-      }
-    } catch (_) {
-      // Silent fallback — config retains defaults on any failure.
+      // Either way config keeps the defaults it could not replace, so ads
+      // still render; that fallback is not a second failure.
+      config = await _fetchRemote(
+        httpClient,
+        'https://widget.sellwild.com/app/$partnerCode/$slug.json',
+        timeout,
+        config,
+      );
     } finally {
       if (client == null) httpClient.close();
     }
 
-    return overrides != null ? overrides(config) : config;
+    if (overrides != null) {
+      try {
+        config = overrides(config);
+      } catch (e) {
+        SellwildFailures.log(
+          code: SellwildFailureCode.configOverridesException,
+          component: SellwildFailureComponent.configure,
+          error: e,
+        );
+        rethrow;
+      }
+    }
+
+    SellwildFailures.setContext(
+      partnerCode: config.partnerCode,
+      debug: config.debug,
+      eventsEnabled: config.eventsEnabled,
+      failuresEnabled: config.failuresEnabled,
+      failuresSampleRate: config.failuresSampleRate,
+    );
+    SellwildAPIClient.instance
+      ..partnerCode = config.partnerCode
+      ..eventsEnabled = config.eventsEnabled;
+    return config;
+  }
+
+  /// GETs the remote config at [url] and applies it onto [base]. Returns
+  /// [base] unchanged when any step fails, after reporting that step once.
+  static Future<SellwildConfig> _fetchRemote(
+    http.Client httpClient,
+    String url,
+    Duration timeout,
+    SellwildConfig base,
+  ) async {
+    void report(
+      String code, {
+      String component = SellwildFailureComponent.remoteConfig,
+      Object? error,
+      String? message,
+      int? status,
+    }) =>
+        SellwildFailures.log(
+          code: code,
+          component: component,
+          error: error,
+          message: message,
+          httpStatus: status,
+          url: url,
+        );
+
+    final http.Response response;
+    try {
+      // Version beacon: fires on every config fetch (independent of the events
+      // kill switch) and lands in CloudFront cs(User-Agent) logs for an
+      // installed-base census.
+      response = await httpClient.get(
+        Uri.parse(url),
+        headers: {'User-Agent': 'SellwildSDK/$sellwildSdkVersion (flutter)'},
+      ).timeout(timeout);
+    } catch (e) {
+      report(
+        e is TimeoutException
+            ? SellwildFailureCode.configFetchTimeout
+            : SellwildFailureCode.configFetchNetwork,
+        error: e,
+      );
+      return base;
+    }
+    final status = response.statusCode;
+    if (status < 200 || status >= 300) {
+      // A missing config is a 403 AccessDenied from S3, not a 404.
+      report(SellwildFailureCode.configFetchHttp,
+          message: 'HTTP $status', status: status);
+      return base;
+    }
+
+    final Object? raw;
+    try {
+      raw = jsonDecode(response.body);
+    } on FormatException catch (e) {
+      report(SellwildFailureCode.configFetchParse, error: e);
+      return base;
+    }
+    if (raw is! Map<String, dynamic>) {
+      report(SellwildFailureCode.configParseInvalid,
+          message: 'config JSON is ${raw == null ? 'null' : raw.runtimeType}');
+      return base;
+    }
+
+    try {
+      return apply(raw, base, isAndroid: isAndroidHost());
+    } catch (e) {
+      // Applying is configure's own step, not the remote fetch.
+      report(SellwildFailureCode.configApplyException,
+          component: SellwildFailureComponent.configure, error: e);
+      return base;
+    }
   }
 
   /// Maps CONSTANT_CASE CDN keys onto the corresponding [SellwildConfig] fields.
-  /// Exposed for testing.
-  static SellwildConfig apply(Map<String, dynamic> raw, SellwildConfig base) {
+  /// Exposed for testing. Pure when [isAndroid] is given, as configure always
+  /// gives it. An external caller that leaves it out gets [isAndroidHost], the
+  /// one impure fallback, to pick the APP_*_IOS/_ANDROID keys.
+  static SellwildConfig apply(
+    Map<String, dynamic> raw,
+    SellwildConfig base, {
+    bool? isAndroid,
+  }) {
+    final android = isAndroid ?? isAndroidHost();
     String? str(String k) => raw[k] is String ? raw[k] as String : null;
     int? integer(String k) => raw[k] is int ? raw[k] as int : null;
     double? dbl(String k) {
@@ -169,16 +282,28 @@ class SellwildSDK {
           base.videoTakeoversPerSession,
 
       // App identity — per-platform override wins (APP_*_IOS/_ANDROID), else shared, else base.
-      appBundleId: str(Platform.isAndroid ? 'APP_BUNDLE_ID_ANDROID' : 'APP_BUNDLE_ID_IOS')
-          ?? str('APP_BUNDLE_ID') ?? base.appBundleId,
-      appStoreUrl: str(Platform.isAndroid ? 'APP_STORE_URL_ANDROID' : 'APP_STORE_URL_IOS')
-          ?? str('APP_STORE_URL') ?? base.appStoreUrl,
+      appBundleId:
+          str(android ? 'APP_BUNDLE_ID_ANDROID' : 'APP_BUNDLE_ID_IOS') ??
+              str('APP_BUNDLE_ID') ??
+              base.appBundleId,
+      appStoreUrl:
+          str(android ? 'APP_STORE_URL_ANDROID' : 'APP_STORE_URL_IOS') ??
+              str('APP_STORE_URL') ??
+              base.appStoreUrl,
 
       // Prebid Server (carry over from base — not overridden by remote in 1.2.0)
       prebidServer: base.prebidServer,
 
       // Debug
       debug: boolean('DEBUG') ?? base.debug,
+
+      // Kill switches (FAILURES.md 5.3, 5.4). Absent or JSON null keeps base.
+      eventsEnabled: coerceFlag(raw['EVENTS_ENABLED'], base.eventsEnabled),
+      failuresEnabled:
+          coerceFlag(raw['FAILURES_ENABLED'], base.failuresEnabled),
+      failuresSampleRate: raw['FAILURES_SAMPLE_RATE'] == null
+          ? base.failuresSampleRate
+          : coerceRate(raw['FAILURES_SAMPLE_RATE']),
 
       // Raw passthrough — every CDN key flows to the WebView verbatim,
       // so new bidders/settings don't require an SDK release.

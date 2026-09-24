@@ -1,0 +1,7 @@
+# Lints for the Sellwild Flutter SDK and its tests.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - coverage/**

@@ -23,9 +23,10 @@ void main() {
       );
     });
 
-    test('converts AD_REFRESH_INTERVAL seconds to Duration', () {
+    // AD_REFRESH_INTERVAL is milliseconds (code and docs-site agree).
+    test('converts AD_REFRESH_INTERVAL milliseconds to Duration', () {
       const base = SellwildConfig(partnerCode: 'weatherbug');
-      final merged = SellwildSDK.apply({'AD_REFRESH_INTERVAL': 30}, base);
+      final merged = SellwildSDK.apply({'AD_REFRESH_INTERVAL': 30000}, base);
       expect(merged.adRefreshInterval, const Duration(seconds: 30));
     });
 

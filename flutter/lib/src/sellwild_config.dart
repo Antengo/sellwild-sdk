@@ -101,6 +101,20 @@ class SellwildConfig {
   // Debug
   final bool debug;
 
+  // Kill switches and failure reporting (contracts/FAILURES.md section 10),
+  // coerced from the remote EVENTS_ENABLED, FAILURES_ENABLED and
+  // FAILURES_SAMPLE_RATE. configure hands them to logFailure, so a host
+  // `overrides` callback that changes them wins over the remote values.
+
+  /// Analytics master switch. Off drops every event, failures included.
+  final bool eventsEnabled;
+
+  /// Failure reporting (clientFailure events) on or off.
+  final bool failuresEnabled;
+
+  /// Share of sessions that report non-fatal failures, 0 to 1.
+  final double failuresSampleRate;
+
   /// Raw remote-config payload as fetched from the CDN. Populated by
   /// [SellwildSDK.configure]. The widget's WebView attribute parser is
   /// case-insensitive and accepts arbitrary keys, so every entry in this
@@ -161,6 +175,9 @@ class SellwildConfig {
     this.appStoreUrl,
     this.prebidServer,
     this.debug = false,
+    this.eventsEnabled = true,
+    this.failuresEnabled = true,
+    this.failuresSampleRate = 1.0,
     this.remoteJson,
   });
 

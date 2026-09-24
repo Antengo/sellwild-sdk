@@ -28,7 +28,50 @@ void main() {
       final json = config.toJson();
       expect(json['partnerCode'], 'mypartner');
       expect(json['listingsUrl'], 'https://cache.sellwild.com/listings-img-data-sm');
+      expect(json.containsKey('title'), isFalse);
+      expect(json['linkText'], 'View all');
     });
+
+    test('toJson includes optional values only when set', () {
+      const config = SellwildConfig(
+        partnerCode: 'mypartner',
+        title: 'Deals',
+        linkText: null,
+        buyNowText: null,
+        gamTag: '/1234/sellwild',
+        gptProxyUrl: 'https://gpt.example.com/gpt.js',
+      );
+
+      final json = config.toJson();
+      expect(json['title'], 'Deals');
+      expect(json['gamTag'], '/1234/sellwild');
+      expect(json['gptProxyUrl'], 'https://gpt.example.com/gpt.js');
+      expect(json.containsKey('linkText'), isFalse);
+      expect(json.containsKey('buyNowText'), isFalse);
+    });
+
+    test('kill switches default on, rate 1', () {
+      const config = SellwildConfig(partnerCode: 'test');
+
+      expect(config.eventsEnabled, isTrue);
+      expect(config.failuresEnabled, isTrue);
+      expect(config.failuresSampleRate, 1.0);
+    });
+  });
+
+  test('PrebidServerConfig keeps its values and defaults', () {
+    // Built from a run-time list (not const) so the constructor is measured.
+    final bidders = ['appnexus', 'rubicon'].toList();
+    final server = PrebidServerConfig(
+      accountId: 'acct',
+      endpoint: 'https://pbs.example.com/openrtb2/auction',
+      bidders: bidders,
+    );
+
+    expect(server.accountId, 'acct');
+    expect(server.bidders, bidders);
+    expect(server.timeout, 1500);
+    expect(server.syncEndpoint, isNull);
   });
 
   group('SellwildAdSize', () {
@@ -37,6 +80,11 @@ void main() {
       expect(SellwildAdSize.banner320x50.height, 50);
       expect(SellwildAdSize.mrec300x250.width, 300);
       expect(SellwildAdSize.mrec300x250.height, 250);
+    });
+
+    test('label is WIDTHxHEIGHT', () {
+      expect(SellwildAdSize.values.map((s) => s.label),
+          ['320x50', '300x250', '728x90', '300x600', '160x600']);
     });
   });
 

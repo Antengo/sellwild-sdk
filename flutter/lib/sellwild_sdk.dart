@@ -27,3 +27,7 @@ export 'src/sellwild_widget.dart';
 export 'src/sellwild_api.dart';
 export 'src/sellwild_listing_card.dart';
 export 'src/sellwild_sdk_configure.dart';
+export 'src/failures/failures_core.dart' show ClientFailureEvent;
+export 'src/failures/sellwild_failure_code.dart';
+export 'src/failures/sellwild_failures.dart'
+    show SellwildFailures, SellwildFailureContext, SellwildFailureSink;
