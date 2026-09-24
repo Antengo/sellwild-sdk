@@ -137,6 +137,9 @@ public final class SellwildAdView: UIView {
     // it (so its viewability tracker can fire the impression/burl) rather than
     // discarding it with a fresh auction.
     private var prebidHasRenderedCreative = false
+    // True while a .prebidOnly click has an ad modal (in-app browser / store
+    // sheet) open, so a leave-app from inside it isn't counted as a 2nd click.
+    private var prebidClickModalOpen = false
 
     /// Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
     /// when set, else the shared `AD_REFRESH_MAX` (matches Android + web). iOS
@@ -414,6 +417,7 @@ public final class SellwildAdView: UIView {
             pb.removeFromSuperview()
             prebidBanner = nil
             prebidHasRenderedCreative = false
+            prebidClickModalOpen = false // didDismissModal may never arrive
         }
         if let na = nativeAdView { na.removeFromSuperview(); nativeAdView = nil }
         if let existing = gamBanner { return existing }
@@ -557,7 +561,7 @@ public final class SellwildAdView: UIView {
     private func ensureNativeAdView(configId: String) -> SellwildNativeAdView {
         // Tear down banner render paths if we previously rendered one.
         if let gb = gamBanner { gb.removeFromSuperview(); gamBanner = nil }
-        if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil; prebidHasRenderedCreative = false }
+        if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil; prebidHasRenderedCreative = false; prebidClickModalOpen = false }
         if let existing = nativeAdView { return existing }
 
         let cap = SellwildNative.maxHeight(
@@ -910,6 +914,30 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         delegate?.sellwildAdView?(self, didFailWithError: error)
         SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adError", action: error.localizedDescription, label: zoneId ?? ""))
         recordHouseImpressionIfShowing()
+    }
+
+    // Prebid's rendering BannerView has no click callback — a click surfaces as
+    // either an ad modal (in-app browser / App Store sheet) or leaving the app.
+    // Report either as the same click the GAM path reports via
+    // bannerViewDidRecordClick (delegate + "click" event).
+    public func bannerViewWillPresentModal(_ bannerView: PrebidBannerView) {
+        prebidClickModalOpen = true
+        recordPrebidClick()
+    }
+
+    public func bannerViewDidDismissModal(_ bannerView: PrebidBannerView) {
+        prebidClickModalOpen = false
+    }
+
+    public func bannerViewWillLeaveApplication(_ bannerView: PrebidBannerView) {
+        // Leaving from inside a click-opened modal is the same click.
+        guard !prebidClickModalOpen else { return }
+        recordPrebidClick()
+    }
+
+    private func recordPrebidClick() {
+        delegate?.sellwildAdViewDidRecordClick?(self)
+        SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "click", label: zoneId ?? ""))
     }
 }
 
