@@ -734,6 +734,9 @@ public final class SellwildAdView: UIView {
     private static let minRefreshIntervalSec: TimeInterval = 10
 
     private func scheduleRefresh() {
+        // Detached (paused for detach): a GAM load that lands after pause() must
+        // not re-arm refresh on an off-window view — resume() restarts it.
+        guard !isPausedForDetach else { return }
         guard effectiveRefreshMax > 0 else { return }
         guard refreshCount < effectiveRefreshMax else { return }
         refreshTimer?.invalidate() // never stack refresh timers (resume()/re-load)

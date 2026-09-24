@@ -978,6 +978,9 @@ open class SellwildAdView @JvmOverloads constructor(
     }
 
     private fun scheduleRefresh() {
+        // Detached (paused for detach): a GAM load that lands after pause() must
+        // not re-arm refresh on an off-window view — resume() restarts it.
+        if (isPausedForDetach) return
         val maxRefresh = effectiveRefreshMax
         if (maxRefresh <= 0 || refreshCount >= maxRefresh) return
 
