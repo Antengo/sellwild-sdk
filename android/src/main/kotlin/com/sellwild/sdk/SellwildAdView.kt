@@ -306,7 +306,9 @@ open class SellwildAdView @JvmOverloads constructor(
         when (resolvedAdStack) {
             SellwildAdStack.BOTH, SellwildAdStack.GAM_ONLY -> scheduleRefresh()
             SellwildAdStack.PREBID_ONLY ->
-                if (effectiveRefreshMax > 0 && !nativeEnabled) {
+                // Only while the refresh cap has budget: once it is spent, a reattach
+                // starts no new auction (with either flag) — the last creative stays.
+                if (hasPrebidRefreshBudget && !nativeEnabled) {
                     // Default (flag off): re-issue loadAd() to un-latch the fork's
                     // refresh cadence — but this discards the current creative
                     // before its viewability tracker fires, so burl (the viewable

@@ -265,7 +265,9 @@ public final class SellwildAdView: UIView {
             // Flag on: keep the already-rendered creative so its tracker fires the
             // impression/burl now that we're back on screen, and resume the cadence
             // on a DELAYED refresh instead of an immediate re-auction.
-            if effectiveRefreshMax > 0 {
+            // Either way, only while the refresh cap has budget: once it is spent,
+            // a reattach starts no new auction — the last creative stays.
+            if hasPrebidRefreshBudget {
                 // Order matters: the cheap flag short-circuits before
                 // keepsPrebidCreativeOnReattach so we skip the config lookup when
                 // there's no rendered creative to keep (common on fast scroll).
