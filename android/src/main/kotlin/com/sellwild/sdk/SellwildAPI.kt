@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -282,6 +284,8 @@ class SellwildEventQueue(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("sellwild_sdk", Context.MODE_PRIVATE)
     private val eventsUrl = "https://events.sellwild.com/events/queue"
     private val queue = mutableListOf<SellwildEvent>()
+    // Pending delayed re-flush after a failed POST (guarded by `queue`).
+    private var retryJob: Job? = null
 
     /**
      * Analytics kill switch. Defaults on; [SellwildAdView] sets this from the
@@ -312,6 +316,34 @@ class SellwildEventQueue(context: Context) {
         // trigger a ConcurrentModificationException / drop events.
         synchronized(queue) {
             queue.add(SellwildEvent(event = event, action = action, label = label, uid = uid))
+            trimLocked()
+        }
+    }
+
+    /** Put a failed batch back at the head of the queue (oldest first). */
+    private fun requeue(batch: List<SellwildEvent>) {
+        synchronized(queue) {
+            queue.addAll(0, batch)
+            trimLocked()
+        }
+    }
+
+    // Drop oldest so a persistently-failing endpoint can't grow unbounded
+    // (in-memory only; matches the iOS / web cap). Caller holds `queue`.
+    private fun trimLocked() {
+        if (queue.size > MAX_QUEUE) queue.subList(0, queue.size - MAX_QUEUE).clear()
+    }
+
+    /** Re-flush after [RETRY_DELAY_MS] so an outage recovers without a new event. */
+    private fun scheduleRetry() {
+        synchronized(queue) {
+            if (retryJob?.isActive == true) return
+            retryJob = scope.launch {
+                delay(RETRY_DELAY_MS)
+                // Clear first so a failure of THIS flush can schedule the next retry.
+                synchronized(queue) { retryJob = null }
+                flush()
+            }
         }
     }
 
@@ -323,6 +355,10 @@ class SellwildEventQueue(context: Context) {
         }
         if (batch.isEmpty()) return@withContext
 
+        // Retry on transport failure or a retryable status (see [isRetryableStatus]).
+        // Stays false for a failure BEFORE the POST (e.g. JSON build) so a poison
+        // batch is dropped instead of retried forever.
+        var retry = false
         runCatching {
             val json = JSONArray().apply {
                 batch.forEach { e ->
@@ -364,6 +400,7 @@ class SellwildEventQueue(context: Context) {
             conn.connectTimeout = 10_000
             conn.readTimeout = 15_000
             conn.doOutput = true
+            retry = true  // from here on a throw is a network failure
             OutputStreamWriter(conn.outputStream).use { it.write(json.toString()) }
             // Fully drain + close the response stream. This is what actually
             // returns the socket to the keep-alive pool — reading only
@@ -371,8 +408,13 @@ class SellwildEventQueue(context: Context) {
             // (no reuse). Never call disconnect(): that evicts the pooled socket
             // and defeats the whole point.
             val code = conn.responseCode
+            retry = isRetryableStatus(code)
             (if (code in 200..299) conn.inputStream else conn.errorStream)
                 ?.use { it.readBytes() }
+        }
+        if (retry) {
+            requeue(batch)
+            scheduleRetry()
         }
     }
 
@@ -389,6 +431,17 @@ class SellwildEventQueue(context: Context) {
     }
 
     companion object {
+        private const val MAX_QUEUE = 1000
+        private const val RETRY_DELAY_MS = 10_000L
+
+        /**
+         * Whether a batch that got HTTP [code] should be re-queued: any non-2xx
+         * except 4xx, which is a permanent rejection (dropped) — other than
+         * 408 Request Timeout / 429 Too Many Requests, which are transient.
+         */
+        internal fun isRetryableStatus(code: Int): Boolean =
+            code !in 200..299 && (code !in 400..499 || code == 408 || code == 429)
+
         @Volatile private var instance: SellwildEventQueue? = null
 
         /** Process-wide queue, keyed to the application context. */
