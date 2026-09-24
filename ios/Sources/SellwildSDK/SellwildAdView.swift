@@ -146,6 +146,14 @@ public final class SellwildAdView: UIView {
         config.adRefreshMaxMobile > 0 ? config.adRefreshMaxMobile : config.adRefreshMax
     }
 
+    /// Whether another .prebidOnly auction fits the refresh cap. The budget is
+    /// the first render + up to effectiveRefreshMax refreshes; prebidRefreshCount
+    /// counts renders, so it's spent once the count exceeds the max (the same
+    /// point the render delegate calls stopRefresh()).
+    private var hasPrebidRefreshBudget: Bool {
+        effectiveRefreshMax > 0 && prebidRefreshCount <= effectiveRefreshMax
+    }
+
     // Cold-start guard: Prebid init is async and can race the first load(). Wait
     // up to ~1.2s (8 × 0.15s) for readiness before running the first auction so
     // the first impression isn't silently downgraded to GAM-only. Mirrors the
@@ -292,7 +300,7 @@ public final class SellwildAdView: UIView {
     /// fire the impression/burl. Only re-auctions if still attached and under the
     /// refresh cap. `.common` mode so it fires during scroll tracking.
     private func schedulePrebidRefresh() {
-        guard effectiveRefreshMax > 0, prebidRefreshCount < effectiveRefreshMax else { return }
+        guard hasPrebidRefreshBudget else { return }
         refreshTimer?.invalidate()
         let interval = max(config.adRefreshInterval, Self.minRefreshIntervalSec)
         let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in

@@ -178,6 +178,15 @@ open class SellwildAdView @JvmOverloads constructor(
     private val effectiveRefreshMax: Int
         get() = if (config.adRefreshMaxMobile > 0) config.adRefreshMaxMobile else config.adRefreshMax
 
+    /**
+     * Whether another prebidOnly auction fits the refresh cap. The budget is the
+     * first render + up to [effectiveRefreshMax] refreshes; [prebidRefreshCount]
+     * counts renders, so it's spent once the count exceeds the max (the same
+     * point the render listener calls stopRefresh()).
+     */
+    private val hasPrebidRefreshBudget: Boolean
+        get() = effectiveRefreshMax > 0 && prebidRefreshCount <= effectiveRefreshMax
+
     // Cold-start guard: Prebid Mobile init is async and races the first load().
     // Wait up to ~1.2s (8 × 150ms) for init before falling back to GAM-only, so
     // the first impression isn't silently downgraded and loses Prebid demand.
@@ -354,7 +363,7 @@ open class SellwildAdView @JvmOverloads constructor(
      * refresh cap. Reuses the shared [refreshHandler]; never stacks callbacks.
      */
     private fun schedulePrebidRefresh() {
-        if (effectiveRefreshMax <= 0 || prebidRefreshCount >= effectiveRefreshMax) return
+        if (!hasPrebidRefreshBudget) return
         val handler = refreshHandler ?: Handler(Looper.getMainLooper()).also { refreshHandler = it }
         handler.removeCallbacksAndMessages(null)
         val interval = config.adRefreshIntervalMs.coerceAtLeast(MIN_REFRESH_INTERVAL_MS)
