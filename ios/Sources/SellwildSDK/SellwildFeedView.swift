@@ -324,7 +324,11 @@ public final class SellwildFeedView: UIView {
         var out: [Row] = [.header]
         var listingsIter = listings.makeIterator()
         let gamZones = config.mobileZids.filter { !$0.isEmpty }
-        let bannerZone = (config.mobileBannerZid ?? config.bannerZid ?? config.bottomBannerZid) ?? ""
+        // First non-blank zone: the CDN can ship MOBILE_BANNER_ZID as "", which
+        // must not shadow the BANNER_ZID fallback.
+        let bannerZone = [config.mobileBannerZid, config.bannerZid, config.bottomBannerZid]
+            .compactMap { $0 }
+            .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty } ?? ""
         var gamIdx = 0
 
         for token in schedule.uppercased() {
