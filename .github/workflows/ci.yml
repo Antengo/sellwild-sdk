@@ -48,7 +48,13 @@ jobs:
       # rejects the lockfile (react-native@latest wants @types/react@19 while
       # devDeps pin @types/react@18). Legacy peer resolution installs exactly
       # what the lockfile lists.
-      - run: npm ci --legacy-peer-deps
+      # RN depends on the core version being released alongside it, which
+      # isn't on npm until the release (core publishes first; see
+      # RELEASING.md). Point it at the in-repo core for CI only; tsc resolves
+      # core from ../core/src via tsconfig paths anyway. `npm install` (not
+      # `ci`) because the swapped spec no longer matches the lockfile.
+      - run: npm pkg set "dependencies.@sellwild/sdk-core=file:../core"
+      - run: npm install --legacy-peer-deps --no-audit --no-fund
       # Pre-existing type errors on main that need source/tsconfig changes
       # (not CI changes): react-native-webview is only a peerDependency (no
       # types installed), tsconfig lib ES2017 lacks Promise#finally and the
