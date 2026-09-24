@@ -375,9 +375,10 @@ open class SellwildFeedView @JvmOverloads constructor(
         val rows = mutableListOf<Row>(Row.Header)
         val listingsIterator = listings.iterator()
         val gamZones = cfg.mobileZids.toMutableList()
-        val bannerZone = cfg.mobileBannerZid
-            ?: cfg.bannerZid
-            ?: cfg.bottomBannerZid
+        // First non-blank zone: the CDN can ship MOBILE_BANNER_ZID as "", which
+        // must not shadow the BANNER_ZID fallback.
+        val bannerZone = listOf(cfg.mobileBannerZid, cfg.bannerZid, cfg.bottomBannerZid)
+            .firstOrNull { !it.isNullOrBlank() }
         var gamIdx = 0
 
         // First pass: emit rows and, for each ad slot, resolve its GPID base (no

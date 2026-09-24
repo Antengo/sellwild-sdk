@@ -30,6 +30,20 @@ class SellwildSDKTest {
     }
 
     @Test
+    fun `apply accepts IAB_CATS as array or comma-separated string`() {
+        val base = SellwildConfig(partnerCode = "weatherbug")
+
+        val single = SellwildSDK.apply(JSONObject(mapOf("IAB_CATS" to "IAB15")), base)
+        assertEquals(listOf("IAB15"), single.iabCats)
+
+        val csv = SellwildSDK.apply(JSONObject(mapOf("IAB_CATS" to " IAB15, IAB19 ,,")), base)
+        assertEquals(listOf("IAB15", "IAB19"), csv.iabCats)
+
+        val arr = JSONObject().put("IAB_CATS", org.json.JSONArray(listOf("IAB15", "IAB19")))
+        assertEquals(listOf("IAB15", "IAB19"), SellwildSDK.apply(arr, base).iabCats)
+    }
+
+    @Test
     fun `apply reads AD_REFRESH_INTERVAL as milliseconds`() {
         val base = SellwildConfig(partnerCode = "weatherbug")
         // AD_REFRESH_INTERVAL is milliseconds (matches web + CMS); stored as-is.
