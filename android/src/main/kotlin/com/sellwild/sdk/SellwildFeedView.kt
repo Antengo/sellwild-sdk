@@ -305,6 +305,26 @@ open class SellwildFeedView @JvmOverloads constructor(
         loadJob?.cancel()
     }
 
+    /**
+     * Tear the feed down: destroy every child [SellwildAdView] — including rows
+     * parked in the RecyclerView cache / pool, not just attached ones — so their
+     * refresh loops stop and stop holding the Activity, then cancel loading and
+     * drop references. Call from the host's `onDestroy` / `onDestroyView`. With
+     * `MOBILE_PAUSE_REFRESH_DETACHED=false`, detaching alone does NOT stop the
+     * ad rows' refresh. Terminal: the feed can't be reused afterwards.
+     */
+    fun destroy() {
+        stopLayoutSelfHeal()
+        loadJob?.cancel()
+        loadJob = null
+        scope.cancel()
+        adapter.destroyAdRows()
+        recycler.adapter = null
+        listener = null
+        config = null
+        listings = emptyList()
+    }
+
     // ── Layout self-heal (default OFF; see [layoutSelfHeal]) ──────────────────
     private var selfHealListener: android.view.ViewTreeObserver.OnGlobalLayoutListener? = null
 
@@ -466,6 +486,9 @@ open class SellwildFeedView @JvmOverloads constructor(
 
     private inner class RowAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private var rows: List<Row> = listOf(Row.Header)
+        // Every ad row this adapter created, attached or not (RecyclerView's
+        // cache / pool hold detached ones), so destroy() can reach them all.
+        private val adRows = mutableSetOf<AdRowView>()
 
         fun rebuild() {
             rows = buildRows()
@@ -486,10 +509,22 @@ open class SellwildFeedView @JvmOverloads constructor(
             return when (viewType) {
                 TYPE_HEADER -> HeaderHolder(HeaderView(parent.context))
                 TYPE_LISTING -> ListingHolder(ListingCardView(parent.context))
-                TYPE_GAM, TYPE_DIRECT -> AdHolder(AdRowView(parent.context, AdSize.MREC_300x250))
-                TYPE_BANNER -> AdHolder(AdRowView(parent.context, AdSize.BANNER_320x50))
+                TYPE_GAM, TYPE_DIRECT -> AdHolder(AdRowView(parent.context, AdSize.MREC_300x250).also { adRows += it })
+                TYPE_BANNER -> AdHolder(AdRowView(parent.context, AdSize.BANNER_320x50).also { adRows += it })
                 else -> throw IllegalArgumentException("Unknown viewType=$viewType")
             }
+        }
+
+        // A recycled holder is off-screen and headed for the pool (where it may
+        // be dropped without notice): destroy its ad view so the refresh loop
+        // stops. A later bind creates a fresh one.
+        override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+            (holder as? AdHolder)?.view?.destroyAd()
+        }
+
+        fun destroyAdRows() {
+            adRows.forEach { it.destroyAd() }
+            adRows.clear()
         }
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
@@ -892,6 +927,17 @@ open class SellwildFeedView @JvmOverloads constructor(
             addView(ad)
             showAdSlot()   // start on the fixed ad slot; swap to the card only on no-fill
             ad.load()
+        }
+
+        /** Destroy + detach the ad view; the next [bind] builds a fresh one. */
+        fun destroyAd() {
+            adView?.let {
+                it.listener = null
+                it.destroy()
+                removeView(it)
+            }
+            adView = null
+            boundZoneId = null
         }
 
         /** Show the fixed MREC ad slot (paid creative or in-slot house image). */
