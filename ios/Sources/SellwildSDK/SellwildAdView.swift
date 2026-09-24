@@ -407,6 +407,7 @@ public final class SellwildAdView: UIView {
             pb.removeFromSuperview()
             prebidBanner = nil
             prebidHasRenderedCreative = false
+            prebidClickModalOpen = false // didDismissModal may never arrive
         }
         if let na = nativeAdView { na.removeFromSuperview(); nativeAdView = nil }
         if let existing = gamBanner { return existing }
@@ -545,7 +546,7 @@ public final class SellwildAdView: UIView {
     private func ensureNativeAdView(configId: String) -> SellwildNativeAdView {
         // Tear down banner render paths if we previously rendered one.
         if let gb = gamBanner { gb.removeFromSuperview(); gamBanner = nil }
-        if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil; prebidHasRenderedCreative = false }
+        if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil; prebidHasRenderedCreative = false; prebidClickModalOpen = false }
         if let existing = nativeAdView { return existing }
 
         let cap = SellwildNative.maxHeight(

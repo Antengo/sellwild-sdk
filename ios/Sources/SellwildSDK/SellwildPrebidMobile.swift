@@ -59,7 +59,10 @@ public enum SellwildPrebidMobile {
             // CDN-resolved account / publisher id.
             let merged = specified.overlaying(appliedFields)
             if merged != appliedFields {
-                applyPerConfigFields(merged, updateHost: true)
+                // Only swap Host.shared when the URL itself changed: its tracking
+                // URL is an unsynchronized var read by bid requests off-main, so a
+                // needless rewrite (e.g. a timeout-only change) can race them.
+                applyPerConfigFields(merged, updateHost: merged.serverURL != appliedFields?.serverURL)
             }
             return true
         }

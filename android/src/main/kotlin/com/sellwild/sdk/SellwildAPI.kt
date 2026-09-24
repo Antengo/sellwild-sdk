@@ -348,9 +348,13 @@ class SellwildEventQueue(context: Context) {
     }
 
     suspend fun flush() = withContext(Dispatchers.IO) {
+        // At most MAX_BATCH per POST: after an outage the queue can hold up to
+        // MAX_QUEUE re-queued events, and one oversized body rejected with a 4xx
+        // would drop them all. The rest go out in follow-up POSTs below.
         val batch = synchronized(queue) {
-            val snapshot = queue.toList()
-            queue.clear()
+            val head = queue.subList(0, minOf(queue.size, MAX_BATCH))
+            val snapshot = head.toList()
+            head.clear()
             snapshot
         }
         if (batch.isEmpty()) return@withContext
@@ -415,6 +419,8 @@ class SellwildEventQueue(context: Context) {
         if (retry) {
             requeue(batch)
             scheduleRetry()
+        } else if (synchronized(queue) { queue.isNotEmpty() }) {
+            flush() // drain the remainder, one bounded batch at a time
         }
     }
 
@@ -432,6 +438,7 @@ class SellwildEventQueue(context: Context) {
 
     companion object {
         private const val MAX_QUEUE = 1000
+        private const val MAX_BATCH = 100 // matches iOS maxEventBatch
         private const val RETRY_DELAY_MS = 10_000L
 
         /**

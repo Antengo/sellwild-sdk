@@ -95,7 +95,11 @@ object SellwildPrebidMobile {
                 // (or an RN-rebuilt config without remoteJson) can't wipe a
                 // CDN-resolved account / publisher id.
                 val merged = specified.overlaying(appliedFields)
-                if (merged != appliedFields) applyPerConfigFields(merged, updateHost = true)
+                // Only swap the shared host when the URL itself changed (it's read by
+                // in-flight bid requests).
+                if (merged != appliedFields) {
+                    applyPerConfigFields(merged, updateHost = merged.serverUrl != appliedFields?.serverUrl)
+                }
                 return true
             }
 
