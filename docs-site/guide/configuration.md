@@ -131,7 +131,7 @@ These fields control the appearance of the native feed and listing cards.
 | `hideBannerBottom` | `Bool` | `false` | Hide the bottom banner ad placement. |
 | `floorMultiplier` | `Double` | `1.0` | Multiplier applied to bid floor prices. Values above `1.0` raise floors. |
 
-> **Removed fields.** `adType`, `gptProxyUrl`, and `prebidSrc` no longer exist on the iOS or Android `SellwildConfig`, and `widgetJsUrl` is gone from iOS. They only fed the removed WebView widget. The core TypeScript type still declares `gptProxyUrl` and `prebidSrc`; no mobile surface reads them.
+> **Deprecated fields.** `adType`, `gptProxyUrl`, and `prebidSrc` (iOS and Android) and `widgetJsUrl` (iOS) are still accepted on `SellwildConfig` but ignored. They only fed the removed WebView widget. The core TypeScript type still declares `gptProxyUrl` and `prebidSrc`; no mobile surface reads them.
 
 ### Ad Refresh
 

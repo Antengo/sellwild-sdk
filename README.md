@@ -51,9 +51,9 @@ const config = await configure('mysite', 'mysite-slug')
 <SellwildFeed
   config={config}
   style={{ flex: 1 }}
+  consumeListingTaps // you navigate; omit to let the SDK open listing.url in-app
   onListingTap={(listing) => {
     navigation.navigate('Detail', { listing })
-    return true // consumed; omit to let the SDK open listing.url in-app
   }}
 />
 ```

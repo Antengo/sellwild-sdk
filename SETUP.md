@@ -69,10 +69,11 @@ const config = await configure('mysite', 'mysite-main')
 <SellwildFeed
   config={config}
   style={{ flex: 1 }}
+  // consumeListingTaps: you handle the tap; omit it and the SDK opens
+  // listing.url in-app instead
+  consumeListingTaps
   onListingTap={(listing) => {
-    // Return true to consume; otherwise the SDK opens listing.url in-app
     Linking.openURL(listing.url)
-    return true
   }}
 />
 
