@@ -55,7 +55,7 @@ step swift-typecheck      fast typecheck xcode   -            'bash scripts/lint
 # Lint. Each baseline sits next to its config; a new finding fails.
 step eslint-core          fast lint      -       -            'npm --prefix core run --silent lint'
 step eslint-react-native  fast lint      -       -            'npm --prefix react-native run --silent lint'
-step lint-rules-test      fast lint      -       -            'node --test --test-reporter=dot contracts/test/lint-rules.test.mjs'
+step lint-rules-test      fast lint      -       -            'node --test --test-reporter=dot contracts/test/lint-rules.test.mjs scripts/lint/eslint-config.test.mjs'
 step swiftlint            fast lint      -       -            'bash scripts/lint/swiftlint.sh'
 step swift-lint-tests     fast lint      -       -            'node --test --test-reporter=dot scripts/lint/swift-warnings.test.mjs scripts/lint/swiftlint-config.test.mjs scripts/lint/swiftlint-baseline.test.mjs'
 step kotlin-warnings-test fast lint      -       -            'node --test --test-reporter=dot scripts/lint/kotlin-warnings.test.mjs'

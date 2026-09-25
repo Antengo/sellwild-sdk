@@ -12,8 +12,12 @@
 //
 // House failure rules (contracts/FAILURES.md 1, 2, 8.4):
 //   no-console                      src, except the A2 modules (contracts/scripts/print-gate.mjs PRINT_EXEMPT)
+//   sellwild/no-global-console      the same files: console through globalThis, window, self or global
 //   sellwild/no-silent-catch        everywhere: empty catches (comments do not count) and swallowing .catch handlers
-//   sellwild/catch-reports-failure  src: every catch calls logFailure, rethrows or hands on a registry code
+//   sellwild/catch-reports-failure  src: every catch calls logFailure, rethrows or hands on a registry code.
+//                                   The transport catches FAILURES.md 8.4 exempts (EventQueue.flush,
+//                                   resolveUid) each carry their own eslint-disable-next-line.
+//   sellwild/disable-reason         everywhere: turning off a sellwild/* rule needs "-- FAILURES.md <section>: <why>"
 // The rules live in contracts/lint/eslint-plugin-sellwild.mjs, shared with
 // react-native and (vendored) the widget.
 
@@ -59,6 +63,7 @@ export default defineConfig(
       // comment-only body as empty (FAILURES.md 1.3).
       'no-empty': ['error', { allowEmptyCatch: true }],
       'sellwild/no-silent-catch': 'error',
+      'sellwild/disable-reason': 'error',
       // A leading underscore marks a binding that is unused on purpose.
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
     },
@@ -67,24 +72,19 @@ export default defineConfig(
     files: ['src/**/*.ts'],
     rules: {
       'no-console': 'error',
+      'sellwild/no-global-console': 'error',
       'sellwild/catch-reports-failure': ['error', { reporters: ['logFailure'], codes }],
     },
   },
   {
     // A2: the debug echo and the debug logger may print (FAILURES.md 2).
     files: printExempt,
-    rules: { 'no-console': 'off' },
+    rules: { 'no-console': 'off', 'sellwild/no-global-console': 'off' },
   },
   {
     // The logFailure shell: its own catch cannot report, it would recurse
     // (FAILURES.md 3.4 item 4). It counts internalErrors instead.
     files: ['src/failures/index.ts'],
     rules: { 'sellwild/catch-reports-failure': 'off' },
-  },
-  {
-    // Transport never reports itself (FAILURES.md 8.4): EventQueue.flush, and
-    // the uid guard (a throw from randomUUID is expected on Hermes).
-    files: ['src/event-queue.ts'],
-    rules: { 'sellwild/catch-reports-failure': ['error', { reporters: ['logFailure'], codes, exemptFunctions: ['flush', 'resolveUid'] }] },
   },
 )

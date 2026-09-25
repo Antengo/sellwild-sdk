@@ -35,6 +35,7 @@ export function useSellwildListings(sdkConfig: SellwildConfig): UseSellwildListi
         setListings(result.listings)
         setConfig(result.config)
       })
+      // eslint-disable-next-line sellwild/catch-reports-failure -- FAILURES.md 9.2: log once; core's fetchListings already logged it
       .catch((err: Error) => {
         // Not logged here: core's fetchListings already logged this failure
         // (listings.fetch.*), and a failure is logged once, at the lowest layer

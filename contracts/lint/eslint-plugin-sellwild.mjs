@@ -17,23 +17,40 @@
 //     FAILURES.md 1.1. Every catch clause, and every inline promise
 //     `.catch(handler)`, reports or passes on the failure. The body must do
 //     one of these:
-//       1. call a reporter: `logFailure(...)` or `x.logFailure(...)` (option
-//          `reporters`, names matched on the callee's last segment unless the
-//          entry is dotted);
+//       1. call a reporter (option `reporters`, default logFailure). A name
+//          matches the whole callee: `logFailure` matches `logFailure(...)`
+//          only, not `x.logFailure(...)` or `o.report(...)`; list a receiver
+//          when it is one (`SellwildFailures.log`);
 //       2. propagate it: a `throw` (outside a nested function) or
 //          `Promise.reject(...)`;
 //       3. hand it to code that reports it: a string that is a registry
 //          code, `<area>.<operation>.<reason>` (option `codes`, when given,
-//          must list it), such as `return { issue: { code:
-//          'localized.config.parse', ... } }`; or, in a catch clause, a
-//          `return` whose value holds the caught error (the pure-step
-//          Result: `return { ok: false, error }`, whose caller logs it).
-//     A catch inside a function named in `exemptFunctions` is skipped. Use it
-//     only for the sites FAILURES.md exempts, per file, in the lint config:
-//     transport never reports itself (8.4), the logFailure shell's own catch
-//     (3.4 item 4) and log-once wrappers (9.2). Anything else goes through an
-//     `eslint-disable-next-line sellwild/catch-reports-failure -- <why>`.
-//     Empty catches are left to no-silent-catch, so each is reported once.
+//          must list it), passed to a call, returned or thrown, such as
+//          `return { issue: { code: 'localized.config.parse', ... } }`. A
+//          code only stored in a variable does not count. Or, in a catch
+//          clause, a `return` whose value holds the caught error (the
+//          pure-step Result: `return { ok: false, error }`, whose caller
+//          logs it).
+//     The sites FAILURES.md exempts (transport never reports itself, 8.4;
+//     log once, 9.2) each carry their own
+//     `// eslint-disable-next-line sellwild/catch-reports-failure -- FAILURES.md <section>: <why>`,
+//     so every other catch in the same function is still checked. The
+//     logFailure shell's own catch (3.4 item 4) is turned off per file in
+//     the lint config. Empty catches are left to no-silent-catch, so each is
+//     reported once.
+//
+//   sellwild/no-global-console
+//     FAILURES.md 1.2. `console` reached through the global object:
+//     `globalThis.console.error(...)`, `window.console`, `self['console']`,
+//     `const { console: c } = global`. The core no-console rule sees only the
+//     bare name. Turn it off where no-console is off (the A2 modules).
+//
+//   sellwild/disable-reason
+//     A comment that turns off a sellwild/* rule (eslint-disable,
+//     eslint-disable-line, eslint-disable-next-line, or an `eslint` rule
+//     comment), or turns off every rule, must say why after ` -- ` and cite
+//     the FAILURES.md section that allows it, such as
+//     `-- FAILURES.md 8.4: transport never reports itself`.
 //
 // What ESLint cannot see: catches and prints inside page scripts built in
 // template strings (the print gate scans those), and a `.catch(handler)`
@@ -67,31 +84,37 @@ function dottedName (node) {
   return null
 }
 
+/** Whether a callee is one of `names`, written out in full: `report` is `report(...)`, not `o.report(...)`. */
 function matchesCallee (callee, names) {
   const full = dottedName(callee)
-  if (full === null) return false
-  const last = full.slice(full.lastIndexOf('.') + 1)
-  return names.some((name) => (name.includes('.') ? full === name || full.endsWith(`.${name}`) : last === name))
+  return full !== null && names.includes(full)
 }
 
-function keyName (key) {
-  if (key.type === 'Identifier' || key.type === 'PrivateIdentifier') return key.name
-  if (key.type === 'Literal' && typeof key.value === 'string') return key.value
-  return null
-}
-
-/** The name a function is known by: its own, or the variable, property, method or assignment target that holds it. */
-function functionName (fn) {
-  if (fn.id?.name) return fn.id.name
-  const parent = fn.parent
-  if (!parent) return null
-  if (parent.type === 'VariableDeclarator' && parent.init === fn && parent.id.type === 'Identifier') return parent.id.name
-  if (['MethodDefinition', 'Property', 'PropertyDefinition'].includes(parent.type) && parent.value === fn) return keyName(parent.key)
-  if (parent.type === 'AssignmentExpression' && parent.right === fn) {
-    const name = dottedName(parent.left)
-    return name === null ? null : name.slice(name.lastIndexOf('.') + 1)
+/**
+ * Whether a registry-code string under a catch `body` is handed on: its value
+ * flows, through expressions only, into a call's arguments, or into a
+ * `return` or `throw` of the catch itself (not of a function nested in it).
+ * A string stored in a variable, assigned, or returned by a nested function
+ * is not handed on. An expression-bodied `.catch` handler returns its body.
+ */
+function isHandedOn (node, body) {
+  for (let child = node; ; child = child.parent) {
+    // Reached the body itself: only an expression body (an arrow handler's) is returned.
+    if (child === body) return body.type !== 'BlockStatement'
+    const parent = child.parent
+    if (!parent) return false
+    if ((parent.type === 'CallExpression' || parent.type === 'NewExpression') && parent.arguments.includes(child)) return true
+    if (parent.type === 'ReturnStatement' || parent.type === 'ThrowStatement') return !nestedFunctionBetween(parent, body)
+    if (FUNCTIONS.has(parent.type) || /(?:Statement|Declaration|Declarator)$/.test(parent.type)) return false
   }
-  return null
+}
+
+/** Whether a function lies between `node` and the catch `body` above it. */
+function nestedFunctionBetween (node, body) {
+  for (let up = node.parent; up && up !== body; up = up.parent) {
+    if (FUNCTIONS.has(up.type)) return true
+  }
+  return false
 }
 
 /**
@@ -165,7 +188,6 @@ const catchReportsFailure = {
       type: 'object',
       properties: {
         reporters: { type: 'array', items: { type: 'string', minLength: 1 }, uniqueItems: true },
-        exemptFunctions: { type: 'array', items: { type: 'string', minLength: 1 }, uniqueItems: true },
         codes: { type: 'array', items: { type: 'string' } },
       },
       additionalProperties: false,
@@ -177,10 +199,8 @@ const catchReportsFailure = {
   create (context) {
     const options = context.options[0] ?? {}
     const reporters = options.reporters ?? ['logFailure']
-    const exempt = new Set(options.exemptFunctions ?? [])
     const codes = options.codes ? new Set(options.codes) : null
-    const sourceCode = context.sourceCode
-    const keys = sourceCode.visitorKeys
+    const keys = context.sourceCode.visitorKeys
 
     const isCode = (value) => typeof value === 'string' && value.length <= 64 && FAILURE_CODE_FORMAT.test(value) && (codes === null || codes.has(value))
 
@@ -190,19 +210,14 @@ const catchReportsFailure = {
         if (node.type === 'CallExpression' && (matchesCallee(node.callee, reporters) || matchesCallee(node.callee, ['Promise.reject']))) return true
         if (node.type === 'ThrowStatement' && !nested) return true
         if (param !== null && node.type === 'ReturnStatement' && !nested && node.argument && reads(node.argument, param, keys)) return true
-        if (node.type === 'Literal' && isCode(node.value)) return true
-        if (node.type === 'TemplateLiteral' && node.expressions.length === 0 && isCode(node.quasis[0].value.cooked)) return true
+        if (node.type === 'Literal' && isCode(node.value) && isHandedOn(node, body)) return true
+        if (node.type === 'TemplateLiteral' && node.expressions.length === 0 && isCode(node.quasis[0].value.cooked) && isHandedOn(node, body)) return true
       }
       return false
     }
 
-    function isExempt (node) {
-      if (exempt.size === 0) return false
-      return sourceCode.getAncestors(node).some((ancestor) => FUNCTIONS.has(ancestor.type) && exempt.has(functionName(ancestor)))
-    }
-
     function check (node, body, what, param = null) {
-      if (handles(body, param) || isExempt(node)) return
+      if (handles(body, param)) return
       context.report({ node, messageId: 'unreported', data: { what, reporters: reporters.join(' or ') } })
     }
 
@@ -220,11 +235,110 @@ const catchReportsFailure = {
   },
 }
 
+/** The names of the global object. */
+const GLOBALS = new Set(['globalThis', 'window', 'self', 'global'])
+
+/** The property name a member access or a pattern key reads, when it is written out. */
+function propertyName (node, computed) {
+  if (!computed && node.type === 'Identifier') return node.name
+  if (node.type === 'Literal' && typeof node.value === 'string') return node.value
+  if (node.type === 'TemplateLiteral' && node.expressions.length === 0) return node.quasis[0].value.cooked
+  return null
+}
+
+const noGlobalConsole = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Disallow console reached through the global object (globalThis.console, window.console, self.console, global.console), which no-console does not see (contracts/FAILURES.md 1.2).' },
+    schema: [],
+    messages: {
+      globalConsole: '{{object}}.console is console: do not print (contracts/FAILURES.md 1.2). Call logFailure with a registry code; trace output goes through the debug logger.',
+    },
+  },
+  create (context) {
+    const sourceCode = context.sourceCode
+
+    /** `a.b.c` when every segment names the global object and none is a local variable, else null. */
+    function globalObject (node) {
+      const name = dottedName(node)
+      if (name === null || !name.split('.').every((part) => GLOBALS.has(part))) return null
+      const root = name.split('.')[0]
+      for (let scope = sourceCode.getScope(node); scope; scope = scope.upper) {
+        const variable = scope.set.get(root)
+        if (variable) return variable.defs.length === 0 ? name : null
+      }
+      return name
+    }
+
+    function checkPattern (pattern, init) {
+      if (pattern?.type !== 'ObjectPattern' || !init) return
+      const object = globalObject(init)
+      if (object === null) return
+      for (const property of pattern.properties) {
+        if (property.type === 'Property' && propertyName(property.key, property.computed) === 'console') {
+          context.report({ node: property, messageId: 'globalConsole', data: { object } })
+        }
+      }
+    }
+
+    return {
+      MemberExpression (node) {
+        if (propertyName(node.property, node.computed) !== 'console') return
+        const object = globalObject(node.object)
+        if (object !== null) context.report({ node, messageId: 'globalConsole', data: { object } })
+      },
+      VariableDeclarator (node) { checkPattern(node.id, node.init) },
+      AssignmentExpression (node) { checkPattern(node.left, node.right) },
+    }
+  },
+}
+
+/** `eslint-disable`, `eslint-disable-line`, `eslint-disable-next-line` or an `eslint` rule comment, split into its rules and its description. */
+const DIRECTIVE = /^(eslint-disable(?:-next-line|-line)?|eslint)(?:\s+([\s\S]*))?$/
+/** ESLint's own description separator: two or more dashes with white space around them. */
+const DESCRIPTION = /\s-{2,}\s/
+/** A description must cite the section of FAILURES.md that allows the exception. */
+const CITES_SECTION = /FAILURES\.md\s+\d+(?:\.\d+)*/
+
+const disableReason = {
+  meta: {
+    type: 'problem',
+    docs: { description: 'Require a comment that turns off a sellwild/* rule to say why after " -- " and cite the FAILURES.md section that allows it.' },
+    schema: [],
+    messages: {
+      missing: 'This comment turns off {{rules}} without a reason. Add " -- FAILURES.md <section>: <why>" (the section that allows this exception), or fix the code.',
+      uncited: 'The reason must cite the FAILURES.md section that allows this exception, such as "FAILURES.md 8.4".',
+    },
+  },
+  create (context) {
+    return {
+      Program () {
+        for (const comment of context.sourceCode.getAllComments()) {
+          // Trailing white space kept: ESLint reads "x -- " as rule x with an empty reason.
+          const match = DIRECTIVE.exec(comment.value.replace(/^\s+/, ''))
+          if (!match) continue
+          const [head, ...rest] = (match[2] ?? '').split(DESCRIPTION)
+          const description = rest.join(' ').trim()
+          const blanket = match[1] !== 'eslint' && head.trim() === ''
+          const named = (match[1] === 'eslint' ? [...head.matchAll(/(sellwild\/[\w-]+)\s*:/g)].map((m) => m[1]) : head.split(',').map((rule) => rule.trim()))
+            .filter((rule) => rule.startsWith('sellwild/'))
+          if (!blanket && named.length === 0) continue
+          const rules = blanket ? 'every rule' : named.join(', ')
+          if (description === '') context.report({ loc: comment.loc, messageId: 'missing', data: { rules } })
+          else if (!CITES_SECTION.test(description)) context.report({ loc: comment.loc, messageId: 'uncited' })
+        }
+      },
+    }
+  },
+}
+
 const plugin = {
-  meta: { name: 'eslint-plugin-sellwild', version: '1.0.0' },
+  meta: { name: 'eslint-plugin-sellwild', version: '1.1.0' },
   rules: {
     'no-silent-catch': noSilentCatch,
     'catch-reports-failure': catchReportsFailure,
+    'no-global-console': noGlobalConsole,
+    'disable-reason': disableReason,
   },
 }
 

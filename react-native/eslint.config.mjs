@@ -13,8 +13,12 @@
 //
 // House failure rules (contracts/FAILURES.md 1, 2, 9):
 //   no-console                      src: React Native JS has no A2 module of its own (it uses core's)
+//   sellwild/no-global-console      src: console through globalThis, window, self or global
 //   sellwild/no-silent-catch        everywhere: empty catches (comments do not count) and swallowing .catch handlers
-//   sellwild/catch-reports-failure  src: every catch calls logFailure, rethrows or hands on a registry code
+//   sellwild/catch-reports-failure  src: every catch calls logFailure, rethrows or hands on a registry code.
+//                                   useSellwildListings' .catch (log once, FAILURES.md 9.2) carries its
+//                                   own eslint-disable-next-line.
+//   sellwild/disable-reason         everywhere: turning off a sellwild/* rule needs "-- FAILURES.md <section>: <why>"
 // The rules live in contracts/lint/eslint-plugin-sellwild.mjs, shared with
 // core and (vendored) the widget.
 
@@ -61,6 +65,7 @@ export default defineConfig(
       // comment-only body as empty (FAILURES.md 1.3).
       'no-empty': ['error', { allowEmptyCatch: true }],
       'sellwild/no-silent-catch': 'error',
+      'sellwild/disable-reason': 'error',
       // A leading underscore marks a binding that is unused on purpose.
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
     },
@@ -69,14 +74,9 @@ export default defineConfig(
     files: ['src/**/*.{ts,tsx}'],
     rules: {
       'no-console': 'error',
+      'sellwild/no-global-console': 'error',
       'sellwild/catch-reports-failure': ['error', { reporters: ['logFailure'], codes }],
     },
   },
-  ...(printExempt.length ? [{ files: printExempt, rules: { 'no-console': 'off' } }] : []),
-  {
-    // Log once (FAILURES.md 9.2): core's fetchListings already reported the
-    // failure; the hook only hands it to the host.
-    files: ['src/useSellwildListings.ts'],
-    rules: { 'sellwild/catch-reports-failure': ['error', { reporters: ['logFailure'], codes, exemptFunctions: ['useSellwildListings'] }] },
-  },
+  ...(printExempt.length ? [{ files: printExempt, rules: { 'no-console': 'off', 'sellwild/no-global-console': 'off' } }] : []),
 )

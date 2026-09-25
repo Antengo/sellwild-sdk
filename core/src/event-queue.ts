@@ -108,13 +108,15 @@ export class EventQueue {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(batch),
-    }).catch(() => {
-      // Re-queue on failure, capped, and reschedule so a transient outage
-      // recovers without waiting for the next push() — and can't grow unbounded.
-      // Not reported: see the note at the top of this file.
-      this.events = requeueFailedBatch(this.events, batch, this.maxQueue)
-      this.schedule()
     })
+      // eslint-disable-next-line sellwild/catch-reports-failure -- FAILURES.md 8.4: transport never reports itself
+      .catch(() => {
+        // Re-queue on failure, capped, and reschedule so a transient outage
+        // recovers without waiting for the next push() — and can't grow unbounded.
+        // Not reported: see the note at the top of this file.
+        this.events = requeueFailedBatch(this.events, batch, this.maxQueue)
+        this.schedule()
+      })
   }
 }
 
@@ -144,6 +146,7 @@ export function requeueFailedBatch<T>(events: readonly T[], batch: readonly T[],
 export function resolveUid(randomUUID: () => string, random: () => number): string {
   try {
     return randomUUID()
+    // eslint-disable-next-line sellwild/catch-reports-failure -- FAILURES.md 8.4: the queue's own uid guard; a randomUUID throw is expected on Hermes
   } catch {
     return random().toString(36).slice(2)
   }
