@@ -57,7 +57,7 @@ step eslint-core          fast lint      -       -            'npm --prefix core
 step eslint-react-native  fast lint      -       -            'npm --prefix react-native run --silent lint'
 step lint-rules-test      fast lint      -       -            'node --test --test-reporter=dot contracts/test/lint-rules.test.mjs'
 step swiftlint            fast lint      -       -            'bash scripts/lint/swiftlint.sh'
-step swift-lint-tests     fast lint      -       -            'node --test --test-reporter=dot scripts/lint/swift-warnings.test.mjs scripts/lint/swiftlint-config.test.mjs'
+step swift-lint-tests     fast lint      -       -            'node --test --test-reporter=dot scripts/lint/swift-warnings.test.mjs scripts/lint/swiftlint-config.test.mjs scripts/lint/swiftlint-baseline.test.mjs'
 step kotlin-warnings-test fast lint      -       -            'node --test --test-reporter=dot scripts/lint/kotlin-warnings.test.mjs'
 # Contracts: the print gate, every contract file against its schema, the contracts tests.
 step print-gate           fast check     -       -            'node contracts/scripts/print-gate.mjs'

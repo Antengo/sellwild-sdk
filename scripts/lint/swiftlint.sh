@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # SwiftLint gate: installs the pinned SwiftLint if needed, then lints with
-# .swiftlint.yml. Exits non-zero on any finding not in .swiftlint.baseline.json
-# (--strict: warnings count too).
+# .swiftlint.yml and checks the findings against
+# scripts/lint/swiftlint.baseline.json (scripts/lint/swiftlint-baseline.mjs
+# has the matching rules). Every finding counts, warnings too. Exits 1 on a
+# finding the baseline does not cover.
 #
 #   bash scripts/lint/swiftlint.sh             the gate
 #   bash scripts/lint/swiftlint.sh --update    rewrite the baseline after fixing findings
-#                                              (refuses new findings; see swiftlint-baseline.mjs)
+#                                              (refuses any increase unless --allow-increase)
 
 set -euo pipefail
 
@@ -15,6 +17,6 @@ cd "$ROOT"
 
 if [ "${1:-}" = "--update" ]; then
   shift
-  exec node scripts/lint/swiftlint-baseline.mjs "$@"
+  exec node scripts/lint/swiftlint-baseline.mjs --update "$@"
 fi
-exec tools/bin/swiftlint lint --strict --quiet --baseline .swiftlint.baseline.json
+exec node scripts/lint/swiftlint-baseline.mjs "$@"

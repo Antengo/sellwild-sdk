@@ -2,8 +2,10 @@
 //
 // Checks the house-rule part of .swiftlint.yml: runs the pinned SwiftLint on
 // fixtures/swiftlint (a copy laid out like the repo) and compares each hit
-// with the "expect: <rule>" markers there. Also checks that the rules' print
-// exemptions match PRINT_EXEMPT in contracts/scripts/print-gate.mjs.
+// with the "expect: <rule>" markers there, and that SwiftLint has no warning
+// about the config itself. Also checks that the rules' print exemptions match
+// PRINT_EXEMPT in contracts/scripts/print-gate.mjs. The baseline matching is
+// swiftlint-baseline.test.mjs's.
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -12,7 +14,7 @@ import path from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { PRINT_EXEMPT } from '../../contracts/scripts/print-gate.mjs'
-import { normalize, added } from './swiftlint-baseline.mjs'
+import { configWarnings } from './swiftlint-baseline.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, '../..')
@@ -54,6 +56,8 @@ test('house rules flag exactly the marked lines', { skip: !fs.existsSync(SWIFTLI
     assert.ok(expected.length > 10, 'fixture expect: markers are missing')
     const r = spawnSync(SWIFTLINT, ['lint', '--quiet', '--no-cache', '--reporter', 'json'], { cwd: dir, encoding: 'utf8' })
     assert.ok(r.stdout.trim().startsWith('['), `SwiftLint gave no JSON:\n${r.stderr}`)
+    // A misspelled option is only a warning to SwiftLint; the gate fails on it.
+    assert.deepEqual(configWarnings(r.stderr), [], 'SwiftLint warned about .swiftlint.yml')
     const actual = JSON.parse(r.stdout)
       .filter((v) => HOUSE_RULES.has(v.rule_id))
       .map((v) => `${path.relative(fs.realpathSync(dir), fs.realpathSync(v.file))}:${v.line} ${v.rule_id}`)
@@ -61,17 +65,4 @@ test('house rules flag exactly the marked lines', { skip: !fs.existsSync(SWIFTLI
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
-})
-
-test('baseline normalize is stable and added() counts copies', () => {
-  const v = (file, line, rule, text, extra = {}) => ({ text, violation: { ...extra, ruleIdentifier: rule, location: { file, line, character: 1 } } })
-  const a = v('b.swift', 2, 'line_length', 'x', { severity: 'warning' })
-  const b = v('a.swift', 9, 'comma', 'y')
-  const sameAsA = { violation: { location: { character: 1, line: 2, file: 'b.swift' }, severity: 'warning', ruleIdentifier: 'line_length' }, text: 'x' }
-  assert.equal(normalize([a, b]), normalize([b, sameAsA]))
-  assert.equal(normalize([a, b]).split('\n')[1].startsWith('{"text":"y"'), true)
-  assert.equal(normalize([]), '[]\n')
-  assert.deepEqual(added([a], [a, b]), [b])
-  assert.deepEqual(added([a], [{ ...a, violation: { ...a.violation, location: { ...a.violation.location, line: 40 } } }]), [])
-  assert.equal(added([a], [a, a]).length, 1)
 })

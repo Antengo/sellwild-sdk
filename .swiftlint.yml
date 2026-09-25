@@ -3,16 +3,13 @@
 #   bash scripts/lint/swiftlint.sh             # the gate (installs the pinned SwiftLint first)
 #   bash scripts/lint/swiftlint.sh --update    # rewrite the baseline after fixing findings
 #
-# The gate runs `tools/bin/swiftlint lint --strict --quiet --baseline
-# .swiftlint.baseline.json`: --strict makes warnings fail too, and the
-# baseline holds the findings that existed on 2026-09-24, so only new ones
-# fail. --update refuses to add findings to the baseline (see
-# scripts/lint/swiftlint-baseline.mjs). scripts/lint/swiftlint-config.test.mjs
+# The gate runs `tools/bin/swiftlint lint --reporter json` and checks every
+# finding (warnings too) against scripts/lint/swiftlint.baseline.json, which
+# holds the findings that existed on 2026-09-24, so only new ones fail. The
+# match is by file, rule and reason, not line, and a baselined long file,
+# type or function may shrink but not grow (scripts/lint/swiftlint-baseline.mjs).
+# --update refuses to add findings. scripts/lint/swiftlint-config.test.mjs
 # checks the house rules below against fixtures.
-#
-# Run it from the checkout's real path. SwiftLint drops the /private prefix
-# from file paths, so under /tmp or /var/folders the baseline paths stop
-# matching and every baselined finding is reported again.
 
 included:
   - ios/Sources
@@ -42,6 +39,12 @@ opt_in_rules:
 # minimum length changes; the other identifier_name checks stay on.
 identifier_name:
   min_length: 1
+
+# Comment lines do not make a file long, as type_body_length and
+# function_body_length already leave comments out. So a comment added to a
+# baselined long file does not count as growth.
+file_length:
+  ignore_comment_only_lines: true
 
 # House failure rules (contracts/FAILURES.md sections 1, 2 and 11). These are
 # regexes, so they mirror contracts/scripts/print-gate.mjs rather than replace
