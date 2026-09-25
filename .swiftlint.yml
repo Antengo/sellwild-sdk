@@ -1,0 +1,101 @@
+# SwiftLint for the iOS SDK and the React Native iOS bridge.
+#
+#   bash scripts/lint/swiftlint.sh             # the gate (installs the pinned SwiftLint first)
+#   bash scripts/lint/swiftlint.sh --update    # rewrite the baseline after fixing findings
+#
+# The gate runs `tools/bin/swiftlint lint --strict --quiet --baseline
+# .swiftlint.baseline.json`: --strict makes warnings fail too, and the
+# baseline holds the findings that existed on 2026-09-24, so only new ones
+# fail. --update refuses to add findings to the baseline (see
+# scripts/lint/swiftlint-baseline.mjs). scripts/lint/swiftlint-config.test.mjs
+# checks the house rules below against fixtures.
+#
+# Run it from the checkout's real path. SwiftLint drops the /private prefix
+# from file paths, so under /tmp or /var/folders the baseline paths stop
+# matching and every baselined finding is reported again.
+
+included:
+  - ios/Sources
+  - ios/Tests
+  - react-native/ios
+  - react-native/native-checks/ios
+
+# samples/ is left out for now: the sample apps are being rebuilt next. Add
+# them back (and re-baseline) once the new ones land.
+excluded:
+  - samples
+  - .coverage-tmp
+  - .build
+  - .swiftpm
+  - "**/DerivedData"
+  - "**/SourcePackages"
+  - "**/build"
+  - "**/Pods"
+  - "**/node_modules"
+
+opt_in_rules:
+  # A Task { try ... } whose error nobody reads is a silent swallow
+  # (FAILURES.md section 1.4).
+  - unhandled_throwing_task
+
+# House style uses short local names (v, s, c, n, i: 250+ uses). Only the
+# minimum length changes; the other identifier_name checks stay on.
+identifier_name:
+  min_length: 1
+
+# House failure rules (contracts/FAILURES.md sections 1, 2 and 11). These are
+# regexes, so they mirror contracts/scripts/print-gate.mjs rather than replace
+# it. Limits, said plainly:
+# 1. "Every catch calls logFailure" is NOT enforced. A regex cannot find where
+#    a catch body ends when it has nested braces, so it cannot tell whether
+#    logFailure is called inside it. Code review and the coverage tests carry
+#    that rule.
+# 2. `try?` that throws away a real failure is NOT enforced. Most `try?` uses
+#    are fine, and a regex cannot tell which ones are not.
+# 3. Logger calls are caught by name (a receiver ending in "logger" or
+#    "Logger"), plus every `import os` / `import OSLog` and every Logger(...) /
+#    OSLog(...) construction, which a Logger cannot be used without.
+#
+# PRINT_EXEMPT: the two Swift files in PRINT_EXEMPT (print-gate.mjs) may print.
+# scripts/lint/swiftlint-config.test.mjs fails if this list drifts from it.
+custom_rules:
+  no_print:
+    name: "No printing"
+    regex: '(?<![.\w])(?:print|debugPrint|dump|NSLog|os_log)\s*\('
+    excluded_match_kinds: [comment, comment.mark, comment.url, doccomment, doccomment.field, string]
+    included: ['/ios/Sources/', '/react-native/ios/']
+    excluded:
+      - '/ios/Sources/SellwildSDK/Failures/SellwildFailures\.swift$'
+      - '/ios/Sources/SellwildSDK/Failures/SellwildLog\.swift$'
+    message: "Do not print. Report a failure with logFailure and a registry code; trace output goes through SellwildLog (FAILURES.md sections 1-2)."
+    severity: error
+
+  no_os_logger:
+    name: "No os Logger"
+    regex: '\bimport\s+(?:os|OSLog)\b|(?<![.\w])(?:os\s*\.\s*)?Logger\s*\(|(?<![.\w])OSLog\s*\(|\b\w*[lL]ogger\s*\.\s*(?:error|fault|critical|warning|notice|info|debug|trace|log)\s*\('
+    excluded_match_kinds: [comment, comment.mark, comment.url, doccomment, doccomment.field, string]
+    included: ['/ios/Sources/', '/react-native/ios/']
+    excluded:
+      - '/ios/Sources/SellwildSDK/Failures/SellwildFailures\.swift$'
+      - '/ios/Sources/SellwildSDK/Failures/SellwildLog\.swift$'
+    message: "Do not log through os.Logger/OSLog. Report a failure with logFailure; trace output goes through SellwildLog (FAILURES.md sections 1-2)."
+    severity: error
+
+  # Two rules because SwiftLint drops a match that contains any excluded
+  # syntax kind: this one ignores comments and strings, so it only sees a
+  # whitespace-only body.
+  empty_catch:
+    name: "Empty catch"
+    regex: '\bcatch\b[^{}\n]*\{\s*\}'
+    excluded_match_kinds: [comment, comment.mark, comment.url, doccomment, doccomment.field, string]
+    message: "Empty catch. Call logFailure with a registry code (FAILURES.md section 1.3)."
+    severity: error
+
+  # A body holding only comments is empty too. The lookbehinds skip a `catch`
+  # that sits inside a // or /* comment on the same line.
+  empty_catch_comment:
+    name: "Empty catch (comments only)"
+    regex: '(?<!//[^\n]{0,300})(?<!/\*(?:[^*\n]|\*(?!/)){0,300})\bcatch\b[^{}\n]*\{\s*(?://[^\n]*\n|/\*(?:[^*]|\*(?!/))*\*/)(?:\s|//[^\n]*\n|/\*(?:[^*]|\*(?!/))*\*/)*\}'
+    excluded_match_kinds: [string]
+    message: "A catch body with only comments is empty. Call logFailure with a registry code (FAILURES.md section 1.3)."
+    severity: error

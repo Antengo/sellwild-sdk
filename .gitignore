@@ -73,3 +73,6 @@ flutter/coverage/
 # Local suite timing log (tools/timed.mjs)
 .timings/
 .mutation-journal/
+
+# Pinned lint binaries (scripts/lint/install-swiftlint.sh)
+tools/bin/

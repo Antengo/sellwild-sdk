@@ -1,0 +1,21 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -scheme SellwildSDK -destination "platform=iOS Simulator,id=C43FAF7C" -enableCodeCoverage YES -derivedDataPath /ROOT/.coverage-tmp/ios-dd -resultBundlePath /ROOT/.coverage-tmp/ios.xcresult
+
+SwiftCompile normal arm64 Compiling\ SellwildAdStack.swift /ROOT/ios/Sources/SellwildSDK/SellwildAdStack.swift (in target 'SellwildSDK' from project 'SellwildSDK')
+    cd /ROOT
+/ROOT/ios/Sources/SellwildSDK/SellwildAdStack.swift:42:13: warning: variable 'x' was never mutated; consider changing to 'let' constant [#no-var]
+40 |     func load() {
+41 |         var x = 1
+   |             `- warning: variable 'x' was never mutated; consider changing to 'let' constant [#no-var]
+
+/ROOT/ios/Tests/SellwildSDKTests/Logic/AdStackTests.swift:10:5: warning: 'foo()' is deprecated: use bar()
+/ROOT/ios/Sources/SellwildSDK/SellwildAdStack.swift:42:13: warning: variable 'x' was never mutated; consider changing to 'let' constant [#no-var]
+/ROOT/ios/Sources/SellwildSDK/SellwildAdStack.swift:50:9: note: add 'let' here
+/ROOT/.coverage-tmp/ios-dd/SourcePackages/checkouts/sellwild-prebid-mobile-ios/Sources/Prebid.swift:1:1: warning: third-party warning
+/ROOT/samples/ios/SampleApp.swift:3:3: warning: sample app, not linted yet
+/ROOT/ios/Sources/SellwildSDK/Bridge.m:7:1: warning: not Swift
+ld: warning: object file was built for newer 'iOS-simulator' version (26.5) than being linked (13.0)
+2026-09-24 18:00:09.865 appintentsmetadataprocessor[35081:36480660] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+
+Test Suite 'All tests' passed at 2026-09-24 18:19:23.094.
+** TEST SUCCEEDED **
