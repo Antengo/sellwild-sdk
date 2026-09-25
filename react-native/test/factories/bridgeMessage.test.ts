@@ -5,11 +5,14 @@ import {
   bridgeMessageVariants,
   defaultBridgeMessageVariant,
   invalidBridgeMessages,
+  nonMessageTexts,
   webViewMessageEvent,
+  wrongTypedBridgeMessage,
+  wrongTypedBridgeMessages,
   type BridgeMessageType,
 } from '.'
 import { buildBannerHtml, buildWidgetHtml } from '../../src/htmlBuilder'
-import { expectInvalidCases, expectValid } from '../support/schemas'
+import { expectInvalid, expectInvalidCases, expectValid, validate } from '../support/schemas'
 import { runBannerPage, runWidgetPage } from '../support/widget-page'
 
 const TYPES = Object.keys(defaultBridgeMessageVariant) as BridgeMessageType[]
@@ -54,6 +57,40 @@ describe('bridgeMessage factory', () => {
 
   it('has invalid fixtures that fail for the reason the contract names', () => {
     expectInvalidCases('bridge-message', invalidBridgeMessages())
+  })
+
+  it('has a LISTING_CLICK with neither listing nor url, which the contract allows', () => {
+    expect(bridgeMessage('LISTING_CLICK', {}, 'listing-click-empty')).toEqual({ type: 'LISTING_CLICK' })
+  })
+
+  it('builds wrong-typed messages that fail the contract in the one field they change', () => {
+    expect(Object.keys(wrongTypedBridgeMessages)).toEqual([
+      'type-number',
+      'listing-click-listing-text',
+      'listing-click-url-number',
+      'ad-impression-zone-object',
+      'listing-click-listing-null',
+      'listing-click-stub-url-number',
+      'listing-click-only-listing-null',
+      'ad-impression-zone-null',
+      'error-message-null',
+    ])
+    for (const [name, { error }] of Object.entries(wrongTypedBridgeMessages)) {
+      const message = wrongTypedBridgeMessage(name)
+      expect(message, name).not.toHaveProperty('_synthetic')
+      expectInvalid('bridge-message', message, error, name)
+    }
+    expect(() => wrongTypedBridgeMessage('nope')).toThrow("no wrong-typed bridge-message 'nope'")
+  })
+
+  it('has texts that are no message at all: not JSON, or JSON that is not an object', () => {
+    expect(() => JSON.parse(nonMessageTexts['not-json'])).toThrow(SyntaxError)
+    for (const name of ['json-null', 'json-number', 'json-text', 'json-array'] as const) {
+      const value: unknown = JSON.parse(nonMessageTexts[name])
+      const check = validate('bridge-message', value)
+      expect(check.ok, name).toBe(false)
+      expect(check.errors.some((e) => e.instancePath === '' && e.keyword === 'type'), `${name}: ${check.text}`).toBe(true)
+    }
   })
 })
 

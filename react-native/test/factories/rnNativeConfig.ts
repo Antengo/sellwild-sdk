@@ -4,6 +4,7 @@
 // config, as <SellwildBanner> and prewarm() send it on the current
 // Platform.OS. The contract fixtures are variants too.
 
+import type { SellwildGeo } from '@sellwild/sdk-core'
 import { toNativeConfig } from '../../src/nativeConfig'
 import { appConfig, sellwildConfig } from '../../../core/test/factories'
 import { fixtureVariants, invalidCases, load, type InvalidCase } from '../../../core/test/factories/base'
@@ -37,4 +38,12 @@ export function rnNativeConfig(overrides: Partial<RnNativeConfigPayload> = {}, v
 
 export function invalidRnNativeConfigs(): InvalidCase[] {
   return invalidCases('rn-native-config')
+}
+
+/**
+ * A geo as setGeo and the config's `geo` send it (rn-native-config
+ * #/$defs/geo): the geo of the banner fixture, overrides applied.
+ */
+export function rnGeo(overrides: Partial<SellwildGeo> = {}): SellwildGeo {
+  return { ...(rnNativeConfig({}, 'banner').geo as SellwildGeo), ...overrides }
 }

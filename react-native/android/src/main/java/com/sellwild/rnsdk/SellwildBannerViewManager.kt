@@ -8,13 +8,16 @@ import com.facebook.react.common.MapBuilder
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.annotations.ReactProp
-import com.facebook.react.uimanager.events.RCTEventEmitter
 import com.sellwild.sdk.AdSize
 import com.sellwild.sdk.SellwildAdStack
 import com.sellwild.sdk.SellwildAdView
 import com.sellwild.sdk.SellwildConfig
 import com.sellwild.sdk.SellwildGrowthCodeConfig
 import com.sellwild.sdk.SellwildLocalizedListingsConfig
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
+import com.sellwild.sdk.failures.SellwildFailures
 import org.json.JSONObject
 
 /**
@@ -70,31 +73,18 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
     override fun getName(): String = REACT_CLASS
 
     /**
-     * Per-view scratch state. We can't call SellwildAdView.setup() until
-     * all three required props (config/size/zoneId) have arrived, so we
-     * stash them here and apply on onAfterUpdateTransaction.
+     * Per-view props. We can't call SellwildAdView.setup() until all three
+     * required props (config/size/zoneId) have arrived, so they wait here
+     * and are applied on onAfterUpdateTransaction.
      *
      * Keyed by the ad view itself so multiple <SellwildBanner>s on screen
      * don't collide. Cleared on view drop.
      */
-    private val pending = java.util.WeakHashMap<SellwildAdView, PendingProps>()
-
-    private data class PendingProps(
-        var config: ReadableMap? = null,
-        var size: String? = null,
-        var zoneId: String? = null,
-        // Resolved ad stack ('both' | 'gamOnly' | 'prebidOnly'), computed in JS
-        // and applied as the native override.
-        var adStack: String? = null,
-        // Guards against running fresh auctions on every JS re-render. We
-        // only call setup() + load() once per identity tuple. Refresh of
-        // the rendered ad is driven by the SDK's internal timer.
-        var lastAppliedKey: String? = null,
-    )
+    private val pending = java.util.WeakHashMap<SellwildAdView, BannerProps>()
 
     override fun createViewInstance(reactContext: ThemedReactContext): SellwildAdView {
         val view = RnSellwildAdView(reactContext)
-        pending[view] = PendingProps()
+        pending[view] = BannerProps()
         view.listener = object : SellwildAdView.Listener {
             override fun onAdLoaded(adView: SellwildAdView) {
                 emit(reactContext, adView, "onAdLoaded", null)
@@ -159,23 +149,13 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
     override fun onAfterUpdateTransaction(view: SellwildAdView) {
         super.onAfterUpdateTransaction(view)
 
-        val p = pending[view] ?: return
-        val configMap = p.config ?: return
-        val sizeLabel = p.size ?: return
-        val zoneId = p.zoneId ?: return
-
-        val adSize = adSizeFromLabel(sizeLabel) ?: return
-
-        // Skip if the props identity hasn't changed since last apply.
-        val key = "$sizeLabel|$zoneId|${p.adStack}|${configMap.hashCode()}"
-        if (p.lastAppliedKey == key) return
-        p.lastAppliedKey = key
-
-        val config = configFromMap(configMap)
+        // Every view gets its entry in createViewInstance; none means the view
+        // was already dropped, so there is nothing to set up.
+        val setUp = pending[view]?.nextSetUp() ?: return
         // JS resolves the stack from config and passes it as the override so
         // RN is deterministic; native still reads the raw `remote` for the rest.
-        view.adStackOverride = p.adStack?.let { SellwildAdStack.parse(it) }
-        view.setup(config, adSize, zoneId)
+        view.adStackOverride = setUp.adStack?.let { SellwildAdStack.parse(it) }
+        view.setup(setUp.config, setUp.adSize, setUp.zoneId)
         view.load()
     }
 
@@ -188,8 +168,8 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
         super.onDropViewInstance(view)
     }
 
-    private fun pendingFor(view: SellwildAdView): PendingProps =
-        pending.getOrPut(view) { PendingProps() }
+    private fun pendingFor(view: SellwildAdView): BannerProps =
+        pending.getOrPut(view) { BannerProps() }
 
     override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
         return MapBuilder.builder<String, Any>()
@@ -207,10 +187,7 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
         view: SellwildAdView,
         name: String,
         payload: com.facebook.react.bridge.WritableMap?,
-    ) {
-        context.getJSModule(RCTEventEmitter::class.java)
-            .receiveEvent(view.id, name, payload)
-    }
+    ) = RnEvents.emit(context, view.id, name, payload)
 
     companion object {
         const val REACT_CLASS = "SellwildBannerView"
@@ -287,9 +264,16 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
 
             // Custom Prebid Server (S2S) config — mirror the iOS bridge so the
             // same RN app auctions against the partner's PBS on both platforms.
-            val prebidServer = RnPrebidServer.fromMap(
-                if (map.hasKey("prebidServer") && !map.isNull("prebidServer")) map.getMap("prebidServer") else null
-            )
+            // One it cannot use is reported, and the default is used, as on iOS.
+            val server = RnPrebidServer.fromConfig(map)
+            server.problem?.let {
+                SellwildFailures.log(
+                    code = SellwildFailureCode.BRIDGE_CONFIG_INVALID,
+                    component = SellwildFailureComponent.BRIDGE,
+                    severity = SellwildFailureSeverity.ERROR,
+                    message = it,
+                )
+            }
 
             return SellwildConfig(
                 partnerCode = partnerCode ?: "",
@@ -305,8 +289,86 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
                 remoteJson = remoteJson,
                 growthCode = growthCode,
                 localizedListings = localizedListings,
-                prebidServer = prebidServer,
+                prebidServer = server.config,
             )
         }
+    }
+}
+
+/**
+ * One <SellwildBanner>'s props, as React Native sets them, and what to do
+ * after a props transaction. Apart from the view, so the JVM checks
+ * (react-native/native-checks) run it without Android views.
+ */
+internal class BannerProps {
+    var config: ReadableMap? = null
+    var size: String? = null
+    var zoneId: String? = null
+
+    // Resolved ad stack ('both' | 'gamOnly' | 'prebidOnly'), computed in JS
+    // and applied as the native override.
+    var adStack: String? = null
+
+    // Guards against running fresh auctions on every JS re-render. We only
+    // call setup() + load() once per identity tuple. Refresh of the rendered
+    // ad is driven by the SDK's internal timer.
+    private var lastAppliedKey: String? = null
+
+    // A re-render with the same bad props does not report them again.
+    private val propsProblem = ReportOnce()
+
+    /** What SellwildAdView.setup() needs, and the ad stack override. */
+    class SetUp(val config: SellwildConfig, val adSize: AdSize, val zoneId: String, val adStack: String?)
+
+    /**
+     * The ad to set up after this props transaction, or null when there is
+     * none: props it cannot use (reported once per distinct problem,
+     * bridge.props.invalid), the same props as last time, or a config prop it
+     * cannot read (reported, bridge.config.invalid, fatal).
+     */
+    fun nextSetUp(): SetUp? {
+        val configMap = config
+        val zone = zoneId
+        val sizeLabel = size
+        val problem = RnBridgeRules.bannerPropsProblem(configMap != null, sizeLabel, zone) {
+            SellwildBannerViewManager.adSizeFromLabel(it) != null
+        }
+        propsProblem.take(problem)?.let {
+            SellwildFailures.log(
+                code = SellwildFailureCode.BRIDGE_PROPS_INVALID,
+                component = SellwildFailureComponent.BRIDGE,
+                severity = SellwildFailureSeverity.ERROR,
+                message = "$it, so no ad was set up",
+                zoneId = zone,
+            )
+        }
+        if (problem != null) return null
+        // bannerPropsProblem checked config and zoneId. A missing size, or a
+        // label that is not a JS AdSize, returns here without a report:
+        // <SellwildBanner> already reported it as ad.size.invalid (log once).
+        if (configMap == null || zone == null || sizeLabel == null) return null
+        val adSize = SellwildBannerViewManager.adSizeFromLabel(sizeLabel) ?: return null
+
+        // Skip if the props identity hasn't changed since last apply.
+        val key = "$sizeLabel|$zone|$adStack|${configMap.hashCode()}"
+        if (lastAppliedKey == key) return null
+        lastAppliedKey = key
+
+        val cfg = try {
+            SellwildBannerViewManager.configFromMap(configMap)
+        } catch (e: Exception) {
+            // A config field of the wrong type (ReadableMap getters throw), or a
+            // remote JSON cannot hold. It used to crash the host app.
+            SellwildFailures.log(
+                code = SellwildFailureCode.BRIDGE_CONFIG_INVALID,
+                component = SellwildFailureComponent.BRIDGE,
+                severity = SellwildFailureSeverity.FATAL,
+                error = e,
+                message = "the config prop could not be read, so no ad was set up",
+                zoneId = zone,
+            )
+            return null
+        }
+        return SetUp(cfg, adSize, zone, adStack)
     }
 }

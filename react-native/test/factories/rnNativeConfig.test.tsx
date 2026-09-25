@@ -1,12 +1,12 @@
 import React from 'react'
 import { describe, expect, it } from 'vitest'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
-import { appConfig, bridged, invalidRnNativeConfigs, rnNativeConfig, rnNativeConfigVariants, sellwildConfig } from '.'
+import { appConfig, bridged, invalidRnNativeConfigs, rnGeo, rnNativeConfig, rnNativeConfigVariants, sellwildConfig } from '.'
 import { SellwildBanner } from '../../src/SellwildBanner'
 import { SellwildFeed } from '../../src/SellwildFeed'
 import { prewarm } from '../../src/commands'
 import { toNativeConfig } from '../../src/nativeConfig'
-import { expectInvalid, expectInvalidCases, expectValid } from '../support/schemas'
+import { expectInvalid, expectInvalidCases, expectValid, validate } from '../support/schemas'
 import { NativeModules, Platform } from '../stubs/react-native'
 
 function render(element: React.ReactElement): ReactTestRenderer {
@@ -71,6 +71,22 @@ describe('rnNativeConfig factory', () => {
     expectInvalidCases('rn-native-config', invalidRnNativeConfigs())
     expectInvalid('rn-native-config', rnNativeConfig({ partnerCode: '' }), { instancePath: '/partnerCode', keyword: 'minLength' })
     expectInvalid('rn-native-config', rnNativeConfig({ mobileZids: { a: 1 } }), { instancePath: '/mobileZids', keyword: 'type' })
+  })
+})
+
+describe('rnGeo factory', () => {
+  it('is the geo of the banner fixture, and passes #/$defs/geo with overrides', () => {
+    expect(rnGeo()).toEqual({ country: 'USA', state: 'NY', zip: '10001', type: 3 })
+    expectValid('rn-native-config', rnGeo(), undefined, '/$defs/geo')
+    const located = rnGeo({ lat: 40.7, lon: -74 })
+    expect(located).toMatchObject({ state: 'NY', lat: 40.7, lon: -74 })
+    expectValid('rn-native-config', located, undefined, '/$defs/geo')
+  })
+
+  it('fails #/$defs/geo for a wrong-typed override', () => {
+    const check = validate('rn-native-config', rnGeo({ lat: '40.7' as unknown as number }), '/$defs/geo')
+    expect(check.ok).toBe(false)
+    expect(check.errors.map((e) => [e.instancePath, e.keyword])).toContainEqual(['/lat', 'type'])
   })
 })
 

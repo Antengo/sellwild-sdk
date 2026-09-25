@@ -7,8 +7,26 @@ const here = (path: string) => decodeURIComponent(new URL(path, import.meta.url)
 // them here.
 export const coverageInclude = ['src/**']
 
-// Gate exclusions (contract A10). Each one needs a reason. None so far.
-export const coverageExclusions: Array<{ path: string; reason: string }> = []
+// Gate exclusions (contract A10). Each one needs a reason.
+export const coverageExclusions: Array<{ path: string; reason: string }> = [
+  {
+    // buildBannerHtml and its helpers: no component, sample or doc in the
+    // repo calls them (<SellwildBanner> is a native view since 1.3.0).
+    // htmlBuilder.ts still re-exports buildBannerHtml.
+    path: 'src/bannerHtml.ts',
+    reason: 'dead: pending delete decision',
+  },
+  {
+    // Not under src/**, so outside the gate anyway; listed so the summary
+    // names them.
+    path: 'ios/**',
+    reason: 'RN native bridge glue: needs an RN host app build',
+  },
+  {
+    path: 'android/**',
+    reason: 'RN native bridge glue: needs an RN host app build',
+  },
+]
 
 // `vitest run --coverage` is the gate: exclusions applied, 95% thresholds.
 // `vitest run --coverage --mode whole` measures every source file with no

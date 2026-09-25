@@ -16,19 +16,23 @@ export function bridgeScripts(html: string): string[] {
 
 type Listener = (event: { message?: string }) => void
 
-// A window and document with only what the injected scripts touch.
-function fakePage() {
+// A window and document with only what the injected scripts touch. Without
+// `bridge`, window.ReactNativeWebView is missing, as in a page that is not
+// inside a React Native WebView.
+function fakePage(bridge: boolean) {
   const posted: string[] = []
   const windowListeners: Record<string, Listener> = {}
   const documentListeners: Record<string, Listener> = {}
   const timers: Array<() => void> = []
   const appended: Array<{ onload?: () => void }> = []
-  const window = {
-    ReactNativeWebView: {
-      postMessage(data: string) {
-        posted.push(data)
-      },
-    },
+  const window: Record<string, unknown> = {
+    ReactNativeWebView: bridge
+      ? {
+          postMessage(data: string) {
+            posted.push(data)
+          },
+        }
+      : undefined,
     // What the widget script's window.open override falls back to.
     open: (): null => null,
     addEventListener(type: string, listener: Listener) {
@@ -50,8 +54,8 @@ function fakePage() {
   return { posted, windowListeners, documentListeners, timers, appended, window, document, setTimeout }
 }
 
-function run(html: string) {
-  const page = fakePage()
+function run(html: string, bridge = true) {
+  const page = fakePage(bridge)
   const scripts = bridgeScripts(html)
   if (scripts.length === 0) throw new Error('no ReactNativeWebView script in the page')
   for (const script of scripts) {
@@ -63,6 +67,8 @@ function run(html: string) {
 export interface WidgetPage {
   /** The strings posted so far, as onMessage receives them in nativeEvent.data. */
   posted: string[]
+  /** The page's window (to read what the script left on it). */
+  window: Record<string, unknown>
   /** The widget opens a listing: it calls window.open(url). */
   openListing(url: string): void
   /** DOMContentLoaded, then the timer that sends WIDGET_LOADED. */
@@ -71,11 +77,12 @@ export interface WidgetPage {
   scriptError(message?: string): void
 }
 
-/** Load the script of buildWidgetHtml's page. */
-export function runWidgetPage(html: string): WidgetPage {
-  const page = run(html)
+/** Load the script of buildWidgetHtml's page. `bridge: false` leaves out window.ReactNativeWebView. */
+export function runWidgetPage(html: string, { bridge = true }: { bridge?: boolean } = {}): WidgetPage {
+  const page = run(html, bridge)
   return {
     posted: page.posted,
+    window: page.window,
     openListing: (url) => {
       (page.window.open as (url: string) => unknown)(url)
     },

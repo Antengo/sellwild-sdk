@@ -5,18 +5,22 @@ import android.view.View
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.ReadableType
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.common.MapBuilder
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.annotations.ReactProp
-import com.facebook.react.uimanager.events.RCTEventEmitter
 import com.sellwild.sdk.SellwildConfig
 import com.sellwild.sdk.SellwildFeedView
 import com.sellwild.sdk.SellwildGrowthCodeConfig
 import com.sellwild.sdk.SellwildListing
 import com.sellwild.sdk.SellwildLocalizedListingsConfig
 import com.sellwild.sdk.SellwildSDK
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
+import com.sellwild.sdk.failures.SellwildFailures
 import org.json.JSONObject
 
 /**
@@ -65,20 +69,15 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
     override fun getName(): String = REACT_CLASS
 
     /**
-     * Per-view scratch state. SellwildFeedView.setup() kicks off a network
-     * fetch + auctions for every COL1 ad slot, so we defer it to
+     * Per-view props. SellwildFeedView.setup() kicks off a network fetch +
+     * auctions for every COL1 ad slot, so we defer it to
      * onAfterUpdateTransaction and skip re-applying on JS re-renders.
      */
-    private val pending = java.util.WeakHashMap<SellwildFeedView, PendingProps>()
-
-    private data class PendingProps(
-        var config: ReadableMap? = null,
-        var lastAppliedKey: String? = null,
-    )
+    private val pending = java.util.WeakHashMap<SellwildFeedView, FeedProps>()
 
     override fun createViewInstance(reactContext: ThemedReactContext): SellwildFeedView {
         val view = RnSellwildFeedView(reactContext)
-        pending[view] = PendingProps()
+        pending[view] = FeedProps()
         view.listener = object : SellwildFeedView.Listener {
             override fun onListingTap(listing: SellwildListing): Boolean {
                 val payload = Arguments.createMap().apply {
@@ -139,14 +138,9 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
     override fun onAfterUpdateTransaction(view: SellwildFeedView) {
         super.onAfterUpdateTransaction(view)
 
-        val p = pending[view] ?: return
-        val configMap = p.config ?: return
-
-        val key = "${configMap.hashCode()}"
-        if (p.lastAppliedKey == key) return
-        p.lastAppliedKey = key
-
-        val config = configFromMap(configMap)
+        // Every view gets its entry in createViewInstance; none means the view
+        // was already dropped, so there is nothing to set up.
+        val config = pending[view]?.nextConfig() ?: return
         view.setup(config)
         view.load()
     }
@@ -156,8 +150,8 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
         super.onDropViewInstance(view)
     }
 
-    private fun pendingFor(view: SellwildFeedView): PendingProps =
-        pending.getOrPut(view) { PendingProps() }
+    private fun pendingFor(view: SellwildFeedView): FeedProps =
+        pending.getOrPut(view) { FeedProps() }
 
     override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
         return MapBuilder.builder<String, Any>()
@@ -177,10 +171,7 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
         view: SellwildFeedView,
         name: String,
         payload: WritableMap?,
-    ) {
-        context.getJSModule(RCTEventEmitter::class.java)
-            .receiveEvent(view.id, name, payload)
-    }
+    ) = RnEvents.emit(context, view.id, name, payload)
 
     companion object {
         const val REACT_CLASS = "SellwildFeedView"
@@ -192,11 +183,18 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
          * (COL1, bgColor, mobileZids, listingsUrl, …) land identically to a
          * native [SellwildSDK.configure] call. Explicit JS overrides
          * (e.g. appBundleId from the host app) win.
+         *
+         * Zone ids that are not text, and a prebidServer without accountId
+         * and endpoint text, are dropped and reported together, once
+         * (bridge.config.invalid), as on iOS; reading a zone id with
+         * getString used to throw. Any other field of the wrong type still
+         * throws, and the caller reports it.
          */
         internal fun configFromMap(map: ReadableMap): SellwildConfig {
             val partnerCode = if (map.hasKey("partnerCode")) map.getString("partnerCode") ?: "" else ""
 
             var config = SellwildConfig(partnerCode = partnerCode)
+            val problems = ArrayList<String>()
 
             // Apply the raw CDN payload first.
             if (map.hasKey("remote") && !map.isNull("remote")) {
@@ -224,22 +222,22 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
             if (map.hasKey("slug")) config = config.copy(slug = map.getString("slug") ?: config.slug)
             if (map.hasKey("listingsUrl")) config = config.copy(listingsUrl = map.getString("listingsUrl"))
             if (map.hasKey("priceColor")) config = config.copy(priceColor = map.getString("priceColor") ?: config.priceColor)
-            if (map.hasKey("bannerZid")) config = config.copy(bannerZid = map.getString("bannerZid"))
-            if (map.hasKey("bottomBannerZid")) config = config.copy(bottomBannerZid = map.getString("bottomBannerZid"))
+            readText(map, "bannerZid", problems) { config = config.copy(bannerZid = it) }
+            readText(map, "bottomBannerZid", problems) { config = config.copy(bottomBannerZid = it) }
             // mobileZids / mobileBannerZid are OS-suffix-resolved by SellwildSDK.apply
             // when `remote` is present; only fall back to the flat (OS-agnostic) JS
             // values when there was no remote payload to resolve from (parity w/ iOS).
             if (!map.hasKey("remote") || map.isNull("remote")) {
-                if (map.hasKey("mobileBannerZid")) config = config.copy(mobileBannerZid = map.getString("mobileBannerZid"))
-                if (map.hasKey("mobileZids") && !map.isNull("mobileZids")) {
-                    val arr = map.getArray("mobileZids")
-                    if (arr != null) config = config.copy(mobileZids = (0 until arr.size()).mapNotNull { arr.getString(it) })
-                }
+                readText(map, "mobileBannerZid", problems) { config = config.copy(mobileBannerZid = it) }
+                readTextList(map, "mobileZids", problems) { config = config.copy(mobileZids = it) }
             }
 
-            // Custom Prebid Server (S2S) config — mirror the iOS feed bridge.
+            // Custom Prebid Server (S2S) config — mirror the iOS feed bridge. A
+            // prebidServer it cannot use joins this config's one report.
             if (map.hasKey("prebidServer") && !map.isNull("prebidServer")) {
-                config = config.copy(prebidServer = RnPrebidServer.fromMap(map.getMap("prebidServer")))
+                val server = RnPrebidServer.fromConfig(map)
+                server.problem?.let { problems += it }
+                config = config.copy(prebidServer = server.config)
             }
 
             // Local GrowthCode override — parity with the banner bridge and the
@@ -282,7 +280,54 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
                 )
             }
 
+            // One report for the config, however many fields it has wrong.
+            if (problems.isNotEmpty()) {
+                SellwildFailures.log(
+                    code = SellwildFailureCode.BRIDGE_CONFIG_INVALID,
+                    component = SellwildFailureComponent.BRIDGE,
+                    severity = SellwildFailureSeverity.ERROR,
+                    message = problems.joinToString("; "),
+                )
+            }
+
             return config
+        }
+
+        /**
+         * Reads [key] as text into [set]: text as it is, and null for a JSON
+         * null (it clears the field, as before). A value of another type is
+         * dropped and added to [problems]. Nothing happens when the key is absent.
+         */
+        private inline fun readText(map: ReadableMap, key: String, problems: MutableList<String>, set: (String?) -> Unit) {
+            if (!map.hasKey(key)) return
+            when (val type = map.getType(key)) {
+                ReadableType.Null -> set(null)
+                ReadableType.String -> set(map.getString(key))
+                else -> problems += RnBridgeRules.wrongType(key, type.name, "text")
+            }
+        }
+
+        /**
+         * Reads [key] as a list of text into [set], null entries left out, as
+         * before. A value that is not a list, or holds an entry of another type,
+         * is dropped and added to [problems]. Nothing happens when it is absent
+         * or null.
+         */
+        private inline fun readTextList(map: ReadableMap, key: String, problems: MutableList<String>, set: (List<String>) -> Unit) {
+            if (!map.hasKey(key) || map.isNull(key)) return
+            val type = map.getType(key)
+            val arr = if (type == ReadableType.Array) map.getArray(key) else null
+            if (arr == null) {
+                problems += RnBridgeRules.wrongType(key, type.name, "a list")
+                return
+            }
+            val entries = (0 until arr.size()).map { arr.getType(it) }
+            val bad = entries.count { it != ReadableType.String && it != ReadableType.Null }
+            if (bad > 0) {
+                problems += RnBridgeRules.notTextEntries(key, bad, entries.size)
+                return
+            }
+            set((0 until arr.size()).mapNotNull { arr.getString(it) })
         }
 
         /** Surface the listing payload to JS. Mirrors `SellwildListing` in @sellwild/sdk-core. */
@@ -294,6 +339,45 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
             listing.price?.let { putString("price", it) }
             listing.remoteUrl?.let { putString("remoteUrl", it) }
             listing.primaryPhotoUrl?.let { putString("photoUrl", it) }
+        }
+    }
+}
+
+/**
+ * One <SellwildFeed>'s config prop, as React Native sets it, and what to do
+ * after a props transaction. Apart from the view, so the JVM checks
+ * (react-native/native-checks) run it without Android views.
+ */
+internal class FeedProps {
+    var config: ReadableMap? = null
+
+    // The config last set up, so a JS re-render does not set the feed up again.
+    private var lastAppliedKey: String? = null
+
+    /**
+     * The config to set the feed up with after this transaction, or null:
+     * no config yet (JS always sends one with the first props), the same
+     * config as last time, or one it cannot read (reported,
+     * bridge.config.invalid, fatal).
+     */
+    fun nextConfig(): SellwildConfig? {
+        val configMap = config ?: return null
+        val key = "${configMap.hashCode()}"
+        if (lastAppliedKey == key) return null
+        lastAppliedKey = key
+        return try {
+            SellwildFeedViewManager.configFromMap(configMap)
+        } catch (e: Exception) {
+            // A config field of the wrong type (ReadableMap getters throw), or a
+            // remote JSON cannot hold. It used to crash the host app.
+            SellwildFailures.log(
+                code = SellwildFailureCode.BRIDGE_CONFIG_INVALID,
+                component = SellwildFailureComponent.BRIDGE,
+                severity = SellwildFailureSeverity.FATAL,
+                error = e,
+                message = "the config prop could not be read, so the feed was not set up",
+            )
+            null
         }
     }
 }

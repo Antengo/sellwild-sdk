@@ -1,41 +1,10 @@
 import React from 'react'
-import { Platform, requireNativeComponent, UIManager, StyleProp, ViewStyle, View, Text, StyleSheet, NativeSyntheticEvent } from 'react-native'
+import { Platform, StyleProp, ViewStyle, View, Text, StyleSheet, NativeSyntheticEvent } from 'react-native'
 import { resolveAdStack, type SellwildConfig, type AdSize } from '@sellwild/sdk-core'
+import { adDimensions, bannerBaseline, resizedSlot, type SlotSize } from './bannerSizing'
+import { logFailure } from './failures'
 import { toNativeConfig } from './nativeConfig'
-
-// Standard IAB mobile ad sizes — used to lock the host View dimensions.
-// The actual ad size is also propagated to native as the `size` prop label.
-const AD_DIMENSIONS: Record<AdSize, { width: number; height: number }> = {
-  '300x250': { width: 300, height: 250 },
-  '320x50': { width: 320, height: 50 },
-  '728x90': { width: 728, height: 90 },
-  '160x600': { width: 160, height: 600 },
-  '300x600': { width: 300, height: 600 },
-  '1x1': { width: 1, height: 1 },
-}
-
-// Parse a BANNER_SIZES value — `["300x250","320x50"]` or `[[300,250],…]`,
-// possibly a JSON string — into {width,height}[]. Mirrors the native
-// SellwildAdSizes parser so the RN slot reasons about the same size set the
-// auction requests.
-function parseSizeList(raw: unknown): Array<{ width: number; height: number }> {
-  let arr: unknown = raw
-  if (typeof raw === 'string') {
-    try { arr = JSON.parse(raw) } catch { arr = [raw] }
-  }
-  if (!Array.isArray(arr)) return []
-  const out: Array<{ width: number; height: number }> = []
-  for (const e of arr) {
-    if (typeof e === 'string') {
-      const [w, h] = e.toLowerCase().split('x').map((s) => Number(s.trim()))
-      if (w > 0 && h > 0) out.push({ width: w, height: h })
-    } else if (Array.isArray(e) && e.length === 2) {
-      const w = Number(e[0]); const h = Number(e[1])
-      if (w > 0 && h > 0) out.push({ width: w, height: h })
-    }
-  }
-  return out
-}
+import { nativeViewOrNull, useMissingNativeViewReport } from './nativeViews'
 
 // ─── Native component bridge ─────────────────────────────────────────────────
 //
@@ -69,16 +38,8 @@ interface NativeBannerProps {
   onAdResize?: (e: NativeSyntheticEvent<{ width: number; height: number }>) => void
 }
 
-const NativeBanner = (() => {
-  // requireNativeComponent crashes loudly if the view manager isn't
-  // registered. Probe first so we can render a friendly fallback on
-  // platforms where the bridge isn't in this build yet.
-  const config = UIManager.getViewManagerConfig?.(NATIVE_NAME)
-  if (!config) {
-    return null
-  }
-  return requireNativeComponent<NativeBannerProps>(NATIVE_NAME)
-})()
+// Probed once, when this module loads. null renders the fallback slot below.
+const NativeBanner = nativeViewOrNull<NativeBannerProps>(NATIVE_NAME)
 
 // ─── Public component ────────────────────────────────────────────────────────
 
@@ -107,7 +68,10 @@ export function SellwildBanner({
   onClick,
   onError,
 }: SellwildBannerProps) {
-  const dim = AD_DIMENSIONS[size]
+  // null for a label that is not an AdSize (JS callers are not type-checked).
+  // It used to throw a TypeError from the render; the slot now holds the
+  // remote fallback sizes, or 0x0, and native gets the label as before.
+  const dim = adDimensions(size)
 
   // The widest/tallest size the auction may return for this placement: the
   // primary plus any BANNER_SIZES / BANNER_SIZES_BY_ZONE fallbacks. We reserve
@@ -116,27 +80,36 @@ export function SellwildBanner({
   // before, or without, the onAdResize callback. This also covers the Android
   // prebidOnly path, whose rendering BannerView doesn't surface the winning
   // creative size (so onAdResize can't shrink it back down there).
-  const baseline = React.useMemo(() => {
-    const remote = (config.remote ?? {}) as Record<string, unknown>
-    const byZone = remote['BANNER_SIZES_BY_ZONE']
-    const zoned = byZone && typeof byZone === 'object'
-      ? (byZone as Record<string, unknown>)[String(zoneId)]
-      : undefined
-    const sizes = [dim, ...parseSizeList(zoned ?? remote['BANNER_SIZES'])]
-    return {
-      width: Math.max(...sizes.map((s) => s.width)),
-      height: Math.max(...sizes.map((s) => s.height)),
-    }
-  }, [dim, zoneId, config.remote])
+  const baseline = React.useMemo(
+    () => bannerBaseline(dim, config.remote, zoneId),
+    [dim, zoneId, config.remote],
+  )
 
   // The slot starts at the reserved baseline, then tracks whatever the native
   // side actually renders (onAdResize): a multi-size fallback creative, an
   // outstream video, or the capped native template. Where the actual size is
   // reported it shrinks the slot to fit; where it isn't (Android prebidOnly)
   // the baseline reservation prevents a clip.
-  const [rendered, setRendered] = React.useState<{ width: number; height: number } | null>(null)
+  const [rendered, setRendered] = React.useState<SlotSize | null>(null)
   // Reset to the baseline when the placement identity changes.
   React.useEffect(() => { setRendered(null) }, [size, zoneId])
+
+  // A label that is not an AdSize is reported here, once per placement. The
+  // native bridges (react-native/ios, react-native/android) report only an
+  // AdSize they have no native size for (bridge.props.invalid, '1x1' today),
+  // so a bad size is logged once (test/nativeGlue.test.ts).
+  React.useEffect(() => {
+    if (dim) return
+    logFailure({
+      code: 'ad.size.invalid',
+      component: 'banner',
+      severity: 'warn',
+      message: `size ${String(size)} is not an AdSize`,
+      zoneId: String(zoneId),
+    })
+  }, [dim, size, zoneId])
+
+  useMissingNativeViewReport(NATIVE_NAME, 'banner', !NativeBanner)
 
   const containerStyle: ViewStyle = {
     width: rendered?.width ?? baseline.width,
@@ -181,8 +154,8 @@ export function SellwildBanner({
         onError?.(new Error(msg))
       }}
       onAdResize={(e: NativeSyntheticEvent<{ width: number; height: number }>) => {
-        const { width, height } = e.nativeEvent ?? { width: 0, height: 0 }
-        if (width > 0 && height > 0) setRendered({ width, height })
+        const next = resizedSlot(e.nativeEvent)
+        if (next) setRendered(next)
       }}
     />
   )

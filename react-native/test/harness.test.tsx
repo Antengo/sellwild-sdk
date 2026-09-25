@@ -14,7 +14,9 @@ import localizedListingsConfigSchema from '../../contracts/schemas/localized-lis
 import rnNativeConfigSchema from '../../contracts/schemas/rn-native-config.schema.json'
 import * as coreSource from '../../core/src/index'
 import * as sdk from '../src/index'
+import { rnGeo } from './factories'
 import { takeBlockedNetworkCalls } from './setup'
+import { freshModulesRecording, takeFailureCodes } from './support/failures'
 import * as rnStub from './stubs/react-native'
 
 // The contract schemas (contracts/schemas) the payloads below must match.
@@ -162,24 +164,27 @@ describe('react-native stubs', () => {
     // stub first, then import the component again on a fresh module graph.
     rnStub.setRegisteredViewManagers([])
     rnStub.Platform.OS = 'android'
-    vi.resetModules()
+    // A fresh module graph whose core records failures for the test.
+    const { buildConfig } = await freshModulesRecording()
     const { SellwildBanner } = await import('../src/SellwildBanner')
-    const { buildConfig } = await import('@sellwild/sdk-core')
 
     const tree = render(<SellwildBanner config={buildConfig({ partnerCode: 'harness' })} size="320x50" zoneId="7" />)
 
     expect(hosts(tree, 'SellwildBannerView')).toHaveLength(0)
     const [text] = hosts(tree, 'Text')
     expect(text.props.children).toEqual(['Sellwild native banner not available on ', 'android', ' (yet)'])
+    // The missing view manager is reported (test/SellwildBanner.test.tsx has the details).
+    expect(takeFailureCodes()).toEqual(['bridge.native_view.missing'])
 
     act(() => tree.unmount())
   })
 
   it('give NativeModules.SellwildRNModule mock methods that the setters call', () => {
-    sdk.setGeo({ lat: 40.7, lon: -74 })
+    const geo = rnGeo({ lat: 40.7, lon: -74 })
+    sdk.setGeo(geo)
     sdk.setGeo(null)
 
-    expect(rnStub.NativeModules.SellwildRNModule?.setGeo.mock.calls).toEqual([[{ lat: 40.7, lon: -74 }], [{}]])
+    expect(rnStub.NativeModules.SellwildRNModule?.setGeo.mock.calls).toEqual([[geo], [{}]])
   })
 })
 

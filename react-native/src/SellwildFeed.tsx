@@ -1,17 +1,16 @@
 import React from 'react'
 import {
   Platform,
-  requireNativeComponent,
   StyleProp,
   StyleSheet,
   Text,
-  UIManager,
   View,
   ViewStyle,
   NativeSyntheticEvent,
 } from 'react-native'
 import type { SellwildConfig, SellwildListing } from '@sellwild/sdk-core'
-import { resolveAppIdentity } from './appIdentity'
+import { toNativeFeedConfig } from './nativeConfig'
+import { nativeViewOrNull, useMissingNativeViewReport } from './nativeViews'
 
 // ─── Native component bridge ─────────────────────────────────────────────────
 //
@@ -42,16 +41,8 @@ interface NativeFeedProps {
   onContentSizeChange?: (e: NativeSyntheticEvent<{ width?: number; height: number }>) => void
 }
 
-const NativeFeed = (() => {
-  // requireNativeComponent crashes loudly if the view manager isn't
-  // registered. Probe first so we can render a friendly fallback on
-  // platforms where the bridge isn't in this build yet.
-  const config = UIManager.getViewManagerConfig?.(NATIVE_NAME)
-  if (!config) {
-    return null
-  }
-  return requireNativeComponent<NativeFeedProps>(NATIVE_NAME)
-})()
+// Probed once, when this module loads. null renders the fallback view below.
+const NativeFeed = nativeViewOrNull<NativeFeedProps>(NATIVE_NAME)
 
 // ─── Public component ────────────────────────────────────────────────────────
 
@@ -139,6 +130,8 @@ export function SellwildFeed({
     ? [contentHeight != null ? { height: contentHeight } : undefined, style]
     : [styles.fill, style]
 
+  useMissingNativeViewReport(NATIVE_NAME, 'feed', !NativeFeed)
+
   if (!NativeFeed) {
     // Native module not registered. Most common cause: the host app was
     // built before the @sellwild/react-native-sdk autolink ran, or this
@@ -154,43 +147,9 @@ export function SellwildFeed({
     )
   }
 
-  // Pass the fields the native feed reads, plus the raw CDN payload
-  // under `remote`. The native bridge re-runs the CDN decoder against
-  // `remote` to populate feed-specific fields (COL1 schedule, bgColor,
-  // mobileZids, mobileBannerZid, listingsUrl), so we don't need to
-  // mirror every field as a typed property on the JS side.
-  //
-  // Note: TS core uses `adRefreshInterval` (ms); the native side
-  // reads it as `adRefreshIntervalMs`. The bridge translates.
-  // App identity is resolved per-platform here (iOS vs Android) from the raw
-  // CDN payload on `config.remote`; both native bridges read these fields.
-  const { appBundleId, appStoreUrl } = resolveAppIdentity(config)
-  const nativeConfig: Record<string, unknown> = {
-    partnerCode: config.partnerCode,
-    slug: config.slug,
-    appBundleId,
-    appStoreUrl,
-    geo: config.geo,
-    gamTag: config.gamTag,
-    debug: config.debug,
-    pbsDebug: config.pbsDebug,
-    adRefreshMax: config.adRefreshMax,
-    adRefreshMaxMobile: config.adRefreshMaxMobile,
-    adRefreshIntervalMs: config.adRefreshInterval,
-    prebidServer: config.prebidServer,
-    // Local localized-listings overrides (remote LOCALIZED_LISTINGS rides `remote`).
-    localizedListings: config.localizedListings,
-    // Local GrowthCode overrides (remote GROWTHCODE_* rides `remote`) — parity
-    // with SellwildBanner so the feed's native auctions honor local overrides too.
-    growthCode: config.growthCode,
-    remote: config.remote,
-    listingsUrl: config.listingsUrl,
-    priceColor: config.priceColor,
-    bannerZid: config.bannerZid,
-    bottomBannerZid: config.bottomBannerZid,
-    mobileBannerZid: config.mobileBannerZid,
-    mobileZids: config.mobileZids,
-  }
+  // The fields the native feed reads, plus the raw CDN payload under
+  // `remote` (see toNativeFeedConfig).
+  const nativeConfig = toNativeFeedConfig(config)
 
   return (
     <NativeFeed

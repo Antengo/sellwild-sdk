@@ -36,7 +36,11 @@ export function useSellwildListings(sdkConfig: SellwildConfig): UseSellwildListi
         setConfig(result.config)
       })
       .catch((err: Error) => {
+        // Not logged here: core's fetchListings already logged this failure
+        // (listings.fetch.*), and a failure is logged once, at the lowest layer
+        // (contracts/FAILURES.md 9). This only hands it to the host.
         if (cancelled) return
+        // Our own abort (unmount or a new fetch): a caller abort, not a failure.
         if (err.name === 'AbortError') return
         setError(err)
       })

@@ -64,6 +64,9 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
     private var adView: SellwildAdView?
     private var lastAppliedKey: String?
     private var needsApply: Bool = false
+    /// The props problem last reported, so a re-render with the same bad
+    /// props does not report it again.
+    private var propsProblem = SellwildRNBridgeRules.ReportOnce()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -81,12 +84,30 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
     }
 
     private func applyIfReady() {
+        let sizeLabel = size as String?
+        let zoneLabel = zoneId as String?
+        let problem = SellwildRNBridgeRules.bannerPropsProblem(
+            hasConfig: config != nil,
+            size: sizeLabel,
+            zoneId: zoneLabel,
+            nativeSupports: { AdSize(rawValue: $0) != nil }
+        )
+        if let report = propsProblem.take(problem) {
+            SellwildFailures.log(code: .bridgePropsInvalid, component: .bridge, severity: .error,
+                                 message: "\(report), so no ad was set up", zoneId: zoneLabel)
+        }
+        if problem != nil { return }
         guard
             let cfgMap = config,
-            let sizeStr = size as String?,
-            let zid = zoneId as String?,
+            let sizeStr = sizeLabel,
+            let zid = zoneLabel,
             let adSize = AdSize(rawValue: sizeStr)
-        else { return }
+        else {
+            // Only a missing size, or a label that is not a JS AdSize, gets
+            // here: <SellwildBanner> already reported it as ad.size.invalid,
+            // and a failure is logged once (SellwildRNBridgeRules.bannerPropsProblem).
+            return
+        }
 
         // Skip if the props identity hasn't changed since last apply —
         // refresh of the rendered ad is driven by the SDK's internal
@@ -153,13 +174,23 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
     /// fields the native banner path actually reads are mapped; the
     /// rest get the data class defaults. The raw CDN JSON (if present
     /// under `remote`) is preserved as `remoteJSON` for passthrough.
+    ///
+    /// JS builds this map from core's typed SellwildConfig
+    /// (react-native/src/nativeConfig.ts), so a field that is absent keeps the
+    /// SDK default and is not a failure. The fields a failure was surveyed
+    /// for are checked and reported together, once: a geo or geo field of the
+    /// wrong type (dropped, as before) and an incomplete prebidServer
+    /// (bridge.config.invalid); and a remote that cannot be serialized
+    /// (bridge.config.exception).
     static func configFromMap(_ map: NSDictionary) -> SellwildConfig {
         let partnerCode = (map["partnerCode"] as? String) ?? ""
 
         var cfg = SellwildConfig(partnerCode: partnerCode)
+        var problems: [String] = []
 
         if let v = map["appBundleId"] as? String { cfg.appBundleId = v }
         if let v = map["appStoreUrl"] as? String { cfg.appStoreUrl = v }
+        if let problem = SellwildRNBridgeRules.configGeoProblem(map["geo"]) { problems.append(problem) }
         if let geoMap = map["geo"] as? [String: Any] { cfg.geo = SellwildGeo(bridged: geoMap) }
         if let v = map["gamTag"] as? String { cfg.gamTag = v }
         if let v = map["debug"] as? Bool { cfg.debug = v }
@@ -172,6 +203,9 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
             cfg.adRefreshInterval = v.doubleValue / 1000.0
         }
 
+        if let problem = SellwildRNBridgeRules.prebidServerProblem(map["prebidServer"]) {
+            problems.append(problem)
+        }
         if let prebid = map["prebidServer"] as? NSDictionary,
            let accountId = prebid["accountId"] as? String,
            let endpoint = prebid["endpoint"] as? String {
@@ -208,9 +242,20 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
             )
         }
 
-        if let remote = map["remote"] as? NSDictionary,
-           let data = try? JSONSerialization.data(withJSONObject: remote, options: []) {
-            cfg.remoteJSON = data
+        if let remote = map["remote"] as? NSDictionary {
+            switch SellwildRNBridgeRules.remoteJSON(remote) {
+            case .success(let data):
+                cfg.remoteJSON = data
+            case .failure(let error):
+                SellwildFailures.log(code: .bridgeConfigException, component: .bridge, severity: .warn, error: error,
+                                     message: "remote could not be serialized, so the bidder passthrough is lost")
+            }
+        }
+
+        // One report for the config, however many fields it has wrong.
+        if !problems.isEmpty {
+            SellwildFailures.log(code: .bridgeConfigInvalid, component: .bridge, severity: .error,
+                                 message: problems.joined(separator: "; "))
         }
 
         return cfg

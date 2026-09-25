@@ -1,7 +1,49 @@
-import type { SellwildConfig, AdSize } from '@sellwild/sdk-core'
+import type { SellwildConfig } from '@sellwild/sdk-core'
 import { resolveListingsUrl } from '@sellwild/sdk-core'
 
 const WIDGET_CDN = 'https://widget.sellwild.com'
+
+// buildBannerHtml is dead code pending a delete decision; see ./bannerHtml.
+export { buildBannerHtml } from './bannerHtml'
+
+/**
+ * `text` as the value of an HTML attribute quoted with `quote`: the parser
+ * gives back exactly `text`. `&` goes first, so a value that already holds a
+ * character reference (`&amp;`, `&copy `) is not decoded by the page either.
+ */
+export function escapeAttribute(text: string, quote: '"' | "'"): string {
+  const escaped = text.replace(/&/g, '&amp;')
+  return quote === '"' ? escaped.replace(/"/g, '&quot;') : escaped.replace(/'/g, '&#39;')
+}
+
+/**
+ * `value` as a JSON literal inside an inline <script>. The HTML parser ends a
+ * script at the first `</script`, even inside a JS string, so every `<` is
+ * written as the JSON escape \u003c: JS reads back the same value.
+ */
+export function scriptJson(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, '\\u003c')
+}
+
+/**
+ * Whether the widget tag can carry `key` as an attribute name. The HTML parser
+ * ends a name at whitespace, '/', '=' or '>', so a key holding one would split
+ * into other attributes or end the tag, and every attribute after it would be
+ * lost; an empty key is no name at all. Anything else is written as it is, as
+ * before (a quote or '<' is a parse error, but the parser keeps it in the
+ * name). Pure.
+ */
+export function isAttributeName(key: string): boolean {
+  return /^[^\t\n\f\r /=>]+$/.test(key)
+}
+
+/**
+ * The remote config keys the widget tag leaves out because they cannot be
+ * attribute names (isAttributeName). SellwildWidget reports them. Pure.
+ */
+export function unwritableRemoteKeys(config: SellwildConfig): string[] {
+  return config.remote ? Object.keys(config.remote).filter((key) => !isAttributeName(key)) : []
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Prebid.js WebView pre-configuration
@@ -20,7 +62,7 @@ const WIDGET_CDN = 'https://widget.sellwild.com'
 //    pixel syncs may still work for some bidders. A longer syncDelay gives the
 //    auction time to complete before sync requests compete for bandwidth.
 // ─────────────────────────────────────────────────────────────────────────────
-function buildPrebidPreConfigScript(config: SellwildConfig): string {
+export function buildPrebidPreConfigScript(config: SellwildConfig): string {
   const ortb2App: Record<string, unknown> = {
     publisher: { id: config.partnerCode },
   }
@@ -56,7 +98,7 @@ function buildPrebidPreConfigScript(config: SellwildConfig): string {
     s2sConfigBlock = `,
         // Route all Prebid bidder calls through Prebid Server (S2S mode).
         // Solves cookie/IDFA limitations — the auction runs server-to-server.
-        s2sConfig: ${JSON.stringify(s2s)}`
+        s2sConfig: ${scriptJson(s2s)}`
   }
 
   return `
@@ -69,9 +111,9 @@ function buildPrebidPreConfigScript(config: SellwildConfig): string {
         // Declare in-app inventory so DSPs bid on app traffic, not web traffic.
         // Include regs.ext.gdpr so PBS knows whether to enforce consent.
         ortb2: {
-          app: ${JSON.stringify(ortb2App)},
-          regs: ${JSON.stringify(ortb2Regs)}${Object.keys(ortb2User).length ? `,
-          user: ${JSON.stringify(ortb2User)}` : ''}
+          app: ${scriptJson(ortb2App)},
+          regs: ${scriptJson(ortb2Regs)}${Object.keys(ortb2User).length ? `,
+          user: ${scriptJson(ortb2User)}` : ''}
         },
         // Iframe cookie syncs always fail in WebViews — disable them.
         // Image pixel syncs may still work for some bidders.
@@ -96,15 +138,17 @@ function buildPrebidPreConfigScript(config: SellwildConfig): string {
 // Attribute names can be in any case (kebab-case, camelCase, CONSTANT_CASE).
 // Complex objects are JSON-stringified; arrays are comma-separated.
 // ─────────────────────────────────────────────────────────────────────────────
-function configToAttributes(config: SellwildConfig): string {
+export function configToAttributes(config: SellwildConfig): string {
   const parts: string[] = []
 
   const add = (name: string, value: unknown) => {
     if (value === undefined || value === null || value === '' || value === false || value === 0) return
+    // Escaped, so a quote inside a value (a CMS LINK_TEXT holding an <a
+    // href="...">) cannot end the attribute and cut off the rest of the tag.
     if (typeof value === 'object') {
-      parts.push(`${name}='${JSON.stringify(value).replace(/'/g, '&#39;')}'`)
+      parts.push(`${name}='${escapeAttribute(JSON.stringify(value), "'")}'`)
     } else {
-      parts.push(`${name}="${String(value)}"`)
+      parts.push(`${name}="${escapeAttribute(String(value), '"')}"`)
     }
   }
 
@@ -233,7 +277,9 @@ function configToAttributes(config: SellwildConfig): string {
   ])
   if (config.remote) {
     for (const [key, value] of Object.entries(config.remote)) {
-      if (emittedFromTyped.has(key)) continue
+      // A key that cannot be an attribute name would break the tag; it is
+      // left out, and SellwildWidget reports it (unwritableRemoteKeys).
+      if (emittedFromTyped.has(key) || !isAttributeName(key)) continue
       add(key, value)
     }
   }
@@ -283,7 +329,11 @@ export function buildWidgetHtml(config: SellwildConfig & { widgetJsUrl?: string 
       function send(type, payload) {
         try {
           window.ReactNativeWebView.postMessage(JSON.stringify(Object.assign({ type: type }, payload || {})));
-        } catch(e) {}
+        } catch(e) {
+          // The bridge is the page's only way out, so this cannot be reported.
+          // Count it where a debugger can read it.
+          window.__sellwildBridgeFailures = (window.__sellwildBridgeFailures || 0) + 1;
+        }
       }
 
       // partner/index.tsx calls window.open() on listing tap — intercept ALL
@@ -308,76 +358,7 @@ export function buildWidgetHtml(config: SellwildConfig & { widgetJsUrl?: string 
     })();
   </script>
 
-  <script async src="${widgetSrc}"></script>
+  <script async src="${escapeAttribute(widgetSrc, '"')}"></script>
 </body>
 </html>`
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Banner HTML builder
-// ─────────────────────────────────────────────────────────────────────────────
-export function buildBannerHtml(
-  config: SellwildConfig,
-  zoneId: number | string,
-  size: AdSize
-): string {
-  const [width, height] = size.split('x').map(Number)
-  const gptSrc = config.gptProxyUrl
-    ? `${config.gptProxyUrl}/tag/js/gpt.js`
-    : 'https://securepubads.g.doubleclick.net/tag/js/gpt.js'
-
-  const adScript = config.gamTag && !config.disableGpt
-    ? buildGptScript(config.gamTag, gptSrc, width, height)
-    : buildZoneScript(String(zoneId), width, height)
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: ${width}px; height: ${height}px; overflow: hidden; background: transparent; }
-    #ad { width: ${width}px; height: ${height}px; }
-  </style>
-</head>
-<body>
-  <div id="ad"></div>
-  <script>
-    function notify(type) {
-      try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: type })); } catch(e) {}
-    }
-    ${adScript}
-  </script>
-</body>
-</html>`
-}
-
-function buildGptScript(gamTag: string, gptSrc: string, w: number, h: number): string {
-  return `
-    window.googletag = window.googletag || { cmd: [] };
-    var s = document.createElement('script');
-    s.src = '${gptSrc}'; s.async = true;
-    document.head.appendChild(s);
-    googletag.cmd.push(function() {
-      var slot = googletag.defineSlot('${gamTag}', [${w}, ${h}], 'ad');
-      if (slot) {
-        slot.addService(googletag.pubads());
-        googletag.pubads().enableSingleRequest();
-        googletag.pubads().addEventListener('slotRenderEnded', function(e) {
-          if (!e.isEmpty) notify('AD_IMPRESSION');
-        });
-        googletag.enableServices();
-        googletag.display('ad');
-      }
-    });`
-}
-
-function buildZoneScript(zoneId: string, w: number, h: number): string {
-  return `
-    var s = document.createElement('script');
-    s.src = 'https://bidstream.sellwild.com/ads?zone=${zoneId}&w=${w}&h=${h}';
-    s.async = true;
-    s.onload = function() { notify('AD_IMPRESSION'); };
-    document.getElementById('ad').appendChild(s);`
 }
