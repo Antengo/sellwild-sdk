@@ -95,7 +95,7 @@ Flags each app's flow sets in `env` (the string `"true"` turns one on):
    1. House ad: `SellwildHouseAdView` is internal. House backfill runs inside `SellwildAdView` on a no-fill.
    2. Failure codes: there is no public failure sink. The screen shows the public `SellwildFailures.context` instead.
 11. WebViews: debug builds turn on `WebView.setWebContentsDebuggingEnabled`. Maestro sees inside the WebViews on Android: the GAM creative's text and the Legacy widget's listings show in the hierarchy. The flows still check only the containers.
-12. Time: about 4 minutes (SDK publish and sample build 30s warm, boot 20s, flow 60s).
+12. Time: about 2 minutes warm (124s here: SDK publish 11s, sample build 13s, boot 18s, flow 61s). A cold build also downloads the Gradle dependencies.
 
 ## Add an app
 
