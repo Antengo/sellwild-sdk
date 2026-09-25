@@ -113,14 +113,14 @@ Flags each app's flow sets in `env` (the string `"true"` turns one on):
 6. `flutter-ios`:
    1. Build: `flutter pub get`, then `flutter build ios --simulator --debug`. Plugins come in through Swift Package Manager (no CocoaPods).
    2. Device: the same iPhone as `ios` (`scripts/e2e/lib/ios-sim.sh`).
-   3. Time: 187s on the first run (Xcode build 42s, boot 11s, flow 53s).
+   3. Time: about 2.5 minutes warm (149s here: Xcode build 23s, flow 52s). The first run took 187s (Xcode build 42s, boot 11s, flow 53s).
 7. `flutter-android`:
    1. Build: `flutter pub get`, then `flutter build apk --debug --target-platform android-arm64`, with 2 Gradle workers. Then `gradlew --stop` in the sample.
    2. The app's Gradle heap is 2 GB (the template asks for 8 GB).
    3. Flutter runs Gradle with the JDK it finds first: Android Studio's (JDK 21 here), not `JAVA_HOME`.
    4. The first build downloads Gradle 9.3.1 and installs the NDK the template names (28.2, 2.8 GB) into the Android SDK.
    5. Device: `Pixel_5_API_36`, as for `android` (`scripts/e2e/lib/android-emu.sh`). The debug APK is 79 MB.
-   6. Time: 348s on the first run (Gradle 256s with the downloads, boot 18s, flow 52s).
+   6. Time: about 2 minutes warm (106s here: Gradle 14s, boot 18s, flow 51s). The first run took 348s (Gradle 256s with the downloads).
 8. WebViews:
    1. Android: Maestro sees inside the Flutter WebViews. The banner page's `#ad` div and GPT's iframe container show in the hierarchy.
    2. iOS: not checked.
