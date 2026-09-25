@@ -29,18 +29,19 @@
 
 1. One app: `bash scripts/e2e/run.sh ios`, `android`, `flutter-ios`, `flutter-android`, `rn-ios` or `rn-android`.
 2. The apps: `bash scripts/e2e/run.sh --list`.
-3. It builds, boots the device, installs, runs the app's flows, copies the screenshots, then shuts the device down.
-4. All of that runs inside one call of the native lock (`SELLWILD_NATIVE_LOCK`). One native build or booted device at a time.
-5. Exit status: 0 all flows passed, 1 a flow failed, 2 setup failed (unknown app, no Maestro, build, boot or install).
-6. `SELLWILD_E2E_NO_BUILD=1` reuses the last build.
-7. Output goes to `e2e/artifacts/<app>/` (gitignored):
+3. Every app, one at a time, with the gate's step table: `bash scripts/gate.sh --e2e` (TESTING.md, "E2E"). Never part of `--fast` or `--full`.
+4. `run.sh` builds, boots the device, installs, runs the app's flows, copies the screenshots, then shuts the device down.
+5. All of that runs inside one call of the native lock (`SELLWILD_NATIVE_LOCK`). One native build or booted device at a time. When a parent process already runs the lock (the gate run under it), `run.sh` does not take it again.
+6. Exit status: 0 all flows passed, 1 a flow failed, 2 setup failed (unknown app, no Maestro, build, boot or install).
+7. `SELLWILD_E2E_NO_BUILD=1` reuses the last build.
+8. Output goes to `e2e/artifacts/<app>/` (gitignored):
    1. `screenshots/<flow>-<screen>.png`: one per screen, plus a screenshot of any failed step.
    2. `maestro.log`: Maestro's summary and every step with its status.
    3. `report-<flow>.xml`: JUnit.
    4. `build.log`, `device.log`, and `emulator.log` on Android.
    5. `maestro/<flow>/`: Maestro's own output (commands, logs, the view hierarchy of a failed step).
-8. Build caches go to `e2e/.cache/` (gitignored).
-9. Maestro gets a minute to start its driver on the device (`MAESTRO_DRIVER_STARTUP_TIMEOUT`, 60000 ms). Its own default was too short once, on a busy machine.
+9. Build caches go to `e2e/.cache/` (gitignored).
+10. Maestro gets a minute to start its driver on the device (`MAESTRO_DRIVER_STARTUP_TIMEOUT`, 60000 ms). Its own default was too short once, on a busy machine.
 
 ## The common subflows (`e2e/maestro/common/`)
 
@@ -155,7 +156,7 @@ Flags each app's flow sets in `env` (the string `"true"` turns one on):
    3. Device: `Pixel_5_API_36`, as for `android` (`scripts/e2e/lib/android-emu.sh`). The APK is 59 MB.
    4. Time: about 3 minutes warm (174s here: SDK publish 15s, app build 13s, boot 63s, flow 55s). The first run took 681s (app build 9m 15s with the downloads).
 9. WebViews: Maestro sees inside the Legacy widget's WebView (react-native-webview) on both platforms. A separate probe flow found "View all" and "Buy now" there on iOS and on Android. The flows still check only the container.
-10. `scripts/rn/compile-bridge-ios.sh` and `scripts/rn/compile-bridge-android.sh` compile only the native bridge (no app, no device). They take no lock: run them through the lock.
+10. `scripts/rn/compile-bridge-ios.sh` and `scripts/rn/compile-bridge-android.sh` compile only the native bridge (no app, no device). They take no lock: run them through the lock. The gate's `--full` runs them as `rn-bridge-android` and `rn-bridge-ios`.
 11. Seen in the runs, not checked by the flows:
     1. Android: `SellwildListingCard` on the Listings screen shows no photos. The feed's 10 photos are `data:image/avif` URLs, and React Native's Android image pipeline did not draw them. iOS draws them, and the native SDK feed draws them on both.
     2. The 320x50 banner did not fill on either platform. The MREC filled with a Google test ad on both.
@@ -168,3 +169,4 @@ Flags each app's flow sets in `env` (the string `"true"` turns one on):
 4. Write `e2e/maestro/<app>/<flow>.yaml`. Set `appId`, `env` (`APP_ID` and the flags), then run the common subflows.
 5. Add new ids to `contracts/e2e/ids.json` first. `contracts/test/e2e-ids.test.mjs` fails on an unlisted id.
 6. Add a section for the app above.
+7. The gate's `--e2e` picks the new app up from `run.sh --list` as step `e2e-<app>`. Nothing to edit there.
