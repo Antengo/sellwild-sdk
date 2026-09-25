@@ -47,12 +47,17 @@ rn_js_deps() {
   npm --prefix "$ROOT/core" run --silent build
 }
 
-# pod install in the app's ios/ when Pods/ does not match Podfile.lock.
+# pod install in the app's ios/ when Pods/ does not match Podfile.lock, or
+# when React Native's codegen output is missing. pod install writes that
+# output into node_modules/react-native, so an npm ci deletes it, and the
+# app build then fails in React-Fabric's "Check rncore" phase.
 rn_pod_install() {
-  if [ -f "$RN_IOS/Pods/Manifest.lock" ] && cmp -s "$RN_IOS/Podfile.lock" "$RN_IOS/Pods/Manifest.lock"; then
+  local rncore="$RN_SAMPLE/node_modules/react-native/ReactCommon/react/renderer/components/rncore"
+  if [ -f "$RN_IOS/Pods/Manifest.lock" ] && cmp -s "$RN_IOS/Podfile.lock" "$RN_IOS/Pods/Manifest.lock" && [ -d "$rncore" ]; then
     echo "rn: Pods match Podfile.lock"
     return 0
   fi
+  [ -d "$rncore" ] || echo "rn: React Native codegen output is missing (after npm ci)"
   echo "rn: pod install"
   (cd "$RN_IOS" && RCT_NEW_ARCH_ENABLED=0 pod install)
 }
