@@ -8,7 +8,9 @@
     "test": "node --test",
     "validate": "node scripts/validate.mjs",
     "vectors": "node scripts/generate-vectors.mjs",
-    "print-gate": "node scripts/print-gate.mjs"
+    "print-gate": "node scripts/print-gate.mjs",
+    "add-code": "node scripts/add-code.mjs",
+    "gen-codes": "node scripts/gen-codes.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

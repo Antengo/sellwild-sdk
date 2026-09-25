@@ -209,3 +209,46 @@ test('hand: unit tables', () => {
   assert.equal(L.truncateUnicode('x\u{1F1FA}\u{1F1F8}\u{1F1EC}\u{1F1E7}', 3), 'x…')
   assert.equal(L.truncateUnicode('a\u{1F468}‍\u{1F469}‍\u{1F467}b', 5), 'a…')
 })
+
+test('hand: edge inputs every port must also accept', () => {
+  // Tag characters and supplementary variation selectors stay with their base.
+  assert.equal(L.truncateUnicode('ab\u{E0041}cdef', 3), 'a…')
+  assert.equal(L.truncateUnicode('ab\u{E0100}cdef', 3), 'a…')
+  assert.equal(L.truncateUnicode('ab\u{E01F0}cdef', 3), 'ab…', 'U+E01F0 is past the selector block')
+  assert.equal(L.truncateUnicode(null, 3), null)
+  assert.equal(L.cleanText(42), '')
+  assert.equal(L.hostOf('https://[::1'), null, 'an unclosed IPv6 bracket has no host')
+  // A URL frame with no host keeps its basename; a query cuts it; an empty one is <url>.
+  assert.equal(
+    L.sanitizeStack('at f (file:///a/b/c.js?v=1)\nat g (file:///a/b/d.js:3:4)\nat h (file:///?q)', null),
+    'at f (c.js)\nat g (d.js:3:4)\nat h (<url>)',
+  )
+  assert.equal(L.coerceRate(Infinity), 1)
+  assert.equal(L.coerceRate(NaN), 1)
+  assert.equal(L.fnv1a32(undefined), L.fnv1a32(''))
+  assert.equal(L.isSampled(undefined, 0.5), L.isSampled('', 0.5))
+  assert.equal(L.dedupeKey('a.b.c', 'feed', null, null), 'a.b.c|feed||')
+  const event = { event: 'e', action: 'a', label: 'l', attributes: { msg: 'q"\\\b\f\n\r\t\u0001/é' }, uid: 'u', createdTime: 1 }
+  assert.equal(L.canonicalJson(event), '{"event":"e","action":"a","label":"l","attributes":{"msg":"q\\"\\\\\\b\\f\\n\\r\\t\\u0001/é"},"uid":"u","createdTime":1}')
+  const fields = { action: 'a.b.c', label: 'feed', severity: 'error', seq: 1, repeat: 1 }
+  const bare = L.buildFailureEvent(fields, null, 7, NOW)
+  assert.deepEqual([bare.attributes.code, bare.attributes.client, bare.attributes.clientVersion, bare.uid], ['unknown', 'unknown', 'unknown', ''])
+  assert.equal(L.buildFailureEvent(fields, { client: '' }, UID, NOW).attributes.client, 'unknown')
+  // No state, input or context: a fresh state and an invalid code, still one event.
+  const r = L.decideFailure(undefined, undefined, undefined, UID, NOW)
+  assert.deepEqual([r.event.action, r.event.label, r.reason, r.state.sessionCount], ['client.code.invalid', 'unknown', null, 1])
+})
+
+test('the shell input cap: first 1000 units of message, 2000 of stack, a split pair becomes U+FFFD', () => {
+  assert.deepEqual(L.INPUT_LIMITS, { message: 1000, errMessage: 1000, stack: 2000 })
+  assert.equal(L.capInput('abc', 3), 'abc')
+  assert.equal(L.capInput('abcd', 3), 'abc')
+  assert.equal(L.capInput(null, 3), null)
+  assert.equal(L.capInput(42, 1), 42)
+  // 998 digits mask to <n>, so only the 2 letters inside the cap reach the message.
+  const long = `${'1'.repeat(998)}ABCDEFG`
+  assert.equal(L.sanitizeMessage(L.capInput(long, L.INPUT_LIMITS.message)), '<n>AB')
+  assert.equal(L.sanitizeMessage(L.capInput(`${'1'.repeat(999)}\u{1F600}tail`, L.INPUT_LIMITS.message)), '<n>\uFFFD')
+  const r = L.decideFailure(L.initialState(), { code: 'listings.fetch.http', component: 'listings', message: L.capInput(long, 1000) }, { partnerCode: 'p', client: 'ios', clientVersion: '1' }, UID, NOW)
+  assert.equal(r.event.attributes.msg, '<n>AB')
+})

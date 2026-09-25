@@ -1,5 +1,5 @@
 {
-  "description": "What every platform listings parser must return for each listings sample and valid fixture. Same rules as app-config.expected.json: match `expected`, or differ only in a field named in that platform's knownDrift entry.",
+  "description": "What every platform listings parser must return for each listings sample and valid fixture. Same rules as app-config.expected.json: match `expected`, or differ only in a field named in that platform's entry for the case in expectations/drift/<platform>.json.",
   "fields": {
     "items": {
       "platforms": [
@@ -62,9 +62,6 @@
         ],
         "nullRemoteUrlIds": [],
         "widgetCacheVersionId": "0"
-      },
-      "knownDrift": {
-        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 10 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails."
       }
     },
     {
@@ -93,10 +90,6 @@
           "105118558"
         ],
         "widgetCacheVersionId": "733489"
-      },
-      "knownDrift": {
-        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 10 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails.",
-        "android": "nullRemoteUrlIds: org.json optString returns the text \"null\" for JSON null on a device (JVM tests use org.json:json, which returns \"\", and cannot see it), so tapUrl can open \"null\" for a dataSourceId 31 listing."
       }
     },
     {
@@ -124,10 +117,6 @@
           "105140794"
         ],
         "widgetCacheVersionId": "0"
-      },
-      "knownDrift": {
-        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 10 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails.",
-        "android": "nullRemoteUrlIds: org.json optString returns the text \"null\" for JSON null on a device (JVM tests use org.json:json, which returns \"\", and cannot see it), so tapUrl can open \"null\" for a dataSourceId 31 listing."
       }
     },
     {
@@ -155,10 +144,6 @@
           "105140794"
         ],
         "widgetCacheVersionId": "0"
-      },
-      "knownDrift": {
-        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 10 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails.",
-        "android": "nullRemoteUrlIds: org.json optString returns the text \"null\" for JSON null on a device (JVM tests use org.json:json, which returns \"\", and cannot see it), so tapUrl can open \"null\" for a dataSourceId 31 listing."
       }
     },
     {
@@ -186,10 +171,6 @@
           "105140794"
         ],
         "widgetCacheVersionId": "0"
-      },
-      "knownDrift": {
-        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 10 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails.",
-        "android": "nullRemoteUrlIds: org.json optString returns the text \"null\" for JSON null on a device (JVM tests use org.json:json, which returns \"\", and cannot see it), so tapUrl can open \"null\" for a dataSourceId 31 listing."
       }
     },
     {
@@ -199,8 +180,7 @@
         "ids": [],
         "nullRemoteUrlIds": [],
         "widgetCacheVersionId": "0"
-      },
-      "knownDrift": {}
+      }
     },
     {
       "file": "fixtures/listings-response/valid/mixed-item-types.json",
@@ -216,10 +196,6 @@
           "105140232"
         ],
         "widgetCacheVersionId": "0"
-      },
-      "knownDrift": {
-        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 3 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails.",
-        "android": "nullRemoteUrlIds: org.json optString returns the text \"null\" for JSON null on a device (JVM tests use org.json:json, which returns \"\", and cannot see it), so tapUrl can open \"null\" for a dataSourceId 31 listing."
       }
     },
     {
@@ -231,9 +207,6 @@
         ],
         "nullRemoteUrlIds": [],
         "widgetCacheVersionId": "733489"
-      },
-      "knownDrift": {
-        "flutter": "items: SellwildListing.fromJson hard-casts shippable/price/strikePrice/id as String? and throws on 1 item(s) (bool shippable or numeric price), and fetchListings has no per-item guard, so the whole feed fails."
       }
     },
     {
@@ -245,8 +218,7 @@
         ],
         "nullRemoteUrlIds": [],
         "widgetCacheVersionId": "12"
-      },
-      "knownDrift": {}
+      }
     }
   ]
 }

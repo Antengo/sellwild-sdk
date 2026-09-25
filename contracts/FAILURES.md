@@ -10,13 +10,15 @@ The reference implementation is `reference/log-failure.mjs`. The golden vectors 
 |---|---|
 | `FAILURES.md` | This contract. |
 | `failure-codes.json` | Canonical code registry (section 4). |
-| `failure-codes.sources.json` | Where each code came from: all 641 phase-1 failure points, each mapped to a code or excluded with a reason. |
+| `failure-codes.sources.json` | Where each code came from: all 641 phase-1 failure points, each mapped to a code or excluded with a reason, plus `added` for later codes. |
+| `scripts/add-code.mjs`, `scripts/gen-codes.mjs` | The only way to change the registry, and the generator of the four platform mirrors (section 4.4). |
 | `reference/log-failure.mjs` | Dependency-free JS reference of the pure core (sections 5–7). |
 | `golden/log-failure.vectors.json` | Golden vectors every platform must reproduce (section 12). |
 | `golden/log-failure.utf16.vectors.json` | Extra vectors with lone UTF-16 surrogates, for TS, Kotlin and Dart only. |
 | `schemas/client-failure-event.schema.json` | JSON Schema of the event (and of the queue-stamped wire form). |
 | `schemas/failure-codes.schema.json` | JSON Schema of the registry. |
 | `print-gate.allowlist.json`, `scripts/print-gate.mjs` | The print gate (section 11). |
+| `expectations/drift/<platform>.json` | Known cross-platform drift, one file per SDK platform (section 14). |
 
 ## 1. The rule (A1)
 
@@ -85,8 +87,13 @@ The shell turns the call into the pure-core input `{ code, component, severity, 
    - Swift: `errName` is the type name (`String(describing: type(of: error))`); for a bridged `NSError`, `"<domain>(<code>)"`. `errMessage` is `localizedDescription`. No stack (off on iOS).
    - Kotlin: `errName` is `javaClass.simpleName`, `errMessage` is `message`, `stack` is the first frames of `stackTrace`, one `Class.method(File.kt:line)` per line, no header line.
    - Dart: `errName` is `runtimeType.toString()`, `errMessage` is the exception's message (`toString()` when it has none). No stack.
-2. `message`, `httpStatus`, `url` and `zoneId` pass through as given.
+2. `message`, `httpStatus`, `url` and `zoneId` pass through as given, after the input cap in item 4.
 3. `stack` is sent by TS (core, widget) and Android only.
+4. Input cap. Every shell cuts `message` and `errMessage` to their first 1000 UTF-16 code units, and `stack` to its first 2000, BEFORE the pure core. The sanitizer patterns (7.4, 7.5) backtrack superlinearly on long runs of `[A-Za-z0-9._%+-]` (10,000 characters take about 0.35 s in V8, more on Hermes, the JVM and ICU), and logFailure must never block (3.4). Only 200 code points of message and 5 frames are ever sent, so the cap changes only pathological input, and it changes it the same way everywhere:
+   - A surrogate pair split by the cut leaves a lone high surrogate, which cleanText (7.1) turns into U+FFFD. Swift strings cannot hold one, so Swift drops the pair and appends U+FFFD itself. Every platform hands the core the same text.
+   - Non-strings pass through unchanged.
+   - TS: when `stack` is over 2000 units and starts with V8's header (`<name>: <message>`, or `<name>` alone when the message is empty) followed by a line break or the end, the header is removed before the cut. Otherwise a long message would push every frame out of the cut. Under the cap the pure core drops the header itself (7.4 step 2).
+   - The reference is `capInput` and `INPUT_LIMITS` in `reference/log-failure.mjs`. The shells are core `core/src/failures/index.ts`, iOS `SellwildFailures.capInput`, Android `SellwildFailures.capInput`, Flutter `SellwildFailures._bounded`, and the widget's `src/failures/index.ts`.
 
 ### 3.4 The shell
 
@@ -121,10 +128,10 @@ logFailure(input):
 ### 4.2 Registry (A4)
 
 1. `failure-codes.json` is canonical and language neutral. Each entry: `code`, `area`, `operation`, `reason`, `component` (usual label), `severity` (recommended), `clients` (platforms that emit it), `description`.
-2. Each platform mirrors the codes whose `clients` include it as constants. A parity test on each platform reads the JSON and checks its constants match. The core mirror holds the codes for `core` and `react-native`, because react-native re-exports core.
+2. Each platform mirrors the codes whose `clients` include it as constants. `scripts/gen-codes.mjs` generates the four mirrors (`core/src/failures/codes.ts`, `ios/Sources/SellwildSDK/Failures/SellwildFailureCode.swift`, `android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailureCode.kt`, `flutter/lib/src/failures/sellwild_failure_code.dart`); nobody edits them by hand. A parity test on each platform reads the JSON and checks its constants match. The core mirror holds the codes for `core` and `react-native`, because react-native re-exports core.
 3. The widget vendors the registry (sha256 sync check) and may add widget-only codes in `sellwild-widget/contracts/failure-codes.widget.json`, same format.
 4. `severity` in the registry is a recommendation for call sites. logFailure itself defaults to `error` when no severity is passed.
-5. Seeded from all 641 phase-1 failure points (219 codes). `failure-codes.sources.json` maps each point to its code, or to an exclusion: no-fill, events transport, kill switch, by design, log-once, node tooling, known drift, defect, in-page, caller abort, privacy, lifecycle, dead code, security review.
+5. Seeded from all 641 phase-1 failure points (219 codes). `failure-codes.sources.json` maps each point to its code, or to an exclusion: no-fill, events transport, kill switch, by design, log-once, node tooling, known drift, defect, in-page, caller abort, privacy, lifecycle, dead code, security review, unreachable. Codes added later are listed in its `added` array with the date and why.
 
 ### 4.3 Codes that are never logged
 
@@ -135,10 +142,21 @@ logFailure(input):
 ### 4.4 How to add a code
 
 1. Pick the area, operation and reason from 4.1. Reuse an existing code when the meaning is the same; the call site passes its own component.
-2. Add the entry to `failure-codes.json`, sorted by code (plain code-unit order), with every field filled.
-3. In the same change, add the constant to each platform mirror listed in `clients`, and to `sellwild-widget` when `clients` has `widget`.
-4. Run `npm test` in `contracts/` (registry checks) and each platform's parity test.
-5. If the code replaces a phase-1 exclusion or a point in `failure-codes.sources.json`, update that point too.
+2. Run `node contracts/scripts/add-code.mjs` with the entry as JSON or as flags. area, operation and reason may be left out; they come from the code.
+
+   ```
+   node contracts/scripts/add-code.mjs --code widget.webview_load.http --component webview \
+     --severity error --clients react-native,ios,android,widget \
+     --description "The widget WebView got an HTTP error status (4xx or 5xx) for its page or a main-frame resource." \
+     --note "Why the code exists."
+   ```
+
+   It checks the entry (format, area, reason, component and severity enums, clients, a one-sentence description with no `/*` or `*/`, which would break a generated doc comment; no no-fill, no-bid or events code, per 4.3), takes `contracts/.lock`, re-reads the registry, inserts the entry in code order, records the new code in `failure-codes.sources.json` `added`, writes both files, regenerates the four mirrors and releases the lock. Adding an identical entry again changes nothing.
+3. Never edit `failure-codes.json` or a mirror by hand. `node contracts/scripts/gen-codes.mjs --check` and `test/gen-codes.test.mjs` fail when a mirror differs from what the registry generates.
+4. To let another platform emit an existing code: `add-code.mjs --merge-clients --code <code> --clients <platform>`. To drop a client or change another field: `add-code.mjs --replace` with the whole entry. When a client is dropped, remap that platform's phase-1 points in `failure-codes.sources.json`; `test/registry.test.mjs` checks that a mapped point's platform emits its code.
+5. Several units may run add-code at once. The lock is `contracts/.lock`: a run writes its owner file into a fresh temp directory and renames that directory to `.lock` in one atomic step, so a lock never exists without its owner and a failed write leaves no lock behind. Release moves the lock aside before deleting it. A run tries every 50 ms for up to 60 s, and a lock older than 120 s is taken to be from a run that died and is broken. Every file is written through a temp file in `contracts/` (git-ignored) and a rename, so a run that dies leaves nothing in an SDK source folder. A bad entry is refused before any wait for the lock. Only a new code gets an `added` record in `failure-codes.sources.json`; `--merge-clients` and `--replace` leave that file alone.
+6. sellwild-widget vendors byte-equal copies of `failure-codes.json`, this file, `reference/log-failure.mjs`, the golden vectors, most schemas and the print gate (its `contracts/scripts/sync-check.mjs` lists them). After any of them changes, the widget runs `node contracts/scripts/sync-check.mjs --update`; its sha256 sync check fails until then.
+7. Run `npm test` in `contracts/` and each platform's parity test.
 
 ## 5. The gate: `decideFailure`
 
@@ -226,6 +244,7 @@ One element of the existing events array. No server change.
 1. `event` is always `clientFailure`. `action` is the code. `label` is the component.
 2. `amount` is never used.
 3. SDK queues still stamp `attributes.type` and `attributes.sdkVersion`. logFailure does not rely on them. `schemas/client-failure-event.schema.json#/$defs/wireEvent` allows them.
+4. SDK queues must not overwrite `attributes.code` on a clientFailure event: logFailure sets it, cleaned and cut to 64 (6.3 row 1). Other events keep today's stamping. iOS `stampEvent` follows this; core `createEventQueue` stamps the partner code only under the event's own attributes, so the event's code wins; Android `buildBatchJson` (`SellwildAPI.kt`) does not yet, and the Android unit fixes it.
 
 ### 6.2 Fields
 
@@ -242,7 +261,7 @@ Keys in this order; this list is also the allowlist. Every value is a string. At
 
 | # | key | source | rule |
 |---|---|---|---|
-| 1 | `code` | context.partnerCode | cleanText, cut to 64; empty → `unknown`. Always set by logFailure, never left to queue stamping. |
+| 1 | `code` | context.partnerCode | cleanText, cut to 64; empty → `unknown`. Always set by logFailure, never left to queue stamping, and never overwritten by it (6.1 item 4). |
 | 2 | `client` | context.client | `core`, `react-native`, `ios`, `android`, `flutter`, `widget`, as set by the shell; missing or empty → `unknown`. |
 | 3 | `clientVersion` | context.clientVersion | cleanText, cut to 32; empty → `unknown`. |
 | 4 | `severity` | input.severity | `fatal`, `error`, `warn`; anything else → `error`. fatal = the surface could not render; error = the operation failed and a fallback was used; warn = degraded but handled. |
@@ -355,7 +374,7 @@ Listing titles and text, search keywords, user names, emails, phone numbers, IDF
 
 2. `flushNow` is true for the first event of the session (`seq == 1`) and for `fatal`. Everything else rides normal batching.
 3. The uid the pure core sees is the queue's own uid, so sampling and the wire agree.
-4. Transport never reports itself (A7). These never call logFailure, and a test on each platform proves it: core `EventQueue.flush`, widget `drainQueue`, iOS `flushEventsLocked`, Android `SellwildEventQueue.flush`, Flutter `sendEvent`. Failures of the events endpoint are never reported. The widget guards `localStorage` and `crypto` inside `getUid` (Events.ts) instead of reporting them.
+4. Transport never reports itself (A7). These never call logFailure, and a test on each platform proves it: core `EventQueue.flush` (`core/src/event-queue.ts`, still exported from `api.ts` and the package index), widget `drainQueue`, iOS `flushEventsLocked`, Android `SellwildEventQueue.flush`, Flutter `sendEvent`. Failures of the events endpoint are never reported. The widget guards `localStorage` and `crypto` inside `getUid` (Events.ts) instead of reporting them.
 5. The widget must NOT install `window.onerror` or `unhandledrejection` hooks: they would collect host-page errors. It calls logFailure only from its own catch sites.
 
 ## 9. Log once
@@ -411,7 +430,7 @@ Listing titles and text, search keywords, user names, emails, phone numbers, IDF
 
 ## 13. Tests never touch the network (A8)
 
-1. TS and widget: global `fetch`, `navigator.sendBeacon`, `XMLHttpRequest` and `WebSocket` are replaced by throwing stubs unless a test installs its own.
+1. TS and widget: unless a test installs its own, global `fetch` is replaced by a stub that returns a rejected promise, and `navigator.sendBeacon`, `XMLHttpRequest` and `WebSocket` by stubs that throw. The error text is each package's own: core and React Native use `network blocked in tests: <url>`; the widget's is in sellwild-widget `test/setup/network.ts`. Only each package's own harness test pins its text.
 2. iOS: a `URLProtocol` registered for the whole test bundle fails every request.
 3. Android: `URL.setURLStreamHandlerFactory` (once per JVM) or an equivalent fails http/https, plus injectable senders.
 4. Flutter: an injected `http.Client` (`MockClient`); flutter_test's default `HttpOverrides` stays in place.
@@ -420,7 +439,11 @@ Listing titles and text, search keywords, user names, emails, phone numbers, IDF
 ## 14. Behavior-change policy (A9)
 
 1. Fix a bug only if it throws, crashes, or yields an obviously invalid value (for example the string "null" used as a URL) AND a test proves it. Record each fix as a behavior change: file, before, after, why.
-2. Cross-platform semantic drift (IAB_CATS scalar handling, MOBILE_ZID_* per OS, S2S_CONFIG text vs object, Android bidder passthrough of non-bidder keys) is NOT changed in this program. It is recorded as `knownDrift` in `expectations/*.expected.json`.
+2. Cross-platform semantic drift (IAB_CATS scalar handling, MOBILE_ZID_* per OS, S2S_CONFIG text vs object, Android bidder passthrough of non-bidder keys) is NOT changed in this program. It is recorded in `expectations/drift/<platform>.json`, one file per SDK platform (`core`, `react-native`, `ios`, `android`, `flutter`; the widget keeps its own in sellwild-widget):
+   - `expectations` maps each expectations file (`app-config`, `listings-response`) and case file to text that names every field that differs, as `field: why`. A conformance test passes a case when the platform matches `expected`, or differs only in a field its entry names; a named field that matches fails the test, so the entry is removed in the change that fixes the drift.
+   - `other` records verified drift that no expectations case pins, keyed by a short topic (for example `bridge.android`).
+   - Each platform unit edits only its own file. `test/expectations.test.mjs` checks that every entry names a real case and a field that platform is held to.
+   - Which tests enforce the files today: only core. `core/test/conformance.test.ts` loads `drift/core.json` and fails when a named field matches. iOS (`SellwildConfigureTests`), Android (`SellwildListingsParserDeviceJsonTest`) and Flutter (`sellwild_models_test.dart`, `sellwild_api_test.dart`, `sellwild_sdk_configure_failures_test.dart`) read the expectations files for a few fields and do not load their drift file yet, so their entries are records that only `test/expectations.test.mjs` checks. React Native has only `other` entries. A platform unit that makes its conformance test compare a drifting field loads its own drift file and follows the rule above.
 3. Never change SDK version numbers or release files (podspec, Package.swift pins, pubspec version, gradle version names).
 
 ## 15. Coverage summary (A10)
@@ -446,7 +469,7 @@ Every platform writes `<repo>/coverage-summary/<platform>.json`:
 ## 16. Checklist for a platform lane
 
 1. Pure core at the A2 path, reproducing both vector files (iOS: the main file only).
-2. Shell with the A3 names, reentrancy guard, never-throw wrapper and debug echo.
+2. Shell with the A3 names, reentrancy guard, never-throw wrapper, debug echo and the input cap (3.3 item 4).
 3. Registry mirror plus parity test against `failure-codes.json`.
 4. A test that the transport functions in 8.4 never call logFailure.
 5. Network blocked in tests (section 13).
@@ -467,3 +490,5 @@ The proposal and amendments left these open. The reference implements them and t
 8. A code is valid by format alone; the registry is not consulted at runtime.
 9. `localized.fetch.*` codes are for iOS, Android and the widget only: core and React Native resolve the localized config but do not fetch the cache.
 10. Registry severity is a recommendation; logFailure defaults to `error`.
+11. Every shell caps message and error message at 1000 UTF-16 units and the stack at 2000 before the pure core (3.3 item 4); TS drops the V8 header first when the stack is over the cap.
+12. SDK queues never overwrite a clientFailure's `attributes.code` (6.1 item 4).

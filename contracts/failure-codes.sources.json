@@ -1,5 +1,5 @@
 {
-  "description": "Where each registry code came from: every phase-1 failure point (2026-09-23 survey), mapped to a registry code or excluded with a reason. Exclusion reasons are defined in `exclusions`.",
+  "description": "Where each registry code came from: every phase-1 failure point (2026-09-23 survey), mapped to a registry code or excluded with a reason (defined in `exclusions`), plus `added`: codes no phase-1 point proposed, each with the date and why. scripts/add-code.mjs appends to `added`.",
   "exclusions": {
     "no-fill": "Ad no-fill / no-bid is not a failure. The existing adError / adNoBids / no-fill path covers it (rule 2).",
     "transport": "Events transport code never reports itself (A7). Guard it in place instead.",
@@ -7,15 +7,88 @@
     "by-design": "Expected behavior (feature off, consent, geo block, user or browser choice, graceful feature detection). Not a failure.",
     "log-once": "Logged once by the lower layer that observes the failure (rule 2). This wrapper or caller must not log it again.",
     "tooling": "Node build / deploy / CMS-server tooling. Not a clientFailure emitter: it has no events queue and runs in CI or Netlify. It fails through exit codes.",
-    "known-drift": "Cross-platform semantic drift that this program does not change (A9.2). Recorded as knownDrift in contracts/expectations.",
+    "known-drift": "Cross-platform semantic drift that this program does not change (A9.2). Recorded in contracts/expectations/drift/<platform>.json.",
     "defect": "Code defect to fix in place (escaping, leak, index math, cleanup, stale key). There is no runtime failure signal to log.",
     "in-page": "Runs inside the WebView page, where the bridge itself is what failed. It cannot be reported from there.",
     "caller-abort": "A caller-initiated abort is not a failure.",
     "privacy": "A missing advertising id is a user or device privacy choice. Device-id state is never reported.",
     "lifecycle": "Normal ad or view lifecycle (expiry, disposal). Not a failure.",
     "dead-code": "Programmer-error path in dead code pending the delete decision.",
-    "security": "Security review item, not a runtime failure path."
+    "security": "Security review item, not a runtime failure path.",
+    "unreachable": "The failure cannot happen on this platform: the call it guards never fails there (verified). The code stays for the platforms where it can."
   },
+  "added": [
+    {
+      "code": "client.code.invalid",
+      "date": "2026-09-23",
+      "note": "FAILURES.md 4.1: the replacement action for a code that fails the format."
+    },
+    {
+      "code": "growthcode.sync.timeout",
+      "date": "2026-09-23",
+      "note": "Phase 2 contract: timeouts get their own reason, split from the network failure the survey proposed."
+    },
+    {
+      "code": "listings.fetch.timeout",
+      "date": "2026-09-23",
+      "note": "Phase 2 contract: timeouts get their own reason, split from the network failure the survey proposed."
+    },
+    {
+      "code": "localized.fetch.timeout",
+      "date": "2026-09-23",
+      "note": "Phase 2 contract: timeouts get their own reason, split from the network failure the survey proposed."
+    },
+    {
+      "code": "widget.webview_process.exception",
+      "date": "2026-09-23",
+      "note": "Phase 2 contract: the WebView content process crash (iOS webViewWebContentProcessDidTerminate, Android onRenderProcessGone) had no survey point."
+    },
+    {
+      "code": "widget.webview_load.http",
+      "date": "2026-09-23",
+      "note": "Phase 3 prep: the React Native lane needs it for react-native-webview onHttpError; iOS (WKNavigationResponse status) and Android (WebViewClient.onReceivedHttpError, minSdk 23) can observe it too. Not flutter: NavigationDelegate.onHttpError needs webview_flutter 4.8.0 and the pubspec floor is ^4.4.0."
+    },
+    {
+      "code": "listings.tag_cache.http",
+      "date": "2026-09-24",
+      "note": "Phase 3 sdk-core: fetchTagCacheListings now checks res.ok; a non-2xx answer is reported once, like listings.fetch.http."
+    },
+    {
+      "code": "listings.tag_cache.parse",
+      "date": "2026-09-24",
+      "note": "Phase 3 sdk-core: fetchTagCacheListings swallowed a non-JSON 2xx body into []; it now reports it, split from listings.tag_cache.network."
+    },
+    {
+      "code": "widget.webview_load.exception",
+      "date": "2026-09-24",
+      "note": "Flutter reported a failed WebView setup call as widget.webview_load.network, but a platform exception such as a StateError is not a network failure (phase-3 verifier, sdk-flutter-rest round 2)."
+    },
+    {
+      "code": "geo.seed.exception",
+      "date": "2026-09-24",
+      "note": "Phase 3 sdk-android-logic round 1: SellwildAPIClient.fetchListings let an exception from SellwildPrebidMobile.setGeo (for example a partner geo with a NaN latitude) escape the fetch; it is now caught and reported, and the listings still load."
+    },
+    {
+      "code": "listings.tag_cache_url.invalid",
+      "date": "2026-09-24",
+      "note": "Phase 3 core gap closer: fetchTagCacheListings rejected with URIError on such keywords although it is documented to never reject; it now reports this code and gives []."
+    },
+    {
+      "code": "listings.fetch.exception",
+      "date": "2026-09-24",
+      "note": "Android phase 3 (verifier round 3): Fetch.codeFor reported every non-network throwable as listings.fetch.network."
+    },
+    {
+      "code": "localized.fetch.exception",
+      "date": "2026-09-24",
+      "note": "Android phase 3 (verifier round 3): Fetch.codeFor reported every non-network throwable as localized.fetch.network."
+    },
+    {
+      "code": "growthcode.sync.exception",
+      "date": "2026-09-24",
+      "note": "Android phase 3 (verifier round 3): the sync's catch also covers SharedPreferences reads, which were reported as growthcode.sync.network."
+    }
+  ],
   "points": [
     {
       "unit": "sdk-android",
@@ -1012,7 +1085,8 @@
       "line": 43,
       "proposedCode": "config_url_invalid",
       "currentHandling": "thrown",
-      "code": "config.url.invalid"
+      "excluded": "unreachable",
+      "note": "Dart Uri.parse percent-encodes every partnerCode and slug probed and never throws here (phase 2, sdk-flutter-logfailure), so flutter is not a config.url.invalid client."
     },
     {
       "unit": "sdk-flutter",

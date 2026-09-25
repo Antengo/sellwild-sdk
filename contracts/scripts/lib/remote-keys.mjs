@@ -23,6 +23,10 @@ export const NOT_CONFIG_KEYS = {
   LLGLLGLLG: 'Default COL1 layout value, not a key.',
   SELLER: 'Fallback seller-name text.',
   UNCHECKED_CAST: 'Kotlin @Suppress argument.',
+  NO_BIDS: 'Prebid Mobile ResultCode enum name, compared by name in android core/AdDecisions.kt.',
+  SUCCESS: 'Prebid Mobile ResultCode enum name, compared by name in android core/AdDecisions.kt.',
+  TIMEOUT: 'Prebid Mobile ResultCode enum name, compared by name in android core/AdDecisions.kt.',
+  SUCCEEDED: 'Prebid Mobile InitializationStatus enum name, compared by name in android core/PrebidSetup.kt.',
 }
 
 function walk(dir, out = []) {

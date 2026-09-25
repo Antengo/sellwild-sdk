@@ -254,8 +254,8 @@ export function sanitizeMessage(s) {
 function basenameOfUrl(u) {
   const cut = u.search(/[?#]/)
   const path = cut >= 0 ? u.slice(0, cut) : u
-  const slash = path.lastIndexOf('/')
-  return slash >= 0 ? path.slice(slash + 1) : path
+  // A URL or protocol-relative match always holds a "/" before any ? or #.
+  return path.slice(path.lastIndexOf('/') + 1)
 }
 
 function sanitizeFrame(line) {
@@ -395,6 +395,23 @@ export function isSampled(uid, rate) {
   if (rate <= 0) return false
   const u = typeof uid === 'string' ? uid : ''
   return fnv1a32(u + ':failures') / 4294967296 < rate
+}
+
+// ── Shell input cap (FAILURES.md 3.3 item 4) ─────────────────────────────────
+// Not part of decideFailure: every shell applies it to the call before the
+// pure core, so the sanitizer patterns never see long text. The golden vectors
+// start after it.
+
+/** UTF-16 code units of each text input a shell hands to the pure core. */
+export const INPUT_LIMITS = Object.freeze({ message: 1000, errMessage: 1000, stack: 2000 })
+
+/**
+ * The first `max` UTF-16 units of a string; anything else unchanged. A split
+ * surrogate pair leaves a lone high surrogate, which cleanText turns into
+ * U+FFFD (Swift appends U+FFFD itself).
+ */
+export function capInput(v, max) {
+  return typeof v === 'string' && v.length > max ? v.slice(0, max) : v
 }
 
 // ── Dedupe ───────────────────────────────────────────────────────────────────
