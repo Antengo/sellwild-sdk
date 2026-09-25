@@ -1,59 +1,22 @@
-import 'dart:convert';
+// Deprecated WebView surfaces: SellwildWidget (the full marketplace widget)
+// and SellwildBanner. No feature work (native-first-mobile); only failure
+// reporting. The HTML they load and the messages they decode are pure
+// functions in widget_html.dart and widget_bridge.dart; these states are the
+// thin shells that talk to the WebView, call the host and report failures
+// once through logFailure.
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+
+import 'failures/sellwild_failure_code.dart';
+import 'failures/sellwild_failures.dart';
+import 'failures/sellwild_log.dart';
 import 'sellwild_config.dart';
 import 'sellwild_models.dart';
-
-/// Builds a Prebid.js pre-configuration script block.
-/// Must be injected into the HTML <head> before prebid.js loads.
-///
-/// Addresses two critical WebView issues:
-///  1. ortb2.app — declares in-app inventory so DSPs bid on app traffic,
-///     not web (ortb2.site) traffic. Required for app-ads.txt compliance.
-///  2. userSync — disables iframe cookie syncs which always fail in WebViews
-///     (no third-party cookies), avoiding wasted network requests.
-String _buildPrebidPreConfigScript(SellwildConfig c) {
-  final ortb2App = <String, dynamic>{
-    'publisher': {'id': c.partnerCode},
-    if (c.appBundleId != null) 'bundle': c.appBundleId,
-    if (c.appStoreUrl != null) 'storeurl': c.appStoreUrl,
-  };
-  final config = <String, dynamic>{
-    'ortb2': {'app': ortb2App},
-    'userSync': {
-      'filterSettings': {
-        'iframe': {'bidders': '*', 'filter': 'exclude'},
-      },
-      'syncDelay': 5000,
-    },
-    if (c.prebidServer != null)
-      's2sConfig': {
-        'accountId': c.prebidServer!.accountId,
-        'bidders': c.prebidServer!.bidders,
-        'timeout': c.prebidServer!.timeout,
-        'adapter': 'prebidServer',
-        'endpoint': {
-          'p1Consent': c.prebidServer!.endpoint,
-          'noP1Consent': c.prebidServer!.endpoint,
-        },
-        if (c.prebidServer!.syncEndpoint != null)
-          'syncEndpoint': {
-            'p1Consent': c.prebidServer!.syncEndpoint,
-            'noP1Consent': c.prebidServer!.syncEndpoint,
-          },
-      },
-    if (c.debug) 'debug': true,
-  };
-  final configJson = jsonEncode(config);
-  return '''
-  <script>
-    window.pbjs = window.pbjs || {};
-    window.pbjs.que = window.pbjs.que || [];
-    window.pbjs.que.push(function() {
-      window.pbjs.setConfig($configJson);
-    });
-  </script>''';
-}
+import 'widget_bridge.dart';
+import 'widget_html.dart';
 
 /// Full Sellwild marketplace widget rendered in a WebView.
 ///
@@ -93,194 +56,120 @@ class _SellwildWidgetState extends State<SellwildWidget> {
   late final WebViewController _controller;
   bool _loading = true;
 
+  /// Reports widget.load.timeout when no WIDGET_LOADED arrives within
+  /// [widgetLoadedDeadline] (the spinner would never end). Failure
+  /// reporting only: the spinner and the host see no change. Cancelled by
+  /// WIDGET_LOADED, by a failure already reported for the page itself
+  /// (setup or page load, so one failure is reported once) and by dispose.
+  Timer? _loadWatchdog;
+
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.transparent)
-      ..addJavaScriptChannel(
-        'SellwildWidgetBridge',
-        onMessageReceived: _handleMessage,
-      )
-      ..setNavigationDelegate(NavigationDelegate(
-        onPageFinished: (_) {
-          // Widget sends WIDGET_LOADED via JS channel
-        },
-        onWebResourceError: (error) {
-          widget.onError?.call(error);
-        },
-      ))
-      ..loadHtmlString(_buildHtml(), baseUrl: 'https://widget.sellwild.com');
+    _loadWatchdog = Timer(widgetLoadedDeadline, _reportLoadTimeout);
+    final controller = _controller = WebViewController();
+    _reportSetupFailure(
+        SellwildFailureComponent.webview,
+        [
+          controller.setJavaScriptMode(JavaScriptMode.unrestricted),
+          controller.setBackgroundColor(Colors.transparent),
+          controller.addJavaScriptChannel(
+            'SellwildWidgetBridge',
+            onMessageReceived: (message) => _handleMessage(message.message),
+          ),
+          controller.setNavigationDelegate(NavigationDelegate(
+            onPageFinished: (_) {
+              // Widget sends WIDGET_LOADED via JS channel
+            },
+            onWebResourceError: _handleLoadError,
+          )),
+          controller.loadHtmlString(buildWidgetHtml(widget.config),
+              baseUrl: widgetPageBaseUrl),
+        ],
+        onReported: _cancelLoadWatchdog);
   }
 
-  void _handleMessage(JavaScriptMessage message) {
-    try {
-      final json = jsonDecode(message.message) as Map<String, dynamic>;
-      final type = json['type'] as String?;
-      switch (type) {
-        case 'WIDGET_LOADED':
-          setState(() => _loading = false);
-          widget.onLoad?.call();
-          break;
-        case 'LISTING_CLICK':
-          // The web widget sends window.open(url) on listing tap.
-          // A full listing object is not available at the WebView boundary.
-          final listingJson = json['listing'] as Map<String, dynamic>?;
-          final url = json['url'] as String?;
-          if (listingJson != null) {
-            widget.onListingTap?.call(SellwildListing.fromJson(listingJson));
-          } else if (url != null) {
-            // URL-only path: construct a minimal stub so callers can navigate.
-            widget.onListingTap?.call(SellwildListing.fromJson({
-              'id': '', 'status': 'active', 'title': '', 'url': url,
-            }));
-          }
-          break;
-        case 'AD_IMPRESSION':
-          final zoneId = json['zoneId'] as String? ?? '';
-          widget.onAdImpression?.call(zoneId);
-          break;
-        case 'ERROR':
-          final msg = json['message'] as String? ?? 'Unknown error';
-          widget.onError?.call(Exception(msg));
-          break;
-      }
-    } catch (_) {}
+  @override
+  void dispose() {
+    _cancelLoadWatchdog();
+    super.dispose();
   }
 
-  // Serialize config as HTML element attributes.
-  // The widget reads config via withCustomizationsFromElement() — any case accepted.
-  // Complex objects (bidder configs) are JSON-encoded in attributes.
-  String _configAttributes() {
-    final c = widget.config;
-    final parts = <String>[];
-
-    void add(String name, String? value) {
-      if (value != null && value.isNotEmpty) parts.add('$name="$value"');
-    }
-    void addBool(String name, bool value) {
-      if (value) parts.add('$name="true"');
-    }
-    void addNum(String name, int value) {
-      if (value != 0) parts.add('$name="$value"');
-    }
-    add('partner-code', c.partnerCode);
-    add('listings', c.effectiveListingsUrl);
-    // Disable remote customization fetch — see RN htmlBuilder.ts for details.
-    parts.add('customize="false"');
-    // Ad system selection — REQUIRED. See RN htmlBuilder.ts for details.
-    add('ad-type', c.adType ?? 'PrebidOnly');
-    add('gam-tag', c.gamTag);
-    add('gpt-proxy-url', c.gptProxyUrl);
-    addBool('disable-gpt', c.disableGpt);
-    add('banner-zid', c.bannerZid);
-    add('bottom-banner-zid', c.bottomBannerZid);
-    add('mobile-banner-zid', c.mobileBannerZid);
-    // Filter empties — widget parser does not strip empty strings post-split.
-    final mobileZids = c.mobileZids.where((z) => z.isNotEmpty).toList();
-    if (mobileZids.isNotEmpty) add('mobile-zid', mobileZids.join(','));
-    addBool('hide-banner-top', c.hideBannerTop);
-    addBool('hide-banner-bottom', c.hideBannerBottom);
-    addNum('ad-refresh-max', c.adRefreshMax);
-    addNum('ad-refresh-max-mobile', c.adRefreshMaxMobile);
-    if (c.adRefreshInterval.inMilliseconds > 0) {
-      parts.add('ad-refresh-interval="${c.adRefreshInterval.inMilliseconds}"');
-    }
-    addBool('boltive', c.boltive);
-    add('boltive-client-id', c.boltiveClientId.isNotEmpty ? c.boltiveClientId : null);
-    addBool('lotame', c.lotame);
-    add('title', c.title);
-    add('link-text', c.linkText);
-    addNum('font-size', c.fontSize);
-    add('font-color', c.fontColor);
-    add('price-color', c.priceColor);
-    add('price-font-color', c.priceFontColor);
-    if (c.colors.isNotEmpty) add('colors', c.colors.join(','));
-    addBool('debug', c.debug);
-
-    // Mobile ad controls
-    addBool('enable-interstitial', c.enableInterstitial);
-    addBool('enable-fullscreen-video', c.enableFullscreenVideo);
-    addNum('interstitials-per-session', c.interstitialsPerSession);
-    addNum('video-takeovers-per-session', c.videoTakeoversPerSession);
-
-    // Passthrough: forward every key from the raw remote-config JSON to the
-    // widget. The widget's attribute parser is case-insensitive and accepts
-    // arbitrary keys, so unmapped CDN entries (new bidders, forward-compatible
-    // settings) flow through without an SDK release.
-    final raw = c.remoteJson;
-    if (raw != null) {
-      final emitted = parts.map((p) => p.split('=').first).toSet();
-      raw.forEach((key, value) {
-        final attr = key.toLowerCase().replaceAll('_', '-');
-        if (emitted.contains(attr)) return;
-        final str = value is Map || value is List
-            ? jsonEncode(value)
-            : value.toString();
-        final escaped = str.replaceAll('"', '&quot;');
-        parts.add('$attr="$escaped"');
-        emitted.add(attr);
-      });
-    }
-
-    return parts.join('\n    ');
+  void _cancelLoadWatchdog() {
+    _loadWatchdog?.cancel();
+    _loadWatchdog = null;
   }
 
-  String _buildHtml() {
-    // Default: generic bundle that reads all config from element attributes.
-    // Set widgetJsUrl in config to use a publisher-specific pre-compiled bundle.
-    // partner.js loads its own Prebid build internally — do not inject a
-    // separate prebid <script> tag (causes double-load and breaks header bidding).
-    const widgetSrc = 'https://widget.sellwild.com/partner.js';
-    final attrs = _configAttributes();
+  void _reportLoadTimeout() {
+    _loadWatchdog = null;
+    SellwildFailures.log(
+      code: SellwildFailureCode.widgetLoadTimeout,
+      component: SellwildFailureComponent.webview,
+      message: 'no WIDGET_LOADED within ${widgetLoadedDeadline.inSeconds} s',
+      url: widgetPageBaseUrl,
+    );
+  }
 
-    final prebidPreConfig = _buildPrebidPreConfigScript(widget.config);
+  void _handleLoadError(WebResourceError error) {
+    if (isWidgetScriptLoadError(error)) {
+      // partner.js failed (Android reports sub-resource errors): the widget
+      // stays blank.
+      SellwildFailures.log(
+        code: SellwildFailureCode.widgetScriptLoadNetwork,
+        component: SellwildFailureComponent.widget,
+        severity: SellwildFailureSeverity.fatal,
+        error: error.description,
+        message: webResourceErrorSummary(error),
+        url: error.url,
+      );
+    } else if (isPageLoadError(error)) {
+      // Reported below as the page's own load failure.
+      _cancelLoadWatchdog();
+    }
+    _reportLoadError(error, SellwildFailureComponent.webview, widget.onError);
+  }
 
-    return '''<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; background: transparent; overflow-x: hidden; }
-  </style>
-  $prebidPreConfig
-</head>
-<body>
-  <sellwild-widget
-    $attrs
-  ></sellwild-widget>
-
-  <script>
-    (function() {
-      function send(type, payload) {
-        try {
-          SellwildWidgetBridge.postMessage(JSON.stringify(Object.assign({ type: type }, payload || {})));
-        } catch(e) {}
-      }
-      // partner/index.tsx calls window.open() on listing tap — intercept it
-      var _open = window.open;
-      window.open = function(url) {
-        if (url && (url.indexOf('itemDetail') !== -1 || url.indexOf('sellwild.com') !== -1)) {
-          send('LISTING_CLICK', { url: url });
-          return null;
+  void _handleMessage(String text) {
+    const component = SellwildFailureComponent.webview;
+    switch (decodeWidgetBridgeMessage(text)) {
+      case final BridgeFailure failure:
+        _reportBridgeFailure(failure, SellwildFailureComponent.bridge);
+      case WidgetLoaded():
+        // After dispose there is no spinner, and the host was not told
+        // before either (setState threw): a lifecycle case, not a failure.
+        if (!mounted) return;
+        _cancelLoadWatchdog();
+        setState(() => _loading = false);
+        _callHost('onLoad', component, () => widget.onLoad?.call());
+      case ListingClick(:final listing, :final droppedPhotos):
+        if (droppedPhotos > 0) {
+          // The listing still reaches the host, without those entries.
+          SellwildFailures.log(
+            code: SellwildFailureCode.listingsItemInvalid,
+            component: SellwildFailureComponent.bridge,
+            severity: SellwildFailureSeverity.warn,
+            message: 'LISTING_CLICK listing has $droppedPhotos photos entries '
+                'that are not objects; dropped',
+          );
         }
-        return _open.apply(window, arguments);
-      };
-      document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(function() { send('WIDGET_LOADED'); }, 600);
-      });
-      window.addEventListener('error', function(e) {
-        send('ERROR', { message: e.message || 'Widget load error' });
-      });
-    })();
-  </script>
-
-  <script async src="$widgetSrc"></script>
-</body>
-</html>''';
+        _callHost('onListingTap', component,
+            () => widget.onListingTap?.call(listing));
+      case AdImpression(:final zoneId):
+        _callHost('onAdImpression', component,
+            () => widget.onAdImpression?.call(zoneId));
+      case UnreadMessage(:final reason):
+        SellwildLog.debug(() => 'SellwildWidget: $reason, not called');
+      case PageError(:final message):
+        // A script error inside the page, which cannot report it itself.
+        // The host still hears of it (existing onError), after the report.
+        SellwildFailures.log(
+          code: SellwildFailureCode.bridgeScriptException,
+          component: component,
+          message: message,
+        );
+        _callHost('onError', component,
+            () => widget.onError?.call(Exception(message)));
+    }
   }
 
   @override
@@ -288,8 +177,7 @@ class _SellwildWidgetState extends State<SellwildWidget> {
     return Stack(
       children: [
         WebViewWidget(controller: _controller),
-        if (_loading)
-          const Center(child: CircularProgressIndicator()),
+        if (_loading) const Center(child: CircularProgressIndicator()),
       ],
     );
   }
@@ -334,95 +222,62 @@ class _SellwildBannerState extends State<SellwildBanner> {
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.transparent)
-      ..addJavaScriptChannel(
-        'SellwildAdBridge',
-        onMessageReceived: (msg) {
-          try {
-            final json = jsonDecode(msg.message) as Map<String, dynamic>;
-            switch (json['type']) {
-              case 'impression':
-                widget.onImpression?.call();
-                break;
-              case 'click':
-                widget.onClick?.call();
-                break;
-            }
-          } catch (_) {}
-        },
-      )
-      ..setNavigationDelegate(NavigationDelegate(
-        onWebResourceError: (error) => widget.onError?.call(error),
-      ))
-      ..loadHtmlString(_buildHtml(), baseUrl: 'https://widget.sellwild.com');
-  }
-
-  String _buildHtml() {
-    final w = widget.adSize.width;
-    final h = widget.adSize.height;
-    final gptBase = widget.config.gptProxyUrl ?? 'https://securepubads.g.doubleclick.net';
-    final gptSrc = '$gptBase/tag/js/gpt.js';
-
-    final adScript = () {
-      if (widget.config.gamTag != null && !widget.config.disableGpt) {
-        return _gptScript(widget.config.gamTag!, gptSrc, w, h);
-      } else if (widget.zoneId != null) {
-        return _zoneScript(widget.zoneId!, w, h);
-      }
-      return '// No ad configuration';
-    }();
-
-    return '''<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: ${w}px; height: ${h}px; overflow: hidden; background: transparent; }
-    #ad { width: ${w}px; height: ${h}px; }
-  </style>
-</head>
-<body>
-  <div id="ad"></div>
-  <script>
-    function notify(type, data) {
-      SellwildAdBridge.postMessage(JSON.stringify(Object.assign({ type: type }, data || {})));
+    const component = SellwildFailureComponent.banner;
+    final missing = missingBannerConfigReason(widget.config, widget.zoneId);
+    if (missing != null) {
+      // The page still loads, with a blank slot, as before.
+      SellwildFailures.log(
+        code: SellwildFailureCode.adBannerConfigMissing,
+        component: component,
+        severity: SellwildFailureSeverity.warn,
+        message: missing,
+      );
     }
-    $adScript
-  </script>
-</body>
-</html>''';
+    final controller = _controller = WebViewController();
+    _reportSetupFailure(component, [
+      controller.setJavaScriptMode(JavaScriptMode.unrestricted),
+      controller.setBackgroundColor(Colors.transparent),
+      controller.addJavaScriptChannel(
+        'SellwildAdBridge',
+        onMessageReceived: (message) => _handleMessage(message.message),
+      ),
+      controller.setNavigationDelegate(NavigationDelegate(
+        onWebResourceError: (error) =>
+            _reportLoadError(error, component, widget.onError),
+      )),
+      controller.loadHtmlString(
+        buildBannerHtml(widget.config, widget.adSize, widget.zoneId),
+        baseUrl: widgetPageBaseUrl,
+      ),
+    ]);
   }
 
-  String _gptScript(String gamTag, String gptSrc, int w, int h) => '''
-    window.googletag = window.googletag || { cmd: [] };
-    var s = document.createElement('script');
-    s.src = '$gptSrc'; s.async = true;
-    document.head.appendChild(s);
-    googletag.cmd.push(function() {
-      var slot = googletag.defineSlot('$gamTag', [$w, $h], 'ad');
-      if (slot) {
-        slot.addService(googletag.pubads());
-        googletag.pubads().enableSingleRequest();
-        googletag.pubads().addEventListener('slotRenderEnded', function(e) {
-          if (!e.isEmpty) notify('impression');
-        });
-        googletag.enableServices();
-        googletag.display('ad');
-      }
-    });
-  ''';
-
-  String _zoneScript(String zoneId, int w, int h) => '''
-    var s = document.createElement('script');
-    s.src = 'https://bidstream.sellwild.com/ads?zone=$zoneId&w=$w&h=$h';
-    s.async = true;
-    s.onload = function() { notify('impression'); };
-    document.getElementById('ad').appendChild(s);
-  ''';
+  void _handleMessage(String text) {
+    const component = SellwildFailureComponent.banner;
+    switch (decodeAdBridgeMessage(text)) {
+      case final BridgeFailure failure:
+        _reportBridgeFailure(failure, component);
+      case BannerImpression():
+        _callHost('onImpression', component, () => widget.onImpression?.call());
+      case BannerClick():
+        _callHost('onClick', component, () => widget.onClick?.call());
+      // The page's own reports (buildBannerHtml): the slot stays blank and
+      // the host is not called, as before.
+      case BannerScriptError(:final src):
+        SellwildFailures.log(
+          code: SellwildFailureCode.adBannerScriptNetwork,
+          component: component,
+          message: 'banner script failed to load',
+          url: src,
+        );
+      case BannerSlotError(:final message):
+        SellwildFailures.log(
+          code: SellwildFailureCode.adGptSlotInvalid,
+          component: component,
+          message: message ?? 'defineSlot returned null',
+        );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -430,6 +285,69 @@ class _SellwildBannerState extends State<SellwildBanner> {
       width: widget.adSize.width.toDouble(),
       height: widget.adSize.height.toDouble(),
       child: WebViewWidget(controller: _controller),
+    );
+  }
+}
+
+/// The WebView setup [calls], started in order as the old cascade did. The
+/// first that fails is reported once (widget.webview_load.exception: a
+/// platform call threw, which is not a network failure), then [onReported]
+/// runs: a WebView that cannot take its page shows nothing. Before, the
+/// failure was an unhandled async error.
+void _reportSetupFailure(String component, List<Future<void>> calls,
+    {void Function()? onReported}) {
+  unawaited(Future.wait(calls).then<void>((_) {}, onError: (Object error) {
+    SellwildFailures.log(
+      code: SellwildFailureCode.widgetWebviewLoadException,
+      component: component,
+      error: error,
+      message: 'WebView setup failed',
+      url: widgetPageBaseUrl,
+    );
+    onReported?.call();
+  }));
+}
+
+/// A WebView load error: reported once when it is the page's own, then
+/// passed to the host's onError as before (every error, as before). An
+/// onError that throws is reported like every other host callback; before,
+/// it escaped the navigation delegate.
+void _reportLoadError(WebResourceError error, String component,
+    void Function(Object error)? onError) {
+  if (isPageLoadError(error)) {
+    SellwildFailures.log(
+      code: SellwildFailureCode.widgetWebviewLoadNetwork,
+      component: component,
+      error: error.description,
+      message: webResourceErrorSummary(error),
+      url: error.url,
+    );
+  }
+  _callHost('onError', component, () => onError?.call(error));
+}
+
+void _reportBridgeFailure(BridgeFailure failure, String component) =>
+    SellwildFailures.log(
+      code: failure.code,
+      component: component,
+      severity: SellwildFailureSeverity.warn,
+      error: failure.error,
+      message: failure.message,
+    );
+
+/// Calls the host callback [name]. One that throws is reported
+/// (widget.host_callback.exception) and not rethrown: it runs inside the
+/// WebView channel callback, where it was swallowed silently before.
+void _callHost(String name, String component, void Function() call) {
+  try {
+    call();
+  } catch (e) {
+    SellwildFailures.log(
+      code: SellwildFailureCode.widgetHostCallbackException,
+      component: component,
+      severity: SellwildFailureSeverity.warn,
+      error: e,
+      message: '$name threw',
     );
   }
 }

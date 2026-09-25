@@ -1,65 +1,66 @@
+// SellwildSDK.apply on app configs from AppConfigFactory, SellwildAdStack
+// parsing and resolution, and the listings URL fallback.
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sellwild_sdk/sellwild_sdk.dart';
 
+import 'factories/shape_factories.dart';
+
 void main() {
+  final configs = AppConfigFactory();
+
   group('SellwildSDK.apply', () {
+    const base = SellwildConfig(partnerCode: 'x');
+
     test('populates identity fields from CDN keys', () {
-      const base = SellwildConfig(partnerCode: 'weatherbug');
-      final raw = {
-        'CODE': 'weatherbug',
-        'SLUG': 'weatherbug-main',
-        'NAME': 'WeatherBug',
-        'LISTINGS': 'https://cache.sellwild.com/listings-img-data-sm',
-      };
+      final raw = configs.build();
 
-      final merged = SellwildSDK.apply(raw, base);
+      final merged = SellwildSDK.apply(raw, base, isAndroid: false);
 
-      expect(merged.partnerCode, 'weatherbug');
-      expect(merged.slug, 'weatherbug-main');
-      expect(merged.name, 'WeatherBug');
-      expect(
-        merged.listingsUrl,
-        'https://cache.sellwild.com/listings-img-data-sm',
-      );
+      expect(merged.partnerCode, raw['CODE']);
+      expect(merged.slug, raw['SLUG']);
+      expect(merged.name, raw['NAME']);
+      expect(merged.listingsUrl, raw['LISTINGS']);
     });
 
     // AD_REFRESH_INTERVAL is milliseconds (code and docs-site agree).
     test('converts AD_REFRESH_INTERVAL milliseconds to Duration', () {
-      const base = SellwildConfig(partnerCode: 'weatherbug');
-      final merged = SellwildSDK.apply({'AD_REFRESH_INTERVAL': 30000}, base);
-      expect(merged.adRefreshInterval, const Duration(seconds: 30));
+      final merged = SellwildSDK.apply(
+          configs.refreshInterval(45000), base,
+          isAndroid: false);
+      expect(merged.adRefreshInterval, const Duration(seconds: 45));
     });
 
-    test('populates app identity', () {
-      const base = SellwildConfig(partnerCode: 'weatherbug');
-      final merged = SellwildSDK.apply({
-        'APP_BUNDLE_ID': 'com.aws.android',
-        'APP_STORE_URL': 'https://apps.apple.com/app/id123',
-      }, base);
-      expect(merged.appBundleId, 'com.aws.android');
-      expect(merged.appStoreUrl, 'https://apps.apple.com/app/id123');
+    test('populates app identity from the shared keys on both OSes', () {
+      final raw = configs.appIdentityShared();
+
+      for (final isAndroid in [false, true]) {
+        final merged = SellwildSDK.apply(raw, base, isAndroid: isAndroid);
+        expect(merged.appBundleId, raw['APP_BUNDLE_ID']);
+        expect(merged.appStoreUrl, raw['APP_STORE_URL']);
+      }
     });
 
     test('ignores unknown keys', () {
-      const base = SellwildConfig(partnerCode: 'weatherbug');
-      final merged = SellwildSDK.apply({'FUTURE_FEATURE_FLAG': true}, base);
-      expect(merged.partnerCode, 'weatherbug');
+      final known = SellwildSDK.apply(configs.build(), base, isAndroid: false);
+
+      final merged =
+          SellwildSDK.apply(configs.unknownKey(), base, isAndroid: false);
+
+      expect(merged.toJson(), known.toJson());
     });
 
     test('maps AD_STACK and AD_STACK_BY_ZONE', () {
-      const base = SellwildConfig(partnerCode: 'weatherbug');
-      final merged = SellwildSDK.apply({
-        'AD_STACK': 'PREBID',
-        'AD_STACK_BY_ZONE': {'43': 'GAM', '44': 'both'},
-      }, base);
+      final merged =
+          SellwildSDK.apply(configs.adStackAliases(), base, isAndroid: false);
       expect(merged.adStack, SellwildAdStack.prebidOnly);
       expect(merged.adStackByZone['43'], SellwildAdStack.gamOnly);
       expect(merged.adStackByZone['44'], SellwildAdStack.both);
     });
 
     test('leaves adStack null when AD_STACK absent', () {
-      const base = SellwildConfig(partnerCode: 'weatherbug');
-      final merged = SellwildSDK.apply({'CODE': 'weatherbug'}, base);
+      final merged =
+          SellwildSDK.apply(configs.adStackAbsent(), base, isAndroid: false);
       expect(merged.adStack, isNull);
       expect(merged.adStackByZone, isEmpty);
     });

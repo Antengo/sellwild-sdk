@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sellwild_sdk/sellwild_sdk.dart';
 
+import 'factories/shape_factories.dart';
+
 void main() {
   group('SellwildConfig', () {
     test('has correct defaults', () {
@@ -89,27 +91,26 @@ void main() {
   });
 
   group('SellwildListing', () {
+    final listings = ListingFactory();
+
     test('parses from JSON', () {
-      final json = {
-        'id': '123',
-        'status': '1',
-        'title': 'Test Listing',
-        'price': '49.99',
-        'currency': 'USD',
-        'photos': [
-          {'url': 'https://example.com/photo.jpg', 'thumbUrl': 'https://example.com/thumb.jpg'}
-        ],
-      };
+      final json = listings.build();
 
       final listing = SellwildListing.fromJson(json);
-      expect(listing.id, '123');
-      expect(listing.title, 'Test Listing');
+
+      expect(listing.id, json['id']);
+      expect(listing.title, json['title']);
+      expect(listing.displayPrice, json['price']);
+      expect(listing.primaryPhoto?.url, (json['photos'] as List).first['url']);
+    });
+
+    test('displayPrice rounds a fractional price', () {
+      final listing = SellwildListing.fromJson(listings.fractionalPrice());
       expect(listing.displayPrice, '50');
-      expect(listing.primaryPhoto?.url, 'https://example.com/photo.jpg');
     });
 
     test('displayPrice returns null for zero price', () {
-      const listing = SellwildListing(id: '1', status: '1', title: 'Free', price: '0');
+      final listing = SellwildListing.fromJson(listings.zeroPrice());
       expect(listing.displayPrice, null);
     });
   });

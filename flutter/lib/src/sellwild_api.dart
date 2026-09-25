@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import 'failures/sellwild_failure_code.dart';
 import 'failures/sellwild_failures.dart';
+import 'listing_json.dart';
 import 'sellwild_config.dart';
 import 'sellwild_models.dart';
 
@@ -75,9 +76,25 @@ class SellwildAPIClient {
     final cached = _cache[url];
     if (cached != null) return cached;
 
+    // Parsed before the fetch, so text that is no URL (LISTINGS is remote
+    // text) is listings.url.invalid, not a network failure. The same
+    // FormatException is thrown to the caller as before.
+    final Uri uri;
+    try {
+      uri = Uri.parse(url);
+    } on FormatException catch (e) {
+      SellwildFailures.log(
+        code: SellwildFailureCode.listingsUrlInvalid,
+        component: SellwildFailureComponent.listings,
+        error: e,
+        message: 'listings URL is not a valid URL',
+      );
+      rethrow;
+    }
+
     final http.Response response;
     try {
-      response = await _http.get(Uri.parse(url));
+      response = await _http.get(uri);
     } catch (e) {
       SellwildFailures.log(
         code: _closed
@@ -170,13 +187,26 @@ class SellwildAPIClient {
     final listings = <SellwildListing>[];
     Object? firstError;
     var failed = 0;
+    var droppedPhotos = 0;
     for (final item in rs) {
       try {
         listings.add(SellwildListing.fromJson(item));
+        droppedPhotos += nonObjectPhotoCount(item);
       } catch (e) {
         failed++;
         firstError ??= e;
       }
+    }
+    if (droppedPhotos > 0) {
+      // fromJson skips photos entries that are not objects (as before); the
+      // rest of the item is kept.
+      SellwildFailures.log(
+        code: SellwildFailureCode.listingsItemInvalid,
+        component: SellwildFailureComponent.listings,
+        severity: SellwildFailureSeverity.warn,
+        message: '$droppedPhotos photos entries are not objects; dropped',
+        url: url,
+      );
     }
     if (failed > 0) {
       SellwildFailures.log(

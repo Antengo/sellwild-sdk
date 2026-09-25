@@ -92,11 +92,13 @@ class SellwildFailureContext {
 /// logFailure for Flutter (FAILURES.md 3.4): the thin impure shell around the
 /// pure core in failures_core.dart.
 abstract final class SellwildFailures {
-  // Longest message and error message (UTF-16 units) handed to the pure core.
-  // Its sanitizer patterns backtrack quadratically on long runs of letters
-  // and digits, and log must never block the UI isolate. Only 200 code points
-  // of message are ever sent, so the cut changes nothing but pathological
-  // input. Same bound as core/src/failures/index.ts.
+  // Input cap (FAILURES.md 3.3 item 4): the longest message and error message
+  // (UTF-16 units) handed to the pure core. Its sanitizer patterns backtrack
+  // superlinearly on long runs of letters and digits, and log must never
+  // block the UI isolate. Only 200 code points of message are ever sent, so
+  // the cut changes nothing but pathological input. A surrogate pair the cut
+  // splits leaves a lone high surrogate, which cleanText turns into U+FFFD,
+  // as on every platform. Dart sends no stack, so there is no stack cap.
   static const int _messageInputMax = 1000;
 
   static SellwildFailureContext _context = const SellwildFailureContext();

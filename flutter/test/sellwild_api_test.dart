@@ -13,6 +13,7 @@ import 'package:sellwild_sdk/sellwild_sdk.dart';
 import 'factories/shape_factories.dart';
 import 'flutter_test_config.dart' show blockedSharedClient;
 import 'support/contract_schemas.dart';
+import 'support/failure_capture.dart';
 import 'support/fixtures.dart';
 import 'support/http_mocks.dart';
 
@@ -21,18 +22,6 @@ const SellwildConfig config = SellwildConfig(partnerCode: 'weatherbug');
 
 final RegExp uuidV4Pattern = RegExp(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$');
-
-/// Failure events logFailure emitted during the test.
-List<ClientFailureEvent> captureFailures() {
-  final events = <ClientFailureEvent>[];
-  SellwildFailures.setContext(
-    partnerCode: 'weatherbug',
-    clock: () => 1790000000000,
-    uid: () => 'u-test',
-    sink: (event, flushNow) async => events.add(event),
-  );
-  return events;
-}
 
 void main() {
   final responses = ListingsResponseFactory();
@@ -91,6 +80,28 @@ void main() {
       expect(event.attributes['httpStatus'], '503');
       expect(event.attributes['host'], 'cache.sellwild.com');
       expect(event.attributes['msg'], 'HTTP 503');
+    });
+
+    test('a LISTINGS URL that does not parse: listings.url.invalid, no fetch',
+        () async {
+      final failures = captureFailures();
+      final recorder = HttpRecorder.status(200);
+      final client = SellwildAPIClient(client: recorder.client);
+      final applied = SellwildSDK.apply(
+          AppConfigFactory().listingsMalformed(), config,
+          isAndroid: false);
+
+      await expectLater(
+          client.fetchListings(applied), throwsA(isA<FormatException>()));
+
+      expect(recorder.requests, isEmpty);
+      expect(actionsOf(failures), ['listings.url.invalid']);
+      final event = failures.single;
+      expect(event.label, 'listings');
+      expect(event.attributes['severity'], 'error');
+      expect(event.attributes['errName'], 'FormatException');
+      expect(event.attributes['msg'],
+          startsWith('listings URL is not a valid URL: '));
     });
 
     test('network error: listings.fetch.network, then the error', () async {
@@ -210,6 +221,101 @@ void main() {
           '2 result.rs entries are not objects; dropped');
     });
 
+    test('photos entries that are not objects: listings.item.invalid once',
+        () async {
+      final failures = captureFailures();
+      final body = responses.nonObjectPhotos();
+      final client = SellwildAPIClient(client: HttpRecorder.json(body).client);
+
+      final res = await client.fetchListings(config);
+
+      // Every item is kept, without its bad photos entry (as before).
+      expect(res.listings, hasLength(3));
+      expect(res.listings.map((l) => l.photos.length).toSet(), {1});
+      final event = failures.single;
+      expect(event.action, 'listings.item.invalid');
+      expect(event.label, 'listings');
+      expect(event.attributes['severity'], 'warn');
+      // 2 in the first item and 1 in the second: each entry is counted.
+      expect(
+          event.attributes['msg'], '3 photos entries are not objects; dropped');
+      expect(event.attributes['host'], 'cache.sellwild.com');
+    });
+
+    test('one entry that is not an object: listings.item.invalid once',
+        () async {
+      final failures = captureFailures();
+      final body = responses.oneNonObjectEntry();
+      final item = ((body['result'] as Map)['rs'] as List).first as Map;
+      final client = SellwildAPIClient(client: HttpRecorder.json(body).client);
+
+      final res = await client.fetchListings(config);
+
+      expect(res.listings.single.id, item['id']);
+      expect(failures.map((e) => e.action), ['listings.item.invalid']);
+      expect(failures.single.attributes['msg'],
+          '1 result.rs entries are not objects; dropped');
+    });
+
+    test('one photos entry that is not an object: listings.item.invalid once',
+        () async {
+      final failures = captureFailures();
+      final body = responses.oneNonObjectPhoto();
+      final client = SellwildAPIClient(client: HttpRecorder.json(body).client);
+
+      final res = await client.fetchListings(config);
+
+      // Both items are kept; the first without its bad entry.
+      expect(res.listings, hasLength(2));
+      expect(failures.map((e) => e.action), ['listings.item.invalid']);
+      expect(failures.single.attributes['msg'],
+          '1 photos entries are not objects; dropped');
+    });
+
+    test('photos entries of other kinds (a number, null, an array) count too',
+        () async {
+      final failures = captureFailures();
+      final body = responses.otherKindPhotos();
+      final client = SellwildAPIClient(client: HttpRecorder.json(body).client);
+
+      final res = await client.fetchListings(config);
+
+      // Both items are kept; the first keeps only its real photo.
+      expect(res.listings, hasLength(2));
+      expect(res.listings.first.photos, hasLength(1));
+      expect(failures.map((e) => e.action), ['listings.item.invalid']);
+      expect(failures.single.attributes['msg'],
+          '3 photos entries are not objects; dropped');
+    });
+
+    test('an item without photos is kept and not reported', () async {
+      final failures = captureFailures();
+      final body = responses.itemWithoutPhotos();
+      final client = SellwildAPIClient(client: HttpRecorder.json(body).client);
+
+      final res = await client.fetchListings(config);
+
+      expect(res.listings.single.photos, isEmpty);
+      expect(failures, isEmpty);
+    });
+
+    test('an unreadable item is reported once, not for its photos too',
+        () async {
+      final failures = captureFailures();
+      final body = responses.unreadableItemWithNonObjectPhotos();
+      final item = ((body['result'] as Map)['rs'] as List).first as Map;
+      final client = SellwildAPIClient(client: HttpRecorder.json(body).client);
+
+      final res = await client.fetchListings(config);
+
+      // The dropped item's photos are not counted as dropped photos: one
+      // item, one report.
+      expect(res.listings.single.id, item['id']);
+      expect(failures.map((e) => e.action), ['listings.item.parse']);
+      expect(failures.single.attributes['msg'],
+          startsWith('1 result.rs items failed to decode; dropped: '));
+    });
+
     test('items fromJson cannot read: listings.item.parse once, dropped',
         () async {
       final failures = captureFailures();
@@ -229,6 +335,40 @@ void main() {
       expect(event.attributes['msg'],
           startsWith('2 result.rs items failed to decode; dropped: '));
       expect(event.attributes['host'], 'cache.sellwild.com');
+    });
+
+    test('the one report carries the first unreadable item\'s error',
+        () async {
+      // The error text of [item], as the report writes it.
+      String errorOf(Object? item) {
+        try {
+          SellwildListing.fromJson(item as Map<String, dynamic>);
+        } catch (e) {
+          return '$e';
+        }
+        fail('the item decoded');
+      }
+
+      // The same two unreadable items (an object title, text photos) in
+      // both orders: each time the report names the first one's error.
+      for (final body in [
+        responses.unreadableItems(),
+        responses.unreadableItemsSwapped(),
+      ]) {
+        final failures = captureFailures();
+        final rs = (body['result'] as Map)['rs'] as List;
+        final client =
+            SellwildAPIClient(client: HttpRecorder.json(body).client);
+
+        final res = await client.fetchListings(config);
+
+        expect(res.listings, hasLength(1));
+        expect(errorOf(rs[1]), isNot(errorOf(rs[2])));
+        expect(failures.map((e) => e.action), ['listings.item.parse']);
+        expect(failures.single.attributes['msg'],
+            '2 result.rs items failed to decode; dropped: ${errorOf(rs[1])}');
+        endFailureCase();
+      }
     });
   });
 

@@ -11,6 +11,7 @@ import 'package:sellwild_sdk/sellwild_sdk.dart';
 import 'package:sellwild_sdk/src/failures/sellwild_log.dart';
 
 import 'factories/shape_factories.dart';
+import 'support/failure_capture.dart' as capture;
 import 'support/fixtures.dart';
 import 'support/http_mocks.dart';
 import 'support/network_guard.dart';
@@ -18,19 +19,10 @@ import 'support/network_guard.dart';
 const String configUrl =
     'https://widget.sellwild.com/app/weatherbug/weatherbug-weatherbug.json';
 
-/// Failure events logFailure emitted during the test.
-List<ClientFailureEvent> captureFailures() {
-  final events = <ClientFailureEvent>[];
-  SellwildFailures.setContext(
-    clock: () => 1790000000000,
-    uid: () => 'u-test',
-    sink: (event, flushNow) async => events.add(event),
-  );
-  return events;
-}
-
-/// The host OS check configure starts with.
-final bool Function() hostIsAndroid = SellwildSDK.isAndroidHost;
+/// Failure events logFailure emitted during the test. configure sets the
+/// partner itself.
+List<ClientFailureEvent> captureFailures({bool allowFolds = false}) =>
+    capture.captureFailures(partnerCode: null, allowFolds: allowFolds);
 
 Future<SellwildConfig> configureWith(
   HttpRecorder recorder, {
@@ -96,6 +88,32 @@ void main() {
       expect(failures.single.attributes['httpStatus'], '302');
     });
 
+    test('a status just outside 2xx (199, 300): config.fetch.http', () async {
+      for (final status in [199, 300]) {
+        final failures = captureFailures();
+
+        final config = await configureWith(HttpRecorder.status(status));
+
+        expectDefaults(config);
+        expect(failures.map((e) => e.action), ['config.fetch.http']);
+        expect(failures.single.attributes['httpStatus'], '$status');
+        expect(failures.single.attributes['msg'], 'HTTP $status');
+        capture.endFailureCase();
+      }
+    });
+
+    test('the last 2xx status (299) is success: applied, nothing reported',
+        () async {
+      final failures = captureFailures();
+
+      final config = await configureWith(HttpRecorder.json(
+          loadSample('app-config', 'weatherbug_weatherbug-weatherbug'),
+          status: 299));
+
+      expect(config.slug, 'weatherbug-weatherbug');
+      expect(failures, isEmpty);
+    });
+
     test('a missing config (real S3 403 AccessDenied): config.fetch.http',
         () async {
       final failures = captureFailures();
@@ -148,10 +166,13 @@ void main() {
 
     test('apply throwing: config.apply.exception (configure)', () async {
       final failures = captureFailures();
+      final original = SellwildSDK.isAndroidHost;
+      addTearDown(() => SellwildSDK.isAndroidHost = original);
+      // The mapping itself never throws (1e400 used to: see
+      // sellwild_sdk_apply_test.dart), so the host OS seam throws instead.
+      SellwildSDK.isAndroidHost = () => throw UnsupportedError('no OS');
 
-      // JSON 1e400 decodes to Infinity, which Duration cannot hold.
-      final config = await configureWith(
-          HttpRecorder.text(configs.refreshIntervalOverflowText()));
+      final config = await configureWith(HttpRecorder.json(configs.build()));
 
       expectDefaults(config);
       expect(failures.single.action, 'config.apply.exception');
@@ -224,7 +245,9 @@ void main() {
     test('configure passes the host OS to apply', () async {
       captureFailures();
       final sample = configs.build();
-      addTearDown(() => SellwildSDK.isAndroidHost = hostIsAndroid);
+      // Read now: a lazy top-level would first be read after the swap.
+      final original = SellwildSDK.isAndroidHost;
+      addTearDown(() => SellwildSDK.isAndroidHost = original);
 
       SellwildSDK.isAndroidHost = () => true;
       final android = await configureWith(HttpRecorder.json(sample));
@@ -299,25 +322,97 @@ void main() {
   });
 
   group('SellwildSDK.apply', () {
-    test('kill switches match contracts/expectations for every case', () {
+    test(
+        'every field flutter is held to matches contracts/expectations on '
+        'both OSes, or drift/flutter.json names the case and field', () {
       final expectations =
           loadExpectations('app-config') as Map<String, dynamic>;
+      final drift = (readContractObject('expectations/drift/flutter.json')[
+          'expectations'] as Map)['app-config'] as Map;
+      final zones = (expectations['zones'] as List).cast<String>();
       const base = SellwildConfig(partnerCode: 'x');
+      String? name(SellwildAdStack? stack) => stack?.name;
 
+      // What flutter produces for each field, in the expectations' shape.
+      // Per-OS fields are compared with the value for the OS apply ran as.
+      final actual = <String, Object? Function(SellwildConfig)>{
+        'partnerCode': (c) => c.partnerCode,
+        'slug': (c) => c.slug,
+        'mobileZids': (c) => c.mobileZids,
+        'mobileBannerZid': (c) => c.mobileBannerZid,
+        // null means unset: flutter keeps its default Duration.
+        'adRefreshIntervalMs': (c) => c.adRefreshInterval ==
+                base.adRefreshInterval
+            ? null
+            : c.adRefreshInterval.inMilliseconds,
+        'iabCats': (c) => c.iabCats,
+        'adStack': (c) => {
+              'global': name(c.adStack),
+              'byZone': c.adStackByZone.map((k, v) => MapEntry(k, v.name)),
+              'resolved': {
+                for (final z in zones) z: name(SellwildAdStack.resolve(c, z)),
+              },
+            },
+        'eventsEnabled': (c) => c.eventsEnabled,
+        'failuresEnabled': (c) => c.failuresEnabled,
+        'failuresSampleRate': (c) => c.failuresSampleRate,
+        'appBundleId': (c) => c.appBundleId,
+        'appStoreUrl': (c) => c.appStoreUrl,
+      };
+      const perOs = {
+        'mobileZids',
+        'mobileBannerZid',
+        'appBundleId',
+        'appStoreUrl'
+      };
+      final held = [
+        for (final MapEntry(:key, :value)
+            in (expectations['fields'] as Map<String, dynamic>).entries)
+          if (((value as Map)['platforms'] as List).contains('flutter')) key,
+      ];
+      // A field added to the contract must be added here too.
+      expect(actual.keys.toSet(), held.toSet());
+
+      final allowedUsed = <String>{};
       for (final c in (expectations['cases'] as List).cast<Map>()) {
-        final raw =
-            readContractJson(c['file'] as String) as Map<String, dynamic>;
+        final file = c['file'] as String;
         final expected = c['expected'] as Map<String, dynamic>;
+        final driftText = drift[file] as String? ?? '';
+        final raw = readContractObject(file);
 
-        final config = SellwildSDK.apply(raw, base, isAndroid: false);
+        for (final os in ['ios', 'android']) {
+          // Two cases are built to be reported (sellwild_sdk_apply_test.dart).
+          captureFailures();
+          final config =
+              SellwildSDK.apply(raw, base, isAndroid: os == 'android');
+          capture.endFailureCase();
 
-        expect(config.eventsEnabled, expected['eventsEnabled'],
-            reason: '${c['file']} eventsEnabled');
-        expect(config.failuresEnabled, expected['failuresEnabled'],
-            reason: '${c['file']} failuresEnabled');
-        expect(config.failuresSampleRate, expected['failuresSampleRate'],
-            reason: '${c['file']} failuresSampleRate');
+          for (final field in held) {
+            final want = perOs.contains(field)
+                ? (expected[field] as Map)[os]
+                : field == 'adRefreshIntervalMs' &&
+                        expected[field] == base.adRefreshInterval.inMilliseconds
+                    ? null
+                    : expected[field];
+            final got = actual[field]!(config);
+            if (driftText.contains('$field:')) {
+              if (!equals(want).matches(got, {})) {
+                allowedUsed.add('$file $field');
+              }
+              continue;
+            }
+            expect(got, want, reason: '$file $field ($os)');
+          }
+        }
       }
+
+      // Every drift entry still differs somewhere: a fixed one is removed.
+      final named = <String>{
+        for (final MapEntry(:key, :value) in drift.entries)
+          for (final field in held)
+            if ((value as String).contains('$field:')) '$key $field',
+      };
+      expect(allowedUsed, named);
     });
 
     test('absent or null switches keep the base values', () {
@@ -328,14 +423,7 @@ void main() {
         failuresSampleRate: 0.5,
       );
 
-      for (final raw in [
-        <String, dynamic>{},
-        <String, dynamic>{
-          'EVENTS_ENABLED': null,
-          'FAILURES_ENABLED': null,
-          'FAILURES_SAMPLE_RATE': null,
-        },
-      ]) {
+      for (final raw in [configs.switchesAbsent(), configs.switchesNull()]) {
         final config = SellwildSDK.apply(raw, base, isAndroid: false);
         expect(config.eventsEnabled, isFalse);
         expect(config.failuresEnabled, isFalse);
@@ -346,11 +434,8 @@ void main() {
     test('coerces text, numbers and garbage per the contract', () {
       const base = SellwildConfig(partnerCode: 'x');
 
-      final config = SellwildSDK.apply({
-        'EVENTS_ENABLED': ' OFF ',
-        'FAILURES_ENABLED': 0,
-        'FAILURES_SAMPLE_RATE': '50%',
-      }, base, isAndroid: false);
+      final config =
+          SellwildSDK.apply(configs.switchesCoerced(), base, isAndroid: false);
 
       expect(config.eventsEnabled, isFalse);
       expect(config.failuresEnabled, isFalse);
@@ -359,26 +444,56 @@ void main() {
 
     test('isAndroid picks the per-OS app identity keys', () {
       const base = SellwildConfig(partnerCode: 'x');
-      const raw = <String, dynamic>{
-        'APP_BUNDLE_ID_IOS': 'com.example.ios',
-        'APP_BUNDLE_ID_ANDROID': 'com.example.android',
-        'APP_STORE_URL_IOS': 'https://apps.apple.com/app/id1',
-        'APP_STORE_URL_ANDROID':
-            'https://play.google.com/store/apps/details?id=com.example',
-      };
+      // The real weatherbug config sets the shared keys and both per-OS
+      // ones, each with its own value.
+      final raw = configs.build();
 
       final android = SellwildSDK.apply(raw, base, isAndroid: true);
       final ios = SellwildSDK.apply(raw, base, isAndroid: false);
       // Without isAndroid, apply reads the host OS (not Android here).
       final host = SellwildSDK.apply(raw, base);
 
-      expect(android.appBundleId, 'com.example.android');
-      expect(android.appStoreUrl,
-          'https://play.google.com/store/apps/details?id=com.example');
-      expect(ios.appBundleId, 'com.example.ios');
-      expect(ios.appStoreUrl, 'https://apps.apple.com/app/id1');
+      expect(raw['APP_BUNDLE_ID'], isNot(raw['APP_BUNDLE_ID_IOS']));
+      expect(android.appBundleId, raw['APP_BUNDLE_ID_ANDROID']);
+      expect(android.appStoreUrl, raw['APP_STORE_URL_ANDROID']);
+      expect(ios.appBundleId, raw['APP_BUNDLE_ID_IOS']);
+      expect(ios.appStoreUrl, raw['APP_STORE_URL_IOS']);
       expect(host.appBundleId,
           Platform.isAndroid ? android.appBundleId : ios.appBundleId);
+    });
+
+    test('without isAndroid, apply asks isAndroidHost', () {
+      captureFailures();
+      const base = SellwildConfig(partnerCode: 'x');
+      final raw = configs.build();
+      // Read now: a lazy top-level would first be read after the swap.
+      final original = SellwildSDK.isAndroidHost;
+      addTearDown(() => SellwildSDK.isAndroidHost = original);
+
+      SellwildSDK.isAndroidHost = () => true;
+      final android = SellwildSDK.apply(raw, base);
+      SellwildSDK.isAndroidHost = () => false;
+      final ios = SellwildSDK.apply(raw, base);
+
+      expect(android.appBundleId, raw['APP_BUNDLE_ID_ANDROID']);
+      expect(android.appStoreUrl, raw['APP_STORE_URL_ANDROID']);
+      expect(ios.appBundleId, raw['APP_BUNDLE_ID_IOS']);
+      expect(ios.appStoreUrl, raw['APP_STORE_URL_IOS']);
+    });
+
+    test('an explicit isAndroid wins over isAndroidHost', () {
+      captureFailures();
+      const base = SellwildConfig(partnerCode: 'x');
+      final raw = configs.build();
+      final original = SellwildSDK.isAndroidHost;
+      addTearDown(() => SellwildSDK.isAndroidHost = original);
+
+      SellwildSDK.isAndroidHost = () => fail('the host OS was read');
+
+      expect(SellwildSDK.apply(raw, base, isAndroid: false).appBundleId,
+          raw['APP_BUNDLE_ID_IOS']);
+      expect(SellwildSDK.apply(raw, base, isAndroid: true).appBundleId,
+          raw['APP_BUNDLE_ID_ANDROID']);
     });
   });
 }

@@ -244,6 +244,25 @@ void main() {
 
       expect(attributes['msg'], '<n>AB');
     });
+
+    test('the cut is exact, and a surrogate pair it splits becomes U+FFFD', () {
+      final recorder = useRecorder();
+
+      for (final message in [
+        '${'1' * 996}WXYZ',
+        '${'1' * 997}WXYZ',
+        '${'1' * 999}\u{1F600}tail',
+      ]) {
+        SellwildFailures.log(
+          code: SellwildFailureCode.listingsFetchHttp,
+          component: SellwildFailureComponent.listings,
+          message: message,
+        );
+      }
+
+      expect(recorder.events.map((e) => e.attributes['msg']),
+          ['<n>WXYZ', '<n>WXY', '<n>\u{FFFD}']);
+    });
   });
 
   group('never throws, never recurses (FAILURES.md 3.4)', () {

@@ -84,6 +84,8 @@ class SellwildListing {
 
   factory SellwildListing.fromJson(Map<String, dynamic> json) {
     final photosJson = json['photos'] as List? ?? [];
+    // Entries that are not objects are skipped; fetchListings reports them
+    // (listings.item.invalid).
     final photos = photosJson
         .whereType<Map<String, dynamic>>()
         .map(SellwildPhoto.fromJson)
@@ -111,9 +113,13 @@ class SellwildListing {
     );
   }
 
+  /// The whole-number price, or null (no badge): no price, 0 or less, or
+  /// text that is not a finite number (SellwildListingCard reports that).
+  /// A9 fix: 'NaN', 'Infinity' and '1e400' parse as doubles; before, the
+  /// badge showed '$NaN' or '$Infinity'.
   String? get displayPrice {
     final value = double.tryParse(price ?? '');
-    if (value == null || value <= 0) return null;
+    if (value == null || !value.isFinite || value <= 0) return null;
     return value.toStringAsFixed(0);
   }
 
@@ -154,7 +160,8 @@ bool _flag(Object? v) => switch (v) {
     };
 
 // distance: a number, or text that parses as one (other text is null, as
-// displayPrice treats price).
+// displayPrice treats price). Nothing in the SDK shows distance, so a null
+// here replaces no value and is not reported.
 double? _number(Object? v) => switch (v) {
       String() => double.tryParse(v),
       _ => (v as num?)?.toDouble(),

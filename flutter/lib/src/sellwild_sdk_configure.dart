@@ -5,9 +5,9 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 
-import 'failures/failures_core.dart' show coerceFlag, coerceRate;
 import 'failures/sellwild_failure_code.dart';
 import 'failures/sellwild_failures.dart';
+import 'remote_config.dart';
 import 'sellwild_api.dart';
 import 'sellwild_config.dart';
 
@@ -30,7 +30,7 @@ import 'sellwild_config.dart';
 /// listings endpoint is derived from `partnerCode`), so ads still render. The
 /// failure is reported once through logFailure (config.fetch.*).
 class SellwildSDK {
-  SellwildSDK._(); // coverage:ignore-line static only class never built
+  SellwildSDK._();
 
   /// The host OS check configure passes to [apply]: the one place the SDK
   /// reads Platform. Tests replace it to reach the Android keys.
@@ -162,7 +162,7 @@ class SellwildSDK {
     }
 
     try {
-      return apply(raw, base, isAndroid: isAndroidHost());
+      return _applyAndReport(raw, base, isAndroidHost(), url);
     } catch (e) {
       // Applying is configure's own step, not the remote fetch.
       report(SellwildFailureCode.configApplyException,
@@ -172,142 +172,36 @@ class SellwildSDK {
   }
 
   /// Maps CONSTANT_CASE CDN keys onto the corresponding [SellwildConfig] fields.
-  /// Exposed for testing. Pure when [isAndroid] is given, as configure always
-  /// gives it. An external caller that leaves it out gets [isAndroidHost], the
-  /// one impure fallback, to pick the APP_*_IOS/_ANDROID keys.
+  /// Exposed for testing. The mapping is pure (applyRemoteConfig in
+  /// remote_config.dart); each value it cannot use is reported once through
+  /// logFailure (config.field.invalid, config.color.invalid,
+  /// config.adstack.invalid, config.refresh_interval.invalid) and the base
+  /// value is kept. configure always gives [isAndroid]; an external caller
+  /// that leaves it out gets [isAndroidHost], the one impure fallback, to
+  /// pick the APP_*_IOS/_ANDROID keys.
   static SellwildConfig apply(
     Map<String, dynamic> raw,
     SellwildConfig base, {
     bool? isAndroid,
-  }) {
-    final android = isAndroid ?? isAndroidHost();
-    String? str(String k) => raw[k] is String ? raw[k] as String : null;
-    int? integer(String k) => raw[k] is int ? raw[k] as int : null;
-    double? dbl(String k) {
-      final v = raw[k];
-      if (v is double) return v;
-      if (v is int) return v.toDouble();
-      return null;
+  }) =>
+      _applyAndReport(raw, base, isAndroid ?? isAndroidHost(), null);
+
+  static SellwildConfig _applyAndReport(
+    Map<String, dynamic> raw,
+    SellwildConfig base,
+    bool isAndroid,
+    String? url,
+  ) {
+    final result = applyRemoteConfig(raw, base, isAndroid: isAndroid);
+    for (final report in groupIssues(result.issues)) {
+      SellwildFailures.log(
+        code: report.code,
+        component: SellwildFailureComponent.remoteConfig,
+        severity: report.severity,
+        message: report.message,
+        url: url,
+      );
     }
-
-    bool? boolean(String k) => raw[k] is bool ? raw[k] as bool : null;
-    List<String>? strList(String k) {
-      final v = raw[k];
-      if (v is List) return v.whereType<String>().toList();
-      return null;
-    }
-
-    // AD_REFRESH_INTERVAL is milliseconds (matches iOS/Android/core), not seconds.
-    final refreshMs = dbl('AD_REFRESH_INTERVAL');
-
-    return SellwildConfig(
-      // Identity
-      partnerCode: str('CODE') ?? base.partnerCode,
-      slug: str('SLUG') ?? base.slug,
-      name: str('NAME') ?? base.name,
-      listingsUrl: str('LISTINGS') ?? base.listingsUrl,
-
-      // Display
-      title: str('TITLE') ?? base.title,
-      linkText: str('LINK_TEXT') ?? base.linkText,
-      buyNowText: str('BUY_NOW_TEXT') ?? base.buyNowText,
-      titleColor: str('TITLE_COLOR') ?? base.titleColor,
-      titleSize: base.titleSize,
-      linkColor: str('LINK_COLOR') ?? base.linkColor,
-      fontSize: base.fontSize,
-      fontColor: str('FONT_COLOR') ?? base.fontColor,
-      priceColor: str('PRICE_COLOR') ?? base.priceColor,
-      priceFontColor: str('PRICE_FONT_COLOR') ?? base.priceFontColor,
-      marginBottom: integer('MARGIN_BOTTOM') ?? base.marginBottom,
-      colors: strList('COLORS') ?? base.colors,
-      overlayTitle: boolean('OVERLAY_TITLE') ?? base.overlayTitle,
-      watermark: boolean('WATERMARK') ?? base.watermark,
-      watermarkTitle: str('WATERMARK_TITLE') ?? base.watermarkTitle,
-
-      // Ad zones
-      adType: base.adType,
-      bannerZid: str('BANNER_ZID') ?? base.bannerZid,
-      bottomBannerZid: str('BOTTOM_BANNER_ZID') ?? base.bottomBannerZid,
-      mobileBannerZid: str('MOBILE_BANNER_ZID') ?? base.mobileBannerZid,
-      mobileZids: strList('MOBILE_ZID') ?? base.mobileZids,
-      hideBannerTop: boolean('HIDE_BANNER_TOP') ?? base.hideBannerTop,
-      hideBannerBottom: boolean('HIDE_BANNER_BOTTOM') ?? base.hideBannerBottom,
-      gamTag: str('GAM') ?? base.gamTag,
-      gptProxyUrl: base.gptProxyUrl,
-      disableGpt: boolean('DISABLE_GPT') ?? base.disableGpt,
-      adDisableDisplay: boolean('AD_DISABLE_DISPLAY') ?? base.adDisableDisplay,
-
-      // Ad-stack segmentation (GAM vs Prebid)
-      adStack: SellwildAdStack.parse(raw['AD_STACK']) ?? base.adStack,
-      adStackByZone: () {
-        final v = raw['AD_STACK_BY_ZONE'];
-        if (v is! Map) return base.adStackByZone;
-        final out = <String, SellwildAdStack>{};
-        v.forEach((zone, mode) {
-          final parsed = SellwildAdStack.parse(mode);
-          if (parsed != null) out['$zone'] = parsed;
-        });
-        return out;
-      }(),
-
-      // Refresh
-      adRefreshMax: integer('AD_REFRESH_MAX') ?? base.adRefreshMax,
-      adRefreshMaxMobile:
-          integer('AD_REFRESH_MAX_MOBILE') ?? base.adRefreshMaxMobile,
-      adRefreshInterval: refreshMs != null
-          ? Duration(milliseconds: refreshMs.round())
-          : base.adRefreshInterval,
-      maxFailedAuctions: integer('MAX_FAILED_AUCTIONS') ?? base.maxFailedAuctions,
-      prebidSrc: base.prebidSrc,
-      floorMultiplier: base.floorMultiplier,
-
-      // Compliance
-      gppEnabled: boolean('GPP_ENABLED') ?? base.gppEnabled,
-      tcfVersion: integer('TCF_VERSION') ?? base.tcfVersion,
-      iabCats: strList('IAB_CATS') ?? base.iabCats,
-
-      // Third-party
-      boltive: boolean('BOLTIVE') ?? base.boltive,
-      boltiveClientId: str('BOLTIVE_CLIENT_ID') ?? base.boltiveClientId,
-      lotame: boolean('LOTAME') ?? base.lotame,
-
-      // Mobile ad controls
-      enableInterstitial:
-          boolean('ENABLE_INTERSTITIAL') ?? base.enableInterstitial,
-      enableFullscreenVideo:
-          boolean('ENABLE_FULLSCREEN_VIDEO') ?? base.enableFullscreenVideo,
-      interstitialsPerSession:
-          integer('INTERSTITIALS_PER_SESSION') ?? base.interstitialsPerSession,
-      videoTakeoversPerSession: integer('VIDEO_TAKEOVERS_PER_SESSION') ??
-          base.videoTakeoversPerSession,
-
-      // App identity — per-platform override wins (APP_*_IOS/_ANDROID), else shared, else base.
-      appBundleId:
-          str(android ? 'APP_BUNDLE_ID_ANDROID' : 'APP_BUNDLE_ID_IOS') ??
-              str('APP_BUNDLE_ID') ??
-              base.appBundleId,
-      appStoreUrl:
-          str(android ? 'APP_STORE_URL_ANDROID' : 'APP_STORE_URL_IOS') ??
-              str('APP_STORE_URL') ??
-              base.appStoreUrl,
-
-      // Prebid Server (carry over from base — not overridden by remote in 1.2.0)
-      prebidServer: base.prebidServer,
-
-      // Debug
-      debug: boolean('DEBUG') ?? base.debug,
-
-      // Kill switches (FAILURES.md 5.3, 5.4). Absent or JSON null keeps base.
-      eventsEnabled: coerceFlag(raw['EVENTS_ENABLED'], base.eventsEnabled),
-      failuresEnabled:
-          coerceFlag(raw['FAILURES_ENABLED'], base.failuresEnabled),
-      failuresSampleRate: raw['FAILURES_SAMPLE_RATE'] == null
-          ? base.failuresSampleRate
-          : coerceRate(raw['FAILURES_SAMPLE_RATE']),
-
-      // Raw passthrough — every CDN key flows to the WebView verbatim,
-      // so new bidders/settings don't require an SDK release.
-      remoteJson: raw,
-    );
+    return result.config;
   }
 }

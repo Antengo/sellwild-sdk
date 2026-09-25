@@ -23,6 +23,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'contract_emitter.dart';
 import 'contract_schemas.dart';
 import 'fake_webview_platform.dart';
+import 'failure_capture.dart';
 import 'fixtures.dart';
 import 'http_mocks.dart';
 import 'network_guard.dart';
@@ -207,6 +208,41 @@ void main() {
     });
   });
 
+  group('captureFailures', () {
+    void logBridgeParse() => SellwildFailures.log(
+        code: SellwildFailureCode.bridgeMessageParse,
+        component: SellwildFailureComponent.bridge,
+        message: 'not JSON');
+
+    test('the sink sees a repeat once; foldedRepeats names it', () {
+      final failures = captureFailures(allowFolds: true);
+
+      logBridgeParse();
+      expect(foldedRepeats(), isEmpty);
+      expectNoFoldedRepeats();
+      logBridgeParse();
+
+      // The fixed clock keeps the repeat inside the dedupe window.
+      expect(actionsOf(failures), ['bridge.message.parse']);
+      expect(foldedRepeats(),
+          ['bridge.message.parse|bridge||not JSON (+1)']);
+      expect(expectNoFoldedRepeats, throwsA(isA<TestFailure>()));
+    });
+
+    test('distinct failures are not folds', () {
+      final failures = captureFailures();
+
+      logBridgeParse();
+      SellwildFailures.log(
+          code: SellwildFailureCode.bridgeMessageParse,
+          component: SellwildFailureComponent.bridge,
+          message: 'not JSON either');
+
+      expect(failures, hasLength(2));
+      expect(foldedRepeats(), isEmpty);
+    });
+  });
+
   group('FakeWebViewPlatform', () {
     late FakeWebViewPlatform webviews;
 
@@ -214,6 +250,8 @@ void main() {
 
     testWidgets('SellwildWidget builds and its bridge channel is drivable',
         (tester) async {
+      // The load error below is reported through logFailure.
+      final failures = captureFailures();
       var loads = 0;
       final errors = <Object>[];
       await tester.pumpWidget(MaterialApp(
@@ -245,6 +283,7 @@ void main() {
       );
       controller.navigationDelegate!.emitWebResourceError(error);
       expect(errors, [same(error)]);
+      expect(actionsOf(failures), ['widget.webview_load.network']);
     });
 
     testWidgets('SellwildBanner forwards impressions from SellwildAdBridge',

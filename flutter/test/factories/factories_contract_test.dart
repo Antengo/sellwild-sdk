@@ -11,6 +11,7 @@ import 'package:sellwild_sdk/sellwild_sdk.dart';
 
 import '../support/contract_emitter.dart';
 import '../support/contract_schemas.dart';
+import '../support/failure_capture.dart';
 import '../support/http_mocks.dart';
 import 'contract_factory.dart';
 import 'event_factories.dart';
@@ -61,6 +62,10 @@ void main() {
 
   group('the SDK reads every valid variant', () {
     test('app-config: SellwildSDK.apply', () async {
+      // Some variants are built to be reported (sellwild_sdk_apply_test.dart).
+      // Each variant is its own apply, and two share the out-of-range
+      // AD_REFRESH_INTERVAL report, so the gate folds that one on purpose.
+      captureFailures(allowFolds: true);
       final factory = AppConfigFactory();
       const base = SellwildConfig(partnerCode: 'x');
 
