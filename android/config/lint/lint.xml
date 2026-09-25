@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Android Lint config for the SDK module (build.gradle.kts android.lint).
+  Existing issues: lint-baseline.xml next to this file. warningsAsErrors is on,
+  so any new warning or error fails ./gradlew lintDebug.
+  Refresh the baseline only when issues go away: ./gradlew updateLintBaselineDebug
+-->
+<lint>
+    <!--
+      Off: these report "a newer version is available" from what Google Maven
+      and the Gradle Plugin Portal publish today, so the gate would go red with
+      no code change. The pins are deliberate (GMA 23.6.0 for partners on
+      22.x/23.x, coroutines 1.7.3 and Kotlin metadata 1.9 for RN 0.74 hosts);
+      bumping them is a release decision, not a lint finding.
+    -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+</lint>

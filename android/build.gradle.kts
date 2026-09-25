@@ -1,3 +1,5 @@
+import java.util.concurrent.Callable
+
 plugins {
     // Plugin versions for standalone builds are pinned in settings.gradle.kts.
     // When this module is included as a subproject (e.g. samples/demo-app),
@@ -9,6 +11,12 @@ plugins {
     // Coverage: Kover line/branch report for the unit tests
     // (scripts/coverage/android.sh). Test tooling only; the AAR is unchanged.
     id("org.jetbrains.kotlinx.kover") version "0.9.1"
+    // Kotlin lint: detekt plus its ktlint wrapper (detekt-formatting), one tool.
+    // Version inline, like kover: a host build that includes this module does
+    // not have detekt on its plugin classpath, so a settings.gradle.kts pin
+    // (which a host never reads) would leave the id unresolvable there.
+    // Lint tooling only; the AAR is unchanged.
+    id("io.gitlab.arturbosch.detekt") version "1.23.8"
 }
 
 android {
@@ -66,6 +74,16 @@ android {
 
     lint {
         targetSdk = 35
+        // Gate: ./gradlew lintDebug. Existing issues are in the baseline; any
+        // new warning or error fails (warningsAsErrors + abortOnError).
+        // Refresh the baseline only when issues go away: updateLintBaselineDebug.
+        lintConfig = file("config/lint/lint.xml")
+        baseline = file("config/lint/lint-baseline.xml")
+        abortOnError = true
+        warningsAsErrors = true
+        // Lint runs in the gate (lintDebug), not inside release/publish builds:
+        // publishing the AAR must not depend on lint.
+        checkReleaseBuilds = false
     }
 
     publishing {
@@ -236,6 +254,115 @@ kover {
         // No verify rule here: scripts/coverage/android-summary.mjs computes the
         // gate (include list + 95% target) from the XML report.
     }
+}
+
+// ── Kotlin lint (detekt) ─────────────────────────────────────────────────────
+// Gate tasks: detektDebug (main sources, with type resolution, which
+// ForbiddenMethodCall needs), detektDebugUnitTest (unit tests, same), and
+// detektRnBridge + detektRnBridgePrints (react-native/android/src, see below).
+// `./gradlew detektAll` (or `detekt`, or `check`) runs them all. Existing
+// findings live in config/detekt/baseline-*.xml; a new one fails the task.
+// Refresh the baselines only when findings go away: ./gradlew detektBaseline
+val detektVersion = "1.23.8"
+detekt {
+    toolVersion = detektVersion
+    config.setFrom(file("config/detekt/detekt.yml"))
+    buildUponDefaultConfig = true
+    // Variant tasks read baseline-<variant>.xml next to this file
+    // (baseline-debug.xml, baseline-debugUnitTest.xml).
+    baseline = file("config/detekt/baseline.xml")
+}
+dependencies {
+    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:$detektVersion")
+}
+// detekt 1.23.8 embeds the Kotlin 2.0.21 compiler and refuses to run on any
+// other. Pin its classpath so no Kotlin alignment from outside (this build's
+// Kotlin 2.1.20, or a host build forcing kotlin-stdlib, as samples/demo-app
+// does for every configuration) can move it.
+configurations.matching { it.name == "detekt" || it.name == "detektPlugins" }.configureEach {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.jetbrains.kotlin") {
+            useVersion(io.gitlab.arturbosch.detekt.getSupportedKotlinVersion())
+            because("detekt $detektVersion runs only on the Kotlin compiler it was built with")
+        }
+    }
+}
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    jvmTarget = "17"
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+        txt.required.set(false)
+        sarif.required.set(false)
+        md.required.set(false)
+    }
+}
+tasks.withType<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>().configureEach {
+    jvmTarget = "17"
+}
+
+// The React Native bridge (react-native/android) is its own Gradle module that
+// builds only inside an RN app, against React Native's classes. detekt reads
+// its sources without compiling them, in two passes:
+// 1. detektRnBridge: every rule, no classpath (no type resolution). With a
+//    partial classpath, unresolved React Native types made UnreachableCode
+//    report live code (`config ?: return null` on a ReadableMap?), so the
+//    type-resolution rules stay off here. Baseline: baseline-rnBridge.xml.
+// 2. detektRnBridgePrints: only detekt.yml (the house rules, not detekt's
+//    defaults), with this module's debug classpath (android.jar + Kotlin
+//    stdlib). That resolves println/Log.*/PrintStream for ForbiddenMethodCall;
+//    no other type-resolution rule runs, so nothing misreads the unresolved
+//    React Native types. No baseline: the bridge has no findings; fix new ones.
+val rnBridgeSources = file("../react-native/android/src/main")
+// Lazy: AGP registers detektDebug only once the variants exist.
+val detektDebugClasspath = Callable {
+    tasks.named<io.gitlab.arturbosch.detekt.Detekt>("detektDebug").get().classpath
+}
+val detektRnBridgeBaseline = file("config/detekt/baseline-rnBridge.xml")
+val detektRnBridge = tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektRnBridge") {
+    description = "Runs detekt (all rules, no type resolution) on the React Native bridge Kotlin."
+    group = "verification"
+    setSource(rnBridgeSources)
+    include("**/*.kt")
+    config.setFrom(detekt.config)
+    buildUponDefaultConfig = true
+    baseline.set(detektRnBridgeBaseline)
+}
+tasks.register<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>("detektBaselineRnBridge") {
+    description = "Writes the detekt baseline for the React Native bridge Kotlin."
+    group = "verification"
+    setSource(rnBridgeSources)
+    include("**/*.kt")
+    config.setFrom(detekt.config)
+    buildUponDefaultConfig.set(true)
+    baseline.set(detektRnBridgeBaseline)
+}
+val detektRnBridgePrints = tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektRnBridgePrints") {
+    description = "Runs the house rules (detekt.yml only) with type resolution on the React Native bridge Kotlin."
+    group = "verification"
+    setSource(rnBridgeSources)
+    include("**/*.kt")
+    config.setFrom(detekt.config)
+    buildUponDefaultConfig = false
+    classpath.setFrom(detektDebugClasspath)
+}
+val detektAll = tasks.register("detektAll") {
+    description = "Runs every detekt gate task: SDK main + unit tests (type resolution) and the RN bridge."
+    group = "verification"
+    dependsOn("detektDebug", "detektDebugUnitTest", detektRnBridge, detektRnBridgePrints)
+}
+// The plugin's own `detekt` task (src/main + src/test, no type resolution) is
+// wired into `check`. It would report the same findings again against a
+// fourth baseline, so it lints nothing itself and runs the gate tasks
+// instead: `./gradlew detekt` and `./gradlew check` both mean detektAll, and
+// `./gradlew detektBaseline` refreshes all three baselines.
+tasks.named<io.gitlab.arturbosch.detekt.Detekt>("detekt") {
+    setSource(files())
+    dependsOn(detektAll)
+}
+tasks.named<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>("detektBaseline") {
+    setSource(files())
+    dependsOn("detektBaselineDebug", "detektBaselineDebugUnitTest", "detektBaselineRnBridge")
 }
 
 publishing {

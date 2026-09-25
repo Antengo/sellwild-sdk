@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.7.3" type="baseline" client="gradle" dependencies="false" name="AGP (8.7.3)" variant="all" version="8.7.3">
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="            return if (value > 0) String.format(&quot;%.0f&quot;, value) else null"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt"
+            line="66"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 28 (current min is 23): `android.app.Application#getProcessName`"
+        errorLine1="        WidgetPage.dataDirectorySuffix(Build.VERSION.SDK_INT, context.packageName) { android.app.Application.getProcessName() }"
+        errorLine2="                                                                                                             ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt"
+            line="63"
+            column="110"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 28 (current min is 23): `android.webkit.WebView#setDataDirectorySuffix`"
+        errorLine1="            ?.let { WebView.setDataDirectorySuffix(it) }"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt"
+            line="64"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 23): `android.webkit.RenderProcessGoneDetail#didCrash`"
+        errorLine1="                message = if (detail.didCrash()) &quot;WebView render process crashed&quot; else &quot;WebView render process was killed&quot;,"
+        errorLine2="                                     ~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt"
+            line="209"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Optional Modifier parameter should have a default value of `Modifier`"
+        errorLine1="    modifier: Modifier = Modifier.fillMaxSize(),"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/sellwild/sdk/SellwildFeed.kt"
+            line="20"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        adapter.notifyDataSetChanged()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt"
+            line="243"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="            notifyDataSetChanged()"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt"
+            line="402"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ViewConstructor"
+        message="Custom view `SellwildNativeAdView` is missing constructor used by tools: `(Context)` or `(Context,AttributeSet)` or `(Context,AttributeSet,int)`"
+        errorLine1="class SellwildNativeAdView("
+        errorLine2="      ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/sellwild/sdk/SellwildNativeAdView.kt"
+            line="72"
+            column="7"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="                text = &quot;Powered by Sellwild&quot;"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt"
+            line="565"
+            column="25"/>
+    </issue>
+
+</issues>

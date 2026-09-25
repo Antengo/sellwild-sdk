@@ -1,0 +1,1251 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$("/12345/weatherbug/banner_top")</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$("/12345/weatherbug/banner_top", cdn, 320, 50)</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$("GAM" to JSONObject.NULL)</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$("MOBILE_PAUSE_REFRESH_DETACHED" to JSONObject())</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$("No bids: There are no bids or bids don't have required targeting keywords")</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(AdDecisions.ColdStart.TIMED_OUT, AdDecisions.coldStart(ready = false, attempts = 1, maxAttempts = 1))</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(AdDecisions.Stack.GAM, refreshMax = 0, nativeEnabled = never, hasRenderedCreative = true, keepCreative = never)</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(AdDecisions.Stack.PREBID_ONLY, refreshMax = 0, nativeEnabled = never, hasRenderedCreative = true, keepCreative = never)</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { false }, hasRenderedCreative = false, keepCreative = never)</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { false }, hasRenderedCreative = true, keepCreative = { false })</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { false }, hasRenderedCreative = true, keepCreative = { true })</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { true }, hasRenderedCreative = true, keepCreative = never)</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(AdDecisions.isPrebidNoFill("No bids: There are no bids or bids don't have required targeting keywords"))</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(AdFlags.pauseRefreshWhenDetached(AppConfigFactory.offSchema(mapOf("MOBILE_PAUSE_REFRESH_DETACHED" to JSONObject()))))</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(AppConfigFactory.offSchema(mapOf("MOBILE_PAUSE_REFRESH_DETACHED" to JSONObject())))</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(Resolved("/12345/weatherbug/banner_top"), AdDecisions.gamAdUnit("/12345/weatherbug/banner_top", cdn, 320, 50))</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(mapOf("GAM" to JSONObject.NULL))</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(mapOf("MOBILE_PAUSE_REFRESH_DETACHED" to JSONObject()))</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(null, AppConfigFactory.offSchema(mapOf("GAM" to JSONObject.NULL)), 300, 250)</ID>
+    <ID>ArgumentListWrapping:AdDecisionsTest.kt$AdDecisionsTest$(ready = false, attempts = 1, maxAttempts = 1)</ID>
+    <ID>ArgumentListWrapping:AdViewTestSupport.kt$(view, lp ?: FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))</ID>
+    <ID>ArgumentListWrapping:AdViewTestSupport.kt$NoBrowserContext$("No Activity found to handle Intent")</ID>
+    <ID>ArgumentListWrapping:AppConfigConformanceTest.kt$AppConfigConformanceTest$("every valid fixture has a case", emptyList&lt;String&gt;(), files.filterNot { f -&gt; conformance.cases.any { it.first == f } })</ID>
+    <ID>ArgumentListWrapping:AppConfigConformanceTest.kt$AppConfigConformanceTest$(200, raw.toString())</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$("ad-impression-number-zone")</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$("currency", "USD")</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$("fixtures/bridge-message/valid/ad-impression-number-zone.json")</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$("listing")</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$("listing-click-photos")</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$("photos", photos)</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$("price", "19315")</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$("thumbUrl", THUMB)</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$("url", "https://sellwild.com/listing/105140231")</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$("url", PHOTO)</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$(org.json.JSONObject().put("url", PHOTO).put("thumbUrl", THUMB))</ID>
+    <ID>ArgumentListWrapping:BridgeMessageFactory.kt$BridgeMessageFactory$(photos = org.json.JSONArray().put(org.json.JSONObject().put("url", PHOTO).put("thumbUrl", THUMB)))</ID>
+    <ID>ArgumentListWrapping:ConfigFieldsTest.kt$ConfigFieldsTest$("COLORS" to "", "AD_REFRESH_MAX" to JSONObject.NULL, "DEBUG" to JSONObject.NULL)</ID>
+    <ID>ArgumentListWrapping:ConfigFieldsTest.kt$ConfigFieldsTest$("TITLE", "MOBILE_BANNER_ZID", "MOBILE_ZID", "AD_REFRESH_MAX", "MAX_FAILED_AUCTIONS", "IAB_CATS", "DEBUG", "PBS_DEBUG")</ID>
+    <ID>ArgumentListWrapping:ConfigFieldsTest.kt$ConfigFieldsTest$(mapOf("COLORS" to "", "AD_REFRESH_MAX" to JSONObject.NULL, "DEBUG" to JSONObject.NULL))</ID>
+    <ID>ArgumentListWrapping:Conformance.kt$Conformance$("fields")</ID>
+    <ID>ArgumentListWrapping:Conformance.kt$Conformance$(it)</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$("app-config", "scalar", "42", dir)</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$("app-config", variant, json, dir)</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$("event", "x")</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$("events-batch", "client_failure", JSONArray().put(JSONObject().put("event", "x")), dir)</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$("user.dir")</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$(ContractEmitter.OUT_ROOT_ENV)</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$(ContractEmitter.defaultOutDir(System.getenv(ContractEmitter.OUT_ROOT_ENV), moduleDir), ContractEmitter.outDir())</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$(IllegalArgumentException::class.java)</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$(JSONObject().put("event", "x"))</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$(System.getenv(ContractEmitter.OUT_ROOT_ENV), System.getProperty("user.dir")!!)</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$(System.getenv(ContractEmitter.OUT_ROOT_ENV), moduleDir)</ID>
+    <ID>ArgumentListWrapping:ContractEmitterTest.kt$ContractEmitterTest$(variant, IllegalArgumentException::class.java)</ID>
+    <ID>ArgumentListWrapping:ContractFactory.kt$JsonObjectFactory$("$schema: expected an off-schema payload, got a valid one: $it")</ID>
+    <ID>ArgumentListWrapping:ContractFactory.kt$JsonObjectFactory$(schema, it)</ID>
+    <ID>ArgumentListWrapping:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$("$schema: every invalid fixture has an expected error", expected.keys().asSequence().toSet(), files.map { it.substringAfterLast('/') }.toSet())</ID>
+    <ID>ArgumentListWrapping:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$("/_expected-errors.json")</ID>
+    <ID>ArgumentListWrapping:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$("errors")</ID>
+    <ID>ArgumentListWrapping:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$("fixtures/$schema/invalid")</ID>
+    <ID>ArgumentListWrapping:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$("fixtures/$schema/invalid/_expected-errors.json")</ID>
+    <ID>ArgumentListWrapping:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$("instancePath")</ID>
+    <ID>ArgumentListWrapping:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$('/')</ID>
+    <ID>ArgumentListWrapping:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$(file.substringAfterLast('/'))</ID>
+    <ID>ArgumentListWrapping:EventFactories.kt$EventsBatchFactory$(event = "adError", action = "No ad to show.", label = "43", uid = "u-1", createdTime = 1_790_000_000_000L)</ID>
+    <ID>ArgumentListWrapping:FailuresWiringTest.kt$FailuresWiringTest$("_sw_uid", null)</ID>
+    <ID>ArgumentListWrapping:FailuresWiringTest.kt$FailuresWiringTest$("samples/app-config/weatherbug_weatherbug-main.403.xml")</ID>
+    <ID>ArgumentListWrapping:FailuresWiringTest.kt$FailuresWiringTest$("sellwild_sdk", Context.MODE_PRIVATE)</ID>
+    <ID>ArgumentListWrapping:FailuresWiringTest.kt$FailuresWiringTest$(200, AppConfigFactory.withFailureFlags(null, null, eventsEnabled = false).toString())</ID>
+    <ID>ArgumentListWrapping:FailuresWiringTest.kt$FailuresWiringTest$(200, ListingsResponseFactory.withItems(ListingFactory.build()).toString())</ID>
+    <ID>ArgumentListWrapping:FailuresWiringTest.kt$FailuresWiringTest$(403, FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"))</ID>
+    <ID>ArgumentListWrapping:FailuresWiringTest.kt$FailuresWiringTest$(ListingFactory.build())</ID>
+    <ID>ArgumentListWrapping:FailuresWiringTest.kt$FailuresWiringTest$(SellwildConfig(partnerCode = "weatherbug", listingsUrl = listingsUrl))</ID>
+    <ID>ArgumentListWrapping:FailuresWiringTest.kt$FailuresWiringTest$(first, context.getSharedPreferences("sellwild_sdk", Context.MODE_PRIVATE).getString("_sw_uid", null))</ID>
+    <ID>ArgumentListWrapping:FailuresWiringTest.kt$FailuresWiringTest$(null, null, eventsEnabled = false)</ID>
+    <ID>ArgumentListWrapping:FailuresWiringTest.kt$FailuresWiringTest$(partnerCode = "weatherbug", listingsUrl = listingsUrl)</ID>
+    <ID>ArgumentListWrapping:FakeAdNetwork.kt$(*overrides)</ID>
+    <ID>ArgumentListWrapping:FakeAdNetwork.kt$(AppConfigFactory.checked(mapOf(*overrides)))</ID>
+    <ID>ArgumentListWrapping:FakeAdNetwork.kt$(mapOf(*overrides))</ID>
+    <ID>ArgumentListWrapping:FakeAdNetwork.kt$AdNetworkAccess$(result)</ID>
+    <ID>ArgumentListWrapping:FeedScheduleTest.kt$FeedScheduleTest$("COL1 G/D rows dropped: no MOBILE_ZID zone (1)", "COL1 B rows dropped: no banner zone (1)")</ID>
+    <ID>ArgumentListWrapping:FeedScheduleTest.kt$FeedScheduleTest$(SellwildFailureCode.FEED_AD_ZONE_MISSING, SellwildFailureComponent.FEED, SellwildFailureSeverity.WARN, message = "COL1 B rows dropped: no banner zone (1)")</ID>
+    <ID>ArgumentListWrapping:FeedScheduleTest.kt$FeedScheduleTest$(SellwildFailureCode.FEED_AD_ZONE_MISSING, SellwildFailureComponent.FEED, SellwildFailureSeverity.WARN, message = "COL1 G/D rows dropped: no MOBILE_ZID zone (3)")</ID>
+    <ID>ArgumentListWrapping:FeedScheduleTest.kt$FeedScheduleTest$(listOf("COL1 G/D rows dropped: no MOBILE_ZID zone (1)", "COL1 B rows dropped: no banner zone (1)"), built.issues.map { it.message })</ID>
+    <ID>ArgumentListWrapping:FetchTest.kt$FetchTest$("a")</ID>
+    <ID>ArgumentListWrapping:FetchTest.kt$FetchTest$("https://x.invalid")</ID>
+    <ID>ArgumentListWrapping:FetchTest.kt$FetchTest$(IllegalArgumentException("a"), Fetch.CONFIG)</ID>
+    <ID>ArgumentListWrapping:FetchTest.kt$FetchTest$(NetworkBlockedException(URL("https://x.invalid")), Fetch.LISTINGS)</ID>
+    <ID>ArgumentListWrapping:FetchTest.kt$FetchTest$(SellwildFailureCode.CONFIG_APPLY_EXCEPTION, Fetch.codeFor(IllegalArgumentException("a"), Fetch.CONFIG))</ID>
+    <ID>ArgumentListWrapping:FetchTest.kt$FetchTest$(SellwildFailureCode.LISTINGS_FETCH_NETWORK, Fetch.codeFor(NetworkBlockedException(URL("https://x.invalid")), Fetch.LISTINGS))</ID>
+    <ID>ArgumentListWrapping:FetchTest.kt$FetchTest$(URL("https://x.invalid"))</ID>
+    <ID>ArgumentListWrapping:FormatTest.kt$FormatTest$("user" to JSONObject().put("id", "1").put("firstName", first).put("lastName", last))</ID>
+    <ID>ArgumentListWrapping:FormatTest.kt$FormatTest$(0xFF112233.toInt(), 0xFF445566.toInt(), 0xFF778899.toInt(), 0xFF778899.toInt())</ID>
+    <ID>ArgumentListWrapping:FormatTest.kt$FormatTest$(FeedColors(0xFF112233.toInt(), 0xFF445566.toInt(), 0xFF778899.toInt(), 0xFF778899.toInt()), resolved.value)</ID>
+    <ID>ArgumentListWrapping:FormatTest.kt$FormatTest$(FeedColors(FeedTheme.BACKGROUND, 0xFF445566.toInt(), FeedTheme.POWERED_BY, FeedTheme.PRICE), resolved.value)</ID>
+    <ID>ArgumentListWrapping:FormatTest.kt$FormatTest$(FeedColors(FeedTheme.BACKGROUND, FeedTheme.TITLE, FeedTheme.POWERED_BY, FeedTheme.PRICE), resolved.value)</ID>
+    <ID>ArgumentListWrapping:FormatTest.kt$FormatTest$(FeedTheme.BACKGROUND, 0xFF445566.toInt(), FeedTheme.POWERED_BY, FeedTheme.PRICE)</ID>
+    <ID>ArgumentListWrapping:FormatTest.kt$FormatTest$(FeedTheme.BACKGROUND, FeedTheme.TITLE, FeedTheme.POWERED_BY, FeedTheme.PRICE)</ID>
+    <ID>ArgumentListWrapping:FormatTest.kt$FormatTest$(SellwildFailureCode.CONFIG_COLOR_INVALID, SellwildFailureComponent.REMOTE_CONFIG, SellwildFailureSeverity.ERROR, message = "LINK_COLOR is not a color: #12")</ID>
+    <ID>ArgumentListWrapping:FormatTest.kt$FormatTest$(SellwildFailureCode.CONFIG_COLOR_INVALID, SellwildFailureComponent.REMOTE_CONFIG, SellwildFailureSeverity.ERROR, message = "PRICE_COLOR is not a color: teal-ish")</ID>
+    <ID>ArgumentListWrapping:FormatTest.kt$FormatTest$(mapOf("user" to JSONObject().put("id", "1").put("firstName", first).put("lastName", last)))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$("atype", 1)</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$("id", "empty-source-uid")</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$("id", "null-source-uid")</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$("source", "")</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$("source", JSONObject.NULL)</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$("uid-without-id")</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$("uids")</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$("uids", JSONArray().put(JSONObject().put("id", "empty-source-uid")))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$("uids", JSONArray().put(JSONObject().put("id", "null-source-uid")))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$(0)</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$(JSONObject().put("atype", 1))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$(JSONObject().put("id", "empty-source-uid"))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$(JSONObject().put("id", "null-source-uid"))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$(JSONObject().put("source", "").put("uids", JSONArray().put(JSONObject().put("id", "empty-source-uid"))))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeFactories.kt$EidBlobFactory$(JSONObject().put("source", JSONObject.NULL).put("uids", JSONArray().put(JSONObject().put("id", "null-source-uid"))))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeSyncTest.kt$GrowthCodeSyncTest$("ID5*fixture", 1)</ID>
+    <ID>ArgumentListWrapping:GrowthCodeSyncTest.kt$GrowthCodeSyncTest$("id5-sync.com", listOf(SellwildEidUid("ID5*fixture", 1), SellwildEidUid("ppid-fixture", 0)))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeSyncTest.kt$GrowthCodeSyncTest$("ppid-fixture", 0)</ID>
+    <ID>ArgumentListWrapping:GrowthCodeSyncTest.kt$GrowthCodeSyncTest$("ppid-fixture", 0, mapOf("stype" to "ppuid"))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeSyncTest.kt$GrowthCodeSyncTest$("stype" to "ppuid")</ID>
+    <ID>ArgumentListWrapping:GrowthCodeSyncTest.kt$GrowthCodeSyncTest$(SellwildEid("id5-sync.com", listOf(SellwildEidUid("ID5*fixture", 1), SellwildEidUid("ppid-fixture", 0))))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeSyncTest.kt$GrowthCodeSyncTest$(SellwildEidUid("ID5*fixture", 1), SellwildEidUid("ppid-fixture", 0))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeSyncTest.kt$GrowthCodeSyncTest$(SellwildEidUid("ID5*fixture", 1), SellwildEidUid("ppid-fixture", 0, mapOf("stype" to "ppuid")))</ID>
+    <ID>ArgumentListWrapping:HttpStubTest.kt$HttpStubTest$("Content-Type" to "application/json")</ID>
+    <ID>ArgumentListWrapping:HttpStubTest.kt$HttpStubTest$(201, """{"ok":true}""", mapOf("Content-Type" to "application/json"))</ID>
+    <ID>ArgumentListWrapping:ListingFactories.kt$ListingsResponseFactory$("listings-response", "fixtures/listings-response/valid/empty-rs.json")</ID>
+    <ID>ArgumentListWrapping:ListingFactories.kt$ListingsResponseFactory$("sample-weatherbug")</ID>
+    <ID>ArgumentListWrapping:ListingFactories.kt$ListingsResponseFactory$("samples/listings-response/listings-img-data-sm-avif-weatherbug.json")</ID>
+    <ID>ArgumentListWrapping:ListingsConformanceTest.kt$ListingsConformanceTest$("conformance", listingsUrl = url)</ID>
+    <ID>ArgumentListWrapping:ListingsConformanceTest.kt$ListingsConformanceTest$("https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/${file.substringAfterLast('/')}")</ID>
+    <ID>ArgumentListWrapping:ListingsConformanceTest.kt$ListingsConformanceTest$('/')</ID>
+    <ID>ArgumentListWrapping:ListingsConformanceTest.kt$ListingsConformanceTest$(ApplicationProvider.getApplicationContext&lt;Context&gt;())</ID>
+    <ID>ArgumentListWrapping:ListingsConformanceTest.kt$ListingsConformanceTest$(SellwildConfig("conformance", listingsUrl = url))</ID>
+    <ID>ArgumentListWrapping:ListingsParserTest.kt$ListingsParserTest$("https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231_thumb.jpg", listing.photos.single().thumbUrl)</ID>
+    <ID>ArgumentListWrapping:ListingsParserTest.kt$ListingsParserTest$("https://listings-static1.sellwild.com/x.jpg", "https://listings-static1.sellwild.com/x_thumb.jpg")</ID>
+    <ID>ArgumentListWrapping:ListingsParserTest.kt$ListingsParserTest$(SellwildPhoto("https://listings-static1.sellwild.com/x.jpg", "https://listings-static1.sellwild.com/x_thumb.jpg"))</ID>
+    <ID>ArgumentListWrapping:NetworkBlock.kt$NetworkBlock$(MAX_CAUSES)</ID>
+    <ID>ArgumentListWrapping:NetworkBlock.kt$NetworkBlock$(t)</ID>
+    <ID>ArgumentListWrapping:NetworkBlockAuditListenerTest.kt$NetworkBlockAuditListenerTest$("com.example.ProbeTest#probe: left an HttpStub installed (close it with use { })")</ID>
+    <ID>ArgumentListWrapping:NetworkBlockAuditListenerTest.kt$NetworkBlockAuditListenerTest$(listOf("com.example.ProbeTest#probe: left an HttpStub installed (close it with use { })"), report.readLines())</ID>
+    <ID>ArgumentListWrapping:PrebidSetupTest.kt$PrebidSetupTest$("", listOf("IAB1"), null)</ID>
+    <ID>ArgumentListWrapping:PrebidSetupTest.kt$PrebidSetupTest$("IAB1")</ID>
+    <ID>ArgumentListWrapping:PrebidSetupTest.kt$PrebidSetupTest$("app" to mapOf("cat" to listOf("IAB1")))</ID>
+    <ID>ArgumentListWrapping:PrebidSetupTest.kt$PrebidSetupTest$("device" to mapOf("geo" to mapOf("region" to "GA")))</ID>
+    <ID>ArgumentListWrapping:PrebidSetupTest.kt$PrebidSetupTest$(PrebidSetup.globalOrtb("", listOf("IAB1"), null))</ID>
+    <ID>ArgumentListWrapping:PrebidSetupTest.kt$PrebidSetupTest$(PrebidSetup.globalOrtb(null, emptyList(), geo))</ID>
+    <ID>ArgumentListWrapping:PrebidSetupTest.kt$PrebidSetupTest$(mapOf("app" to mapOf("cat" to listOf("IAB1"))), parsed(PrebidSetup.globalOrtb("", listOf("IAB1"), null)))</ID>
+    <ID>ArgumentListWrapping:PrebidSetupTest.kt$PrebidSetupTest$(mapOf("device" to mapOf("geo" to mapOf("region" to "GA"))), parsed(PrebidSetup.globalOrtb(null, emptyList(), geo)))</ID>
+    <ID>ArgumentListWrapping:PrebidSetupTest.kt$PrebidSetupTest$(null, emptyList(), geo)</ID>
+    <ID>ArgumentListWrapping:RemoteValuesTest.kt$RemoteValuesTest$("$it", RemoteValues.isNotOff(it))</ID>
+    <ID>ArgumentListWrapping:RemoteValuesTest.kt$RemoteValuesTest$(it)</ID>
+    <ID>ArgumentListWrapping:RemoteValuesTest.kt$RemoteValuesTest$(true, 1, "yes", "anything", "", JSONObject(), null)</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("")</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("CloudFront-Viewer-Country-Region" to "GA")</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("attributes")</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("code")</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231.jpg", listing.primaryPhotoUrl)</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&amp;pubId=234000&amp;url=1", remote.tapUrl("weatherbug", ""))</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("https://sellwild.com/product/105140231?p=sellwild&amp;utm_source=sellwild", product.copy(url = "").tapUrl(""))</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("samples/app-config/weatherbug_weatherbug-main.403.xml")</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("samples/localized-listings-response/sports-img-data-sm-webp-zz.403.xml")</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("weatherbug", "")</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("weatherbug", "configured", "configured")</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(200)</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(200, FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"))</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(200, FixtureLoader.text("samples/localized-listings-response/sports-img-data-sm-webp-zz.403.xml"))</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(200, goodBody, mapOf("CloudFront-Viewer-Country-Region" to "GA"))</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(SellwildConfig(partnerCode = "", listingsUrl = listingsUrl))</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(SellwildConfig(partnerCode = "other", listingsUrl = listingsUrl))</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(SellwildConfig(partnerCode = "weatherbug", listingsUrl = listingsUrl))</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(StubResponse(200), url = "file:///sdcard/al.json")</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(StubResponse(200, FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml")))</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(StubResponse(200, FixtureLoader.text("samples/localized-listings-response/sports-img-data-sm-webp-zz.403.xml")))</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(StubResponse(200, goodBody, mapOf("CloudFront-Viewer-Country-Region" to "GA")), client = client)</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(client.fetchListings(SellwildConfig(partnerCode = "weatherbug", listingsUrl = listingsUrl)).isSuccess)</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(context)</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(fetchState(StubResponse(200), url = "file:///sdcard/al.json").exceptionOrNull() is MalformedURLException)</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(fetchState(StubResponse(200, FixtureLoader.text("samples/localized-listings-response/sports-img-data-sm-webp-zz.403.xml"))).isFailure)</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(listOf("weatherbug", "configured", "configured"), events.failures.map { it.getJSONObject("attributes").getString("code") })</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(partnerCode = "", listingsUrl = listingsUrl)</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(partnerCode = "other", listingsUrl = listingsUrl)</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(partnerCode = "weatherbug", listingsUrl = listingsUrl)</ID>
+    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$(url = "")</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$("IllegalStateException", events.attributes(SellwildFailureCode.AD_AUDIO_GUARD_EXCEPTION).getString("errName"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$("MOBILE_AD_MUTE_AUTOPLAY" to "off")</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$("errName")</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$("msg")</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$("the mute shim threw in the page", events.attributes(SellwildFailureCode.AD_AUDIO_GUARD_EXCEPTION).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$(::addView)</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$(NativeDataAsset.DATA_TYPE.SPONSORED, NativeDataAsset.DATA_TYPE.DESC, NativeDataAsset.DATA_TYPE.CTATEXT)</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$(SellwildFailureCode.AD_AUDIO_GUARD_EXCEPTION)</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$(Signals.Protocols.VAST_2_0, Signals.Protocols.VAST_3_0, Signals.Protocols.VAST_4_0)</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$(container(webView), AppConfigFactory.checked(mapOf("MOBILE_AD_MUTE_AUTOPLAY" to "off")).toString())</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$(context)</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$(listOf(Signals.Protocols.VAST_2_0, Signals.Protocols.VAST_3_0, Signals.Protocols.VAST_4_0), params.protocols)</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$(mapOf("MOBILE_AD_MUTE_AUTOPLAY" to "off"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$(webView)</ID>
+    <ID>ArgumentListWrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$("""catch\s*\(\s*\w+\s*\)\s*\{([^}]*)\}""")</ID>
+    <ID>ArgumentListWrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$("MOBILE_AD_MUTE_AUTOPLAY" to value)</ID>
+    <ID>ArgumentListWrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$("fixtures/app-config/valid/flags-mixed-types.json")</ID>
+    <ID>ArgumentListWrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$("samples/app-config/weatherbug_weatherbug-main.403.xml")</ID>
+    <ID>ArgumentListWrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$(AppConfigFactory.checked(mapOf("MOBILE_AD_MUTE_AUTOPLAY" to value)).toString())</ID>
+    <ID>ArgumentListWrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$(FixtureLoader.text("fixtures/app-config/valid/flags-mixed-types.json"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$(SellwildAdAudioGuard.MUTE_SCRIPT)</ID>
+    <ID>ArgumentListWrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$(SellwildAdAudioGuard.isEnabled(FixtureLoader.text("fixtures/app-config/valid/flags-mixed-types.json")))</ID>
+    <ID>ArgumentListWrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$(SellwildAdAudioGuard.isEnabled(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml")))</ID>
+    <ID>ArgumentListWrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$(mapOf("MOBILE_AD_MUTE_AUTOPLAY" to value))</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$("'' for a zone is its own (empty) list", listOf(mrec), resolve("280", "BANNER_SIZES" to jsonArrayOf("728x90"), "BANNER_SIZES_BY_ZONE" to byZone))</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$("280", "BANNER_SIZES" to jsonArrayOf("728x90"), "BANNER_SIZES_BY_ZONE" to byZone)</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$("43", "BANNER_SIZES" to jsonArrayOf("320x50", " 300 X 250 ", "320x50"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$("43", "BANNER_SIZES" to jsonArrayOf("728x90"), "BANNER_SIZES_BY_ZONE" to byZone)</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$("43", "BANNER_SIZES" to jsonArrayOf(jsonArrayOf(728, 90), jsonArrayOf("300", "250.0")))</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$("999", "BANNER_SIZES" to jsonArrayOf("728x90"), "BANNER_SIZES_BY_ZONE" to byZone)</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$("BANNER_SIZES" to jsonArrayOf("320x50", "wide"), "BANNER_SIZES_BY_ZONE" to byZone)</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$("BANNER_SIZES_BY_ZONE[43]: dropped 1 of 1 entries" to "43", "BANNER_SIZES: dropped 1 of 2 entries" to null)</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$("BANNER_SIZES_BY_ZONE[43]: dropped 1 of 1 entries" to "43", "BANNER_SIZES_BY_ZONE[280]: dropped 1 of 1 entries" to "280")</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$(320, 50)</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$(728, 90)</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$(listOf(mrec, Size(320, 50)), resolve("43", "BANNER_SIZES" to jsonArrayOf("320x50", " 300 X 250 ", "320x50")))</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$(listOf(mrec, Size(320, 50)), resolve("43", "BANNER_SIZES" to jsonArrayOf("728x90"), "BANNER_SIZES_BY_ZONE" to byZone))</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$(listOf(mrec, Size(728, 90)), resolve("43", "BANNER_SIZES" to jsonArrayOf(jsonArrayOf(728, 90), jsonArrayOf("300", "250.0"))))</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$(listOf(mrec, Size(728, 90)), resolve("999", "BANNER_SIZES" to jsonArrayOf("728x90"), "BANNER_SIZES_BY_ZONE" to byZone))</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$(mapOf("BANNER_SIZES" to jsonArrayOf("320x50", "wide"), "BANNER_SIZES_BY_ZONE" to byZone))</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$(mrec)</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$(mrec, Size(320, 50))</ID>
+    <ID>ArgumentListWrapping:SellwildAdSizesTest.kt$SellwildAdSizesTest$(mrec, Size(728, 90))</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$("AD_STACK" to "", "AD_STACK_BY_ZONE" to "")</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$("AD_STACK" to "prebid", "AD_STACK_BY_ZONE" to zones("43" to "GAM", "280" to "nope", "7" to ""))</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$("AD_STACK_BY_ZONE entry is not a known mode: nope", "AD_STACK_BY_ZONE entry is not a known mode: gamm")</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$("samples/app-config/weatherbug_weatherbug-main.403.xml")</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$("the oldest text was forgotten, so it is new again", 10, gateCalls(SellwildFailureCode.CONFIG_ADSTACK_INVALID))</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$(*entries)</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"), "43")</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$(SellwildAdStack.BOTH, SellwildAdStack.resolve(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"), "43"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$(SellwildAdStack.BOTH, SellwildAdStack.resolve(config("AD_STACK" to "", "AD_STACK_BY_ZONE" to ""), "43"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$(SellwildFailureCode.CONFIG_ADSTACK_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$(config("AD_STACK" to "", "AD_STACK_BY_ZONE" to ""), "43")</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$(k, v)</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$(mapOf("AD_STACK" to "prebid", "AD_STACK_BY_ZONE" to zones("43" to "GAM", "280" to "nope", "7" to "")))</ID>
+    <ID>ArgumentListWrapping:SellwildAdStackTest.kt$SellwildAdStackTest$(mapOf(*entries))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewCallbacksTest.kt$SellwildAdViewCallbacksTest$("AD_STACK" to "prebidOnly", "NATIVE_ENABLED" to true, "GAM" to "/1234/fixture")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewCallbacksTest.kt$SellwildAdViewCallbacksTest$("GAM load error 0: Internal error.", events.attributes(SellwildFailureCode.AD_GAM_LOAD_EXCEPTION).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewCallbacksTest.kt$SellwildAdViewCallbacksTest$("msg")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewCallbacksTest.kt$SellwildAdViewCallbacksTest$(SellwildFailureCode.AD_GAM_LOAD_EXCEPTION)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewCallbacksTest.kt$SellwildAdViewCallbacksTest$(code, message, "com.google.android.gms.ads", null, null)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("AD_STACK" to "prebidOnly", "NATIVE_ENABLED" to true, "GAM" to "/1234/fixture")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("IllegalStateException", events.attributes(SellwildFailureCode.AD_BID_INSPECT_EXCEPTION).getString("errName"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("NoSuchMethodError", events.attributes(SellwildFailureCode.AD_BID_INSPECT_EXCEPTION).getString("errName"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("PREBID_ONLY needs a zone id (the Prebid configId)", event.getJSONObject("attributes").getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("Prebid not ready after 8 waits; loading the native ad anyway", event.getJSONObject("attributes").getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("a video creative won a banner-only zone", events.attributes(SellwildFailureCode.AD_PLACEMENT_INVALID).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("attributes")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("errName")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("failed:SellwildAdView resolved to PREBID_ONLY but has no zoneId; Prebid rendering requires a configId.")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("failed:SellwildAdView resolved to native but has no zoneId; Prebid native rendering requires a configId.")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("isVideo")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("msg")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$("no winning bid")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(*prebidOnly, "AD_REFRESH_MAX_MOBILE" to 1, "MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH" to "yes")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(*prebidOnly, "AD_REFRESH_MAX_MOBILE" to 3, "AD_REFRESH_INTERVAL" to 45_000, "BANNER_SIZES" to jsonArrayOf("320x50"), "GPID_BASE" to "/1/feed")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(*prebidOnly, "AD_REFRESH_MAX_MOBILE" to 3, "MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH" to true)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(FakeBanner(context, response = FakeBid(error = IllegalStateException("no winning bid"))).apply { addView(player) })</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(FakeBanner(context, response = FakeBid(error = NoSuchMethodError("isVideo"))).apply { addView(player) })</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(FakeBanner(context, response = FakeBid(video = true)).apply { addView(loudPlayer) })</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(FakeBanner(context, response = FakeBid(video = true)).apply { addView(quietPlayer) })</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(SellwildFailureCode.AD_BID_INSPECT_EXCEPTION)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(SellwildFailureCode.AD_PLACEMENT_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(configWith(*prebidOnly, "AD_REFRESH_MAX_MOBILE" to 1, "MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH" to "yes"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(configWith(*prebidOnly, "AD_REFRESH_MAX_MOBILE" to 3, "MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH" to true), ctx = activity)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(context, response = FakeBid(error = IllegalStateException("no winning bid")))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(context, response = FakeBid(error = NoSuchMethodError("isVideo")))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(context, response = FakeBid(video = true))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(error = IllegalStateException("no winning bid"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(error = NoSuchMethodError("isVideo"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(listOf("failed:SellwildAdView resolved to PREBID_ONLY but has no zoneId; Prebid rendering requires a configId."), calls.calls)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(listOf("failed:SellwildAdView resolved to native but has no zoneId; Prebid native rendering requires a configId."), calls.calls)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(loudPlayer)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(player)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(quietPlayer)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$(video = true)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$("androidx/browser/customtabs/CustomTabsIntent")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$("msg")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$("resume() called before setup()", events.attributes(SellwildFailureCode.AD_SETUP_MISSING).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX" to 1, "AD_REFRESH_INTERVAL" to 45)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX_MOBILE" to 2, "AD_REFRESH_INTERVAL" to 30_000)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX_MOBILE" to 3, "MOBILE_PAUSE_REFRESH_DETACHED" to false)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(*gam, "MOBILE_HOUSE_AD_IMAGE" to IMAGE, "MOBILE_HOUSE_AD_ENABLED" to false)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(*gam, "MOBILE_HOUSE_AD_IMAGE" to IMAGE, "MOBILE_HOUSE_AD_URL" to "https://sellwild.com/house")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(*gam, "MOBILE_HOUSE_AD_IMAGE" to IMAGE, "MOBILE_HOUSE_AD_URL" to "market://details?id=com.x")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(SellwildAdView.GAM_TEST_AD_UNIT_BANNER, SellwildAdView.resolveGAMAdUnitID(configWith(), AdSize.BANNER_320x50))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(SellwildConfig(partnerCode = "fixture"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(SellwildFailureCode.AD_SETUP_MISSING)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(auction.unit.impOrtbConfig)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(code, message, "com.google.android.gms.ads", null, null)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(configWith(), AdSize.BANNER_320x50)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX" to 1, "AD_REFRESH_INTERVAL" to 45))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX_MOBILE" to 2, "AD_REFRESH_INTERVAL" to 30_000))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX_MOBILE" to 3, "MOBILE_PAUSE_REFRESH_DETACHED" to false), ctx = activity)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(configWith(*gam, "MOBILE_HOUSE_AD_IMAGE" to IMAGE, "MOBILE_HOUSE_AD_ENABLED" to false), AdSize.MREC_300x250, "43")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(configWith(*gam, "MOBILE_HOUSE_AD_IMAGE" to IMAGE, "MOBILE_HOUSE_AD_URL" to "https://sellwild.com/house"), ctx = activity)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(configWith(*gam, "MOBILE_HOUSE_AD_IMAGE" to IMAGE, "MOBILE_HOUSE_AD_URL" to "market://details?id=com.x"), ctx = activity)</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(emptyMap&lt;String, Any?&gt;(), SellwildAdView.bidderParamsFromRemote(SellwildConfig(partnerCode = "fixture")))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(newActivity(), NoClassDefFoundError("androidx/browser/customtabs/CustomTabsIntent"))</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(partnerCode = "fixture")</ID>
+    <ID>ArgumentListWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$(setOf("medianet") to "/1/feed", impExt(auction.unit.impOrtbConfig).let { (b, g) -&gt; b.intersect(setOf("medianet")) to g })</ID>
+    <ID>ArgumentListWrapping:SellwildConfigTest.kt$SellwildConfigTest$("acct", "https://pbs.invalid/openrtb2/auction", listOf("appnexus"), 900, "https://pbs.invalid/cookie_sync")</ID>
+    <ID>ArgumentListWrapping:SellwildConfigTest.kt$SellwildConfigTest$("appnexus")</ID>
+    <ID>ArgumentListWrapping:SellwildConfigTest.kt$SellwildConfigTest$("https://c.invalid/x", SellwildConfig(partnerCode = "p", listingsUrl = "https://c.invalid/x").effectiveListingsUrl)</ID>
+    <ID>ArgumentListWrapping:SellwildConfigTest.kt$SellwildConfigTest$(SellwildConfig.DEFAULT_LISTINGS_URL, SellwildConfig(partnerCode = "p", listingsUrl = "").effectiveListingsUrl)</ID>
+    <ID>ArgumentListWrapping:SellwildConfigTest.kt$SellwildConfigTest$(growthCode = growth, localizedListings = localized, prebidServer = server, ix = ix)</ID>
+    <ID>ArgumentListWrapping:SellwildConfigTest.kt$SellwildConfigTest$(partnerCode = "p")</ID>
+    <ID>ArgumentListWrapping:SellwildConfigTest.kt$SellwildConfigTest$(partnerCode = "p", growthCode = growth, localizedListings = localized, prebidServer = server, ix = ix)</ID>
+    <ID>ArgumentListWrapping:SellwildConfigTest.kt$SellwildConfigTest$(partnerCode = "p", listingsUrl = "")</ID>
+    <ID>ArgumentListWrapping:SellwildConfigTest.kt$SellwildConfigTest$(partnerCode = "p", listingsUrl = "https://c.invalid/x")</ID>
+    <ID>ArgumentListWrapping:SellwildConfigTest.kt$SellwildConfigTest$(partnerCode = "test_partner", listingsUrl = "https://cache.sellwild.com/listings-img-data-sm")</ID>
+    <ID>ArgumentListWrapping:SellwildConfigTest.kt$SellwildConfigTest$(true, "sportserver", "https://c.invalid/", "x-{state}.json", 25, "AL")</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$("a clientFailure without a code still gets the partner", "queue-partner", events.getJSONObject(1).getJSONObject("attributes").getString("code"))</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$("adError", action = "Request Error", label = "43", attributes = mapOf("reason" to "timeout", "tries" to 2))</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$("attributes")</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$("code")</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$("other events keep today's stamping", "queue-partner", events.getJSONObject(2).getJSONObject("attributes").getString("code"))</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$("reason" to "timeout", "tries" to 2)</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$("type" to "ios", "code" to "caller", "keep" to true)</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$(1)</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$(2)</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$(SellwildEvent(event = "clientFailure", action = "a.b.c", uid = "core-uid", createdTime = 1_800_000_000_000L))</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$(event = "clientFailure", action = "a.b.c", uid = "core-uid", createdTime = 1_800_000_000_000L)</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$(event = "e", attributes = mapOf("type" to "ios", "code" to "caller", "keep" to true), uid = "u", createdTime = now)</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$(statuses.getValue(url.path), "reply")</ID>
+    <ID>ArgumentListWrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$(url.path)</ID>
+    <ID>ArgumentListWrapping:SellwildEventsTest.kt$SellwildEventsTest$("EVENTS_ENABLED" to JSONObject().put("on", false))</ID>
+    <ID>ArgumentListWrapping:SellwildEventsTest.kt$SellwildEventsTest$("EVENTS_ENABLED" to JSONObject.NULL)</ID>
+    <ID>ArgumentListWrapping:SellwildEventsTest.kt$SellwildEventsTest$("JSON null is unset", SellwildEvents.isEnabled(AppConfigFactory.offSchema(mapOf("EVENTS_ENABLED" to JSONObject.NULL)).toString()))</ID>
+    <ID>ArgumentListWrapping:SellwildEventsTest.kt$SellwildEventsTest$("an object is not a switch", SellwildEvents.isEnabled(AppConfigFactory.offSchema(mapOf("EVENTS_ENABLED" to JSONObject().put("on", false))).toString()))</ID>
+    <ID>ArgumentListWrapping:SellwildEventsTest.kt$SellwildEventsTest$("samples/app-config/weatherbug_weatherbug-main.403.xml")</ID>
+    <ID>ArgumentListWrapping:SellwildEventsTest.kt$SellwildEventsTest$(AppConfigFactory.offSchema(mapOf("EVENTS_ENABLED" to JSONObject().put("on", false))).toString())</ID>
+    <ID>ArgumentListWrapping:SellwildEventsTest.kt$SellwildEventsTest$(AppConfigFactory.offSchema(mapOf("EVENTS_ENABLED" to JSONObject.NULL)).toString())</ID>
+    <ID>ArgumentListWrapping:SellwildEventsTest.kt$SellwildEventsTest$(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"))</ID>
+    <ID>ArgumentListWrapping:SellwildEventsTest.kt$SellwildEventsTest$(SellwildEvents.isEnabled(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml")))</ID>
+    <ID>ArgumentListWrapping:SellwildEventsTest.kt$SellwildEventsTest$(mapOf("EVENTS_ENABLED" to JSONObject().put("on", false)))</ID>
+    <ID>ArgumentListWrapping:SellwildEventsTest.kt$SellwildEventsTest$(mapOf("EVENTS_ENABLED" to JSONObject.NULL))</ID>
+    <ID>ArgumentListWrapping:SellwildFailuresTest.kt$SellwildFailuresTest$((1..FailuresCore.SESSION_EMITS).map { "$it" }.toSet(), sink.pushed.map { it.attributes["seq"] }.toSet())</ID>
+    <ID>ArgumentListWrapping:SellwildFailuresTest.kt$SellwildFailuresTest$(code = "config.fetch.http", component = "remoteConfig", severity = SellwildFailureSeverity.FATAL)</ID>
+    <ID>ArgumentListWrapping:SellwildFailuresTest.kt$SellwildFailuresTest$(code = "config.fetch.network", component = "remoteConfig", error = object : RuntimeException("x") {})</ID>
+    <ID>ArgumentListWrapping:SellwildFailuresTest.kt$SellwildFailuresTest$(code = "listings.fetch.http", component = "listings", error = IllegalStateException(long), message = long)</ID>
+    <ID>ArgumentListWrapping:SellwildFailuresTest.kt$SellwildFailuresTest$(code = "listings.fetch.http", component = "listings", message = "1".repeat(999) + "\uD83D\uDE00tail")</ID>
+    <ID>ArgumentListWrapping:SellwildFailuresTest.kt$SellwildFailuresTest$(code = "listings.fetch.network", component = "listings", error = error, message = "fetch failed")</ID>
+    <ID>ArgumentListWrapping:SellwildFailuresTest.kt$SellwildFailuresTest$(long)</ID>
+    <ID>ArgumentListWrapping:SellwildFailuresTest.kt$SellwildFailuresTest.&lt;no name provided&gt;$("x")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedComposeTest.kt$SellwildFeedComposeTest$(config, androidx.compose.ui.Modifier, onListingTap, onAdImpression, onAdClicked, onLoad, onError)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("COL1" to "L", "LISTINGS" to "$listingsUrl-2")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("COL1" to "LG", "MOBILE_ZID" to jsonArrayOf("z1"), "PARTNER_URL" to "market://details?id=com.partner")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("COL1" to "LGLB", "MOBILE_ZID" to jsonArrayOf("z1"), "MOBILE_BANNER_ZID" to "b1", "TITLE" to "Deals")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("COL1" to "LLLL", "LOCALIZED_LISTINGS" to LocalizedListingsConfigFactory.build(mapOf("forceState" to null, "frequency" to 50)))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("COL1" to "LLLL", "LOCALIZED_LISTINGS" to LocalizedListingsConfigFactory.build(mapOf("frequency" to 50)))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("LISTINGS" to listingsUrl, "GAM" to "/1234/fixture", "AD_STACK" to "gamOnly", "COL1" to "L", *overrides)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("data URI is not base64: bad base-64", "image over 8 MiB", "image could not be decoded", "data URI without a comma", "not an http(s) URL")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&amp;pubId=234000&amp;url=1", shadowOf(activity).nextStartedActivity.data.toString())</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/sports-img-data-sm-webp-ga.json", asked.single())</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("id" to id, *overrides)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("image could not be decoded", events.attributes(SellwildFailureCode.FEED_IMAGE_INVALID).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("image could not be decoded: Failed to allocate a &lt;n&gt; byte allocation", attributes.getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("l1")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("l2")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("l3")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("l4")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("load() called before setup()", events.attributes(SellwildFailureCode.FEED_SETUP_MISSING).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("mListener")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("msg")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("the listing or partner URL is not http(s)", events.attributes(SellwildFailureCode.FEED_OPEN_URL_INVALID).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$("unknown view type 99", events.attributes(SellwildFailureCode.FEED_VIEW_TYPE_INVALID).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$((feed.recycler().measuredHeight / activity.resources.displayMetrics.density).toInt(), feed.contentHeightDp)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(0)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(1080, ViewGroup.LayoutParams.WRAP_CONTENT)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(200, body(listing("l1"), listing("l2"), listing("l3"), listing("l4")))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(200, localized)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(300 to 250, 320 to 50)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(50)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(NoBrowserContext(activity))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(SellwildFailureCode.CONFIG_COLOR_INVALID, SellwildFailureCode.CONFIG_COLOR_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(SellwildFailureCode.FEED_AD_ZONE_MISSING, SellwildFailureCode.FEED_AD_ZONE_MISSING)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(SellwildFailureCode.FEED_IMAGE_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(SellwildFailureCode.FEED_OPEN_URL_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(SellwildFailureCode.FEED_SETUP_MISSING)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(SellwildFailureCode.FEED_SETUP_MISSING, SellwildFailureCode.LISTINGS_FETCH_HTTP, SellwildFailureCode.FEED_OPEN_URL_EXCEPTION)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(SellwildFailureCode.FEED_VIEW_TYPE_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(a::getItemViewType)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(activity)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(activity, feed, 1080, 20_000, FrameLayout.LayoutParams(1080, ViewGroup.LayoutParams.WRAP_CONTENT))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(android.graphics.Bitmap.CompressFormat.PNG, 100, it)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(config("COL1" to "L", "LISTINGS" to "$listingsUrl-2"))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(config("COL1" to "LG", "MOBILE_ZID" to jsonArrayOf("z1"), "PARTNER_URL" to "market://details?id=com.partner"))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(config("COL1" to "LGLB", "MOBILE_ZID" to jsonArrayOf("z1"), "MOBILE_BANNER_ZID" to "b1", "TITLE" to "Deals"))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(config("COL1" to "LLLL", "LOCALIZED_LISTINGS" to LocalizedListingsConfigFactory.build(mapOf("forceState" to null, "frequency" to 50))))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(config("COL1" to "LLLL", "LOCALIZED_LISTINGS" to LocalizedListingsConfigFactory.build(mapOf("frequency" to 50))))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(emptyList&lt;Throwable&gt;(), uncaughtOnMain { photo = photoOf(listing("l1", photos("data:image/png;base64,AAAA"))) })</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(feed, StubResponse(200, body(listing("l1"), listing("l2"), listing("l3"), listing("l4"))), state = StubResponse(200, localized))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(listOf(300 to 250, 320 to 50), feed.rows().flatMap { it.adViews() }.map { it.gam().adSize!!.let { s -&gt; s.width to s.height } })</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(listOf(SellwildFailureCode.CONFIG_COLOR_INVALID, SellwildFailureCode.CONFIG_COLOR_INVALID), events.codes)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(listOf(SellwildFailureCode.FEED_AD_ZONE_MISSING, SellwildFailureCode.FEED_AD_ZONE_MISSING), events.codes)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(listing("l1"), listing("l2"), listing("l3"), listing("l4"))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(mapOf("id" to id, *overrides))</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$(refresh)</ID>
+    <ID>ArgumentListWrapping:SellwildGeoTest.kt$SellwildGeoTest$("country", "region", "city", "zip", "metro", "lat", "lon", "type")</ID>
+    <ID>ArgumentListWrapping:SellwildGeoTest.kt$SellwildGeoTest$(country = "USA", state = "NY", city = "Albany", zip = "12207", metro = "532", lat = 42.65, lon = -73.75, type = 2)</ID>
+    <ID>ArgumentListWrapping:SellwildGeoTest.kt$SellwildGeoTest$(setOf("country", "region", "city", "zip", "metro", "lat", "lon", "type"), ortb.keys().asSequence().toSet())</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$("/global/slot", SellwildGpid.resolveBase(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to ""), "43"))</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$("/global/slot", SellwildGpid.resolveBase(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to byZone), "99"))</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$("/zone/43", SellwildGpid.resolveBase(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to byZone), "43"))</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to "")</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to byZone)</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$("GPID_BASE" to JSONObject.NULL)</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$("GPID_BASE_BY_ZONE" to JSONObject().put("43", ""), "GPID_BASE" to "")</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$("samples/app-config/weatherbug_weatherbug-main.403.xml")</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(*entries)</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(AppConfigFactory.offSchema(mapOf("GPID_BASE" to JSONObject.NULL)).toString(), "43")</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"), "43")</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(SellwildGpid.resolveBase(AppConfigFactory.offSchema(mapOf("GPID_BASE" to JSONObject.NULL)).toString(), "43"))</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(SellwildGpid.resolveBase(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"), "43"))</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(SellwildGpid.resolveBase(config("GPID_BASE_BY_ZONE" to JSONObject().put("43", ""), "GPID_BASE" to ""), "43"))</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to ""), "43")</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to byZone), "43")</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to byZone), "99")</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(config("GPID_BASE_BY_ZONE" to JSONObject().put("43", ""), "GPID_BASE" to ""), "43")</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(mapOf("GPID_BASE" to JSONObject.NULL))</ID>
+    <ID>ArgumentListWrapping:SellwildGpidTest.kt$SellwildGpidTest$(mapOf(*entries))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("GROWTHCODE_ENABLED" to "0", "GROWTHCODE_ENABLED_BY_ZONE" to JSONObject().put("43", "1"))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("GROWTHCODE_ENABLED" to true, "GROWTHCODE_PARTNER_ID" to "pid-1", "GROWTHCODE_SYNC_URL" to "")</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("ID5*fixture", 1)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("a complete config still syncs", 1, sync(StubResponse(200, GrowthCodeSyncResponseFactory.checked().toString())).size)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("a hand-built config names the failure partner", "weatherbug", SellwildFailures.context.partnerCode)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("dropped 2 of 3 entries and 1 uids", events.attributes(SellwildFailureCode.GROWTHCODE_EID_INVALID).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("dropped 4 of 6 entries and 3 uids", events.attributes(SellwildFailureCode.GROWTHCODE_EID_INVALID).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("eb" to EidBlobFactory.variant("not-an-array").toString())</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("empty")</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("getters of other types", SellwildGrowthCode.advertisingId(context, OddAdvertisingIdClient::class.java.name))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("h=weatherbug.com", sync(StubResponse(200, GrowthCodeSyncResponseFactory.variant("empty").toString())).single().bodyText())</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("https://ids.api.gcprivacy.id/v4/sync/api?pid=pid-1&amp;u=https%3A%2F%2Fweatherbug.com%2Fapp", request.url.toString())</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("id5-sync.com", listOf(SellwildEidUid("ID5*fixture", 1), SellwildEidUid("ppid-fixture", 0)))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("msg")</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("no Play Services client class", SellwildGrowthCode.advertisingId(context, "com.example.NoSuchClient"))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("not an http(s) URL: ftp", events.attributes(SellwildFailureCode.GROWTHCODE_URL_INVALID).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("ppid-fixture", 0)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$("samples/app-config/weatherbug_weatherbug-main.403.xml")</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(200)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(200, GrowthCodeSyncResponseFactory.checked().toString())</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(200, GrowthCodeSyncResponseFactory.variant("empty").toString())</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(SellwildConfig(partnerCode = "fixture", remoteJson = remote.toString()), null)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(SellwildEid("id5-sync.com", listOf(SellwildEidUid("ID5*fixture", 1), SellwildEidUid("ppid-fixture", 0))))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(SellwildEidUid("ID5*fixture", 1), SellwildEidUid("ppid-fixture", 0))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(SellwildFailureCode.GROWTHCODE_EID_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(SellwildFailureCode.GROWTHCODE_EID_PARSE, SellwildFailureCode.GROWTHCODE_EID_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(SellwildFailureCode.GROWTHCODE_URL_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(SellwildGrowthCode.resolve(config(emptyMap(), SellwildGrowthCodeConfig(enabled = true, sendMaid = true)), "43").sendMaid)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(StubResponse(200), config(enabled + ("GROWTHCODE_ENDPOINT" to "ftp://gc.invalid/sync")))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(StubResponse(200), config(enabled + ("GROWTHCODE_SEND_MAID" to false)))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(StubResponse(200, GrowthCodeSyncResponseFactory.checked().toString()))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(StubResponse(200, GrowthCodeSyncResponseFactory.variant("empty").toString()))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(config(emptyMap(), SellwildGrowthCodeConfig(enabled = true, sendMaid = true)), "43")</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(context, "com.example.NoSuchClient")</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(context, OddAdvertisingIdClient::class.java.name)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(emptyList&lt;CapturedRequest&gt;(), sync(StubResponse(200), config(enabled + ("GROWTHCODE_ENDPOINT" to "ftp://gc.invalid/sync"))))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(emptyList&lt;CapturedRequest&gt;(), sync(StubResponse(200), config(enabled + ("GROWTHCODE_SEND_MAID" to false))))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(emptyMap(), SellwildGrowthCodeConfig(enabled = true, sendMaid = true))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(enabled + ("GROWTHCODE_ENDPOINT" to "ftp://gc.invalid/sync"))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(enabled + ("GROWTHCODE_SEND_MAID" to false))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(enabled = true, sendMaid = true)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(listOf(SellwildFailureCode.GROWTHCODE_EID_PARSE, SellwildFailureCode.GROWTHCODE_EID_INVALID), events.codes)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(mapOf("GROWTHCODE_ENABLED" to "0", "GROWTHCODE_ENABLED_BY_ZONE" to JSONObject().put("43", "1")))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(mapOf("GROWTHCODE_ENABLED" to true, "GROWTHCODE_PARTNER_ID" to "pid-1", "GROWTHCODE_SYNC_URL" to ""))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(mapOf("eb" to EidBlobFactory.variant("not-an-array").toString()))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(null, config(mapOf("GROWTHCODE_ENABLED" to true, "GROWTHCODE_PARTNER_ID" to "pid-1", "GROWTHCODE_SYNC_URL" to "")))</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(overrides)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(partnerCode = "fixture", remoteJson = remote.toString())</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(partnerCode = "weatherbug", remoteJson = AppConfigFactory.checked(overrides).toString(), growthCode = local)</ID>
+    <ID>ArgumentListWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$(partnerCode = "weatherbug", remoteJson = FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdImageTest.kt$SellwildHouseAdImageTest$("IllegalStateException", events.attributes(SellwildFailureCode.HOUSE_IMAGE_INVALID).getString("errName"))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdImageTest.kt$SellwildHouseAdImageTest$("data-uri-photos")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdImageTest.kt$SellwildHouseAdImageTest$("errName")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdImageTest.kt$SellwildHouseAdImageTest$("photos")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdImageTest.kt$SellwildHouseAdImageTest$("url")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdImageTest.kt$SellwildHouseAdImageTest$(0)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdImageTest.kt$SellwildHouseAdImageTest$(SellwildFailureCode.HOUSE_IMAGE_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("300x250", JSONObject().put("image", images("https://x/m1.png")).put("url", "https://x/c"))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("43", JSONObject().put("image", "https://x/zone.png"))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("44", JSONObject().put("url", "https://x/no-image"))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("MOBILE_HOUSE_AD_IMAGE" to "https://x/a.png", "MOBILE_HOUSE_AD_URL" to 7)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("MOBILE_HOUSE_AD_IMAGE" to "https://x/app.png", "MOBILE_HOUSE_AD_BY_ZONE" to byZone, "MOBILE_HOUSE_AD_BY_SIZE" to bySize)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("MOBILE_HOUSE_AD_IMAGE" to images("https://x/a.png", "https://x/b.png"), "MOBILE_HOUSE_AD_URL" to "https://x/shared")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("https://x/c.png", "https://x/u2")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("https://x/d.png", null)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("https://x/m1.png")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("image", "https://x/zone.png")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("image", images("https://x/m1.png"))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("url", "https://x/c")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$("url", "https://x/no-image")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$(3)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$(AppConfigFactory.offSchema(mapOf("MOBILE_HOUSE_AD_IMAGE" to "https://x/a.png", "MOBILE_HOUSE_AD_URL" to 7)))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$(Creative("https://x/c.png", "https://x/u2"), Creative("https://x/d.png", null))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$(all[Random(seed).nextInt(3)], SellwildHouseAd.resolve(config.toString(), null, 300, 250, Random(seed)))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$(config)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$(config.toString(), null, 300, 250, Random(seed))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$(listOf(Creative("https://x/c.png", "https://x/u2"), Creative("https://x/d.png", null)), candidates(config))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$(mapOf("MOBILE_HOUSE_AD_IMAGE" to "https://x/a.png", "MOBILE_HOUSE_AD_URL" to 7))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$(obj, zone, 300, 250)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$(seed)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdTest.kt$SellwildHouseAdTest$("a", "c")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdTest.kt$SellwildHouseAdTest$("a", "c", "a", "c")</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdTest.kt$SellwildHouseAdTest$(listOf("a", "c", "a", "c"), (0 until 4).map { SellwildHouseAd.pickListing(ls, it, setOf("a", "c"))?.id })</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdTest.kt$SellwildHouseAdTest$(ls, it, setOf("a", "c"))</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdViewTest.kt$SellwildHouseAdViewTest$(0)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAdViewTest.kt$SellwildHouseAdViewTest$(1)</ID>
+    <ID>ArgumentListWrapping:SellwildListingsParserDeviceJsonTest.kt$SellwildListingsParserDeviceJsonTest$("cases")</ID>
+    <ID>ArgumentListWrapping:SellwildListingsParserDeviceJsonTest.kt$SellwildListingsParserDeviceJsonTest$("expectations/listings-response.expected.json")</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$("LOCALIZED_LISTINGS lacks baseUrl or urlTemplate", "config.localizedListings lacks baseUrl or urlTemplate")</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$("LOCALIZED_LISTINGS" to value)</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$("baseUrl" to null)</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$("fixtures/app-config/valid/localized-json-text.json")</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$("s1")</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$("samples/app-config/weatherbug_weatherbug-main.403.xml")</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$("urlTemplate" to null)</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(Integration(null, base, template, 25, null), "AL")</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(LocalizedListingsConfigFactory.checked(mapOf("baseUrl" to null)))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(LocalizedListingsConfigFactory.checked(mapOf("urlTemplate" to null)))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(SellwildLocalizedListings.resolve(config.copy(localizedListings = SellwildLocalizedListingsConfig(baseUrl = base))))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(SellwildLocalizedListings.resolve(remote(LocalizedListingsConfigFactory.checked(mapOf("baseUrl" to null)))))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(SellwildLocalizedListings.resolve(remote(LocalizedListingsConfigFactory.checked(mapOf("urlTemplate" to null)))))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(baseUrl = " $base ", urlTemplate = template, frequency = 50, forceState = "ga", source = " ")</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(baseUrl = base)</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(config.copy(localizedListings = SellwildLocalizedListingsConfig(baseUrl = base)))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(emptyList(), listOf(listing("s1")), everyN = 2)</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(emptyList&lt;SellwildListing&gt;(), SellwildLocalizedListings.merge(emptyList(), listOf(listing("s1")), everyN = 2))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(listing("s1"))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(localizedListings = SellwildLocalizedListingsConfig(baseUrl = base))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(mapOf("LOCALIZED_LISTINGS" to value))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(mapOf("baseUrl" to null))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(mapOf("urlTemplate" to null))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(null, base, template, 25, null)</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(partnerCode = "fixture", localizedListings = SellwildLocalizedListingsConfig(baseUrl = base))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(partnerCode = "fixture", remoteJson = AppConfigFactory.checked(mapOf("LOCALIZED_LISTINGS" to value)).toString())</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(partnerCode = "fixture", remoteJson = FixtureLoader.text("fixtures/app-config/valid/localized-json-text.json"))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(partnerCode = "fixture", remoteJson = FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(remote(LocalizedListingsConfigFactory.checked(mapOf("baseUrl" to null))))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(remote(LocalizedListingsConfigFactory.checked(mapOf("urlTemplate" to null))))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdViewTest.kt$SellwildNativeAdViewTest$("Fixture native title", "Sponsored · Fixture Brand", "Fixture native body", "Shop now")</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdViewTest.kt$SellwildNativeAdViewTest$("msg")</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdViewTest.kt$SellwildNativeAdViewTest$("native ad could not be created from the cache", events.attributes(SellwildFailureCode.AD_NATIVE_CREATE_INVALID).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdViewTest.kt$SellwildNativeAdViewTest$("native win without a cache id", events.attributes(SellwildFailureCode.AD_NATIVE_CREATE_INVALID).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdViewTest.kt$SellwildNativeAdViewTest$(SellwildFailureCode.AD_NATIVE_CREATE_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdViewTest.kt$SellwildNativeAdViewTest$(listOf("Fixture native title", "Sponsored · Fixture Brand", "Fixture native body", "Shop now"), texts(view))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdViewTest.kt$SellwildNativeAdViewTest$(view)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$("NATIVE_ENABLED" to 0, "NATIVE_ENABLED_BY_ZONE" to JSONObject().put("43", 1).put("280", false))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$("NATIVE_MAX_HEIGHT" to "320", "NATIVE_MAX_HEIGHT_BY_ZONE" to JSONObject().put("43", 250).put("280", 0))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$("NATIVE_MAX_HEIGHT" to true)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$("NATIVE_ZID" to 43)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$("NATIVE_ZID_ALL_ANDROID" to "native-android-all", "NATIVE_ZID" to "native-shared")</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$("NATIVE_ZID_ANDROID" to "", "NATIVE_ZID_ALL_ANDROID" to jsonArrayOf(), "NATIVE_ZID" to "native-shared")</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$("NATIVE_ZID_ANDROID" to jsonArrayOf("", "native-android-a", "native-android-b"))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$("a zone value that is not positive falls through", 320, SellwildNative.maxHeight(json, "280", fallback = 100))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$(*entries)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$(100, SellwildNative.maxHeight(AppConfigFactory.offSchema(mapOf("NATIVE_MAX_HEIGHT" to true)).toString(), "43", 100))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$(AppConfigFactory.offSchema(mapOf("NATIVE_MAX_HEIGHT" to true)).toString(), "43", 100)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$(AppConfigFactory.offSchema(mapOf("NATIVE_ZID" to 43)).toString(), zone)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$(config("NATIVE_ZID_ALL_ANDROID" to "native-android-all", "NATIVE_ZID" to "native-shared"), zone)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$(config("NATIVE_ZID_ANDROID" to jsonArrayOf("", "native-android-a", "native-android-b")), zone)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$(json, "280", fallback = 100)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$(mapOf("NATIVE_MAX_HEIGHT" to true))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$(mapOf("NATIVE_ZID" to 43))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$(mapOf(*entries))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeTest.kt$SellwildNativeTest$(zone, SellwildNative.resolveConfigId(AppConfigFactory.offSchema(mapOf("NATIVE_ZID" to 43)).toString(), zone))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("PUBLISHER_ID" to "", "SELLER_ID" to "seller-9")</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("PUBLISHER_ID" to "pub-1", "SELLER_ID" to "s")</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("Prebid init finished with status null", events.attributes(SellwildFailureCode.AD_PREBID_INIT_INVALID).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("S2S_CONFIG" to "{ accountId: 'x' }")</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("S2S_CONFIG" to JSONObject().put("endpoint", "https://prebid-cdn.example.com/openrtb2/auction").put("accountId", "cdn-account"))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("S2S_CONFIG" to JSONObject().put("url", "https://pbs.example.com/a").put("account", "acct-2"))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("UID2", checkNotNull(eids.first().uniqueIds.single().json).getJSONObject("ext").getString("rtiPartner"))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("abc-123", "https://prebid.example.com/openrtb2/auction", listOf("appnexus"))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("abc-123", "https://prebid.example.com/openrtb2/auction", listOf("appnexus"), timeout = 900)</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("app" to mapOf("publisher" to mapOf("id" to "pub-1")), "device" to mapOf("geo" to mapOf("region" to "TX")))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("app" to mapOf("publisher" to mapOf("id" to "pub-1"), "cat" to listOf("IAB15")), "device" to mapOf("geo" to mapOf("region" to "GA")))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("appnexus")</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("ext")</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("gc", 1)</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("gc-uid2", 3)</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("growthcode.io", listOf(SellwildEidUid("gc", 1)))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("https://prebid-cdn.example.com/openrtb2/auction" to "cdn-account", fromS2s.url to fromS2s.accountId)</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("https://prebid.sellwild.com/openrtb2/auction" to "weatherbug", fromEmpty.url to fromEmpty.accountId)</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("msg")</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("partner-uid2", 3, ext = mapOf("rtiPartner" to "UID2"))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("pub-1", SellwildPrebidMobile.resolvePublisherId(AppConfigFactory.checked(mapOf("PUBLISHER_ID" to "pub-1", "SELLER_ID" to "s"))))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("rtiPartner" to "UID2")</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("rtiPartner")</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("seller-9", SellwildPrebidMobile.resolvePublisherId(AppConfigFactory.checked(mapOf("PUBLISHER_ID" to "", "SELLER_ID" to "seller-9"))))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("uidapi.com", listOf(SellwildEidUid("gc-uid2", 3)))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$("uidapi.com", listOf(SellwildEidUid("partner-uid2", 3, ext = mapOf("rtiPartner" to "UID2"))))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(AppConfigFactory.checked(mapOf("PUBLISHER_ID" to "", "SELLER_ID" to "seller-9")))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(AppConfigFactory.checked(mapOf("PUBLISHER_ID" to "pub-1", "SELLER_ID" to "s")))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(SellwildConfig(partnerCode = "weatherbug"), AppConfigFactory.checked(mapOf("S2S_CONFIG" to "{ accountId: 'x' }")))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(SellwildConfig(partnerCode = "weatherbug"), s2sAlternateKeys)</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(SellwildEid("growthcode.io", listOf(SellwildEidUid("gc", 1))), SellwildEid("uidapi.com", listOf(SellwildEidUid("gc-uid2", 3))))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(SellwildEid("uidapi.com", listOf(SellwildEidUid("partner-uid2", 3, ext = mapOf("rtiPartner" to "UID2")))))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(SellwildEidUid("gc", 1))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(SellwildEidUid("gc-uid2", 3))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(SellwildEidUid("partner-uid2", 3, ext = mapOf("rtiPartner" to "UID2")))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(SellwildFailureCode.AD_PREBID_INIT_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(context, SellwildConfig(partnerCode = "fixture", geo = SellwildGeo(state = "GA")))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(eids.first().uniqueIds.single().json)</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(mapOf("PUBLISHER_ID" to "", "SELLER_ID" to "seller-9"))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(mapOf("PUBLISHER_ID" to "pub-1", "SELLER_ID" to "s"))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(mapOf("S2S_CONFIG" to "{ accountId: 'x' }"))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(mapOf("S2S_CONFIG" to JSONObject().put("url", "https://pbs.example.com/a").put("account", "acct-2")))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(mapOf("app" to mapOf("publisher" to mapOf("id" to "pub-1")), "device" to mapOf("geo" to mapOf("region" to "TX"))), globalOrtb())</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(partnerCode = "fixture", geo = SellwildGeo(state = "GA"))</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(partnerCode = "weatherbug")</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$(state = "GA")</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$("INTERNET")</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$("MOBILE_BANNER_ZID" to jsonArrayOf(), "AD_REFRESH_MAX" to "five")</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$("logFailure calls, counted before the gate", 1, gateCalls(SellwildFailureCode.CONFIG_FIELD_INVALID))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$("read")</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$("samples/app-config/weatherbug_weatherbug-main.403.xml")</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$("the fetched config's partner, for every later failure", "minimal", SellwildFailures.context.partnerCode)</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$(200, AppConfigFactory.offSchema(flags + ("MOBILE_BANNER_ZID" to jsonArrayOf())).toString())</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$(200, FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$(SecurityException("INTERNET"))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$(SellwildFailureCode.CONFIG_FETCH_NETWORK, SellwildSDK.configFailureCode(SecurityException("INTERNET")))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$(SellwildFailureCode.CONFIG_FETCH_TIMEOUT, SellwildSDK.configFailureCode(SocketTimeoutException("read")))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$(SellwildFailureCode.CONFIG_FIELD_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$(SocketTimeoutException("read"))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$(StubResponse(200, AppConfigFactory.offSchema(flags + ("MOBILE_BANNER_ZID" to jsonArrayOf())).toString()))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$(StubResponse(200, FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml")))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$(flags + ("MOBILE_BANNER_ZID" to jsonArrayOf()))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$(mapOf("MOBILE_BANNER_ZID" to jsonArrayOf(), "AD_REFRESH_MAX" to "five"))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$("APP_BUNDLE_ID" to "com.aws.android", "APP_STORE_URL" to "https://play.google.com/store/apps/details?id=com.aws.android")</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$("CODE" to null, "SLUG" to null, "NAME" to null)</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$("MOBILE_ZID" to null, "MOBILE_ZID_ANDROID" to null)</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$("MOBILE_ZID_ALL_ANDROID" to "", "MOBILE_ZID" to jsonArrayOf("s"), "MOBILE_BANNER_ZID" to 43)</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$("MOBILE_ZID_ANDROID" to jsonArrayOf("a"), "MOBILE_BANNER_ZID_ANDROID" to "b")</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$("MOBILE_ZID_ANDROID" to jsonArrayOf(), "MOBILE_BANNER_ZID_ANDROID" to "", "MOBILE_ZID_ALL_ANDROID" to "all")</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$("https://custom.example.com/listings", config.copy(listingsUrl = "https://custom.example.com/listings").effectiveListingsUrl)</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$("kept")</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(AppConfigFactory.checked(mapOf("MOBILE_ZID_ANDROID" to jsonArrayOf("a"), "MOBILE_BANNER_ZID_ANDROID" to "b")), base)</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(AppConfigFactory.offSchema(mapOf("CODE" to null, "SLUG" to null, "NAME" to null)), base.copy(slug = "s", name = "n"))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(AppConfigFactory.offSchema(mapOf("MOBILE_ZID" to null, "MOBILE_ZID_ANDROID" to null)), base.copy(mobileZids = listOf("kept")))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(listingsUrl = "https://cache.sellwild.com/listings-custom", title = "Deals", adRefreshIntervalMs = 60_000L)</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(listingsUrl = "https://custom.example.com/listings")</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(mapOf("APP_BUNDLE_ID" to "com.aws.android", "APP_STORE_URL" to "https://play.google.com/store/apps/details?id=com.aws.android"))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(mapOf("CODE" to null, "SLUG" to null, "NAME" to null))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(mapOf("MOBILE_ZID" to null, "MOBILE_ZID_ANDROID" to null))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(mapOf("MOBILE_ZID_ALL_ANDROID" to "", "MOBILE_ZID" to jsonArrayOf("s"), "MOBILE_BANNER_ZID" to 43))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(mapOf("MOBILE_ZID_ANDROID" to jsonArrayOf("a"), "MOBILE_BANNER_ZID_ANDROID" to "b"))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(mapOf("MOBILE_ZID_ANDROID" to jsonArrayOf(), "MOBILE_BANNER_ZID_ANDROID" to "", "MOBILE_ZID_ALL_ANDROID" to "all"))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(mobileZids = listOf("kept"))</ID>
+    <ID>ArgumentListWrapping:SellwildSDKTest.kt$SellwildSDKTest$(slug = "s", name = "n")</ID>
+    <ID>ArgumentListWrapping:SellwildSafeUrlTest.kt$SellwildSafeUrlTest$("https://cache.sellwild.com/a.png")</ID>
+    <ID>ArgumentListWrapping:SellwildSafeUrlTest.kt$SellwildSafeUrlTest$("https://cache.sellwild.com/a.png", SellwildSafeUrl.imageUrl("https://cache.sellwild.com/a.png").toString())</ID>
+    <ID>ArgumentListWrapping:SellwildSafeUrlTest.kt$SellwildSafeUrlTest$("https://sellwild.com/product/1")</ID>
+    <ID>ArgumentListWrapping:SellwildSafeUrlTest.kt$SellwildSafeUrlTest$("https://sellwild.com/product/1", SellwildSafeUrl.external("https://sellwild.com/product/1").toString())</ID>
+    <ID>ArgumentListWrapping:SellwildSafeUrlTest.kt$SellwildSafeUrlTest$(null, "", "intent://x#Intent;end", "market://details?id=x", "tel:123", "javascript:alert(1)", "sellwild.com/x")</ID>
+    <ID>ArgumentListWrapping:SellwildVideoTest.kt$SellwildVideoTest$("VIDEO_ENABLED" to false, "VIDEO_ENABLED_BY_ZONE" to JSONObject().put("43", "yes").put("280", "no"))</ID>
+    <ID>ArgumentListWrapping:SellwildVideoTest.kt$SellwildVideoTest$("fixtures/app-config/valid/flags-mixed-types.json")</ID>
+    <ID>ArgumentListWrapping:SellwildVideoTest.kt$SellwildVideoTest$(*entries)</ID>
+    <ID>ArgumentListWrapping:SellwildVideoTest.kt$SellwildVideoTest$(FixtureLoader.text("fixtures/app-config/valid/flags-mixed-types.json"), null)</ID>
+    <ID>ArgumentListWrapping:SellwildVideoTest.kt$SellwildVideoTest$(SellwildVideo.isEnabled(FixtureLoader.text("fixtures/app-config/valid/flags-mixed-types.json"), null))</ID>
+    <ID>ArgumentListWrapping:SellwildVideoTest.kt$SellwildVideoTest$(mapOf(*entries))</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("TITLE" to "Deals")</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("Uncaught TypeError: Cannot read properties of undefined", event.getJSONObject("attributes").getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("WebView render process crashed", events.attributes(SellwildFailureCode.WIDGET_WEBVIEW_PROCESS_EXCEPTION).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("WebView render process was killed", events.attributes(SellwildFailureCode.WIDGET_WEBVIEW_PROCESS_EXCEPTION).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("android.webkit.WebViewFactory")</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("attributes")</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("default", "listing-click", "ad-impression", "error")</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("https://cdn.example.com/photo.jpg", mainFrame = false)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("https://widget.sellwild.com/", mainFrame = true)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("load() called before setup()", events.attributes(SellwildFailureCode.WIDGET_SETUP_MISSING).getString("msg"))</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("msg")</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("sDataDirectorySuffix")</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$("text/html", "utf-8", 404, "Not Found", emptyMap(), ByteArrayInputStream(ByteArray(0)))</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(-2, "net::ERR_NAME_NOT_RESOLVED")</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(-6, "net::ERR_CONNECTION_REFUSED")</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(-8, "net::ERR_TIMED_OUT")</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(0)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(BridgeMessageFactory.variant(name).toString())</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(ByteArray(0))</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(SellwildFailureCode.BRIDGE_MESSAGE_UNSUPPORTED, SellwildFailureCode.BRIDGE_MESSAGE_INVALID)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(SellwildFailureCode.CONFIG_FETCH_HTTP, SellwildFailureComponent.REMOTE_CONFIG, SellwildFailureSeverity.ERROR, httpStatus = 403)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(SellwildFailureCode.WIDGET_SETUP_MISSING)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(SellwildFailureCode.WIDGET_WEBVIEW_LOAD_NETWORK, SellwildFailureCode.WIDGET_WEBVIEW_LOAD_NETWORK)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(SellwildFailureCode.WIDGET_WEBVIEW_PROCESS_EXCEPTION)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(WidgetPage.SCRIPT_URL, mainFrame = false)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(listOf(SellwildFailureCode.BRIDGE_MESSAGE_UNSUPPORTED, SellwildFailureCode.BRIDGE_MESSAGE_INVALID), events.codes)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(listOf(SellwildFailureCode.WIDGET_WEBVIEW_LOAD_NETWORK, SellwildFailureCode.WIDGET_WEBVIEW_LOAD_NETWORK), events.codes)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(name)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(view.web(), request("https://cdn.example.com/photo.jpg", mainFrame = false), error(-6, "net::ERR_CONNECTION_REFUSED"))</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(view.web(), request("https://cdn.example.com/photo.jpg", mainFrame = false), notFound)</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(view.web(), request("https://widget.sellwild.com/", mainFrame = true), error(-2, "net::ERR_NAME_NOT_RESOLVED"))</ID>
+    <ID>ArgumentListWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$(view.web(), request(WidgetPage.SCRIPT_URL, mainFrame = false), error(-8, "net::ERR_TIMED_OUT"))</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("$name=\"")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("&amp;quot;", "\"")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("43", (WidgetBridge.decode(BridgeMessageFactory.variant("ad-impression").toString()).value as BridgeMessage.AdImpression).zoneId)</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("43", (WidgetBridge.decode(BridgeMessageFactory.variant("ad-impression-number-zone").toString()).value as BridgeMessage.AdImpression).zoneId)</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("\"")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("\"bundle\": \"com.weatherbug\", \"storeurl\": \"https://play.google.com/store/apps/details?id=com.weatherbug\"")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("acct", "https://pbs.example.com/auction", emptyList())</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("acct", "https://pbs.example.com/auction", listOf("appnexus", "ix"), 900, "https://pbs.example.com/sync")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("ad-impression")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("ad-impression-number-zone")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("appnexus", "ix")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("default")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("delDomain" to "x.openx.net", "unitM" to "1", "unitD" to "2", "disabled" to true)</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("error")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231_thumb.jpg", full.photos.single().thumbUrl)</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("listing-click")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("listing-click-photos")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("listing-click-stub")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$("pubIdM" to "p", "adSlotM" to "s", "adSlotD" to "t", "disabled" to true)</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(BridgeMessage.Loaded, WidgetBridge.decode(BridgeMessageFactory.variant("default").toString()).value)</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(BridgeMessageFactory.variant("ad-impression").toString())</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(BridgeMessageFactory.variant("ad-impression-number-zone").toString())</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(BridgeMessageFactory.variant("default").toString())</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(BridgeMessageFactory.variant("error").toString())</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(BridgeMessageFactory.variant("listing-click").toString())</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(BridgeMessageFactory.variant("listing-click-photos").toString())</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(BridgeMessageFactory.variant("listing-click-stub").toString())</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(attrs, "openx")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(attrs, "pubmatic")</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(attrs.any { it.startsWith("debug=") || it.startsWith("ad-refresh-max=") || it.startsWith("boltive-client-id=") })</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(full.contains("\"bundle\": \"com.weatherbug\", \"storeurl\": \"https://play.google.com/store/apps/details?id=com.weatherbug\""))</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(mapOf("delDomain" to "x.openx.net", "unitM" to "1", "unitD" to "2", "disabled" to true), json(attrs, "openx"))</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(mapOf("pubIdM" to "p", "adSlotM" to "s", "adSlotD" to "t", "disabled" to true), json(attrs, "pubmatic"))</ID>
+    <ID>ArgumentListWrapping:WidgetPageTest.kt$WidgetPageTest$(partnerCode = "weatherbug", prebidServer = PrebidServerConfig("acct", "https://pbs.example.com/auction", emptyList()))</ID>
+    <ID>FunctionOnlyReturningConstant:SellwildGrowthCodeTest.kt$OddAdvertisingIdClient.Info$fun getId(): Any</ID>
+    <ID>FunctionOnlyReturningConstant:SellwildGrowthCodeTest.kt$OddAdvertisingIdClient.Info$fun isLimitAdTrackingEnabled(): Any</ID>
+    <ID>ImportOrdering:AdViewTestSupport.kt$import android.app.Activity import android.content.ActivityNotFoundException import android.content.Context import android.content.ContextWrapper import android.content.Intent import android.graphics.Bitmap import android.os.Bundle import android.os.Looper import android.view.View import android.view.ViewGroup import android.widget.FrameLayout import com.google.android.gms.ads.admanager.AdManagerAdView import com.sellwild.prebid.AdSize as PrebidAdSize import com.sellwild.prebid.configuration.AdUnitConfiguration import com.sellwild.prebid.rendering.bidding.data.bid.BidResponse import com.sellwild.prebid.api.rendering.BannerView import org.robolectric.Robolectric import org.robolectric.Shadows.shadowOf import java.time.Duration</ID>
+    <ID>ImportOrdering:SellwildAdViewTest.kt$import android.content.Context import android.view.View import android.view.WindowManager import android.widget.FrameLayout import androidx.test.core.app.ApplicationProvider import com.google.android.gms.ads.LoadAdError import com.google.android.gms.ads.admanager.AdManagerAdView import com.sellwild.prebid.ResultCode import com.sellwild.sdk.factories.AppConfigFactory import com.sellwild.sdk.factories.ListingFactory import com.sellwild.sdk.factories.jsonArrayOf import com.sellwild.sdk.core.ListingsParser import com.sellwild.sdk.failures.FailuresRule import com.sellwild.sdk.failures.SellwildFailureCode import com.sellwild.sdk.support.NetworkBlockRule import org.json.JSONObject import org.junit.Assert.assertEquals import org.junit.Assert.assertNotNull import org.junit.Assert.assertNull import org.junit.Assert.assertSame import org.junit.Assert.assertTrue import org.junit.Before import org.junit.Rule import org.junit.Test import org.junit.runner.RunWith import org.robolectric.RobolectricTestRunner import org.robolectric.Shadows.shadowOf</ID>
+    <ID>InjectDispatcher:CapturedEvents.kt$CapturedEvents$Unconfined</ID>
+    <ID>InjectDispatcher:SellwildAPIClientTest.kt$SellwildAPIClientTest$IO</ID>
+    <ID>InjectDispatcher:SellwildEventQueueTest.kt$SellwildEventQueueTest$Unconfined</ID>
+    <ID>InjectDispatcher:SellwildFeedComposeTest.kt$SellwildFeedComposeTest$Unconfined</ID>
+    <ID>InjectDispatcher:SellwildFeedViewTest.kt$SellwildFeedViewTest$Unconfined</ID>
+    <ID>LargeClass:SellwildFeedViewTest.kt$SellwildFeedViewTest</ID>
+    <ID>MaxLineLength:AdDecisionsTest.kt$AdDecisionsTest$AdDecisions.resume(AdDecisions.Stack.GAM, refreshMax = 0, nativeEnabled = never, hasRenderedCreative = true, keepCreative = never)</ID>
+    <ID>MaxLineLength:AdDecisionsTest.kt$AdDecisionsTest$AdDecisions.resume(AdDecisions.Stack.PREBID_ONLY, refreshMax = 0, nativeEnabled = never, hasRenderedCreative = true, keepCreative = never)</ID>
+    <ID>MaxLineLength:AdDecisionsTest.kt$AdDecisionsTest$AdDecisions.resume(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { false }, hasRenderedCreative = false, keepCreative = never)</ID>
+    <ID>MaxLineLength:AdDecisionsTest.kt$AdDecisionsTest$AdDecisions.resume(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { false }, hasRenderedCreative = true, keepCreative = { false })</ID>
+    <ID>MaxLineLength:AdDecisionsTest.kt$AdDecisionsTest$AdDecisions.resume(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { false }, hasRenderedCreative = true, keepCreative = { true })</ID>
+    <ID>MaxLineLength:AdDecisionsTest.kt$AdDecisionsTest$AdDecisions.resume(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { true }, hasRenderedCreative = true, keepCreative = never)</ID>
+    <ID>MaxLineLength:AdDecisionsTest.kt$AdDecisionsTest$assertEquals(AdDecisions.ColdStart.TIMED_OUT, AdDecisions.coldStart(ready = false, attempts = 1, maxAttempts = 1))</ID>
+    <ID>MaxLineLength:AdDecisionsTest.kt$AdDecisionsTest$assertEquals(Resolved("/12345/weatherbug/banner_top"), AdDecisions.gamAdUnit("/12345/weatherbug/banner_top", cdn, 320, 50))</ID>
+    <ID>MaxLineLength:AdDecisionsTest.kt$AdDecisionsTest$assertTrue(AdDecisions.isPrebidNoFill("No bids: There are no bids or bids don't have required targeting keywords"))</ID>
+    <ID>MaxLineLength:AdDecisionsTest.kt$AdDecisionsTest$assertTrue(AdFlags.pauseRefreshWhenDetached(AppConfigFactory.offSchema(mapOf("MOBILE_PAUSE_REFRESH_DETACHED" to JSONObject()))))</ID>
+    <ID>MaxLineLength:AdDecisionsTest.kt$AdDecisionsTest$val resolved = AdDecisions.gamAdUnit(null, AppConfigFactory.offSchema(mapOf("GAM" to JSONObject.NULL)), 300, 250)</ID>
+    <ID>MaxLineLength:AdViewTestSupport.kt$NoBrowserContext$override fun startActivity(intent: Intent?, options: Bundle?)</ID>
+    <ID>MaxLineLength:AdViewTestSupport.kt$internal</ID>
+    <ID>MaxLineLength:AdViewTestSupport.kt$internal fun SellwildAdView.house(): SellwildHouseAdView?</ID>
+    <ID>MaxLineLength:AdViewTestSupport.kt$internal fun SellwildAdView.native(): SellwildNativeAdView</ID>
+    <ID>MaxLineLength:AdViewTestSupport.kt$parent.addView(view, lp ?: FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))</ID>
+    <ID>MaxLineLength:AppConfigConformanceTest.kt$AppConfigConformanceTest$"adRefreshIntervalMs" to RemoteValues.optAny(raw, "AD_REFRESH_INTERVAL")?.let { config.adRefreshIntervalMs }</ID>
+    <ID>MaxLineLength:AppConfigConformanceTest.kt$AppConfigConformanceTest$"cacheUrlForState" to mapOf("state" to state, "url" to SellwildLocalizedListings.buildCacheUrl(it, state))</ID>
+    <ID>MaxLineLength:AppConfigConformanceTest.kt$AppConfigConformanceTest$"resolved" to conformance.zones.associateWith { stackNames.getValue(SellwildAdStack.resolve(config.remoteJson, it)) }</ID>
+    <ID>MaxLineLength:AppConfigConformanceTest.kt$AppConfigConformanceTest$assertEquals("every valid fixture has a case", emptyList&lt;String&gt;(), files.filterNot { f -&gt; conformance.cases.any { it.first == f } })</ID>
+    <ID>MaxLineLength:AppConfigConformanceTest.kt$AppConfigConformanceTest$private</ID>
+    <ID>MaxLineLength:BridgeMessageFactory.kt$BridgeMessageFactory$Variant("ad-impression-number-zone") { contractObject("fixtures/bridge-message/valid/ad-impression-number-zone.json") }</ID>
+    <ID>MaxLineLength:BridgeMessageFactory.kt$BridgeMessageFactory$Variant("listing-click-photos") { listingClickWith(photos = org.json.JSONArray().put(org.json.JSONObject().put("url", PHOTO).put("thumbUrl", THUMB))) }</ID>
+    <ID>MaxLineLength:BridgeMessageFactory.kt$BridgeMessageFactory$getJSONObject("listing").put("photos", photos).put("price", "19315").put("currency", "USD").put("url", "https://sellwild.com/listing/105140231")</ID>
+    <ID>MaxLineLength:ConfigFieldsTest.kt$ConfigFieldsTest$"ignored or coerced: TITLE, MOBILE_BANNER_ZID, MOBILE_ZID, AD_REFRESH_MAX, MAX_FAILED_AUCTIONS, IAB_CATS, DEBUG, PBS_DEBUG"</ID>
+    <ID>MaxLineLength:ConfigFieldsTest.kt$ConfigFieldsTest$FixtureLoader.list("fixtures/app-config/valid") + FixtureLoader.list("samples/app-config").filter { it.endsWith(".json") }</ID>
+    <ID>MaxLineLength:ConfigFieldsTest.kt$ConfigFieldsTest$listOf("TITLE", "MOBILE_BANNER_ZID", "MOBILE_ZID", "AD_REFRESH_MAX", "MAX_FAILED_AUCTIONS", "IAB_CATS", "DEBUG", "PBS_DEBUG")</ID>
+    <ID>MaxLineLength:ConfigFieldsTest.kt$ConfigFieldsTest$val nulls = AppConfigFactory.offSchema(mapOf("COLORS" to "", "AD_REFRESH_MAX" to JSONObject.NULL, "DEBUG" to JSONObject.NULL))</ID>
+    <ID>MaxLineLength:Conformance.kt$Conformance$(0 until cases.length()).map { cases.getJSONObject(it) }.map { it.getString("file") to it.getJSONObject("expected") }</ID>
+    <ID>MaxLineLength:Conformance.kt$Conformance$fun</ID>
+    <ID>MaxLineLength:Conformance.kt$Conformance$return doc.getJSONObject("fields").keys().asSequence().filter { text.contains("$it:") || text.startsWith(it) }.toList()</ID>
+    <ID>MaxLineLength:Conformance.kt$Conformance$val</ID>
+    <ID>MaxLineLength:ContractEmitterTest.kt$ContractEmitterTest$assertEquals(ContractEmitter.defaultOutDir(System.getenv(ContractEmitter.OUT_ROOT_ENV), moduleDir), ContractEmitter.outDir())</ID>
+    <ID>MaxLineLength:ContractEmitterTest.kt$ContractEmitterTest$assertThrows(IllegalArgumentException::class.java) { ContractEmitter.emitText("app-config", "scalar", "42", dir) }</ID>
+    <ID>MaxLineLength:ContractEmitterTest.kt$ContractEmitterTest$assertThrows(variant, IllegalArgumentException::class.java) { ContractEmitter.emit("app-config", variant, json, dir) }</ID>
+    <ID>MaxLineLength:ContractEmitterTest.kt$ContractEmitterTest$val expected = ContractEmitter.defaultOutDir(System.getenv(ContractEmitter.OUT_ROOT_ENV), System.getProperty("user.dir")!!)</ID>
+    <ID>MaxLineLength:ContractEmitterTest.kt$ContractEmitterTest$val file = ContractEmitter.emit("events-batch", "client_failure", JSONArray().put(JSONObject().put("event", "x")), dir)</ID>
+    <ID>MaxLineLength:ContractFactory.kt$JsonObjectFactory$if (ContractSchemas.errors(schema, it).isEmpty()) throw AssertionError("$schema: expected an off-schema payload, got a valid one: $it")</ID>
+    <ID>MaxLineLength:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$assertEquals("$schema: every invalid fixture has an expected error", expected.keys().asSequence().toSet(), files.map { it.substringAfterLast('/') }.toSet())</ID>
+    <ID>MaxLineLength:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$val expected = FixtureLoader.jsonObject("fixtures/$schema/invalid/_expected-errors.json").getJSONObject("errors")</ID>
+    <ID>MaxLineLength:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$val files = FixtureLoader.list("fixtures/$schema/invalid").filterNot { it.endsWith("/_expected-errors.json") }</ID>
+    <ID>MaxLineLength:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$val pointer = expected.getJSONObject(file.substringAfterLast('/')).getString("instancePath").ifEmpty { "/" }</ID>
+    <ID>MaxLineLength:EventFactories.kt$EventsBatchFactory$SellwildEvent(event = "adError", action = "No ad to show.", label = "43", uid = "u-1", createdTime = 1_790_000_000_000L)</ID>
+    <ID>MaxLineLength:EventFactories.kt$EventsBatchFactory$internal</ID>
+    <ID>MaxLineLength:FailureCodesParityTest.kt$FailureCodesParityTest$.</ID>
+    <ID>MaxLineLength:FailuresCoreTest.kt$FailuresCoreTest$val spaces = listOf(0x7f, 0x85, 0x9f, 0x1680, 0x2000, 0x200a, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff, 0xa0)</ID>
+    <ID>MaxLineLength:FailuresWiringTest.kt$FailuresWiringTest$"cache.sellwild.com" -&gt; StubResponse(200, ListingsResponseFactory.withItems(ListingFactory.build()).toString())</ID>
+    <ID>MaxLineLength:FailuresWiringTest.kt$FailuresWiringTest$assertEquals(first, context.getSharedPreferences("sellwild_sdk", Context.MODE_PRIVATE).getString("_sw_uid", null))</ID>
+    <ID>MaxLineLength:FailuresWiringTest.kt$FailuresWiringTest$private fun missingConfig()</ID>
+    <ID>MaxLineLength:FailuresWiringTest.kt$FailuresWiringTest$runBlocking { client.fetchListings(SellwildConfig(partnerCode = "weatherbug", listingsUrl = listingsUrl)) }.getOrThrow()</ID>
+    <ID>MaxLineLength:FailuresWiringTest.kt$FailuresWiringTest$val eventsOff = StubResponse(200, AppConfigFactory.withFailureFlags(null, null, eventsEnabled = false).toString())</ID>
+    <ID>MaxLineLength:FakeAdNetwork.kt$AdNetworkAccess$fun</ID>
+    <ID>MaxLineLength:FakeAdNetwork.kt$internal</ID>
+    <ID>MaxLineLength:FeedScheduleTest.kt$FeedScheduleTest$Issue(SellwildFailureCode.FEED_AD_ZONE_MISSING, SellwildFailureComponent.FEED, SellwildFailureSeverity.WARN, message = "COL1 B rows dropped: no banner zone (1)")</ID>
+    <ID>MaxLineLength:FeedScheduleTest.kt$FeedScheduleTest$Issue(SellwildFailureCode.FEED_AD_ZONE_MISSING, SellwildFailureComponent.FEED, SellwildFailureSeverity.WARN, message = "COL1 G/D rows dropped: no MOBILE_ZID zone (3)")</ID>
+    <ID>MaxLineLength:FeedScheduleTest.kt$FeedScheduleTest$assertEquals(listOf("COL1 G/D rows dropped: no MOBILE_ZID zone (1)", "COL1 B rows dropped: no banner zone (1)"), built.issues.map { it.message })</ID>
+    <ID>MaxLineLength:FetchTest.kt$FetchTest$assertEquals(SellwildFailureCode.CONFIG_APPLY_EXCEPTION, Fetch.codeFor(IllegalArgumentException("a"), Fetch.CONFIG))</ID>
+    <ID>MaxLineLength:FetchTest.kt$FetchTest$assertEquals(SellwildFailureCode.LISTINGS_FETCH_NETWORK, Fetch.codeFor(NetworkBlockedException(URL("https://x.invalid")), Fetch.LISTINGS))</ID>
+    <ID>MaxLineLength:FormatTest.kt$FormatTest$Issue(SellwildFailureCode.CONFIG_COLOR_INVALID, SellwildFailureComponent.REMOTE_CONFIG, SellwildFailureSeverity.ERROR, message = "LINK_COLOR is not a color: #12")</ID>
+    <ID>MaxLineLength:FormatTest.kt$FormatTest$Issue(SellwildFailureCode.CONFIG_COLOR_INVALID, SellwildFailureComponent.REMOTE_CONFIG, SellwildFailureSeverity.ERROR, message = "PRICE_COLOR is not a color: teal-ish")</ID>
+    <ID>MaxLineLength:FormatTest.kt$FormatTest$ListingFactory.checked(mapOf("user" to JSONObject().put("id", "1").put("firstName", first).put("lastName", last)))</ID>
+    <ID>MaxLineLength:FormatTest.kt$FormatTest$assertEquals(FeedColors(0xFF112233.toInt(), 0xFF445566.toInt(), 0xFF778899.toInt(), 0xFF778899.toInt()), resolved.value)</ID>
+    <ID>MaxLineLength:FormatTest.kt$FormatTest$assertEquals(FeedColors(FeedTheme.BACKGROUND, 0xFF445566.toInt(), FeedTheme.POWERED_BY, FeedTheme.PRICE), resolved.value)</ID>
+    <ID>MaxLineLength:FormatTest.kt$FormatTest$assertEquals(FeedColors(FeedTheme.BACKGROUND, FeedTheme.TITLE, FeedTheme.POWERED_BY, FeedTheme.PRICE), resolved.value)</ID>
+    <ID>MaxLineLength:GrowthCodeFactories.kt$EidBlobFactory$Variant("uid-without-id") { base().apply { getJSONObject(0).getJSONArray("uids").put(JSONObject().put("atype", 1)) } }</ID>
+    <ID>MaxLineLength:GrowthCodeFactories.kt$EidBlobFactory$put(JSONObject().put("source", "").put("uids", JSONArray().put(JSONObject().put("id", "empty-source-uid"))))</ID>
+    <ID>MaxLineLength:GrowthCodeFactories.kt$EidBlobFactory$put(JSONObject().put("source", JSONObject.NULL).put("uids", JSONArray().put(JSONObject().put("id", "null-source-uid"))))</ID>
+    <ID>MaxLineLength:GrowthCodeSyncTest.kt$GrowthCodeSyncTest$listOf(SellwildEid("id5-sync.com", listOf(SellwildEidUid("ID5*fixture", 1), SellwildEidUid("ppid-fixture", 0))))</ID>
+    <ID>MaxLineLength:GrowthCodeSyncTest.kt$GrowthCodeSyncTest$listOf(SellwildEidUid("ID5*fixture", 1), SellwildEidUid("ppid-fixture", 0, mapOf("stype" to "ppuid")))</ID>
+    <ID>MaxLineLength:HttpStubTest.kt$HttpStubTest$val stub = HttpStub.install { StubResponse(201, """{"ok":true}""", mapOf("Content-Type" to "application/json")) }</ID>
+    <ID>MaxLineLength:ListingFactories.kt$ListingFactory$.</ID>
+    <ID>MaxLineLength:ListingFactories.kt$ListingFactory$/** One listing (`result.rs[i]`). Base: a real Sellwild cache item, `fixtures/listing/valid/sellwild-cache-item.json`. */</ID>
+    <ID>MaxLineLength:ListingFactories.kt$ListingsResponseFactory$Variant("sample-weatherbug") { contractObject("samples/listings-response/listings-img-data-sm-avif-weatherbug.json") }</ID>
+    <ID>MaxLineLength:ListingFactories.kt$ListingsResponseFactory$object</ID>
+    <ID>MaxLineLength:ListingsConformanceTest.kt$ListingsConformanceTest$"nullRemoteUrlIds" to response.listings.filter { it.id in nullIds &amp;&amp; it.remoteUrl == null }.map { it.id }</ID>
+    <ID>MaxLineLength:ListingsConformanceTest.kt$ListingsConformanceTest$.</ID>
+    <ID>MaxLineLength:ListingsConformanceTest.kt$ListingsConformanceTest$runBlocking { SellwildAPIClient(ApplicationProvider.getApplicationContext&lt;Context&gt;()).fetchListings(SellwildConfig("conformance", listingsUrl = url)) }</ID>
+    <ID>MaxLineLength:ListingsParserTest.kt$ListingsParserTest$assertEquals("https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231_thumb.jpg", listing.photos.single().thumbUrl)</ID>
+    <ID>MaxLineLength:ListingsParserTest.kt$ListingsParserTest$listOf(SellwildPhoto("https://listings-static1.sellwild.com/x.jpg", "https://listings-static1.sellwild.com/x_thumb.jpg"))</ID>
+    <ID>MaxLineLength:NetworkBlock.kt$NetworkBlock$generateSequence(t) { it.cause }.take(MAX_CAUSES).any { it.javaClass.name == NetworkBlockedException::class.java.name }</ID>
+    <ID>MaxLineLength:NetworkBlockAuditListenerTest.kt$NetworkBlockAuditListenerTest$assertEquals(listOf("com.example.ProbeTest#probe: left an HttpStub installed (close it with use { })"), report.readLines())</ID>
+    <ID>MaxLineLength:PrebidSetupTest.kt$PrebidSetupTest$assertEquals(mapOf("app" to mapOf("cat" to listOf("IAB1"))), parsed(PrebidSetup.globalOrtb("", listOf("IAB1"), null)))</ID>
+    <ID>MaxLineLength:PrebidSetupTest.kt$PrebidSetupTest$assertEquals(mapOf("device" to mapOf("geo" to mapOf("region" to "GA"))), parsed(PrebidSetup.globalOrtb(null, emptyList(), geo)))</ID>
+    <ID>MaxLineLength:RemoteValuesTest.kt$RemoteValuesTest$listOf&lt;Any?&gt;(true, 1, "yes", "anything", "", JSONObject(), null).forEach { assertTrue("$it", RemoteValues.isNotOff(it)) }</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertEquals("https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231.jpg", listing.primaryPhotoUrl)</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertEquals("https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&amp;pubId=234000&amp;url=1", remote.tapUrl("weatherbug", ""))</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertEquals("https://sellwild.com/product/105140231?p=sellwild&amp;utm_source=sellwild", product.copy(url = "").tapUrl(""))</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertEquals(listOf("weatherbug", "configured", "configured"), events.failures.map { it.getJSONObject("attributes").getString("code") })</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertTrue(client.fetchListings(SellwildConfig(partnerCode = "weatherbug", listingsUrl = listingsUrl)).isSuccess)</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertTrue(fetchState(StubResponse(200), url = "file:///sdcard/al.json").exceptionOrNull() is MalformedURLException)</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertTrue(fetchState(StubResponse(200, FixtureLoader.text("samples/localized-listings-response/sports-img-data-sm-webp-zz.403.xml"))).isFailure)</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$private</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$runBlocking { SellwildAPIClient(context).fetchListings(SellwildConfig(partnerCode = "", listingsUrl = listingsUrl)) }</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$runBlocking { SellwildAPIClient(context).fetchListings(SellwildConfig(partnerCode = "other", listingsUrl = listingsUrl)) }</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$runBlocking { client.fetchListings(SellwildConfig(partnerCode = "weatherbug", listingsUrl = url)) } to stub.requests.size</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$val (result, _) = fetch(StubResponse(200, FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml")))</ID>
+    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$val (result, _) = fetch(StubResponse(200, goodBody, mapOf("CloudFront-Viewer-Country-Region" to "GA")), client = client)</ID>
+    <ID>MaxLineLength:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$SellwildAdAudioGuard.apply(container(webView), AppConfigFactory.checked(mapOf("MOBILE_AD_MUTE_AUTOPLAY" to "off")).toString())</ID>
+    <ID>MaxLineLength:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$assertEquals("IllegalStateException", events.attributes(SellwildFailureCode.AD_AUDIO_GUARD_EXCEPTION).getString("errName"))</ID>
+    <ID>MaxLineLength:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$assertEquals("the mute shim threw in the page", events.attributes(SellwildFailureCode.AD_AUDIO_GUARD_EXCEPTION).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$assertEquals(listOf(Signals.Protocols.VAST_2_0, Signals.Protocols.VAST_3_0, Signals.Protocols.VAST_4_0), params.protocols)</ID>
+    <ID>MaxLineLength:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$listOf(NativeDataAsset.DATA_TYPE.SPONSORED, NativeDataAsset.DATA_TYPE.DESC, NativeDataAsset.DATA_TYPE.CTATEXT)</ID>
+    <ID>MaxLineLength:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$private fun container(vararg children: android.view.View)</ID>
+    <ID>MaxLineLength:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$assertTrue(SellwildAdAudioGuard.isEnabled(FixtureLoader.text("fixtures/app-config/valid/flags-mixed-types.json")))</ID>
+    <ID>MaxLineLength:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$assertTrue(SellwildAdAudioGuard.isEnabled(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml")))</ID>
+    <ID>MaxLineLength:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$private fun enabled(value: Any?)</ID>
+    <ID>MaxLineLength:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$val catches = Regex("""catch\s*\(\s*\w+\s*\)\s*\{([^}]*)\}""").findAll(SellwildAdAudioGuard.MUTE_SCRIPT).map { it.groupValues[1].trim() }.toList()</ID>
+    <ID>MaxLineLength:SellwildAdSizesTest.kt$SellwildAdSizesTest$"320x50"</ID>
+    <ID>MaxLineLength:SellwildAdSizesTest.kt$SellwildAdSizesTest$assertEquals("'' for a zone is its own (empty) list", listOf(mrec), resolve("280", "BANNER_SIZES" to jsonArrayOf("728x90"), "BANNER_SIZES_BY_ZONE" to byZone))</ID>
+    <ID>MaxLineLength:SellwildAdSizesTest.kt$SellwildAdSizesTest$assertEquals(listOf(mrec, Size(320, 50)), resolve("43", "BANNER_SIZES" to jsonArrayOf("320x50", " 300 X 250 ", "320x50")))</ID>
+    <ID>MaxLineLength:SellwildAdSizesTest.kt$SellwildAdSizesTest$assertEquals(listOf(mrec, Size(320, 50)), resolve("43", "BANNER_SIZES" to jsonArrayOf("728x90"), "BANNER_SIZES_BY_ZONE" to byZone))</ID>
+    <ID>MaxLineLength:SellwildAdSizesTest.kt$SellwildAdSizesTest$assertEquals(listOf(mrec, Size(728, 90)), resolve("43", "BANNER_SIZES" to jsonArrayOf(jsonArrayOf(728, 90), jsonArrayOf("300", "250.0"))))</ID>
+    <ID>MaxLineLength:SellwildAdSizesTest.kt$SellwildAdSizesTest$assertEquals(listOf(mrec, Size(728, 90)), resolve("999", "BANNER_SIZES" to jsonArrayOf("728x90"), "BANNER_SIZES_BY_ZONE" to byZone))</ID>
+    <ID>MaxLineLength:SellwildAdSizesTest.kt$SellwildAdSizesTest$listOf("BANNER_SIZES_BY_ZONE[43]: dropped 1 of 1 entries" to "43", "BANNER_SIZES: dropped 1 of 2 entries" to null)</ID>
+    <ID>MaxLineLength:SellwildAdSizesTest.kt$SellwildAdSizesTest$listOf("BANNER_SIZES_BY_ZONE[43]: dropped 1 of 1 entries" to "43", "BANNER_SIZES_BY_ZONE[280]: dropped 1 of 1 entries" to "280")</ID>
+    <ID>MaxLineLength:SellwildAdSizesTest.kt$SellwildAdSizesTest$val json = AppConfigFactory.offSchema(mapOf("BANNER_SIZES" to jsonArrayOf("320x50", "wide"), "BANNER_SIZES_BY_ZONE" to byZone)).toString()</ID>
+    <ID>MaxLineLength:SellwildAdStackTest.kt$SellwildAdStackTest$assertEquals("the oldest text was forgotten, so it is new again", 10, gateCalls(SellwildFailureCode.CONFIG_ADSTACK_INVALID))</ID>
+    <ID>MaxLineLength:SellwildAdStackTest.kt$SellwildAdStackTest$assertEquals(SellwildAdStack.BOTH, SellwildAdStack.resolve(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"), "43"))</ID>
+    <ID>MaxLineLength:SellwildAdStackTest.kt$SellwildAdStackTest$assertEquals(SellwildAdStack.BOTH, SellwildAdStack.resolve(config("AD_STACK" to "", "AD_STACK_BY_ZONE" to ""), "43"))</ID>
+    <ID>MaxLineLength:SellwildAdStackTest.kt$SellwildAdStackTest$private fun config(vararg entries: Pair&lt;String, Any?&gt;): String</ID>
+    <ID>MaxLineLength:SellwildAdStackTest.kt$SellwildAdStackTest$private fun zones(vararg entries: Pair&lt;String, Any&gt;): JSONObject</ID>
+    <ID>MaxLineLength:SellwildAdStackTest.kt$SellwildAdStackTest$setOf("AD_STACK_BY_ZONE entry is not a known mode: nope", "AD_STACK_BY_ZONE entry is not a known mode: gamm")</ID>
+    <ID>MaxLineLength:SellwildAdStackTest.kt$SellwildAdStackTest$val obj = AppConfigFactory.checked(mapOf("AD_STACK" to "prebid", "AD_STACK_BY_ZONE" to zones("43" to "GAM", "280" to "nope", "7" to "")))</ID>
+    <ID>MaxLineLength:SellwildAdViewCallbacksTest.kt$SellwildAdViewCallbacksTest$assertEquals("GAM load error 0: Internal error.", events.attributes(SellwildFailureCode.AD_GAM_LOAD_EXCEPTION).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildAdViewCallbacksTest.kt$SellwildAdViewCallbacksTest$private fun loadError(code: Int, message: String)</ID>
+    <ID>MaxLineLength:SellwildAdViewCallbacksTest.kt$SellwildAdViewCallbacksTest$private val native = arrayOf&lt;Pair&lt;String, Any?&gt;&gt;("AD_STACK" to "prebidOnly", "NATIVE_ENABLED" to true, "GAM" to "/1234/fixture")</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$assertEquals("IllegalStateException", events.attributes(SellwildFailureCode.AD_BID_INSPECT_EXCEPTION).getString("errName"))</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$assertEquals("NoSuchMethodError", events.attributes(SellwildFailureCode.AD_BID_INSPECT_EXCEPTION).getString("errName"))</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$assertEquals("PREBID_ONLY needs a zone id (the Prebid configId)", event.getJSONObject("attributes").getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$assertEquals("Prebid not ready after 8 waits; loading the native ad anyway", event.getJSONObject("attributes").getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$assertEquals("a video creative won a banner-only zone", events.attributes(SellwildFailureCode.AD_PLACEMENT_INVALID).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$assertEquals(listOf("failed:SellwildAdView resolved to PREBID_ONLY but has no zoneId; Prebid rendering requires a configId."), calls.calls)</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$assertEquals(listOf("failed:SellwildAdView resolved to native but has no zoneId; Prebid native rendering requires a configId."), calls.calls)</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$configWith(*prebidOnly, "AD_REFRESH_MAX_MOBILE" to 3, "AD_REFRESH_INTERVAL" to 45_000, "BANNER_SIZES" to jsonArrayOf("320x50"), "GPID_BASE" to "/1/feed")</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$loud.prebidEvents.onAdLoaded(FakeBanner(context, response = FakeBid(video = true)).apply { addView(loudPlayer) })</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$private</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$private val native = arrayOf&lt;Pair&lt;String, Any?&gt;&gt;("AD_STACK" to "prebidOnly", "NATIVE_ENABLED" to true, "GAM" to "/1234/fixture")</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$quiet.prebidEvents.onAdLoaded(FakeBanner(context, response = FakeBid(video = true)).apply { addView(quietPlayer) })</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$val view = adView(configWith(*prebidOnly, "AD_REFRESH_MAX_MOBILE" to 1, "MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH" to "yes"))</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$val view = adView(configWith(*prebidOnly, "AD_REFRESH_MAX_MOBILE" to 3, "MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH" to true), ctx = activity)</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$view.prebidEvents.onAdLoaded(FakeBanner(context, response = FakeBid(error = IllegalStateException("no winning bid"))).apply { addView(player) })</ID>
+    <ID>MaxLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$view.prebidEvents.onAdLoaded(FakeBanner(context, response = FakeBid(error = NoSuchMethodError("isVideo"))).apply { addView(player) })</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$assertEquals("resume() called before setup()", events.attributes(SellwildFailureCode.AD_SETUP_MISSING).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$assertEquals(SellwildAdView.GAM_TEST_AD_UNIT_BANNER, SellwildAdView.resolveGAMAdUnitID(configWith(), AdSize.BANNER_320x50))</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$assertEquals(emptyMap&lt;String, Any?&gt;(), SellwildAdView.bidderParamsFromRemote(SellwildConfig(partnerCode = "fixture")))</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$assertEquals(setOf("medianet") to "/1/feed", impExt(auction.unit.impOrtbConfig).let { (b, g) -&gt; b.intersect(setOf("medianet")) to g })</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$ctx = ErrorOnStartContext(newActivity(), NoClassDefFoundError("androidx/browser/customtabs/CustomTabsIntent"))</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$private fun loadError(code: Int, message: String)</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$val capped = adView(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX" to 1, "AD_REFRESH_INTERVAL" to 45))</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$val view = adView(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX_MOBILE" to 2, "AD_REFRESH_INTERVAL" to 30_000))</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$val view = adView(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX_MOBILE" to 3, "MOBILE_PAUSE_REFRESH_DETACHED" to false), ctx = activity)</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$val view = adView(configWith(*gam, "MOBILE_HOUSE_AD_IMAGE" to IMAGE, "MOBILE_HOUSE_AD_URL" to "https://sellwild.com/house"), ctx = activity)</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$val view = adView(configWith(*gam, "MOBILE_HOUSE_AD_IMAGE" to IMAGE, "MOBILE_HOUSE_AD_URL" to "market://details?id=com.x"), ctx = activity)</ID>
+    <ID>MaxLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$view.setup(configWith(*gam, "MOBILE_HOUSE_AD_IMAGE" to IMAGE, "MOBILE_HOUSE_AD_ENABLED" to false), AdSize.MREC_300x250, "43")</ID>
+    <ID>MaxLineLength:SellwildConfigTest.kt$SellwildConfigTest$SellwildConfig(partnerCode = "p").copy(growthCode = growth, localizedListings = localized, prebidServer = server, ix = ix)</ID>
+    <ID>MaxLineLength:SellwildConfigTest.kt$SellwildConfigTest$SellwildConfig(partnerCode = "p", growthCode = growth, localizedListings = localized, prebidServer = server, ix = ix)</ID>
+    <ID>MaxLineLength:SellwildConfigTest.kt$SellwildConfigTest$assertEquals("https://c.invalid/x", SellwildConfig(partnerCode = "p", listingsUrl = "https://c.invalid/x").effectiveListingsUrl)</ID>
+    <ID>MaxLineLength:SellwildConfigTest.kt$SellwildConfigTest$assertEquals(SellwildConfig.DEFAULT_LISTINGS_URL, SellwildConfig(partnerCode = "p", listingsUrl = "").effectiveListingsUrl)</ID>
+    <ID>MaxLineLength:SellwildConfigTest.kt$SellwildConfigTest$val config = SellwildConfig(partnerCode = "test_partner", listingsUrl = "https://cache.sellwild.com/listings-img-data-sm")</ID>
+    <ID>MaxLineLength:SellwildConfigTest.kt$SellwildConfigTest$val localized = SellwildLocalizedListingsConfig(true, "sportserver", "https://c.invalid/", "x-{state}.json", 25, "AL")</ID>
+    <ID>MaxLineLength:SellwildConfigTest.kt$SellwildConfigTest$val server = PrebidServerConfig("acct", "https://pbs.invalid/openrtb2/auction", listOf("appnexus"), 900, "https://pbs.invalid/cookie_sync")</ID>
+    <ID>MaxLineLength:SellwildEventQueueTest.kt$SellwildEventQueueTest$SellwildEvent(event = "e", attributes = mapOf("type" to "ios", "code" to "caller", "keep" to true), uid = "u", createdTime = now)</ID>
+    <ID>MaxLineLength:SellwildEventQueueTest.kt$SellwildEventQueueTest$assertEquals("a clientFailure without a code still gets the partner", "queue-partner", events.getJSONObject(1).getJSONObject("attributes").getString("code"))</ID>
+    <ID>MaxLineLength:SellwildEventQueueTest.kt$SellwildEventQueueTest$assertEquals("other events keep today's stamping", "queue-partner", events.getJSONObject(2).getJSONObject("attributes").getString("code"))</ID>
+    <ID>MaxLineLength:SellwildEventQueueTest.kt$SellwildEventQueueTest$queue.push("adError", action = "Request Error", label = "43", attributes = mapOf("reason" to "timeout", "tries" to 2))</ID>
+    <ID>MaxLineLength:SellwildEventQueueTest.kt$SellwildEventQueueTest$queue.track(SellwildEvent(event = "clientFailure", action = "a.b.c", uid = "core-uid", createdTime = 1_800_000_000_000L))</ID>
+    <ID>MaxLineLength:SellwildEventQueueTest.kt$SellwildEventQueueTest$val</ID>
+    <ID>MaxLineLength:SellwildEventsTest.kt$SellwildEventsTest$assertTrue("JSON null is unset", SellwildEvents.isEnabled(AppConfigFactory.offSchema(mapOf("EVENTS_ENABLED" to JSONObject.NULL)).toString()))</ID>
+    <ID>MaxLineLength:SellwildEventsTest.kt$SellwildEventsTest$assertTrue("an object is not a switch", SellwildEvents.isEnabled(AppConfigFactory.offSchema(mapOf("EVENTS_ENABLED" to JSONObject().put("on", false))).toString()))</ID>
+    <ID>MaxLineLength:SellwildEventsTest.kt$SellwildEventsTest$assertTrue(SellwildEvents.isEnabled(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml")))</ID>
+    <ID>MaxLineLength:SellwildFailuresTest.kt$SellwildFailuresTest$SellwildFailures.log(code = "config.fetch.http", component = "remoteConfig", severity = SellwildFailureSeverity.FATAL)</ID>
+    <ID>MaxLineLength:SellwildFailuresTest.kt$SellwildFailuresTest$SellwildFailures.log(code = "config.fetch.network", component = "remoteConfig", error = object : RuntimeException("x") {})</ID>
+    <ID>MaxLineLength:SellwildFailuresTest.kt$SellwildFailuresTest$SellwildFailures.log(code = "listings.fetch.http", component = "listings", error = IllegalStateException(long), message = long)</ID>
+    <ID>MaxLineLength:SellwildFailuresTest.kt$SellwildFailuresTest$SellwildFailures.log(code = "listings.fetch.http", component = "listings", message = "1".repeat(999) + "\uD83D\uDE00tail")</ID>
+    <ID>MaxLineLength:SellwildFailuresTest.kt$SellwildFailuresTest$SellwildFailures.log(code = "listings.fetch.network", component = "listings", error = error, message = "fetch failed")</ID>
+    <ID>MaxLineLength:SellwildFailuresTest.kt$SellwildFailuresTest$assertEquals((1..FailuresCore.SESSION_EMITS).map { "$it" }.toSet(), sink.pushed.map { it.attributes["seq"] }.toSet())</ID>
+    <ID>MaxLineLength:SellwildFeedComposeTest.kt$SellwildFeedComposeTest$SellwildFeed(config, androidx.compose.ui.Modifier, onListingTap, onAdImpression, onAdClicked, onLoad, onError)</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals("https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&amp;pubId=234000&amp;url=1", shadowOf(activity).nextStartedActivity.data.toString())</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals("https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/sports-img-data-sm-webp-ga.json", asked.single())</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals("image could not be decoded", events.attributes(SellwildFailureCode.FEED_IMAGE_INVALID).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals("image could not be decoded: Failed to allocate a &lt;n&gt; byte allocation", attributes.getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals("load() called before setup()", events.attributes(SellwildFailureCode.FEED_SETUP_MISSING).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals("the listing or partner URL is not http(s)", events.attributes(SellwildFailureCode.FEED_OPEN_URL_INVALID).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals("unknown view type 99", events.attributes(SellwildFailureCode.FEED_VIEW_TYPE_INVALID).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals((feed.recycler().measuredHeight / activity.resources.displayMetrics.density).toInt(), feed.contentHeightDp)</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals(emptyList&lt;Throwable&gt;(), uncaughtOnMain { photo = photoOf(listing("l1", photos("data:image/png;base64,AAAA"))) })</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals(listOf(300 to 250, 320 to 50), feed.rows().flatMap { it.adViews() }.map { it.gam().adSize!!.let { s -&gt; s.width to s.height } })</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals(listOf(SellwildFailureCode.CONFIG_COLOR_INVALID, SellwildFailureCode.CONFIG_COLOR_INVALID), events.codes)</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$assertEquals(listOf(SellwildFailureCode.FEED_AD_ZONE_MISSING, SellwildFailureCode.FEED_AD_ZONE_MISSING), events.codes)</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$configWith("LISTINGS" to listingsUrl, "GAM" to "/1234/fixture", "AD_STACK" to "gamOnly", "COL1" to "L", *overrides)</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$listOf("data URI is not base64: bad base-64", "image over 8 MiB", "image could not be decoded", "data URI without a comma", "not an http(s) URL")</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$listOf(SellwildFailureCode.FEED_SETUP_MISSING, SellwildFailureCode.LISTINGS_FETCH_HTTP, SellwildFailureCode.FEED_OPEN_URL_EXCEPTION)</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$load(feed, StubResponse(200, body(listing("l1"), listing("l2"), listing("l3"), listing("l4"))), state = StubResponse(200, localized))</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$private</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$private fun SellwildFeedView.recycler(): RecyclerView</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$private fun SellwildFeedView.types(): List&lt;Int&gt;</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$private fun listing(id: String, vararg overrides: Pair&lt;String, Any?&gt;): JSONObject</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$private fun show(feed: SellwildFeedView): FrameLayout</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$setup(config("COL1" to "LG", "MOBILE_ZID" to jsonArrayOf("z1"), "PARTNER_URL" to "market://details?id=com.partner"))</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$val</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$val feed = feed(config("COL1" to "LGLB", "MOBILE_ZID" to jsonArrayOf("z1"), "MOBILE_BANNER_ZID" to "b1", "TITLE" to "Deals"))</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$val feed = feed(config("COL1" to "LLLL", "LOCALIZED_LISTINGS" to LocalizedListingsConfigFactory.build(mapOf("forceState" to null, "frequency" to 50))))</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$val feed = feed(config("COL1" to "LLLL", "LOCALIZED_LISTINGS" to LocalizedListingsConfigFactory.build(mapOf("frequency" to 50))))</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$val listener = SwipeRefreshLayout::class.java.getDeclaredField("mListener").apply { isAccessible = true }.get(refresh) as SwipeRefreshLayout.OnRefreshListener</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$val noBrowser = SellwildFeedView(NoBrowserContext(activity)).apply { setup(config("COL1" to "L", "LISTINGS" to "$listingsUrl-2")) }</ID>
+    <ID>MaxLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$val png = java.io.ByteArrayOutputStream().also { pixel().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()</ID>
+    <ID>MaxLineLength:SellwildGeoTest.kt$SellwildGeoTest$assertEquals(setOf("country", "region", "city", "zip", "metro", "lat", "lon", "type"), ortb.keys().asSequence().toSet())</ID>
+    <ID>MaxLineLength:SellwildGeoTest.kt$SellwildGeoTest$val geo = SellwildGeo(country = "USA", state = "NY", city = "Albany", zip = "12207", metro = "532", lat = 42.65, lon = -73.75, type = 2)</ID>
+    <ID>MaxLineLength:SellwildGpidTest.kt$SellwildGpidTest$assertEquals("/global/slot", SellwildGpid.resolveBase(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to ""), "43"))</ID>
+    <ID>MaxLineLength:SellwildGpidTest.kt$SellwildGpidTest$assertEquals("/global/slot", SellwildGpid.resolveBase(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to byZone), "99"))</ID>
+    <ID>MaxLineLength:SellwildGpidTest.kt$SellwildGpidTest$assertEquals("/zone/43", SellwildGpid.resolveBase(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to byZone), "43"))</ID>
+    <ID>MaxLineLength:SellwildGpidTest.kt$SellwildGpidTest$assertNull(SellwildGpid.resolveBase(AppConfigFactory.offSchema(mapOf("GPID_BASE" to JSONObject.NULL)).toString(), "43"))</ID>
+    <ID>MaxLineLength:SellwildGpidTest.kt$SellwildGpidTest$assertNull(SellwildGpid.resolveBase(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"), "43"))</ID>
+    <ID>MaxLineLength:SellwildGpidTest.kt$SellwildGpidTest$assertNull(SellwildGpid.resolveBase(config("GPID_BASE_BY_ZONE" to JSONObject().put("43", ""), "GPID_BASE" to ""), "43"))</ID>
+    <ID>MaxLineLength:SellwildGpidTest.kt$SellwildGpidTest$private fun config(vararg entries: Pair&lt;String, Any?&gt;): String</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$SellwildConfig(partnerCode = "weatherbug", remoteJson = AppConfigFactory.checked(overrides).toString(), growthCode = local)</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertEquals("a complete config still syncs", 1, sync(StubResponse(200, GrowthCodeSyncResponseFactory.checked().toString())).size)</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertEquals("a hand-built config names the failure partner", "weatherbug", SellwildFailures.context.partnerCode)</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertEquals("dropped 2 of 3 entries and 1 uids", events.attributes(SellwildFailureCode.GROWTHCODE_EID_INVALID).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertEquals("dropped 4 of 6 entries and 3 uids", events.attributes(SellwildFailureCode.GROWTHCODE_EID_INVALID).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertEquals("h=weatherbug.com", sync(StubResponse(200, GrowthCodeSyncResponseFactory.variant("empty").toString())).single().bodyText())</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertEquals("https://ids.api.gcprivacy.id/v4/sync/api?pid=pid-1&amp;u=https%3A%2F%2Fweatherbug.com%2Fapp", request.url.toString())</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertEquals("not an http(s) URL: ftp", events.attributes(SellwildFailureCode.GROWTHCODE_URL_INVALID).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertEquals(emptyList&lt;CapturedRequest&gt;(), sync(StubResponse(200), config(enabled + ("GROWTHCODE_ENDPOINT" to "ftp://gc.invalid/sync"))))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertEquals(emptyList&lt;CapturedRequest&gt;(), sync(StubResponse(200), config(enabled + ("GROWTHCODE_SEND_MAID" to false))))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertEquals(listOf(SellwildFailureCode.GROWTHCODE_EID_PARSE, SellwildFailureCode.GROWTHCODE_EID_INVALID), events.codes)</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertNull("getters of other types", SellwildGrowthCode.advertisingId(context, OddAdvertisingIdClient::class.java.name))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertNull("no Play Services client class", SellwildGrowthCode.advertisingId(context, "com.example.NoSuchClient"))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$assertTrue(SellwildGrowthCode.resolve(config(emptyMap(), SellwildGrowthCodeConfig(enabled = true, sendMaid = true)), "43").sendMaid)</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$listOf(SellwildEid("id5-sync.com", listOf(SellwildEidUid("ID5*fixture", 1), SellwildEidUid("ppid-fixture", 0))))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$sync(null, config(mapOf("GROWTHCODE_ENABLED" to true, "GROWTHCODE_PARTNER_ID" to "pid-1", "GROWTHCODE_SYNC_URL" to "")))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$val</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$val bad = SellwildConfig(partnerCode = "weatherbug", remoteJson = FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$val byZone = config(mapOf("GROWTHCODE_ENABLED" to "0", "GROWTHCODE_ENABLED_BY_ZONE" to JSONObject().put("43", "1")))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$val response = GrowthCodeSyncResponseFactory.checked(mapOf("eb" to EidBlobFactory.variant("not-an-array").toString()))</ID>
+    <ID>MaxLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$val settings = SellwildGrowthCode.resolve(SellwildConfig(partnerCode = "fixture", remoteJson = remote.toString()), null)</ID>
+    <ID>MaxLineLength:SellwildHouseAdImageTest.kt$SellwildHouseAdImageTest$assertEquals("IllegalStateException", events.attributes(SellwildFailureCode.HOUSE_IMAGE_INVALID).getString("errName"))</ID>
+    <ID>MaxLineLength:SellwildHouseAdImageTest.kt$SellwildHouseAdImageTest$private val dataPhoto: String = ListingFactory.variant("data-uri-photos").getJSONArray("photos").getJSONObject(0).getString("url")</ID>
+    <ID>MaxLineLength:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$assertEquals(all[Random(seed).nextInt(3)], SellwildHouseAd.resolve(config.toString(), null, 300, 250, Random(seed)))</ID>
+    <ID>MaxLineLength:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$assertEquals(listOf(Creative("https://x/c.png", "https://x/u2"), Creative("https://x/d.png", null)), candidates(config))</ID>
+    <ID>MaxLineLength:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$candidates(AppConfigFactory.offSchema(mapOf("MOBILE_HOUSE_AD_IMAGE" to "https://x/a.png", "MOBILE_HOUSE_AD_URL" to 7)))</ID>
+    <ID>MaxLineLength:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$private fun candidates(obj: JSONObject, zone: String? = null): List&lt;Creative&gt;</ID>
+    <ID>MaxLineLength:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$val bySize = JSONObject().put("300x250", JSONObject().put("image", images("https://x/m1.png")).put("url", "https://x/c"))</ID>
+    <ID>MaxLineLength:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$val byZone = JSONObject().put("43", JSONObject().put("image", "https://x/zone.png")).put("44", JSONObject().put("url", "https://x/no-image"))</ID>
+    <ID>MaxLineLength:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$val config = obj("MOBILE_HOUSE_AD_IMAGE" to "https://x/app.png", "MOBILE_HOUSE_AD_BY_ZONE" to byZone, "MOBILE_HOUSE_AD_BY_SIZE" to bySize)</ID>
+    <ID>MaxLineLength:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$val config = obj("MOBILE_HOUSE_AD_IMAGE" to images("https://x/a.png", "https://x/b.png"), "MOBILE_HOUSE_AD_URL" to "https://x/shared")</ID>
+    <ID>MaxLineLength:SellwildHouseAdTest.kt$SellwildHouseAdTest$assertEquals(listOf("a", "c", "a", "c"), (0 until 4).map { SellwildHouseAd.pickListing(ls, it, setOf("a", "c"))?.id })</ID>
+    <ID>MaxLineLength:SellwildHouseAdViewTest.kt$SellwildHouseAdViewTest$private fun image(view: SellwildHouseAdView): ImageView</ID>
+    <ID>MaxLineLength:SellwildHouseAdViewTest.kt$SellwildHouseAdViewTest$private fun textArea(view: SellwildHouseAdView): LinearLayout</ID>
+    <ID>MaxLineLength:SellwildListingsParserDeviceJsonTest.kt$SellwildListingsParserDeviceJsonTest$val expectations = FixtureLoader.jsonObject("expectations/listings-response.expected.json").getJSONArray("cases")</ID>
+    <ID>MaxLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$SellwildConfig(partnerCode = "fixture", remoteJson = AppConfigFactory.checked(mapOf("LOCALIZED_LISTINGS" to value)).toString())</ID>
+    <ID>MaxLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$assertEquals(emptyList&lt;SellwildListing&gt;(), SellwildLocalizedListings.merge(emptyList(), listOf(listing("s1")), everyN = 2))</ID>
+    <ID>MaxLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$assertNull(SellwildLocalizedListings.resolve(config.copy(localizedListings = SellwildLocalizedListingsConfig(baseUrl = base))))</ID>
+    <ID>MaxLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$assertNull(SellwildLocalizedListings.resolve(remote(LocalizedListingsConfigFactory.checked(mapOf("baseUrl" to null)))))</ID>
+    <ID>MaxLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$assertNull(SellwildLocalizedListings.resolve(remote(LocalizedListingsConfigFactory.checked(mapOf("urlTemplate" to null)))))</ID>
+    <ID>MaxLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$fun url(base: String, template: String)</ID>
+    <ID>MaxLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$listOf("LOCALIZED_LISTINGS lacks baseUrl or urlTemplate", "config.localizedListings lacks baseUrl or urlTemplate")</ID>
+    <ID>MaxLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$val bad = SellwildConfig(partnerCode = "fixture", remoteJson = FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"))</ID>
+    <ID>MaxLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$val config = SellwildConfig(partnerCode = "fixture", remoteJson = FixtureLoader.text("fixtures/app-config/valid/localized-json-text.json"))</ID>
+    <ID>MaxLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$val local = SellwildConfig(partnerCode = "fixture", localizedListings = SellwildLocalizedListingsConfig(baseUrl = base))</ID>
+    <ID>MaxLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$val local = SellwildLocalizedListingsConfig(baseUrl = " $base ", urlTemplate = template, frequency = 50, forceState = "ga", source = " ")</ID>
+    <ID>MaxLineLength:SellwildNativeAdViewTest.kt$SellwildNativeAdViewTest$assertEquals("native ad could not be created from the cache", events.attributes(SellwildFailureCode.AD_NATIVE_CREATE_INVALID).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildNativeAdViewTest.kt$SellwildNativeAdViewTest$assertEquals("native win without a cache id", events.attributes(SellwildFailureCode.AD_NATIVE_CREATE_INVALID).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildNativeAdViewTest.kt$SellwildNativeAdViewTest$assertEquals(listOf("Fixture native title", "Sponsored · Fixture Brand", "Fixture native body", "Shop now"), texts(view))</ID>
+    <ID>MaxLineLength:SellwildNativeTest.kt$SellwildNativeTest$SellwildNative.resolveConfigId(config("NATIVE_ZID_ALL_ANDROID" to "native-android-all", "NATIVE_ZID" to "native-shared"), zone)</ID>
+    <ID>MaxLineLength:SellwildNativeTest.kt$SellwildNativeTest$SellwildNative.resolveConfigId(config("NATIVE_ZID_ANDROID" to jsonArrayOf("", "native-android-a", "native-android-b")), zone)</ID>
+    <ID>MaxLineLength:SellwildNativeTest.kt$SellwildNativeTest$assertEquals("a zone value that is not positive falls through", 320, SellwildNative.maxHeight(json, "280", fallback = 100))</ID>
+    <ID>MaxLineLength:SellwildNativeTest.kt$SellwildNativeTest$assertEquals(100, SellwildNative.maxHeight(AppConfigFactory.offSchema(mapOf("NATIVE_MAX_HEIGHT" to true)).toString(), "43", 100))</ID>
+    <ID>MaxLineLength:SellwildNativeTest.kt$SellwildNativeTest$assertEquals(zone, SellwildNative.resolveConfigId(AppConfigFactory.offSchema(mapOf("NATIVE_ZID" to 43)).toString(), zone))</ID>
+    <ID>MaxLineLength:SellwildNativeTest.kt$SellwildNativeTest$private fun config(vararg entries: Pair&lt;String, Any?&gt;): String</ID>
+    <ID>MaxLineLength:SellwildNativeTest.kt$SellwildNativeTest$val byZone = config("NATIVE_ENABLED" to 0, "NATIVE_ENABLED_BY_ZONE" to JSONObject().put("43", 1).put("280", false))</ID>
+    <ID>MaxLineLength:SellwildNativeTest.kt$SellwildNativeTest$val json = config("NATIVE_MAX_HEIGHT" to "320", "NATIVE_MAX_HEIGHT_BY_ZONE" to JSONObject().put("43", 250).put("280", 0))</ID>
+    <ID>MaxLineLength:SellwildNativeTest.kt$SellwildNativeTest$val json = config("NATIVE_ZID_ANDROID" to "", "NATIVE_ZID_ALL_ANDROID" to jsonArrayOf(), "NATIVE_ZID" to "native-shared")</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$SellwildPrebidMobile.bootstrap(context, SellwildConfig(partnerCode = "fixture", geo = SellwildGeo(state = "GA")))</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$assertEquals("Prebid init finished with status null", events.attributes(SellwildFailureCode.AD_PREBID_INIT_INVALID).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$assertEquals("UID2", checkNotNull(eids.first().uniqueIds.single().json).getJSONObject("ext").getString("rtiPartner"))</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$assertEquals("https://prebid-cdn.example.com/openrtb2/auction" to "cdn-account", fromS2s.url to fromS2s.accountId)</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$assertEquals("https://prebid.sellwild.com/openrtb2/auction" to "weatherbug", fromEmpty.url to fromEmpty.accountId)</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$assertEquals("pub-1", SellwildPrebidMobile.resolvePublisherId(AppConfigFactory.checked(mapOf("PUBLISHER_ID" to "pub-1", "SELLER_ID" to "s"))))</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$assertEquals("seller-9", SellwildPrebidMobile.resolvePublisherId(AppConfigFactory.checked(mapOf("PUBLISHER_ID" to "", "SELLER_ID" to "seller-9"))))</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$assertEquals(mapOf("app" to mapOf("publisher" to mapOf("id" to "pub-1")), "device" to mapOf("geo" to mapOf("region" to "TX"))), globalOrtb())</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$listOf(SellwildEid("growthcode.io", listOf(SellwildEidUid("gc", 1))), SellwildEid("uidapi.com", listOf(SellwildEidUid("gc-uid2", 3))))</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$listOf(SellwildEid("uidapi.com", listOf(SellwildEidUid("partner-uid2", 3, ext = mapOf("rtiPartner" to "UID2")))))</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$mapOf("S2S_CONFIG" to JSONObject().put("endpoint", "https://prebid-cdn.example.com/openrtb2/auction").put("accountId", "cdn-account"))</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$mapOf("app" to mapOf("publisher" to mapOf("id" to "pub-1"), "cat" to listOf("IAB15")), "device" to mapOf("geo" to mapOf("region" to "GA")))</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$prebidServer = PrebidServerConfig("abc-123", "https://prebid.example.com/openrtb2/auction", listOf("appnexus"))</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$prebidServer = PrebidServerConfig("abc-123", "https://prebid.example.com/openrtb2/auction", listOf("appnexus"), timeout = 900)</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$val fromAlternate = SellwildPrebidMobile.resolvePrebidServer(SellwildConfig(partnerCode = "weatherbug"), s2sAlternateKeys)</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$val fromText = SellwildPrebidMobile.resolvePrebidServer(SellwildConfig(partnerCode = "weatherbug"), AppConfigFactory.checked(mapOf("S2S_CONFIG" to "{ accountId: 'x' }")))</ID>
+    <ID>MaxLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$val s2sAlternateKeys = AppConfigFactory.checked(mapOf("S2S_CONFIG" to JSONObject().put("url", "https://pbs.example.com/a").put("account", "acct-2")))</ID>
+    <ID>MaxLineLength:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$assertEquals("logFailure calls, counted before the gate", 1, gateCalls(SellwildFailureCode.CONFIG_FIELD_INVALID))</ID>
+    <ID>MaxLineLength:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$assertEquals("the fetched config's partner, for every later failure", "minimal", SellwildFailures.context.partnerCode)</ID>
+    <ID>MaxLineLength:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$assertEquals(SellwildFailureCode.CONFIG_FETCH_NETWORK, SellwildSDK.configFailureCode(SecurityException("INTERNET")))</ID>
+    <ID>MaxLineLength:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$assertEquals(SellwildFailureCode.CONFIG_FETCH_TIMEOUT, SellwildSDK.configFailureCode(SocketTimeoutException("read")))</ID>
+    <ID>MaxLineLength:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$configure(StubResponse(200, AppConfigFactory.offSchema(flags + ("MOBILE_BANNER_ZID" to jsonArrayOf())).toString()))</ID>
+    <ID>MaxLineLength:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$val body = AppConfigFactory.offSchema(mapOf("MOBILE_BANNER_ZID" to jsonArrayOf(), "AD_REFRESH_MAX" to "five")).toString()</ID>
+    <ID>MaxLineLength:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$val config = configure(StubResponse(200, FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml")))</ID>
+    <ID>MaxLineLength:SellwildSDKTest.kt$SellwildSDKTest$AppConfigFactory.checked(mapOf("APP_BUNDLE_ID" to "com.aws.android", "APP_STORE_URL" to "https://play.google.com/store/apps/details?id=com.aws.android"))</ID>
+    <ID>MaxLineLength:SellwildSDKTest.kt$SellwildSDKTest$AppConfigFactory.checked(mapOf("MOBILE_ZID_ALL_ANDROID" to "", "MOBILE_ZID" to jsonArrayOf("s"), "MOBILE_BANNER_ZID" to 43))</ID>
+    <ID>MaxLineLength:SellwildSDKTest.kt$SellwildSDKTest$AppConfigFactory.checked(mapOf("MOBILE_ZID_ANDROID" to jsonArrayOf(), "MOBILE_BANNER_ZID_ANDROID" to "", "MOBILE_ZID_ALL_ANDROID" to "all"))</ID>
+    <ID>MaxLineLength:SellwildSDKTest.kt$SellwildSDKTest$assertEquals("https://custom.example.com/listings", config.copy(listingsUrl = "https://custom.example.com/listings").effectiveListingsUrl)</ID>
+    <ID>MaxLineLength:SellwildSDKTest.kt$SellwildSDKTest$val config = SellwildSDK.apply(AppConfigFactory.offSchema(mapOf("CODE" to null, "SLUG" to null, "NAME" to null)), base.copy(slug = "s", name = "n"))</ID>
+    <ID>MaxLineLength:SellwildSDKTest.kt$SellwildSDKTest$val custom = base.copy(listingsUrl = "https://cache.sellwild.com/listings-custom", title = "Deals", adRefreshIntervalMs = 60_000L)</ID>
+    <ID>MaxLineLength:SellwildSDKTest.kt$SellwildSDKTest$val none = SellwildSDK.apply(AppConfigFactory.offSchema(mapOf("MOBILE_ZID" to null, "MOBILE_ZID_ANDROID" to null)), base.copy(mobileZids = listOf("kept")))</ID>
+    <ID>MaxLineLength:SellwildSDKTest.kt$SellwildSDKTest$val perOs = SellwildSDK.apply(AppConfigFactory.checked(mapOf("MOBILE_ZID_ANDROID" to jsonArrayOf("a"), "MOBILE_BANNER_ZID_ANDROID" to "b")), base)</ID>
+    <ID>MaxLineLength:SellwildSafeUrlTest.kt$SellwildSafeUrlTest$assertEquals("https://cache.sellwild.com/a.png", SellwildSafeUrl.imageUrl("https://cache.sellwild.com/a.png").toString())</ID>
+    <ID>MaxLineLength:SellwildSafeUrlTest.kt$SellwildSafeUrlTest$assertEquals("https://sellwild.com/product/1", SellwildSafeUrl.external("https://sellwild.com/product/1").toString())</ID>
+    <ID>MaxLineLength:SellwildSafeUrlTest.kt$SellwildSafeUrlTest$listOf(null, "", "intent://x#Intent;end", "market://details?id=x", "tel:123", "javascript:alert(1)", "sellwild.com/x")</ID>
+    <ID>MaxLineLength:SellwildVideoTest.kt$SellwildVideoTest$assertTrue(SellwildVideo.isEnabled(FixtureLoader.text("fixtures/app-config/valid/flags-mixed-types.json"), null))</ID>
+    <ID>MaxLineLength:SellwildVideoTest.kt$SellwildVideoTest$private fun config(vararg entries: Pair&lt;String, Any?&gt;): String</ID>
+    <ID>MaxLineLength:SellwildVideoTest.kt$SellwildVideoTest$val byZone = config("VIDEO_ENABLED" to false, "VIDEO_ENABLED_BY_ZONE" to JSONObject().put("43", "yes").put("280", "no"))</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$SellwildFailures.log(SellwildFailureCode.CONFIG_FETCH_HTTP, SellwildFailureComponent.REMOTE_CONFIG, SellwildFailureSeverity.ERROR, httpStatus = 403)</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$assertEquals("Uncaught TypeError: Cannot read properties of undefined", event.getJSONObject("attributes").getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$assertEquals("WebView render process crashed", events.attributes(SellwildFailureCode.WIDGET_WEBVIEW_PROCESS_EXCEPTION).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$assertEquals("WebView render process was killed", events.attributes(SellwildFailureCode.WIDGET_WEBVIEW_PROCESS_EXCEPTION).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$assertEquals("load() called before setup()", events.attributes(SellwildFailureCode.WIDGET_SETUP_MISSING).getString("msg"))</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$assertEquals(listOf(SellwildFailureCode.BRIDGE_MESSAGE_UNSUPPORTED, SellwildFailureCode.BRIDGE_MESSAGE_INVALID), events.codes)</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$assertEquals(listOf(SellwildFailureCode.WIDGET_WEBVIEW_LOAD_NETWORK, SellwildFailureCode.WIDGET_WEBVIEW_LOAD_NETWORK), events.codes)</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$client.onReceivedError(view.web(), request("https://cdn.example.com/photo.jpg", mainFrame = false), error(-6, "net::ERR_CONNECTION_REFUSED"))</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$client.onReceivedError(view.web(), request("https://widget.sellwild.com/", mainFrame = true), error(-2, "net::ERR_NAME_NOT_RESOLVED"))</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$client.onReceivedError(view.web(), request(WidgetPage.SCRIPT_URL, mainFrame = false), error(-8, "net::ERR_TIMED_OUT"))</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$client.onReceivedHttpError(view.web(), request("https://cdn.example.com/photo.jpg", mainFrame = false), notFound)</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$for (name in listOf("default", "listing-click", "ad-impression", "error")) view.post(BridgeMessageFactory.variant(name).toString())</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$fun</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$private</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$val notFound = WebResourceResponse("text/html", "utf-8", 404, "Not Found", emptyMap(), ByteArrayInputStream(ByteArray(0)))</ID>
+    <ID>MaxLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$val suffix = Class.forName("android.webkit.WebViewFactory").getDeclaredField("sDataDirectorySuffix").apply { isAccessible = true }</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$(WidgetBridge.decode(BridgeMessageFactory.variant("error").toString()).value as BridgeMessage.Error).message</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$SellwildConfig(partnerCode = "weatherbug", prebidServer = PrebidServerConfig("acct", "https://pbs.example.com/auction", emptyList()))</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$assertEquals("43", (WidgetBridge.decode(BridgeMessageFactory.variant("ad-impression").toString()).value as BridgeMessage.AdImpression).zoneId)</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$assertEquals("43", (WidgetBridge.decode(BridgeMessageFactory.variant("ad-impression-number-zone").toString()).value as BridgeMessage.AdImpression).zoneId)</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$assertEquals("https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231_thumb.jpg", full.photos.single().thumbUrl)</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$assertEquals(BridgeMessage.Loaded, WidgetBridge.decode(BridgeMessageFactory.variant("default").toString()).value)</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$assertEquals(mapOf("delDomain" to "x.openx.net", "unitM" to "1", "unitD" to "2", "disabled" to true), json(attrs, "openx"))</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$assertEquals(mapOf("pubIdM" to "p", "adSlotM" to "s", "adSlotD" to "t", "disabled" to true), json(attrs, "pubmatic"))</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$assertFalse(attrs.any { it.startsWith("debug=") || it.startsWith("ad-refresh-max=") || it.startsWith("boltive-client-id=") })</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$assertTrue(full.contains("\"bundle\": \"com.weatherbug\", \"storeurl\": \"https://play.google.com/store/apps/details?id=com.weatherbug\""))</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$prebidServer = PrebidServerConfig("acct", "https://pbs.example.com/auction", listOf("appnexus", "ix"), 900, "https://pbs.example.com/sync")</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$val full = (WidgetBridge.decode(BridgeMessageFactory.variant("listing-click-photos").toString()).value as BridgeMessage.ListingClick).listing</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$val partial = (WidgetBridge.decode(BridgeMessageFactory.variant("listing-click-stub").toString()).value as BridgeMessage.ListingClick).listing</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$val stub = (WidgetBridge.decode(BridgeMessageFactory.variant("listing-click").toString()).value as BridgeMessage.ListingClick).listing</ID>
+    <ID>MaxLineLength:WidgetPageTest.kt$WidgetPageTest$val value = attrs.single { it.startsWith("$name=\"") }.removePrefix("$name=\"").removeSuffix("\"").replace("&amp;quot;", "\"")</ID>
+    <ID>MaximumLineLength:AdDecisionsTest.kt$AdDecisionsTest$ </ID>
+    <ID>MaximumLineLength:AdViewTestSupport.kt$ </ID>
+    <ID>MaximumLineLength:AdViewTestSupport.kt$NoBrowserContext$ </ID>
+    <ID>MaximumLineLength:AdViewTestSupport.kt$internal</ID>
+    <ID>MaximumLineLength:AppConfigConformanceTest.kt$AppConfigConformanceTest$ </ID>
+    <ID>MaximumLineLength:BridgeMessageFactory.kt$BridgeMessageFactory$ </ID>
+    <ID>MaximumLineLength:ConfigFieldsTest.kt$ConfigFieldsTest$ </ID>
+    <ID>MaximumLineLength:Conformance.kt$Conformance$ </ID>
+    <ID>MaximumLineLength:ContractEmitterTest.kt$ContractEmitterTest$ </ID>
+    <ID>MaximumLineLength:ContractFactory.kt$JsonObjectFactory$ </ID>
+    <ID>MaximumLineLength:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$ </ID>
+    <ID>MaximumLineLength:EventFactories.kt$EventsBatchFactory$ </ID>
+    <ID>MaximumLineLength:FailureCodesParityTest.kt$FailureCodesParityTest$ </ID>
+    <ID>MaximumLineLength:FailuresCoreTest.kt$FailuresCoreTest$ </ID>
+    <ID>MaximumLineLength:FailuresWiringTest.kt$FailuresWiringTest$ </ID>
+    <ID>MaximumLineLength:FakeAdNetwork.kt$AdNetworkAccess$ </ID>
+    <ID>MaximumLineLength:FakeAdNetwork.kt$internal</ID>
+    <ID>MaximumLineLength:FeedScheduleTest.kt$FeedScheduleTest$ </ID>
+    <ID>MaximumLineLength:FetchTest.kt$FetchTest$ </ID>
+    <ID>MaximumLineLength:FormatTest.kt$FormatTest$ </ID>
+    <ID>MaximumLineLength:GrowthCodeFactories.kt$EidBlobFactory$ </ID>
+    <ID>MaximumLineLength:GrowthCodeSyncTest.kt$GrowthCodeSyncTest$ </ID>
+    <ID>MaximumLineLength:HttpStubTest.kt$HttpStubTest$ </ID>
+    <ID>MaximumLineLength:ListingFactories.kt$ListingFactory$ </ID>
+    <ID>MaximumLineLength:ListingFactories.kt$ListingsResponseFactory$ </ID>
+    <ID>MaximumLineLength:ListingFactories.kt$ListingsResponseFactory$object</ID>
+    <ID>MaximumLineLength:ListingsConformanceTest.kt$ListingsConformanceTest$ </ID>
+    <ID>MaximumLineLength:ListingsParserTest.kt$ListingsParserTest$ </ID>
+    <ID>MaximumLineLength:NetworkBlock.kt$NetworkBlock$ </ID>
+    <ID>MaximumLineLength:NetworkBlockAuditListenerTest.kt$NetworkBlockAuditListenerTest$ </ID>
+    <ID>MaximumLineLength:PrebidSetupTest.kt$PrebidSetupTest$ </ID>
+    <ID>MaximumLineLength:RemoteValuesTest.kt$RemoteValuesTest$ </ID>
+    <ID>MaximumLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$ </ID>
+    <ID>MaximumLineLength:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest$ </ID>
+    <ID>MaximumLineLength:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$ </ID>
+    <ID>MaximumLineLength:SellwildAdSizesTest.kt$SellwildAdSizesTest$ </ID>
+    <ID>MaximumLineLength:SellwildAdStackTest.kt$SellwildAdStackTest$ </ID>
+    <ID>MaximumLineLength:SellwildAdViewCallbacksTest.kt$SellwildAdViewCallbacksTest$ </ID>
+    <ID>MaximumLineLength:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$ </ID>
+    <ID>MaximumLineLength:SellwildAdViewTest.kt$SellwildAdViewTest$ </ID>
+    <ID>MaximumLineLength:SellwildConfigTest.kt$SellwildConfigTest$ </ID>
+    <ID>MaximumLineLength:SellwildEventQueueTest.kt$SellwildEventQueueTest$ </ID>
+    <ID>MaximumLineLength:SellwildEventsTest.kt$SellwildEventsTest$ </ID>
+    <ID>MaximumLineLength:SellwildFailuresTest.kt$SellwildFailuresTest$ </ID>
+    <ID>MaximumLineLength:SellwildFeedComposeTest.kt$SellwildFeedComposeTest$ </ID>
+    <ID>MaximumLineLength:SellwildFeedViewTest.kt$SellwildFeedViewTest$ </ID>
+    <ID>MaximumLineLength:SellwildGeoTest.kt$SellwildGeoTest$ </ID>
+    <ID>MaximumLineLength:SellwildGpidTest.kt$SellwildGpidTest$ </ID>
+    <ID>MaximumLineLength:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$ </ID>
+    <ID>MaximumLineLength:SellwildHouseAdImageTest.kt$SellwildHouseAdImageTest$ </ID>
+    <ID>MaximumLineLength:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$ </ID>
+    <ID>MaximumLineLength:SellwildHouseAdTest.kt$SellwildHouseAdTest$ </ID>
+    <ID>MaximumLineLength:SellwildHouseAdViewTest.kt$SellwildHouseAdViewTest$ </ID>
+    <ID>MaximumLineLength:SellwildListingsParserDeviceJsonTest.kt$SellwildListingsParserDeviceJsonTest$ </ID>
+    <ID>MaximumLineLength:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$ </ID>
+    <ID>MaximumLineLength:SellwildNativeAdViewTest.kt$SellwildNativeAdViewTest$ </ID>
+    <ID>MaximumLineLength:SellwildNativeTest.kt$SellwildNativeTest$ </ID>
+    <ID>MaximumLineLength:SellwildPrebidMobileTest.kt$SellwildPrebidMobileTest$ </ID>
+    <ID>MaximumLineLength:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$ </ID>
+    <ID>MaximumLineLength:SellwildSDKTest.kt$SellwildSDKTest$ </ID>
+    <ID>MaximumLineLength:SellwildSafeUrlTest.kt$SellwildSafeUrlTest$ </ID>
+    <ID>MaximumLineLength:SellwildVideoTest.kt$SellwildVideoTest$ </ID>
+    <ID>MaximumLineLength:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$ </ID>
+    <ID>MaximumLineLength:WidgetPageTest.kt$WidgetPageTest$ </ID>
+    <ID>NoBlankLineBeforeRbrace:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$ </ID>
+    <ID>NoMultipleSpaces:SellwildHouseAdTest.kt$SellwildHouseAdTest$ </ID>
+    <ID>NoNameShadowing:HttpStubTest.kt$HttpStubTest${ it.readBytes().toString(Charsets.UTF_8) }</ID>
+    <ID>NoNameShadowing:HttpStubTest.kt$HttpStubTest${ it.write("""[{"event":"x"}]""".toByteArray()) }</ID>
+    <ID>NoNameShadowing:SellwildFeedViewTest.kt$SellwildFeedViewTest${ it != "height" }</ID>
+    <ID>NoUnusedImports:SellwildAdViewTest.kt$com.sellwild.sdk.SellwildAdViewTest.kt</ID>
+    <ID>NoWildcardImports:SellwildHouseAdTest.kt$import org.junit.Assert.*</ID>
+    <ID>ParameterListWrapping:AdViewTestSupport.kt$(activity: Activity, view: View, width: Int = 1080, height: Int = 900, lp: ViewGroup.LayoutParams? = null)</ID>
+    <ID>ParameterListWrapping:Conformance.kt$Conformance$(Any?)</ID>
+    <ID>ParameterListWrapping:Conformance.kt$Conformance$(file: String, expected: JSONObject, actual: Map&lt;String, Any?&gt;, views: Map&lt;String, (Any?) -&gt; Any?&gt; = emptyMap())</ID>
+    <ID>ParameterListWrapping:FakeAdNetwork.kt$(vararg overrides: Pair&lt;String, Any?&gt;)</ID>
+    <ID>ParameterListWrapping:FakeAdNetwork.kt$AdNetworkAccess$(rule: AdNetworkRule, result: com.sellwild.prebid.ResultCode)</ID>
+    <ID>ParameterListWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$(base: String, template: String)</ID>
+    <ID>PropertyWrapping:FailuresCoreTest.kt$FailuresCoreTest$val spaces = listOf(0x7f, 0x85, 0x9f, 0x1680, 0x2000, 0x200a, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff, 0xa0)</ID>
+    <ID>PropertyWrapping:FailuresWiringTest.kt$FailuresWiringTest$val eventsOff = StubResponse(200, AppConfigFactory.withFailureFlags(null, null, eventsEnabled = false).toString())</ID>
+    <ID>PropertyWrapping:SellwildAdViewCallbacksTest.kt$SellwildAdViewCallbacksTest$private val native = arrayOf&lt;Pair&lt;String, Any?&gt;&gt;("AD_STACK" to "prebidOnly", "NATIVE_ENABLED" to true, "GAM" to "/1234/fixture")</ID>
+    <ID>PropertyWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$private val native = arrayOf&lt;Pair&lt;String, Any?&gt;&gt;("AD_STACK" to "prebidOnly", "NATIVE_ENABLED" to true, "GAM" to "/1234/fixture")</ID>
+    <ID>PropertyWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$val view = adView(configWith(*prebidOnly, "AD_REFRESH_MAX_MOBILE" to 1, "MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH" to "yes"))</ID>
+    <ID>PropertyWrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$val view = adView(configWith(*prebidOnly, "AD_REFRESH_MAX_MOBILE" to 3, "MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH" to true), ctx = activity)</ID>
+    <ID>PropertyWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$val capped = adView(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX" to 1, "AD_REFRESH_INTERVAL" to 45))</ID>
+    <ID>PropertyWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$val view = adView(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX_MOBILE" to 2, "AD_REFRESH_INTERVAL" to 30_000))</ID>
+    <ID>PropertyWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$val view = adView(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX_MOBILE" to 3, "MOBILE_PAUSE_REFRESH_DETACHED" to false), ctx = activity)</ID>
+    <ID>PropertyWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$val view = adView(configWith(*gam, "MOBILE_HOUSE_AD_IMAGE" to IMAGE, "MOBILE_HOUSE_AD_URL" to "https://sellwild.com/house"), ctx = activity)</ID>
+    <ID>PropertyWrapping:SellwildAdViewTest.kt$SellwildAdViewTest$val view = adView(configWith(*gam, "MOBILE_HOUSE_AD_IMAGE" to IMAGE, "MOBILE_HOUSE_AD_URL" to "market://details?id=com.x"), ctx = activity)</ID>
+    <ID>PropertyWrapping:SellwildConfigTest.kt$SellwildConfigTest$val config = SellwildConfig(partnerCode = "test_partner", listingsUrl = "https://cache.sellwild.com/listings-img-data-sm")</ID>
+    <ID>PropertyWrapping:SellwildConfigTest.kt$SellwildConfigTest$val localized = SellwildLocalizedListingsConfig(true, "sportserver", "https://c.invalid/", "x-{state}.json", 25, "AL")</ID>
+    <ID>PropertyWrapping:SellwildConfigTest.kt$SellwildConfigTest$val server = PrebidServerConfig("acct", "https://pbs.invalid/openrtb2/auction", listOf("appnexus"), 900, "https://pbs.invalid/cookie_sync")</ID>
+    <ID>PropertyWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$val feed = feed(config("COL1" to "LGLB", "MOBILE_ZID" to jsonArrayOf("z1"), "MOBILE_BANNER_ZID" to "b1", "TITLE" to "Deals"))</ID>
+    <ID>PropertyWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$val feed = feed(config("COL1" to "LLLL", "LOCALIZED_LISTINGS" to LocalizedListingsConfigFactory.build(mapOf("forceState" to null, "frequency" to 50))))</ID>
+    <ID>PropertyWrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$val feed = feed(config("COL1" to "LLLL", "LOCALIZED_LISTINGS" to LocalizedListingsConfigFactory.build(mapOf("frequency" to 50))))</ID>
+    <ID>PropertyWrapping:SellwildGeoTest.kt$SellwildGeoTest$val geo = SellwildGeo(country = "USA", state = "NY", city = "Albany", zip = "12207", metro = "532", lat = 42.65, lon = -73.75, type = 2)</ID>
+    <ID>PropertyWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$val bad = SellwildConfig(partnerCode = "weatherbug", remoteJson = FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"))</ID>
+    <ID>PropertyWrapping:SellwildGrowthCodeTest.kt$SellwildGrowthCodeTest$val byZone = config(mapOf("GROWTHCODE_ENABLED" to "0", "GROWTHCODE_ENABLED_BY_ZONE" to JSONObject().put("43", "1")))</ID>
+    <ID>PropertyWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$val config = obj("MOBILE_HOUSE_AD_IMAGE" to "https://x/app.png", "MOBILE_HOUSE_AD_BY_ZONE" to byZone, "MOBILE_HOUSE_AD_BY_SIZE" to bySize)</ID>
+    <ID>PropertyWrapping:SellwildHouseAdResolveTest.kt$SellwildHouseAdResolveTest$val config = obj("MOBILE_HOUSE_AD_IMAGE" to images("https://x/a.png", "https://x/b.png"), "MOBILE_HOUSE_AD_URL" to "https://x/shared")</ID>
+    <ID>PropertyWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$val bad = SellwildConfig(partnerCode = "fixture", remoteJson = FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"))</ID>
+    <ID>PropertyWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$val config = SellwildConfig(partnerCode = "fixture", remoteJson = FixtureLoader.text("fixtures/app-config/valid/localized-json-text.json"))</ID>
+    <ID>PropertyWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$val local = SellwildConfig(partnerCode = "fixture", localizedListings = SellwildLocalizedListingsConfig(baseUrl = base))</ID>
+    <ID>PropertyWrapping:SellwildLocalizedListingsTest.kt$SellwildLocalizedListingsTest$val local = SellwildLocalizedListingsConfig(baseUrl = " $base ", urlTemplate = template, frequency = 50, forceState = "ga", source = " ")</ID>
+    <ID>PropertyWrapping:SellwildNativeTest.kt$SellwildNativeTest$val byZone = config("NATIVE_ENABLED" to 0, "NATIVE_ENABLED_BY_ZONE" to JSONObject().put("43", 1).put("280", false))</ID>
+    <ID>PropertyWrapping:SellwildNativeTest.kt$SellwildNativeTest$val json = config("NATIVE_MAX_HEIGHT" to "320", "NATIVE_MAX_HEIGHT_BY_ZONE" to JSONObject().put("43", 250).put("280", 0))</ID>
+    <ID>PropertyWrapping:SellwildNativeTest.kt$SellwildNativeTest$val json = config("NATIVE_ZID_ANDROID" to "", "NATIVE_ZID_ALL_ANDROID" to jsonArrayOf(), "NATIVE_ZID" to "native-shared")</ID>
+    <ID>PropertyWrapping:SellwildSDKConfigureTest.kt$SellwildSDKConfigureTest$val config = configure(StubResponse(200, FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml")))</ID>
+    <ID>PropertyWrapping:SellwildVideoTest.kt$SellwildVideoTest$val byZone = config("VIDEO_ENABLED" to false, "VIDEO_ENABLED_BY_ZONE" to JSONObject().put("43", "yes").put("280", "no"))</ID>
+    <ID>PropertyWrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$val notFound = WebResourceResponse("text/html", "utf-8", 404, "Not Found", emptyMap(), ByteArrayInputStream(ByteArray(0)))</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:NetworkBlock.kt$NetworkBlock$// Not a string: a java.util.function.Function, the one type both class loaders share.</ID>
+    <ID>UnnecessaryNotNullOperator:FailuresCoreTest.kt$FailuresCoreTest$empty.event!!</ID>
+    <ID>UnnecessaryNotNullOperator:FailuresCoreTest.kt$FailuresCoreTest$numeric.event!!</ID>
+    <ID>UnusedPrivateProperty:DocsVerifyKotlinTest.kt$DocsVerifyKotlinTest$val _displayPrice: String? = listing.displayPrice</ID>
+    <ID>UnusedPrivateProperty:DocsVerifyKotlinTest.kt$DocsVerifyKotlinTest$val _primary: String? = listing.primaryPhotoUrl</ID>
+    <ID>UseCheckOrError:FixtureLoader.kt$FixtureLoader$throw IllegalStateException("Cannot list contract dir $prefix from $url")</ID>
+    <ID>UseCheckOrError:NetworkBlockTest.kt$NetworkBlockTest$throw IllegalStateException("test failed on its own")</ID>
+    <ID>UseCheckOrError:SellwildAPIClientTest.kt$SellwildAPIClientTest$throw IllegalStateException("ortb config refused")</ID>
+    <ID>UseCheckOrError:SellwildAdAdaptersTest.kt$SellwildAdAdaptersTest.ThrowingWebView$throw IllegalStateException("WebView destroyed")</ID>
+    <ID>UseCheckOrError:SellwildFailuresTest.kt$SellwildFailuresTest$throw IllegalStateException("sink down")</ID>
+    <ID>UseCheckOrError:SellwildFailuresTest.kt$SellwildFailuresTest.&lt;no name provided&gt;$throw IllegalStateException("prefs unreadable")</ID>
+    <ID>UseCheckOrError:SellwildWidgetViewTest.kt$SellwildWidgetViewTest.&lt;no name provided&gt;$throw IllegalStateException("host bug")</ID>
+    <ID>UseOrEmpty:Conformance.kt$Conformance$doc.optJSONArray("zones")?.let { z -&gt; (0 until z.length()).map { z.getString(it) } } ?: emptyList()</ID>
+    <ID>UseOrEmpty:SellwildHouseAdTest.kt$SellwildHouseAdTest$photoUrl?.let { listOf(SellwildPhoto(url = it, thumbUrl = "")) } ?: emptyList()</ID>
+    <ID>VarCouldBeVal:SellwildEventQueueTest.kt$SellwildEventQueueTest$private var now = 1_790_000_000_000L</ID>
+    <ID>VariableNaming:DocsVerifyKotlinTest.kt$DocsVerifyKotlinTest$val _displayPrice: String? = listing.displayPrice</ID>
+    <ID>VariableNaming:DocsVerifyKotlinTest.kt$DocsVerifyKotlinTest$val _primary: String? = listing.primaryPhotoUrl</ID>
+    <ID>VariableNaming:SellwildAdViewTest.kt$SellwildAdViewTest$private val IMAGE = "https://cdn.sellwild.com/house/mrec.png"</ID>
+    <ID>VariableNaming:SellwildFeedComposeTest.kt$SellwildFeedComposeTest$private val LocalTick = androidx.compose.runtime.compositionLocalOf { 0 }</ID>
+    <ID>WildcardImport:SellwildHouseAdTest.kt$import org.junit.Assert.*</ID>
+    <ID>Wrapping:AdDecisionsTest.kt$AdDecisionsTest$false</ID>
+    <ID>Wrapping:AdDecisionsTest.kt$AdDecisionsTest$true</ID>
+    <ID>Wrapping:AppConfigConformanceTest.kt$AppConfigConformanceTest$it.first == f</ID>
+    <ID>Wrapping:BridgeMessageFactory.kt$BridgeMessageFactory$listingClickWith(photos = org.json.JSONArray().put(org.json.JSONObject().put("url", PHOTO).put("thumbUrl", THUMB)))</ID>
+    <ID>Wrapping:ConfigFieldsTest.kt$ConfigFieldsTest$it.endsWith(".json")</ID>
+    <ID>Wrapping:Conformance.kt$Conformance$z.getString(it)</ID>
+    <ID>Wrapping:ContractFixturesAgreementTest.kt$ContractFixturesAgreementTest$it.substringAfterLast('/')</ID>
+    <ID>Wrapping:FeedScheduleTest.kt$FeedScheduleTest$it.message</ID>
+    <ID>Wrapping:HttpStubTest.kt$HttpStubTest$;</ID>
+    <ID>Wrapping:ListingsConformanceTest.kt$ListingsConformanceTest$SellwildAPIClient(ApplicationProvider.getApplicationContext&lt;Context&gt;()).fetchListings(SellwildConfig("conformance", listingsUrl = url))</ID>
+    <ID>Wrapping:RemoteValuesTest.kt$RemoteValuesTest$assertTrue("$it", RemoteValues.isNotOff(it))</ID>
+    <ID>Wrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$SellwildAPIClient(context).fetchListings(SellwildConfig(partnerCode = "other", listingsUrl = listingsUrl))</ID>
+    <ID>Wrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$client.fetchListings(SellwildConfig(partnerCode = "weatherbug", listingsUrl = url))</ID>
+    <ID>Wrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$it.getJSONObject("attributes").getString("code")</ID>
+    <ID>Wrapping:SellwildAdAudioGuardTest.kt$SellwildAdAudioGuardTest$it.groupValues[1].trim()</ID>
+    <ID>Wrapping:SellwildAdStackTest.kt$SellwildAdStackTest$entries.forEach { (k, v) -&gt; put(k, v) }</ID>
+    <ID>Wrapping:SellwildAdViewPrebidTest.kt$SellwildAdViewPrebidTest$addView(player)</ID>
+    <ID>Wrapping:SellwildEventQueueTest.kt$SellwildEventQueueTest$;</ID>
+    <ID>Wrapping:SellwildFeedComposeTest.kt$SellwildFeedComposeTest$;</ID>
+    <ID>Wrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$;</ID>
+    <ID>Wrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$idleFor(50)</ID>
+    <ID>Wrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$isAccessible = true</ID>
+    <ID>Wrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$it.adViews()</ID>
+    <ID>Wrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$it.gam().adSize!!.let { s -&gt; s.width to s.height }</ID>
+    <ID>Wrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$photo = photoOf(listing("l1", photos("data:image/png;base64,AAAA")))</ID>
+    <ID>Wrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$pixel().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)</ID>
+    <ID>Wrapping:SellwildFeedViewTest.kt$SellwildFeedViewTest$setup(config("COL1" to "L", "LISTINGS" to "$listingsUrl-2"))</ID>
+    <ID>Wrapping:SellwildHouseAdImageTest.kt$SellwildHouseAdImageTest$;</ID>
+    <ID>Wrapping:SellwildLogTest.kt$SellwildLogTest$;</ID>
+    <ID>Wrapping:SellwildWidgetViewTest.kt$SellwildWidgetViewTest$isAccessible = true</ID>
+    <ID>Wrapping:WidgetPageTest.kt$WidgetPageTest$it.startsWith("$name=\"")</ID>
+    <ID>Wrapping:WidgetPageTest.kt$WidgetPageTest$it.startsWith("debug=") || it.startsWith("ad-refresh-max=") || it.startsWith("boltive-client-id=")</ID>
+  </CurrentIssues>
+</SmellBaseline>
