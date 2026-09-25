@@ -1,7 +1,35 @@
 # Lints for the Sellwild Flutter SDK and its tests.
+#
+#   cd flutter && flutter analyze --fatal-infos --fatal-warnings
+#
+# flutter analyze has no baseline file, so the tree is kept at zero findings:
+# any finding fails the gate.
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
     - build/**
     - coverage/**
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+linter:
+  rules:
+    # House failure rules (contracts/FAILURES.md sections 1-2).
+    # 1. avoid_print only covers dart:core print. debugPrint and "every catch
+    #    calls logFailure" cannot be expressed as analyzer rules without a
+    #    custom plugin; contracts/scripts/print-gate.mjs covers debugPrint.
+    - avoid_print
+    # 2. A catch body that is empty (comments only counts as empty in the
+    #    house rule; the analyzer lets a comment through, the print gate
+    #    does not).
+    - empty_catches
+    # 3. Silent swallows: a future nobody awaits, an async function nobody
+    #    can await, a finally that hides the exception.
+    - unawaited_futures
+    - avoid_void_async
+    - control_flow_in_finally
+    - throw_in_finally
+    - use_rethrow_when_possible

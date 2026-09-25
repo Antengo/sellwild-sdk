@@ -29,7 +29,8 @@ void main() {
   group('fetchListings on real listings caches', () {
     final expectations =
         loadExpectations('listings-response') as Map<String, dynamic>;
-    for (final c in (expectations['cases'] as List).cast<Map>()) {
+    for (final c
+        in (expectations['cases'] as List).cast<Map<String, dynamic>>()) {
       final file = c['file'] as String;
       test(file, () async {
         final failures = captureFailures();
@@ -422,8 +423,9 @@ void main() {
       client.partnerCode = '';
       await client.sendEvent(event: 'click', uid: 'u', createdTime: 5);
 
-      Map attributesOf(int i) =>
-          ((recorder.jsonBody(i) as List).single as Map)['attributes'] as Map;
+      Map<String, dynamic> attributesOf(int i) =>
+          ((recorder.jsonBody(i) as List).single as Map)['attributes']
+              as Map<String, dynamic>;
       expect(attributesOf(0)['code'], 'antengo');
       expect(attributesOf(1).containsKey('code'), isFalse);
       expect(((recorder.jsonBody(1) as List).single as Map)['createdTime'], 5);

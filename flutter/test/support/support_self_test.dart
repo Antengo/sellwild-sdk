@@ -877,7 +877,8 @@ void main() {
         () => emit('events-batch', 'a', DateTime(2026)),
         throwsA(isA<JsonUnsupportedObjectError>()),
       );
-      expect(out.existsSync() ? out.listSync() : const [], isEmpty);
+      expect(out.existsSync() ? out.listSync() : const <FileSystemEntity>[],
+          isEmpty);
     });
 
     test(

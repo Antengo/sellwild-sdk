@@ -374,7 +374,8 @@ void main() {
       expect(actual.keys.toSet(), held.toSet());
 
       final allowedUsed = <String>{};
-      for (final c in (expectations['cases'] as List).cast<Map>()) {
+      for (final c
+          in (expectations['cases'] as List).cast<Map<String, dynamic>>()) {
         final file = c['file'] as String;
         final expected = c['expected'] as Map<String, dynamic>;
         final driftText = drift[file] as String? ?? '';

@@ -360,7 +360,8 @@ void main() {
       final expectations =
           loadExpectations('app-config') as Map<String, dynamic>;
 
-      for (final c in (expectations['cases'] as List).cast<Map>()) {
+      for (final c
+          in (expectations['cases'] as List).cast<Map<String, dynamic>>()) {
         final file = c['file'] as String;
         final failures = captureFailures();
         SellwildSDK.apply(readContractObject(file), base, isAndroid: false);

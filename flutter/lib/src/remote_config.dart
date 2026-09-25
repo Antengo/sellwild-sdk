@@ -226,7 +226,7 @@ class _Reader {
   /// Text (schema: string). With [numberAllowed] the schema also allows a
   /// number, which Flutter does not read (drift, not an issue).
   String? str(String key, {bool numberAllowed = false}) {
-    final value = raw[key];
+    final Object? value = raw[key];
     if (value is String) return value;
     if (value != null && !(numberAllowed && value is num)) {
       _wrongKind(key, value);
@@ -246,7 +246,7 @@ class _Reader {
 
   /// A CSS color as text. A color that is not text keeps the base color.
   String? color(String key) {
-    final value = raw[key];
+    final Object? value = raw[key];
     if (value is String) return value;
     if (value != null) {
       _wrongKind(key, value,
@@ -260,7 +260,7 @@ class _Reader {
   /// read (drift); so is any finite double when [fractionAllowed] (the
   /// schema says number).
   int? integer(String key, {bool fractionAllowed = false}) {
-    final value = raw[key];
+    final Object? value = raw[key];
     if (value is int) return value;
     if (value is double &&
         value.isFinite &&
@@ -278,7 +278,7 @@ class _Reader {
   }
 
   bool? boolean(String key) {
-    final value = raw[key];
+    final Object? value = raw[key];
     if (value is bool) return value;
     if (value != null) _wrongKind(key, value);
     return null;
@@ -288,7 +288,7 @@ class _Reader {
   /// reported. With [textAllowed] one text is contract-valid but not read
   /// (drift).
   List<String>? strList(String key, {bool textAllowed = false}) {
-    final value = raw[key];
+    final Object? value = raw[key];
     if (value is List) {
       final out = value.whereType<String>().toList();
       final dropped = value.length - out.length;
@@ -304,7 +304,7 @@ class _Reader {
   /// EVENTS_ENABLED / FAILURES_ENABLED (schema: boolean, number or text).
   /// The value goes to coerceFlag as is.
   Object? flag(String key) {
-    final value = raw[key];
+    final Object? value = raw[key];
     if (value != null && value is! bool && value is! num && value is! String) {
       _wrongKind(key, value);
     }
@@ -313,7 +313,7 @@ class _Reader {
 
   /// FAILURES_SAMPLE_RATE (schema: number or text), for coerceRate.
   Object? rate(String key) {
-    final value = raw[key];
+    final Object? value = raw[key];
     if (value != null && value is! num && value is! String) {
       _wrongKind(key, value);
     }
@@ -322,7 +322,7 @@ class _Reader {
 
   /// AD_STACK. '' is unset (schema).
   SellwildAdStack? adStack() {
-    final value = raw['AD_STACK'];
+    final Object? value = raw['AD_STACK'];
     if (value == null || value == '') return null;
     final parsed = SellwildAdStack.parse(value);
     if (parsed == null) {
@@ -338,7 +338,7 @@ class _Reader {
   /// AD_STACK_BY_ZONE. '' is unset (schema); anything but an object keeps
   /// base. Zones with an unknown mode are dropped and reported.
   Map<String, SellwildAdStack>? adStackByZone() {
-    final value = raw['AD_STACK_BY_ZONE'];
+    final Object? value = raw['AD_STACK_BY_ZONE'];
     if (value is! Map) {
       if (value != null && value != '') {
         _wrongKind('AD_STACK_BY_ZONE', value,
@@ -369,7 +369,7 @@ class _Reader {
   /// Duration holds (before, Infinity threw and 1e300 wrapped to -1 ms).
   Duration? refreshInterval() {
     const key = 'AD_REFRESH_INTERVAL';
-    final value = raw[key];
+    final Object? value = raw[key];
     if (value is! num) {
       if (value != null) _wrongKind(key, value);
       return null;

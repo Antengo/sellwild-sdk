@@ -138,11 +138,11 @@ Object? _guardFormats(Object? node) {
   final out = <String, dynamic>{};
   node.forEach((key, value) {
     if (_schemaListKeywords.contains(key) && value is List) {
-      out[key] = value.map(_guardFormats).toList();
+      out[key as String] = value.map(_guardFormats).toList();
     } else if (_schemaMapKeywords.contains(key) && value is Map) {
-      out[key] = value.map((k, v) => MapEntry(k, _guardFormats(v)));
+      out[key as String] = value.map((k, v) => MapEntry(k, _guardFormats(v)));
     } else if (_schemaKeywords.contains(key)) {
-      out[key] = _guardFormats(value);
+      out[key as String] = _guardFormats(value);
     } else {
       out[key as String] = value;
     }
@@ -410,7 +410,8 @@ List<JsonSchema> _combinatorBranches(
       ? [nodePath.substring(0, nodePath.indexOf('.json') + 5)]
       : [
           '',
-          for (final file in _schemaDirs[root]?.listSync() ?? const [])
+          for (final file
+              in _schemaDirs[root]?.listSync() ?? const <FileSystemEntity>[])
             if (file.path.endsWith('.schema.json'))
               '$contractSchemaBase${file.uri.pathSegments.last}',
         ];

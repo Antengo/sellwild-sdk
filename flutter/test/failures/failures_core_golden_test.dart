@@ -66,7 +66,7 @@ void runVectors(String file) {
   test('$file has vectors', () => expect(vectors, isNotEmpty));
 
   for (final v in vectors) {
-    test(v['name'], () {
+    test(v['name'] as String, () {
       final context = v['context'] as Map<String, dynamic>;
       final expected = v['expected'] as Map<String, dynamic>;
 
