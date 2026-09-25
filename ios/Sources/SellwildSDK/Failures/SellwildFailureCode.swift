@@ -98,26 +98,9 @@ public enum SellwildFailureCode: String, CaseIterable {
     /// Usually `bridge`, `warn`.
     case bridgeGeoInvalid = "bridge.geo.invalid"
 
-    /// A WebView bridge message had a missing or wrong-typed field (type, url, listing,
-    /// zoneId, message).
-    /// Usually `bridge`, `warn`.
-    case bridgeMessageInvalid = "bridge.message.invalid"
-
-    /// A WebView bridge message was not valid JSON.
-    /// Usually `bridge`, `warn`.
-    case bridgeMessageParse = "bridge.message.parse"
-
-    /// A WebView bridge message had an unknown type.
-    /// Usually `bridge`, `warn`.
-    case bridgeMessageUnsupported = "bridge.message.unsupported"
-
     /// A native view got missing props or an unsupported size label, so no ad was set up.
     /// Usually `bridge`, `error`.
     case bridgePropsInvalid = "bridge.props.invalid"
-
-    /// The widget page reported a JavaScript error through the bridge ERROR message.
-    /// Usually `webview`, `error`.
-    case bridgeScriptException = "bridge.script.exception"
 
     /// Replacement action when a call site passes a code that fails the registry format.
     /// The label keeps the caller component. Never pass it directly.
@@ -310,25 +293,4 @@ public enum SellwildFailureCode: String, CaseIterable {
     /// Writing a stored value (localStorage, disk cache) failed.
     /// Usually `storage`, `warn`.
     case storageWriteException = "storage.write.exception"
-
-    /// Serializing a remote config value into a widget attribute failed; the attribute was
-    /// left out.
-    /// Usually `webview`, `warn`.
-    case widgetAttributesException = "widget.attributes.exception"
-
-    /// The widget WebView got an HTTP error status (4xx or 5xx) for its page or a
-    /// main-frame resource.
-    /// Usually `webview`, `error`.
-    case widgetWebviewLoadHttp = "widget.webview_load.http"
-
-    /// The widget WebView failed to load its page or a main resource (offline, DNS, TLS,
-    /// navigation failure).
-    /// Usually `webview`, `error`.
-    case widgetWebviewLoadNetwork = "widget.webview_load.network"
-
-    /// The WebView content process crashed or was killed (iOS
-    /// webViewWebContentProcessDidTerminate, Android onRenderProcessGone). The widget is
-    /// blank until reloaded.
-    /// Usually `webview`, `error`.
-    case widgetWebviewProcessException = "widget.webview_process.exception"
 }

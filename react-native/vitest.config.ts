@@ -10,13 +10,6 @@ export const coverageInclude = ['src/**']
 // Gate exclusions (contract A10). Each one needs a reason.
 export const coverageExclusions: Array<{ path: string; reason: string }> = [
   {
-    // buildBannerHtml and its helpers: no component, sample or doc in the
-    // repo calls them (<SellwildBanner> is a native view since 1.3.0).
-    // htmlBuilder.ts still re-exports buildBannerHtml.
-    path: 'src/bannerHtml.ts',
-    reason: 'dead: pending delete decision',
-  },
-  {
     // Not under src/**, so outside the gate anyway; listed so the summary
     // names them.
     path: 'ios/**',
@@ -38,9 +31,8 @@ export default defineConfig(({ mode }) => {
     esbuild: { jsx: 'transform', jsxFactory: 'React.createElement', jsxFragment: 'React.Fragment' },
     resolve: {
       alias: [
-        // No React Native runtime in tests: both packages are stubs.
+        // No React Native runtime in tests: the package is a stub.
         { find: /^react-native$/, replacement: here('./test/stubs/react-native.ts') },
-        { find: /^react-native-webview$/, replacement: here('./test/stubs/react-native-webview.tsx') },
         // Test the core source in this repo, not the published build in
         // node_modules. Matches the paths entry in tsconfig.json.
         { find: /^@sellwild\/sdk-core$/, replacement: here('../core/src/index.ts') },

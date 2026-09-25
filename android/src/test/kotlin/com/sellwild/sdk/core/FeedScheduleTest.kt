@@ -107,4 +107,12 @@ class FeedScheduleTest {
         assertEquals(FeedRow.DirectAd("z", "g"), FeedRow.DirectAd("z").withGpid("g"))
         assertEquals(FeedRow.Banner("z", "g"), FeedRow.Banner("z").withGpid("g"))
     }
+
+    @Test
+    fun `the banner zone is the first non-blank of the three (origin b194344)`() {
+        assertEquals("m", FeedSchedule.bannerZone("m", "b", "t"))
+        assertEquals("b", FeedSchedule.bannerZone("", "b", "t"))
+        assertEquals("t", FeedSchedule.bannerZone(" ", null, "t"))
+        assertNull(FeedSchedule.bannerZone(null, "", null))
+    }
 }

@@ -14,4 +14,3 @@ env:
 - runFlow: ../common/ads.yaml
 - runFlow: ../common/listings.yaml
 - runFlow: ../common/diagnostics.yaml
-- runFlow: ../common/legacy.yaml

@@ -8,7 +8,6 @@ export const SampleId = {
   tabAds: 'sw.tab.ads',
   tabListings: 'sw.tab.listings',
   tabDiagnostics: 'sw.tab.diagnostics',
-  tabLegacy: 'sw.tab.legacy',
 
   // Feed
   feedList: 'sw.feed.list',
@@ -32,9 +31,4 @@ export const SampleId = {
   diagConfigSource: 'sw.diag.config_source',
   diagListingsUrl: 'sw.diag.listings_url',
   diagFailures: 'sw.diag.failures',
-
-  // Legacy
-  legacyTitle: 'sw.legacy.title',
-  legacyStatus: 'sw.legacy.status',
-  legacyWebView: 'sw.legacy.webview',
 } as const;

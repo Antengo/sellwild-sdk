@@ -22,7 +22,6 @@ export const SCAN_ROOTS = [
   { dir: 'react-native/android/src', platform: 'react-native-android' },
   { dir: 'ios/Sources', platform: 'ios' },
   { dir: 'android/src/main', platform: 'android' },
-  { dir: 'flutter/lib', platform: 'flutter' },
 ]
 
 /** A2: the only files allowed to print (debug echo + debug logger per platform). */
@@ -33,8 +32,6 @@ export const PRINT_EXEMPT = [
   'ios/Sources/SellwildSDK/Failures/SellwildLog.swift',
   'android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailures.kt',
   'android/src/main/kotlin/com/sellwild/sdk/failures/SellwildLog.kt',
-  'flutter/lib/src/failures/sellwild_failures.dart',
-  'flutter/lib/src/failures/sellwild_log.dart',
 ]
 
 const LANG_BY_EXT = {

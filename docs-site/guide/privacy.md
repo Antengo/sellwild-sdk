@@ -72,7 +72,7 @@ val gdprApplies = prefs.getInt("IABTCF_gdprApplies", 0) == 1
 val tcString = prefs.getString("IABTCF_TCString", "") ?: ""
 ```
 
-**React Native / Flutter:**
+**React Native:**
 
 Pass the consent values directly through `SellwildConfig`:
 
@@ -102,13 +102,9 @@ The native ad path (banner, feed, native — Prebid Mobile + GMA, **no WebView**
 | GPP string / section ids | `IABGPP_HDR_GppString`, `IABGPP_GppSID` |
 | US Privacy (CCPA) | `IABUSPrivacy_String` |
 
-So the requirement is simply: **initialize your CMP before the first ad request** and these signals flow automatically. The `gppEnabled` / `tcfVersion` fields on `SellwildConfig` (and the `GPP_ENABLED` / `TCF_VERSION` CDN keys) configure only the **deprecated WebView widget** surface — they do **not** drive the native auction, and setting them is neither required nor sufficient for native consent.
+So the requirement is simply: **initialize your CMP before the first ad request** and these signals flow automatically. The `gppEnabled` / `tcfVersion` fields on `SellwildConfig` (and the `GPP_ENABLED` / `TCF_VERSION` CDN keys) do **not** drive the native auction. Setting them is neither required nor sufficient for native consent.
 
 > **`IAB_CATS` is content taxonomy, not consent.** When set, it is attached to the native auction as ORTB `app.cat` (brand-safety / contextual signal) — independent of the consent keys above.
-
-#### Deprecated WebView widget only
-
-The legacy WebView widget passes consent by injecting `pbjs.setConfig({ ortb2: { regs, user } })` before Prebid.js loads and by bridging `window.__tcfapi`. This path is **not** used by the native SDK and is retained only for the deprecated widget surface.
 
 ### Best Practices
 
@@ -175,7 +171,7 @@ Prebid Server forwards this field to all SSPs. SSPs that respect CCPA will suppr
 
 ### GPP Supersedes US Privacy
 
-The IAB Global Privacy Platform (GPP) is the successor to the standalone US Privacy string. When `gppEnabled: true`, the SDK uses GPP signaling instead. See [GPP Framework](#gpp-framework).
+The IAB Global Privacy Platform (GPP) is the successor to the standalone US Privacy string. When your CMP writes the `IABGPP_*` keys, Prebid Mobile forwards the GPP string. See [GPP Framework](#gpp-framework).
 
 ---
 
@@ -185,34 +181,13 @@ The IAB Global Privacy Platform provides a unified consent signaling mechanism t
 
 ### Enabling GPP
 
-```swift
-// iOS
-config.gppEnabled = true
-```
-
-```kotlin
-// Android
-SellwildConfig(gppEnabled = true, ...)
-```
-
-```ts
-// React Native
-buildConfig({ gppEnabled: true, ... })
-```
-
-```dart
-// Flutter
-SellwildConfig(gppEnabled: true, ...)
-```
+No SDK flag is needed. Your CMP writes `IABGPP_HDR_GppString` and `IABGPP_GppSID` to `UserDefaults` (iOS) or `SharedPreferences` (Android).
 
 ### How It Works
 
-When GPP is enabled:
-
-1. The SDK sets the `consentManagement` configuration in Prebid.js to use the GPP module.
-2. Prebid.js reads the GPP string from the CMP (via `window.__gpp` API or from the host app config).
-3. The GPP string and applicable section IDs are included in the OpenRTB request as `regs.gpp` and `regs.gpp_sid`.
-4. Prebid Server enforces consent based on the applicable GPP sections.
+1. Prebid Mobile reads the GPP string and section IDs from device storage at ad request time.
+2. The SDK includes them in the OpenRTB request as `regs.gpp` and `regs.gpp_sid`.
+3. Prebid Server enforces consent based on the applicable GPP sections.
 
 ### GPP Sections
 
@@ -283,20 +258,20 @@ The IDFA is not automatically read or passed by the SDK. To include it in bid re
 2. Read the IDFA from `ASIdentifierManager`.
 3. Pass it to Prebid Server via the `ortb2.user.eids` field (planned SDK feature) or through a custom bid request when using the direct auction API.
 
-```js
-// How IDFA appears in the OpenRTB request (via ortb2.user.eids)
-pbjs.setConfig({
-    ortb2: {
-        user: {
-            eids: [
-                {
-                    source: "adserver.org",
-                    uids: [{ id: "IDFA_VALUE", atype: 3 }]
-                }
-            ]
+```json
+// How IDFA appears in the OpenRTB request (user.ext.eids)
+{
+  "user": {
+    "ext": {
+      "eids": [
+        {
+          "source": "adserver.org",
+          "uids": [{ "id": "IDFA_VALUE", "atype": 3 }]
         }
+      ]
     }
-});
+  }
+}
 ```
 
 ---

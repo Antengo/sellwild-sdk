@@ -7,6 +7,9 @@
   "src/SellwildFeed.tsx": {
     "@typescript-eslint/no-empty-object-type": {
       "count": 1
+    },
+    "no-console": {
+      "count": 1
     }
   },
   "src/appIdentity.ts": {
@@ -17,20 +20,6 @@
   "src/bannerSizing.ts": {
     "sellwild/catch-reports-failure": {
       "count": 1
-    }
-  },
-  "src/htmlBuilder.ts": {
-    "@typescript-eslint/no-base-to-string": {
-      "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 5
     }
   },
   "test/SellwildBanner.test.tsx": {
@@ -66,34 +55,6 @@
       "count": 2
     }
   },
-  "test/SellwildWidget.test.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 15
-    },
-    "@typescript-eslint/no-unsafe-argument": {
-      "count": 2
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 21
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 7
-    },
-    "@typescript-eslint/no-unsafe-return": {
-      "count": 23
-    },
-    "@typescript-eslint/unbound-method": {
-      "count": 5
-    }
-  },
-  "test/factories/bridgeMessage.test.ts": {
-    "@typescript-eslint/no-unsafe-return": {
-      "count": 1
-    }
-  },
   "test/harness.test.tsx": {
     "@typescript-eslint/no-base-to-string": {
       "count": 1
@@ -101,43 +62,11 @@
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 3
     },
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 2
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
     "@typescript-eslint/require-await": {
       "count": 2
-    }
-  },
-  "test/htmlBuilder.test.ts": {
-    "@typescript-eslint/no-base-to-string": {
-      "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
-    "@typescript-eslint/no-implied-eval": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unnecessary-type-assertion": {
-      "count": 7
-    },
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 2
-    },
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 4
-    },
-    "@typescript-eslint/no-unsafe-return": {
-      "count": 1
     }
   },
   "test/log-once.test.tsx": {
@@ -166,14 +95,6 @@
   },
   "test/stubs/rn-globals.d.ts": {
     "no-var": {
-      "count": 1
-    }
-  },
-  "test/support/widget-page.ts": {
-    "@typescript-eslint/no-implied-eval": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-call": {
       "count": 1
     }
   },

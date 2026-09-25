@@ -90,8 +90,8 @@ public enum SellwildSDK {
             if let fetched = await fetchRemoteConfig(request, session: environment.session) {
                 config = apply(fetched.raw, to: config)
                 // Stash the raw payload so unmapped CDN keys (new bidders,
-                // forward-compatible settings) flow through to the WebView
-                // attribute serializer without an SDK release.
+                // forward-compatible settings) stay readable via remoteValues
+                // without an SDK release.
                 config.remoteJSON = fetched.data
             }
         } else {
@@ -206,6 +206,14 @@ public enum SellwildSDK {
         SellwildLog.isEnabled = config.debug
     }
 
+    /// IAB_CATS as a list. It ships as an array OR a string: one value ("IAB15")
+    /// or comma-separated ("IAB15,IAB19"). Entries are trimmed and blanks
+    /// dropped. nil for any other value, which leaves the base value.
+    static func iabCats(_ value: Any?) -> [String]? {
+        let items = (value as? [String]) ?? (value as? String)?.components(separatedBy: ",")
+        return items?.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+
     /// Maps CONSTANT_CASE CDN keys onto the corresponding `SellwildConfig`
     /// fields. Public so the React Native bridge (separate Swift module
     /// via cocoapods) can rebuild a feed-ready config from the JS-resolved
@@ -248,7 +256,7 @@ public enum SellwildSDK {
         if let v = raw["BOTTOM_BANNER_ZID"]  as? String   { c.bottomBannerZid = v }
 
         // Per-platform placement resolution (this mapper only ever runs on iOS
-        // — the Swift SDK — so RN / Flutter hosts on iOS resolve here too).
+        // — the Swift SDK — so RN hosts on iOS resolve here too).
         // Three tiers, most specific first, per placement:
         //   1. per-placement per-platform  (MOBILE_ZID_IOS / MOBILE_BANNER_ZID_IOS)
         //   2. platform-wide "ALL"         (MOBILE_ZID_ALL_IOS — one value every
@@ -289,7 +297,7 @@ public enum SellwildSDK {
         // Compliance
         if let v = raw["GPP_ENABLED"] as? Bool     { c.gppEnabled = v }
         if let v = raw["TCF_VERSION"] as? Int      { c.tcfVersion = v }
-        if let v = raw["IAB_CATS"]    as? [String] { c.iabCats = v }
+        if let v = iabCats(raw["IAB_CATS"]) { c.iabCats = v }
 
         // Mobile ad controls
         if let v = raw["ENABLE_INTERSTITIAL"]         as? Bool { c.enableInterstitial = v }

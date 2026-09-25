@@ -2,8 +2,8 @@ import SwiftUI
 import UIKit
 import SellwildSDK
 
-/// Sellwild Sample: native listings and native ads first. The WebView
-/// widget is only on the Legacy tab.
+/// Sellwild Sample: native listings and native ads. The SDK ships no WebView
+/// surface (origin 9ff579f removed the widget).
 @main
 struct SellwildSampleApp: App {
     @StateObject private var model = SampleModel()
@@ -23,7 +23,7 @@ struct SellwildSampleApp: App {
     }
 }
 
-/// The five tabs, in a UITabBarController so each tab button carries its
+/// The four tabs, in a UITabBarController so each tab button carries its
 /// accessibility identifier (the e2e flows tap them by id).
 struct SampleTabs: UIViewControllerRepresentable {
     let config: SellwildConfig
@@ -36,8 +36,7 @@ struct SampleTabs: UIViewControllerRepresentable {
             tab(AdsScreen(config: config), title: "Ads", symbol: "megaphone", id: SampleID.tabAds),
             tab(ListingsScreen(config: config), title: "Listings", symbol: "list.bullet", id: SampleID.tabListings),
             tab(DiagnosticsScreen(config: config, configSource: configSource),
-                title: "Diagnostics", symbol: "stethoscope", id: SampleID.tabDiagnostics),
-            tab(LegacyScreen(config: config), title: "Legacy", symbol: "globe", id: SampleID.tabLegacy)
+                title: "Diagnostics", symbol: "stethoscope", id: SampleID.tabDiagnostics)
         ]
         return tabs
     }

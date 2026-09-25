@@ -54,7 +54,7 @@ const PACKAGES = [
     platform: 'react-native',
     dir: 'react-native',
     notes: [
-      'react-native and react-native-webview are test stubs (react-native/test/stubs). Native view and WebView behavior is not measured here.',
+      'react-native is a test stub (react-native/test/stubs). Native view behavior is not measured here.',
       '@sellwild/sdk-core is aliased to core/src in tests. Its files count in core.json, not here.',
     ],
   },

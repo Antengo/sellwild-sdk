@@ -8,7 +8,7 @@
 #                                      React Native bridge compiles, the compiler-warnings
 #                                      ratchets and the 95% coverage check
 #   bash scripts/gate.sh --e2e         the sample apps' e2e only: scripts/e2e/run.sh for
-#                                      each app, one at a time (about 17 min warm).
+#                                      each app, one at a time (about 10 min warm).
 #                                      Never part of --fast or --full.
 #   bash scripts/gate.sh --only a,b    just those steps, in gate order
 #   bash scripts/gate.sh --list        the step ids, modes and commands
@@ -59,7 +59,6 @@ GATE_IOS_STOP='xcrun simctl shutdown all'
 # Type checks. A failure here skips the coverage steps.
 step tsgo-core            fast typecheck -       -            'npm --prefix core run --silent typecheck'
 step tsgo-react-native    fast typecheck -       -            'npm --prefix react-native run --silent typecheck'
-step flutter-analyze      fast typecheck -       -            'cd flutter && flutter analyze --fatal-infos --fatal-warnings'
 # Compiles SellwildSDK and its tests for the iOS Simulator, in ios.sh's derived
 # data (warm 5-7s, cold about 30s). No simulator boots.
 step swift-typecheck      fast typecheck xcode   -            'bash scripts/lint/swift-typecheck.sh'
@@ -74,7 +73,6 @@ step kotlin-warnings-test fast lint      -       -            'node --test --tes
 # a failure here never skips the SDK's coverage steps.
 step tsgo-sample-rn       fast lint      -       -            'npm --prefix samples/demo-app run --silent typecheck'
 step eslint-sample-rn     fast lint      -       -            'npm --prefix samples/demo-app run --silent lint -- --max-warnings 0'
-step flutter-analyze-sample fast lint    -       -            'cd samples/flutter-demo && flutter analyze --fatal-infos --fatal-warnings'
 # Contracts: the print gate, every contract file against its schema, the contracts tests.
 step print-gate           fast check     -       -            'node contracts/scripts/print-gate.mjs'
 step contracts-validate   fast check     -       -            'node contracts/scripts/validate.mjs'
@@ -95,11 +93,10 @@ step rn-bridge-android    full check     gradle  -            'bash scripts/rn/c
 step rn-bridge-ios        full check     xcode   -            'bash scripts/rn/compile-bridge-ios.sh'
 # The other platforms' coverage, one at a time.
 step core-coverage        full coverage  -       -            'npm --prefix core run --silent coverage:summary'
-step flutter-coverage     full coverage  flutter -            'bash scripts/coverage/flutter.sh'
 step ios-coverage         full coverage  ios     -            'bash scripts/coverage/ios.sh'
 # Reads the log and .dia files ios.sh just left; refuses a stale log.
 step swift-warnings       full warnings  -       ios-coverage 'node scripts/lint/swift-warnings.mjs'
-step coverage-thresholds  full coverage  -       -            'node tools/coverage-gate.mjs --expect core,react-native,flutter,android,ios'
+step coverage-thresholds  full coverage  -       -            'node tools/coverage-gate.mjs --expect core,react-native,android,ios'
 
 # The e2e steps (mode e2e), one per app in `scripts/e2e/run.sh --list`, so a
 # new app is picked up without an edit here. They are declared only for

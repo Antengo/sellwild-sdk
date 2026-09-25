@@ -5,14 +5,11 @@
     "compileDebugUnitTestKotlin",
     "compileDebugUnitTestJavaWithJavac"
   ],
-  "total": 14,
+  "total": 7,
   "files": {
     "android/src/main/kotlin/com/sellwild/sdk/SellwildHouseAdView.kt": 1,
-    "android/src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt": 2,
-    "android/src/main/kotlin/com/sellwild/sdk/core/WidgetPage.kt": 4,
     "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailures.kt": 1,
     "android/src/test/kotlin/com/sellwild/sdk/SellwildGeoDeviceJsonTest.kt": 1,
-    "android/src/test/kotlin/com/sellwild/sdk/SellwildWidgetViewTest.kt": 1,
     "android/src/test/kotlin/com/sellwild/sdk/docs/DocsVerifyKotlinTest.kt": 2,
     "android/src/test/kotlin/com/sellwild/sdk/failures/FailuresCoreTest.kt": 2
   }

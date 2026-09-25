@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { authFetch } from '../lib/auth-fetch'
 
 interface Auction {
   id: string
@@ -20,7 +21,7 @@ export default function AuctionFeedPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/.netlify/functions/logs?type=recent&hours=24')
+    authFetch('/.netlify/functions/logs?type=recent&hours=24')
       .then((r) => r.json())
       .then((data) => {
         if (data.error) throw new Error(data.error)

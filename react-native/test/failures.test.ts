@@ -20,7 +20,7 @@ describe('src/failures.ts', () => {
     expect(rnFailures.logFailure).toBe(core.logFailure)
     expect(rnFailures.FAILURE_CODES).toBe(core.FAILURE_CODES)
     expect(rnFailures.FAILURE_CODES).toEqual(
-      expect.arrayContaining(['bridge.script.exception', 'widget.webview_load.network']),
+      expect.arrayContaining(['bridge.native_module.missing', 'bridge.native_view.missing']),
     )
   })
 
@@ -29,36 +29,36 @@ describe('src/failures.ts', () => {
     fresh.logFailure({ code: 'listings.fetch.network', component: 'listings' })
 
     const rn = await import('../src/failures')
-    rn.logFailure({ code: 'bridge.script.exception', component: 'webview', message: 'Script error.' })
+    rn.logFailure({ code: 'bridge.native_view.missing', component: 'bridge', message: 'SellwildFeedView is not linked' })
     // Core's own reports carry it too: it is the context, not the call.
     fresh.logFailure({ code: 'config.fetch.network', component: 'remoteConfig' })
 
     const events = takeFailureEvents()
     expect(events.map((e) => [e.action, e.attributes.client])).toEqual([
       ['listings.fetch.network', 'core'],
-      ['bridge.script.exception', 'react-native'],
+      ['bridge.native_view.missing', 'react-native'],
       ['config.fetch.network', 'react-native'],
     ])
     // No wrapper: that marks native failures under React Native, and the
     // native bridges set it.
     expect(events[1]).toEqual({
       event: 'clientFailure',
-      action: 'bridge.script.exception',
-      label: 'webview',
+      action: 'bridge.native_view.missing',
+      label: 'bridge',
       attributes: {
         code: 'unknown',
         client: 'react-native',
         clientVersion: core.SDK_VERSION,
         severity: 'error',
         fv: '1',
-        msg: 'Script error.',
+        msg: 'SellwildFeedView is not linked',
         seq: '2',
         repeat: '1',
       },
       uid: TEST_UID,
       createdTime: TEST_NOW,
     })
-    expectValid('client-failure-event', events[1], 'rn-script-exception')
+    expectValid('client-failure-event', events[1], 'rn-native-view-missing')
   })
 
   it('is loaded by the package index', async () => {

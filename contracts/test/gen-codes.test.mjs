@@ -1,4 +1,4 @@
-// scripts/gen-codes.mjs: the four platform mirrors are exactly what the
+// scripts/gen-codes.mjs: the three platform mirrors are exactly what the
 // registry generates, so a hand edit to a mirror (or a registry change without
 // regenerating) fails here.
 
@@ -13,7 +13,7 @@ import { GENERATED_NOTE, MIRRORS, camelName, constName, entriesFor, main, render
 const GEN = path.join(CONTRACTS_DIR, 'scripts', 'gen-codes.mjs')
 const registry = JSON.parse(fs.readFileSync(REGISTRY_PATH, 'utf8'))
 
-// A copy of the registry and the four mirrors, laid out like the repo, under
+// A copy of the registry and the three mirrors, laid out like the repo, under
 // contracts/out (git-ignored).
 function makeTree() {
   const base = path.join(CONTRACTS_DIR, 'out')
@@ -38,7 +38,7 @@ test('every committed mirror equals the generator output', () => {
 })
 
 test('each mirror holds exactly the codes of its clients, in registry order, under the generated header', () => {
-  const clientsOf = { core: ['core', 'react-native'], ios: ['ios'], android: ['android'], flutter: ['flutter'] }
+  const clientsOf = { core: ['core', 'react-native'], ios: ['ios'], android: ['android'] }
   for (const { mirror, text } of renderMirrors(registry, SDK_ROOT)) {
     const expected = registry.filter((e) => e.clients.some((c) => clientsOf[mirror.platform].includes(c))).map((e) => e.code)
     assert.deepEqual(entriesFor(mirror, registry).map((e) => e.code), expected, mirror.platform)
@@ -49,7 +49,7 @@ test('each mirror holds exactly the codes of its clients, in registry order, und
 })
 
 test('the mirrors keep the names the call sites use', () => {
-  const [ts, swift, kotlin, dart] = renderMirrors(registry, SDK_ROOT).map((m) => m.text)
+  const [ts, swift, kotlin] = renderMirrors(registry, SDK_ROOT).map((m) => m.text)
   assert.match(ts, /^export const FAILURE_CODES = \[$/m)
   assert.match(ts, /^export type FailureCode = \(typeof FAILURE_CODES\)\[number\]$/m)
   assert.match(swift, /^public enum SellwildFailureCode: String, CaseIterable \{$/m)
@@ -59,11 +59,6 @@ test('the mirrors keep the names the call sites use', () => {
   assert.match(kotlin, /^ {4}val ALL: List<String> = listOf\($/m)
   assert.match(kotlin, /^object SellwildFailureComponent \{$/m)
   assert.match(kotlin, /^object SellwildFailureSeverity \{$/m)
-  assert.match(dart, /^abstract final class SellwildFailureCode \{$/m)
-  assert.match(dart, /^ {2}static const String configFetchHttp = 'config\.fetch\.http';$/m)
-  assert.match(dart, /^ {2}static const List<String> all = \[$/m)
-  assert.match(dart, /^abstract final class SellwildFailureComponent \{$/m)
-  assert.match(dart, /^\/\/ coverage:ignore-file /m)
 })
 
 test('a hand edit to a mirror is caught, and regenerating repairs it', () => {
@@ -71,12 +66,12 @@ test('a hand edit to a mirror is caught, and regenerating repairs it', () => {
   try {
     const kt = path.join(tree.root, MIRRORS[2].path)
     fs.writeFileSync(kt, fs.readFileSync(kt, 'utf8').replace('    const val CONFIG_FETCH_HTTP', '    const val HAND_ADDED = "config.hand.added"\n    const val CONFIG_FETCH_HTTP'))
-    fs.rmSync(path.join(tree.root, MIRRORS[3].path))
+    fs.rmSync(path.join(tree.root, MIRRORS[1].path))
 
     const stale = staleMirrors(registry, tree.root)
     assert.deepEqual(stale, [
+      { path: MIRRORS[1].path, reason: 'missing' },
       { path: MIRRORS[2].path, reason: 'differs from the generated text' },
-      { path: MIRRORS[3].path, reason: 'missing' },
     ])
     const check = run(['--check', '--contracts-dir', tree.contracts])
     assert.equal(check.status, 1)
@@ -143,23 +138,6 @@ test('unknown arguments and a --contracts-dir with no value are refused', () => 
   const bare = run(['--check', '--contracts-dir'])
   assert.equal(bare.status, 1)
   assert.equal(bare.stderr, 'gen-codes: --contracts-dir needs a value\n')
-})
-
-test('a Dart declaration of up to 80 characters stays on one line; a longer one wraps', () => {
-  const dart = MIRRORS.find((m) => m.platform === 'flutter')
-  const entry = (code) => ({ code, component: 'listings', severity: 'warn', clients: ['flutter'], description: 'A probe entry for the wrap test.' })
-  const at80 = entry('listings.abcdefghij.invalid')
-  const at81 = entry('listings.abcde_fghij.invalid')
-  const oneLine = (e) => `  static const String ${camelName(e.code)} = '${e.code}';`
-  assert.equal(oneLine(at80).length, 80)
-  assert.equal(oneLine(at81).length, 81)
-
-  const lines = dart.render([at80, at81]).split('\n')
-  assert.ok(lines.includes(oneLine(at80)), 'exactly 80 characters: one line')
-  assert.ok(!lines.includes(oneLine(at81)), '81 characters: not one line')
-  const at = lines.indexOf(`  static const String ${camelName(at81.code)} =`)
-  assert.ok(at > 0, '81 characters: the name ends the first line')
-  assert.equal(lines[at + 1], `      '${at81.code}';`)
 })
 
 test('writeMirrors keeps its temp files in the contracts dir, and refuses to run without one', (t) => {

@@ -8,7 +8,6 @@ The native iOS sample app. It is also what the iOS e2e flows drive (`e2e/README.
 2. Ads: `SellwildAdBanner` at 320x50 and 300x250, and `SellwildNativeAdView`. Each slot shows its measured size. Test ads may not fill.
 3. Listings: `SellwildAPIClient.shared.fetchListings`, drawn by the app. Refresh calls `clearCache()` and fetches again.
 4. Diagnostics: SDK version, partner code and slug, config source (remote or fallback), listings URL, and `SellwildFailures.context`. Failure codes show "not available on this platform": iOS has no public failure sink.
-5. Legacy: "Legacy WebView widget (deprecated)". `SellwildWidgetView` with its delegate. Do not copy it into a new app.
 
 ## Config
 

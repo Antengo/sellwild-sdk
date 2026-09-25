@@ -15,7 +15,7 @@ test('gate: no file prints or swallows more than the allowlist records', () => {
 
 test('gate: the exempt list is exactly the A2 debug-echo and debug-logger modules', () => {
   assert.deepEqual(readAllowlist().exemptFromPrint, PRINT_EXEMPT)
-  assert.equal(PRINT_EXEMPT.length, 8)
+  assert.equal(PRINT_EXEMPT.length, 6)
 })
 
 test('compare flags an increase and a new file, and tolerates a decrease', () => {

@@ -2,36 +2,14 @@
 <issues format="6" by="lint 8.7.3" type="baseline" client="gradle" dependencies="false" name="AGP (8.7.3)" variant="all" version="8.7.3">
 
     <issue
-        id="NewApi"
-        message="Call requires API level 28 (current min is 23): `android.app.Application#getProcessName`"
-        errorLine1="        WidgetPage.dataDirectorySuffix(Build.VERSION.SDK_INT, context.packageName) { android.app.Application.getProcessName() }"
-        errorLine2="                                                                                                             ~~~~~~~~~~~~~~">
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
+        errorLine1="            return if (value > 0) String.format(&quot;%.0f&quot;, value) else null"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt"
-            line="63"
-            column="110"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 28 (current min is 23): `android.webkit.WebView#setDataDirectorySuffix`"
-        errorLine1="            ?.let { WebView.setDataDirectorySuffix(it) }"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt"
-            line="64"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="Call requires API level 26 (current min is 23): `android.webkit.RenderProcessGoneDetail#didCrash`"
-        errorLine1="                message = if (detail.didCrash()) &quot;WebView render process crashed&quot; else &quot;WebView render process was killed&quot;,"
-        errorLine2="                                     ~~~~~~~~">
-        <location
-            file="src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt"
-            line="209"
-            column="38"/>
+            file="src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt"
+            line="68"
+            column="35"/>
     </issue>
 
     <issue
@@ -52,7 +30,7 @@
         errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt"
-            line="243"
+            line="244"
             column="9"/>
     </issue>
 
@@ -63,7 +41,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt"
-            line="402"
+            line="427"
             column="13"/>
     </issue>
 
@@ -85,7 +63,7 @@
         errorLine2="                        ~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt"
-            line="565"
+            line="595"
             column="25"/>
     </issue>
 

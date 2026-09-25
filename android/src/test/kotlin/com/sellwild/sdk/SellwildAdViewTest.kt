@@ -159,25 +159,23 @@ class SellwildAdViewTest {
     }
 
     @Test
-    fun `the companion helpers resolve the unit and the bidder params`() {
-        val cdn = configWith("GAM" to "/99999/cdn/banner", "MEDIANET" to JSONObject().put("cid", "c"))
+    fun `the companion helper resolves the unit`() {
+        val cdn = configWith("GAM" to "/99999/cdn/banner")
 
         assertEquals("/12345/typed", SellwildAdView.resolveGAMAdUnitID(cdn.copy(gamTag = "/12345/typed")))
         assertEquals("/99999/cdn/banner", SellwildAdView.resolveGAMAdUnitID(cdn))
         assertEquals(SellwildAdView.GAM_TEST_AD_UNIT_BANNER, SellwildAdView.resolveGAMAdUnitID(configWith(), AdSize.BANNER_320x50))
         assertEquals(SellwildAdView.GAM_TEST_AD_UNIT_ADAPTIVE, SellwildAdView.resolveGAMAdUnitID(configWith()))
-        assertTrue("MEDIANET" in SellwildAdView.bidderParamsFromRemote(cdn).keys)
-        assertEquals(emptyMap<String, Any?>(), SellwildAdView.bidderParamsFromRemote(SellwildConfig(partnerCode = "fixture")))
-        // The pure helpers do not report: the view does, once, when it builds the banner.
+        // The pure helper does not report: the view does, once, when it builds the banner.
         assertEquals(emptyList<String>(), events.codes)
     }
 
     @Test
-    fun `bidder params from remote config that does not parse are none, and the parse is reported once`() {
+    fun `remote config that does not parse resolves the test unit, and the parse is reported once`() {
         val config = SellwildConfig(partnerCode = "fixture", remoteJson = "{not json")
 
-        assertEquals(emptyMap<String, Any?>(), SellwildAdView.bidderParamsFromRemote(config))
-        assertEquals(emptyMap<String, Any?>(), SellwildAdView.bidderParamsFromRemote(config))
+        assertEquals(SellwildAdView.GAM_TEST_AD_UNIT_ADAPTIVE, SellwildAdView.resolveGAMAdUnitID(config))
+        assertEquals(SellwildAdView.GAM_TEST_AD_UNIT_ADAPTIVE, SellwildAdView.resolveGAMAdUnitID(config))
 
         events.single(SellwildFailureCode.CONFIG_REMOTE_VALUES_PARSE)
     }
@@ -212,7 +210,9 @@ class SellwildAdViewTest {
         val auction = ads.network.bannerAuctions.single()
         auction.finish(ResultCode.SUCCESS)
 
-        assertEquals(setOf("medianet") to "/1/feed", impExt(auction.unit.impOrtbConfig).let { (b, g) -> b.intersect(setOf("medianet")) to g })
+        // Bidder params live server-side in the stored imp: no CMS key rides along as a
+        // bidder (iOS parity), only the gpid.
+        assertEquals(emptySet<String>() to "/1/feed", impExt(auction.unit.impOrtbConfig))
         assertSame(view.gam(), ads.network.gamLoads.single())
         assertEquals(emptyList<String>(), events.codes)
     }
@@ -376,6 +376,23 @@ class SellwildAdViewTest {
         parent.addView(view)
         idleFor(30_000)
         assertEquals(2, ads.network.gamLoads.size)
+    }
+
+    @Test
+    fun `a GAM load that lands after a detach does not re-arm refresh (origin 7a07be8)`() {
+        val activity = newActivity()
+        val view = adView(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX_MOBILE" to 3), ctx = activity)
+        val parent = attach(activity, view)
+        view.load()
+
+        parent.removeView(view)
+        view.gam().adListener.onAdLoaded()
+        idleFor(60_000)
+        assertEquals(1, ads.network.gamLoads.size)
+
+        parent.addView(view)
+        idleFor(30_000)
+        assertEquals("the reattach restarts it", 2, ads.network.gamLoads.size)
     }
 
     @Test

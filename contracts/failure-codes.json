@@ -109,31 +109,6 @@
     "description": "The WebView mute shim (evaluateJavaScript) failed, so ad audio may not be muted."
   },
   {
-    "code": "ad.banner_config.missing",
-    "area": "ad",
-    "operation": "banner_config",
-    "reason": "missing",
-    "component": "banner",
-    "severity": "warn",
-    "clients": [
-      "flutter"
-    ],
-    "description": "The banner has neither a GAM tag nor a zone id, so it renders a blank slot."
-  },
-  {
-    "code": "ad.banner_script.network",
-    "area": "ad",
-    "operation": "banner_script",
-    "reason": "network",
-    "component": "banner",
-    "severity": "error",
-    "clients": [
-      "react-native",
-      "flutter"
-    ],
-    "description": "A script inside the banner HTML (gpt.js or the zone script) failed to load."
-  },
-  {
     "code": "ad.bid_inspect.exception",
     "area": "ad",
     "operation": "bid_inspect",
@@ -347,7 +322,6 @@
     "component": "banner",
     "severity": "error",
     "clients": [
-      "flutter",
       "widget"
     ],
     "description": "googletag.defineSlot failed or returned null (bad GAM path), so nothing renders."
@@ -833,51 +807,6 @@
     "description": "setGeo got a payload it could not read: one that is not an object (geo was cleared) or a field of the wrong type (that field was dropped)."
   },
   {
-    "code": "bridge.message.invalid",
-    "area": "bridge",
-    "operation": "message",
-    "reason": "invalid",
-    "component": "bridge",
-    "severity": "warn",
-    "clients": [
-      "react-native",
-      "ios",
-      "android",
-      "flutter"
-    ],
-    "description": "A WebView bridge message had a missing or wrong-typed field (type, url, listing, zoneId, message)."
-  },
-  {
-    "code": "bridge.message.parse",
-    "area": "bridge",
-    "operation": "message",
-    "reason": "parse",
-    "component": "bridge",
-    "severity": "warn",
-    "clients": [
-      "react-native",
-      "ios",
-      "android",
-      "flutter"
-    ],
-    "description": "A WebView bridge message was not valid JSON."
-  },
-  {
-    "code": "bridge.message.unsupported",
-    "area": "bridge",
-    "operation": "message",
-    "reason": "unsupported",
-    "component": "bridge",
-    "severity": "warn",
-    "clients": [
-      "react-native",
-      "ios",
-      "android",
-      "flutter"
-    ],
-    "description": "A WebView bridge message had an unknown type."
-  },
-  {
     "code": "bridge.native_module.missing",
     "area": "bridge",
     "operation": "native_module",
@@ -915,21 +844,6 @@
     "description": "A native view got missing props or an unsupported size label, so no ad was set up."
   },
   {
-    "code": "bridge.script.exception",
-    "area": "bridge",
-    "operation": "script",
-    "reason": "exception",
-    "component": "webview",
-    "severity": "error",
-    "clients": [
-      "react-native",
-      "ios",
-      "android",
-      "flutter"
-    ],
-    "description": "The widget page reported a JavaScript error through the bridge ERROR message."
-  },
-  {
     "code": "client.code.invalid",
     "area": "client",
     "operation": "code",
@@ -941,7 +855,6 @@
       "react-native",
       "ios",
       "android",
-      "flutter",
       "widget"
     ],
     "description": "Replacement action when a call site passes a code that fails the registry format. The label keeps the caller component. Never pass it directly."
@@ -980,8 +893,7 @@
     "clients": [
       "core",
       "react-native",
-      "android",
-      "flutter"
+      "android"
     ],
     "description": "AD_STACK or an AD_STACK_BY_ZONE entry is not a known mode (or not a map); the default is used."
   },
@@ -1005,8 +917,7 @@
     "component": "configure",
     "severity": "error",
     "clients": [
-      "android",
-      "flutter"
+      "android"
     ],
     "description": "Applying the fetched config threw; defaults are kept."
   },
@@ -1045,7 +956,6 @@
     "severity": "error",
     "clients": [
       "android",
-      "flutter",
       "widget"
     ],
     "description": "A configured color string is not a valid color; the fallback color is used."
@@ -1062,7 +972,6 @@
       "react-native",
       "ios",
       "android",
-      "flutter",
       "widget"
     ],
     "description": "The remote config request returned a non-2xx status (a missing file returns 403 AccessDenied XML)."
@@ -1079,7 +988,6 @@
       "react-native",
       "ios",
       "android",
-      "flutter",
       "widget"
     ],
     "description": "The remote config request failed at the network level (DNS, offline, TLS, reset)."
@@ -1096,7 +1004,6 @@
       "react-native",
       "ios",
       "android",
-      "flutter",
       "widget"
     ],
     "description": "The remote config body is not valid JSON."
@@ -1113,7 +1020,6 @@
       "react-native",
       "ios",
       "android",
-      "flutter",
       "widget"
     ],
     "description": "The remote config request did not answer within the client timeout."
@@ -1129,7 +1035,6 @@
       "core",
       "react-native",
       "android",
-      "flutter",
       "widget"
     ],
     "description": "A config field has an unexpected type or value and was ignored or coerced."
@@ -1159,18 +1064,6 @@
     "description": "LOCATION_MAP is not valid JSON, is badly %-encoded, or does not contain the slug."
   },
   {
-    "code": "config.overrides.exception",
-    "area": "config",
-    "operation": "overrides",
-    "reason": "exception",
-    "component": "configure",
-    "severity": "error",
-    "clients": [
-      "flutter"
-    ],
-    "description": "The host app's overrides callback threw during configure."
-  },
-  {
     "code": "config.parse.invalid",
     "area": "config",
     "operation": "parse",
@@ -1180,22 +1073,9 @@
     "clients": [
       "core",
       "react-native",
-      "ios",
-      "flutter"
+      "ios"
     ],
     "description": "The remote config JSON is valid but not an object (array, string or null)."
-  },
-  {
-    "code": "config.refresh_interval.invalid",
-    "area": "config",
-    "operation": "refresh_interval",
-    "reason": "invalid",
-    "component": "remoteConfig",
-    "severity": "warn",
-    "clients": [
-      "flutter"
-    ],
-    "description": "AD_REFRESH_INTERVAL looks like seconds rather than milliseconds."
   },
   {
     "code": "config.remote_values.parse",
@@ -1305,8 +1185,7 @@
     "severity": "warn",
     "clients": [
       "ios",
-      "android",
-      "flutter"
+      "android"
     ],
     "description": "A listing photo failed to download."
   },
@@ -1624,8 +1503,7 @@
     "component": "listings",
     "severity": "warn",
     "clients": [
-      "ios",
-      "flutter"
+      "ios"
     ],
     "description": "The listings client was released or disposed while a request was in flight."
   },
@@ -1653,7 +1531,6 @@
       "react-native",
       "ios",
       "android",
-      "flutter",
       "widget"
     ],
     "description": "The listings GET returned a non-2xx status."
@@ -1682,7 +1559,6 @@
       "react-native",
       "ios",
       "android",
-      "flutter",
       "widget"
     ],
     "description": "The listings GET failed at the network level (DNS, offline, TLS, reset)."
@@ -1699,7 +1575,6 @@
       "react-native",
       "ios",
       "android",
-      "flutter",
       "widget"
     ],
     "description": "The listings body is not valid JSON (for example an HTML error page)."
@@ -1716,7 +1591,6 @@
       "react-native",
       "ios",
       "android",
-      "flutter",
       "widget"
     ],
     "description": "Listings GET did not answer within the client timeout."
@@ -1730,7 +1604,6 @@
     "severity": "warn",
     "clients": [
       "react-native",
-      "flutter",
       "widget"
     ],
     "description": "A listing item or one of its fields (photo, price, currency) has an unexpected shape; it was dropped or hidden."
@@ -1743,8 +1616,7 @@
     "component": "listings",
     "severity": "error",
     "clients": [
-      "ios",
-      "flutter"
+      "ios"
     ],
     "description": "Decoding a listing item threw (strict casts on real payloads)."
   },
@@ -1771,7 +1643,6 @@
       "core",
       "react-native",
       "ios",
-      "flutter",
       "widget"
     ],
     "description": "The listings JSON is valid but has no result.rs array."
@@ -1889,8 +1760,7 @@
     "severity": "error",
     "clients": [
       "ios",
-      "android",
-      "flutter"
+      "android"
     ],
     "description": "The listings URL is not a valid URL."
   },
@@ -2511,18 +2381,6 @@
     "description": "An admin API call failed at the network level."
   },
   {
-    "code": "widget.attributes.exception",
-    "area": "widget",
-    "operation": "attributes",
-    "reason": "exception",
-    "component": "webview",
-    "severity": "warn",
-    "clients": [
-      "ios"
-    ],
-    "description": "Serializing a remote config value into a widget attribute failed; the attribute was left out."
-  },
-  {
     "code": "widget.customelements.unsupported",
     "area": "widget",
     "operation": "customelements",
@@ -2593,20 +2451,6 @@
       "widget"
     ],
     "description": "requestFullscreen was rejected."
-  },
-  {
-    "code": "widget.host_callback.exception",
-    "area": "widget",
-    "operation": "host_callback",
-    "reason": "exception",
-    "component": "webview",
-    "severity": "warn",
-    "clients": [
-      "react-native",
-      "android",
-      "flutter"
-    ],
-    "description": "A host app callback (onLoad, onListingTap, onAdImpression, onError) threw inside the SDK."
   },
   {
     "code": "widget.image.missing",
@@ -2681,19 +2525,6 @@
     "description": "The listingAction RPC failed."
   },
   {
-    "code": "widget.load.timeout",
-    "area": "widget",
-    "operation": "load",
-    "reason": "timeout",
-    "component": "webview",
-    "severity": "error",
-    "clients": [
-      "react-native",
-      "flutter"
-    ],
-    "description": "The widget never signaled that it loaded (bridge down, partner.js failed); the spinner never ends."
-  },
-  {
     "code": "widget.page_meta.exception",
     "area": "widget",
     "operation": "page_meta",
@@ -2749,8 +2580,6 @@
     "component": "widget",
     "severity": "fatal",
     "clients": [
-      "react-native",
-      "flutter",
       "widget"
     ],
     "description": "A script the widget needs (partner.js, hls.js, a variant bundle) failed to load."
@@ -2816,18 +2645,6 @@
     "description": "The session RPC (createRemoteSession) failed."
   },
   {
-    "code": "widget.setup.missing",
-    "area": "widget",
-    "operation": "setup",
-    "reason": "missing",
-    "component": "webview",
-    "severity": "error",
-    "clients": [
-      "android"
-    ],
-    "description": "The native widget view was loaded before setup()."
-  },
-  {
     "code": "widget.share.exception",
     "area": "widget",
     "operation": "share",
@@ -2840,18 +2657,6 @@
     "description": "navigator.share threw or was rejected."
   },
   {
-    "code": "widget.webview_load.exception",
-    "area": "widget",
-    "operation": "webview_load",
-    "reason": "exception",
-    "component": "webview",
-    "severity": "error",
-    "clients": [
-      "flutter"
-    ],
-    "description": "A WebView setup call (JavaScript mode, channel, navigation delegate or loadHtmlString) threw, so the widget or banner page never loads."
-  },
-  {
     "code": "widget.webview_load.http",
     "area": "widget",
     "operation": "webview_load",
@@ -2859,39 +2664,8 @@
     "component": "webview",
     "severity": "error",
     "clients": [
-      "react-native",
-      "ios",
-      "android",
       "widget"
     ],
     "description": "The widget WebView got an HTTP error status (4xx or 5xx) for its page or a main-frame resource."
-  },
-  {
-    "code": "widget.webview_load.network",
-    "area": "widget",
-    "operation": "webview_load",
-    "reason": "network",
-    "component": "webview",
-    "severity": "error",
-    "clients": [
-      "react-native",
-      "ios",
-      "android",
-      "flutter"
-    ],
-    "description": "The widget WebView failed to load its page or a main resource (offline, DNS, TLS, navigation failure)."
-  },
-  {
-    "code": "widget.webview_process.exception",
-    "area": "widget",
-    "operation": "webview_process",
-    "reason": "exception",
-    "component": "webview",
-    "severity": "error",
-    "clients": [
-      "ios",
-      "android"
-    ],
-    "description": "The WebView content process crashed or was killed (iOS webViewWebContentProcessDidTerminate, Android onRenderProcessGone). The widget is blank until reloaded."
   }
 ]

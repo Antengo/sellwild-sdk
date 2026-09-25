@@ -117,13 +117,11 @@ dependencies {
     // conflicts with host apps that have their own Prebid implementation.
     // Package: com.sellwild.prebid (instead of org.prebid.mobile)
     // Main class: SellwildPrebid (instead of PrebidMobile)
-    // Resolved from JitPack (see settings.gradle.kts). JitPack serves the fork
-    // under the `com.github.Antengo.prebid-mobile-android` group — it rewrites the
-    // artifact groupId to `com.github.<owner>.<repo>`, so `com.sellwild:*` does NOT
-    // resolve there (404). The shaded *package* stays `com.sellwild.prebid`
-    // regardless of the Maven group. `publishToMavenLocal` still emits `com.sellwild`
-    // for local dev, but the committed coordinate must be the JitPack one so CI /
-    // release builds resolve without a local publish.
+    // Resolved from https://maven.sellwild.com/releases (see settings.gradle.kts),
+    // the repo partners already add for com.sellwild:sdk, so the published POM's
+    // transitive fork deps resolve with no extra setup. Don't use the JitPack
+    // coordinate here: partners don't have jitpack.io, so the release POM would
+    // fail to resolve for them.
     // 3.3.2-sw4: cumulative Sellwild fork patches on the rendering BannerView —
     // sw1 exposes multiformat (banner+video) for prebidOnly outstream; sw2 makes
     // BasicParameterBuilder honor the VideoParameters on the rendering path; sw3
@@ -132,8 +130,8 @@ dependencies {
     // the reserved bounding box; sw4 substitutes the ${AUCTION_PRICE} macro in
     // bid.burl (billing URL) and emits device.geo.country in ISO alpha-3
     // (see Antengo/prebid-mobile-android).
-    implementation("com.github.Antengo.prebid-mobile-android:PrebidMobile-core:3.3.2-sw4")
-    implementation("com.github.Antengo.prebid-mobile-android:PrebidMobile-gamEventHandlers:3.3.2-sw4")
+    implementation("com.sellwild:PrebidMobile-core:3.3.2-sw4")
+    implementation("com.sellwild:PrebidMobile-gamEventHandlers:3.3.2-sw4")
     implementation("com.google.android.gms:play-services-ads:23.6.0")
 
     // SellwildFeed (1.4.0+) — all-in-one native feed surface.

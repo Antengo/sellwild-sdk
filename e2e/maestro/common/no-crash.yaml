@@ -7,6 +7,5 @@ appId: ${APP_ID}
 - assertNotVisible: ".*isn't responding.*"     # Android ANR dialog
 - assertNotVisible: ".*has stopped.*"          # older Android crash dialog
 - assertNotVisible: "Render Error"             # React Native red box
-- assertNotVisible: ".*Unhandled Exception.*"  # Flutter error screen
 - assertVisible:
     id: "sw.tab.feed"

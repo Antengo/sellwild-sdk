@@ -17,6 +17,5 @@ module.exports = {
     '^react$': path.join(appModules, 'react'),
     '^react/(.*)$': path.join(appModules, 'react/$1'),
     '^react-native$': path.join(appModules, 'react-native'),
-    '^react-native-webview$': path.join(appModules, 'react-native-webview'),
   },
 };

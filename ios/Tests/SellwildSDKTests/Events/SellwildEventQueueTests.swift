@@ -281,8 +281,9 @@ final class SellwildEventQueueTests: XCTestCase {
         var request = URLRequest(url: URL(string: "https://events.invalid/events/queue")!)
         request.httpMethod = "POST"
         let done = expectation(description: "completion")
-        SellwildEventTransport.session(session).send(request) { error in
+        SellwildEventTransport.session(session).send(request) { status, error in
             XCTAssertNil(error, "HTTP errors are not transport errors")
+            XCTAssertEqual(status, 503)
             done.fulfill()
         }
         wait(for: [answered, done], timeout: 10)

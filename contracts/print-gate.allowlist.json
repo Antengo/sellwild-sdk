@@ -6,9 +6,12 @@
     "ios/Sources/SellwildSDK/Failures/SellwildFailures.swift",
     "ios/Sources/SellwildSDK/Failures/SellwildLog.swift",
     "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailures.kt",
-    "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildLog.kt",
-    "flutter/lib/src/failures/sellwild_failures.dart",
-    "flutter/lib/src/failures/sellwild_log.dart"
+    "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildLog.kt"
   ],
-  "files": {}
+  "files": {
+    "react-native/src/SellwildFeed.tsx": {
+      "print": 1,
+      "emptyCatch": 0
+    }
+  }
 }

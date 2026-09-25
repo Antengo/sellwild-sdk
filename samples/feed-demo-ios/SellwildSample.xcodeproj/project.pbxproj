@@ -13,7 +13,6 @@
 		5EC1329CEB54E55277AFCF13 /* SampleModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F83C49BAA2EA8413EE04201F /* SampleModel.swift */; };
 		7378CF0EEA5A79F5933CE7A5 /* AdsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 617EFDBAD9CBBC07A5238C43 /* AdsScreen.swift */; };
 		800390132B54C68DC9DA0673 /* SellwildSDK in Frameworks */ = {isa = PBXBuildFile; productRef = A076BA334ECF3DE3A38ECAEC /* SellwildSDK */; };
-		A302040FEBFF9F8FF06F559C /* LegacyScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20F1EB77716B41373CA8C270 /* LegacyScreen.swift */; };
 		A8C96197BB02A7642F865093 /* SellwildSampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC1C09F26EBEB5A24C88BE0 /* SellwildSampleApp.swift */; };
 		E4AA1C2E2374E3F9B2E1BAD2 /* SampleIDs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26111EA7D1F4C8B68089FAC1 /* SampleIDs.swift */; };
 /* End PBXBuildFile section */
@@ -21,7 +20,6 @@
 /* Begin PBXFileReference section */
 		1361DA5736E6BAE3A7BC9FBA /* sellwild-sdk */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "sellwild-sdk"; path = ../..; sourceTree = SOURCE_ROOT; };
 		1AC1C09F26EBEB5A24C88BE0 /* SellwildSampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SellwildSampleApp.swift; sourceTree = "<group>"; };
-		20F1EB77716B41373CA8C270 /* LegacyScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyScreen.swift; sourceTree = "<group>"; };
 		26111EA7D1F4C8B68089FAC1 /* SampleIDs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleIDs.swift; sourceTree = "<group>"; };
 		4ACED62D049619F5F0F1BD6D /* ListingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListingsScreen.swift; sourceTree = "<group>"; };
 		617EFDBAD9CBBC07A5238C43 /* AdsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsScreen.swift; sourceTree = "<group>"; };
@@ -60,7 +58,6 @@
 				F4677D729C61BB7A55E9FB5A /* DiagnosticsScreen.swift */,
 				6716F02679369347F8BB86ED /* FeedScreen.swift */,
 				B7ABCF4C34EBBD2A4659FE39 /* Info.plist */,
-				20F1EB77716B41373CA8C270 /* LegacyScreen.swift */,
 				4ACED62D049619F5F0F1BD6D /* ListingsScreen.swift */,
 				26111EA7D1F4C8B68089FAC1 /* SampleIDs.swift */,
 				F83C49BAA2EA8413EE04201F /* SampleModel.swift */,
@@ -148,7 +145,6 @@
 				7378CF0EEA5A79F5933CE7A5 /* AdsScreen.swift in Sources */,
 				1FA04AA440DABD895BF5E9A4 /* DiagnosticsScreen.swift in Sources */,
 				23973879DD89F3CB644EADCE /* FeedScreen.swift in Sources */,
-				A302040FEBFF9F8FF06F559C /* LegacyScreen.swift in Sources */,
 				5B14FABCB39710C16325266B /* ListingsScreen.swift in Sources */,
 				E4AA1C2E2374E3F9B2E1BAD2 /* SampleIDs.swift in Sources */,
 				5EC1329CEB54E55277AFCF13 /* SampleModel.swift in Sources */,

@@ -73,6 +73,18 @@ class SellwildSDKTest {
     }
 
     @Test
+    fun `apply accepts IAB_CATS as array or comma-separated string`() {
+        val single = SellwildSDK.apply(JSONObject(mapOf("IAB_CATS" to "IAB15")), base)
+        assertEquals(listOf("IAB15"), single.iabCats)
+
+        val csv = SellwildSDK.apply(JSONObject(mapOf("IAB_CATS" to " IAB15, IAB19 ,,")), base)
+        assertEquals(listOf("IAB15", "IAB19"), csv.iabCats)
+
+        val arr = JSONObject().put("IAB_CATS", org.json.JSONArray(listOf("IAB15", "IAB19")))
+        assertEquals(listOf("IAB15", "IAB19"), SellwildSDK.apply(arr, base).iabCats)
+    }
+
+    @Test
     fun `absent keys keep the base values`() {
         val custom = base.copy(listingsUrl = "https://cache.sellwild.com/listings-custom", title = "Deals", adRefreshIntervalMs = 60_000L)
 
@@ -166,7 +178,7 @@ class SellwildSDKTest {
         assertEquals(30_000L, config.adRefreshIntervalMs)
         assertFalse(config.debug)
         assertEquals(listOf("#333333"), config.colors)
-        assertEquals("text IAB_CATS is known drift: Android reads only a list", emptyList<String>(), config.iabCats)
+        assertEquals("text IAB_CATS is read too (origin fd19058)", listOf("IAB15"), config.iabCats)
     }
 
     @Test

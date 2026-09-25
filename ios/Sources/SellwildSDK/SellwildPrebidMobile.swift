@@ -112,29 +112,43 @@ public enum SellwildPrebidMobile {
     ///
     /// Idempotent: safe to call from every `SellwildSDK.configure(...)` result
     /// and from every `SellwildAdView.load()` — only the first call performs
-    /// SDK initialization. Subsequent calls return immediately.
+    /// SDK initialization. Later calls with the same effective config return
+    /// immediately; a later call with a DIFFERENT config re-applies the
+    /// per-config Prebid fields (account id, server host/timeout, store URL,
+    /// publisher id, app categories) without re-running SDK initialization.
     @discardableResult
     public static func bootstrap(with config: SellwildConfig) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        if didBootstrap { return true }
-        let server = apply(config)
-        calls.startSDKs(server.url)
+        let specified = SellwildPrebidConfig.fields(of: config)
+        if didBootstrap {
+            // Only fields this config actually specifies overwrite; absent ones
+            // keep their last value, so a bare `SellwildConfig(partnerCode:)`
+            // (or an RN-rebuilt config without remoteJSON) can't wipe a
+            // CDN-resolved account / publisher id.
+            let merged = specified.overlaying(appliedFields)
+            if merged != appliedFields {
+                // Only swap Host.shared when the URL itself changed: its tracking
+                // URL is an unsynchronized var read by bid requests off-main, so a
+                // needless rewrite (e.g. a timeout-only change) can race them.
+                apply(merged, updateHost: merged.serverURL != appliedFields?.serverURL)
+            }
+            return true
+        }
+        let serverURL = apply(config)
+        calls.startSDKs(serverURL)
         didBootstrap = true
         return true
     }
 
-    /// Everything bootstrap sets before the SDKs start: the Prebid settings,
-    /// the app identity and the global ORTB config. Local; no network.
+    /// Everything the first bootstrap sets before the SDKs start: the Prebid
+    /// settings, the app identity and the global ORTB config. Local; no
+    /// network. Returns the Prebid Server URL the SDKs start against: typed
+    /// config wins, then the CDN S2S_CONFIG, then Sellwild's hosted Prebid
+    /// Server, so the SDK still does something on partial CMS config.
     @discardableResult
-    static func apply(_ config: SellwildConfig) -> SellwildPrebidConfig.Server {
-        // Typed config wins; then the raw CDN passthrough; then Sellwild's
-        // hosted Prebid Server, so the SDK still does something on partial
-        // CMS config.
-        let server = SellwildPrebidConfig.server(typed: config.prebidServer, remoteValues: config.remoteValues,
-                                                 partnerCode: config.partnerCode)
-        SellwildPrebid.shared.prebidServerAccountId = server.accountId
-        SellwildPrebid.shared.timeoutMillis = config.prebidServer?.timeout ?? 1500
+    static func apply(_ config: SellwildConfig) -> String {
+        let fields = SellwildPrebidConfig.initialFields(of: config)
         SellwildPrebid.shared.shareGeoLocation = true
         if config.debug {
             SellwildPrebid.shared.logLevel = .debug
@@ -143,34 +157,11 @@ public enum SellwildPrebidMobile {
         // so the PBS response carries the full debug block. Separate from log level.
         SellwildPrebid.shared.pbsDebug = config.pbsDebug
 
-        // OpenRTB app identity. Targeting.itunesID maps to app.bundle, which on
-        // iOS must be the NUMERIC App Store id (buyers key on it; reverse-DNS
-        // breaks matching). It comes from the store URL's `/idNNN` segment;
-        // without one, app.bundle keeps Prebid's reverse-DNS default and the
-        // edge Lambda backstops it. `sourceapp` (app.name) is left to Prebid.
-        if let numericId = appStoreId(from: config.appStoreUrl) {
-            Targeting.shared.itunesID = numericId
-        } else if let store = config.appStoreUrl, !store.isEmpty {
-            SellwildFailures.log(code: .configAppStoreUrlInvalid, component: .configure, severity: .warn,
-                                 message: "APP_STORE_URL has no /id<number> segment, so app.bundle keeps the reverse-DNS default")
-        }
-        // storeURL is independent of the bundle id — set it whenever configured
-        // so a valid appStoreUrl is never dropped just because appBundleId is nil.
-        if let store = config.appStoreUrl {
-            Targeting.shared.storeURL = store
-        }
-
-        // app.publisher.id must equal the sellers.json seller id (== schain
-        // sid); IAB_CATS become app.cat. Both, with device.geo and
-        // device.devicetype, go out as ONE global ORTB config (last write
-        // wins); a later setGeo(_:) re-emits it with the new geo.
-        lock.lock()
-        resolvedPublisherId = SellwildPrebidConfig.publisherId(remoteValues: config.remoteValues)
-        resolvedCats = config.iabCats.isEmpty ? nil : config.iabCats
-        lock.unlock()
         if SellwildGeoStore.current == nil { SellwildGeoStore.current = config.geo }
-        applyGlobalORTB()
-        return server
+        // Account / timeout / app identity / publisher id / cats, then the
+        // combined global ORTB emit. The host is set by initializeSDK.
+        apply(fields, updateHost: false)
+        return fields.serverURL ?? SellwildPrebidConfig.defaultEndpoint
     }
 
     // MARK: - Banner auction
@@ -246,6 +237,54 @@ public enum SellwildPrebidMobile {
     }
 
     // MARK: - Helpers
+
+    /// Last fields applied by `bootstrap`. Protected by `lock`.
+    private static var appliedFields: SellwildPrebidConfig.Fields?
+
+    /// Push `f` into Prebid targeting and re-emit the global ORTB config. nil
+    /// fields are left untouched.
+    private static func apply(_ f: SellwildPrebidConfig.Fields, updateHost: Bool) {
+        if let acct = f.accountId { SellwildPrebid.shared.prebidServerAccountId = acct }
+        if let t = f.timeout { SellwildPrebid.shared.timeoutMillis = t }
+        if updateHost, let url = f.serverURL {
+            do {
+                try Host.shared.setHostURL(url, nonTrackingURLString: nil)
+            } catch {
+                SellwildFailures.log(code: .adPrebidInitException, component: .banner, severity: .error,
+                                     error: error,
+                                     message: "the Prebid Server host could not be updated; auctions keep the old one")
+            }
+        }
+
+        // OpenRTB app identity. Targeting.itunesID maps to app.bundle, which on
+        // iOS must be the NUMERIC App Store id (buyers key on it; reverse-DNS
+        // breaks matching). It comes from the store URL's `/idNNN` segment;
+        // without one, app.bundle keeps Prebid's reverse-DNS default and the
+        // edge Lambda backstops it. `sourceapp` (app.name) is left to Prebid.
+        if let numericId = appStoreId(from: f.storeURL) {
+            Targeting.shared.itunesID = numericId
+        } else if let store = f.storeURL, !store.isEmpty {
+            SellwildFailures.log(code: .configAppStoreUrlInvalid, component: .configure, severity: .warn,
+                                 message: "APP_STORE_URL has no /id<number> segment, so app.bundle keeps the reverse-DNS default")
+        }
+        // storeURL is independent of the bundle id — set it whenever configured
+        // so a valid appStoreUrl is never dropped just because appBundleId is nil.
+        if let store = f.storeURL {
+            Targeting.shared.storeURL = store
+        }
+
+        // app.publisher.id must equal the sellers.json seller id (== schain
+        // sid); IAB_CATS become app.cat. Both, with device.geo and
+        // device.devicetype, go out as ONE global ORTB config (last write
+        // wins); a later setGeo(_:) re-emits it with the new geo. The lock is
+        // recursive, so this is safe under bootstrap's hold too.
+        lock.lock()
+        resolvedPublisherId = f.publisherId
+        resolvedCats = f.cats
+        appliedFields = f
+        lock.unlock()
+        applyGlobalORTB()
+    }
 
     /// Extract the numeric Apple App Store ID from a store URL, e.g.
     /// `https://apps.apple.com/us/app/weatherbug/id281940292` -> `"281940292"`.
@@ -329,6 +368,7 @@ public enum SellwildPrebidMobile {
         initialized = false
         resolvedPublisherId = nil
         resolvedCats = nil
+        appliedFields = nil
         calls = .live
         lock.unlock()
     }

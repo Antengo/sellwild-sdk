@@ -1,6 +1,3 @@
-export { SellwildWidget } from './SellwildWidget'
-export type { SellwildWidgetProps } from './SellwildWidget'
-
 export { SellwildBanner } from './SellwildBanner'
 export type { SellwildBannerProps } from './SellwildBanner'
 

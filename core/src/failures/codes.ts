@@ -12,31 +12,10 @@
 
 export const FAILURE_CODES = [
   /**
-   * A script inside the banner HTML (gpt.js or the zone script) failed to load.
-   * Usually `banner`, `error`.
-   */
-  'ad.banner_script.network',
-  /**
    * The requested ad size is missing or not numeric, which gives a 0x0 or NaN slot.
    * Usually `banner`, `warn`.
    */
   'ad.size.invalid',
-  /**
-   * A WebView bridge message had a missing or wrong-typed field (type, url, listing, zoneId,
-   * message).
-   * Usually `bridge`, `warn`.
-   */
-  'bridge.message.invalid',
-  /**
-   * A WebView bridge message was not valid JSON.
-   * Usually `bridge`, `warn`.
-   */
-  'bridge.message.parse',
-  /**
-   * A WebView bridge message had an unknown type.
-   * Usually `bridge`, `warn`.
-   */
-  'bridge.message.unsupported',
   /**
    * The SellwildRNModule native module is not registered, so native commands are no-ops.
    * Usually `bridge`, `warn`.
@@ -48,11 +27,6 @@ export const FAILURE_CODES = [
    * Usually `bridge`, `error`.
    */
   'bridge.native_view.missing',
-  /**
-   * The widget page reported a JavaScript error through the bridge ERROR message.
-   * Usually `webview`, `error`.
-   */
-  'bridge.script.exception',
   /**
    * Replacement action when a call site passes a code that fails the registry format. The label
    * keeps the caller component. Never pass it directly.
@@ -187,33 +161,6 @@ export const FAILURE_CODES = [
    * Usually `localized`, `warn`.
    */
   'localized.config.parse',
-  /**
-   * A host app callback (onLoad, onListingTap, onAdImpression, onError) threw inside the SDK.
-   * Usually `webview`, `warn`.
-   */
-  'widget.host_callback.exception',
-  /**
-   * The widget never signaled that it loaded (bridge down, partner.js failed); the spinner never
-   * ends.
-   * Usually `webview`, `error`.
-   */
-  'widget.load.timeout',
-  /**
-   * A script the widget needs (partner.js, hls.js, a variant bundle) failed to load.
-   * Usually `widget`, `fatal`.
-   */
-  'widget.script_load.network',
-  /**
-   * The widget WebView got an HTTP error status (4xx or 5xx) for its page or a main-frame resource.
-   * Usually `webview`, `error`.
-   */
-  'widget.webview_load.http',
-  /**
-   * The widget WebView failed to load its page or a main resource (offline, DNS, TLS, navigation
-   * failure).
-   * Usually `webview`, `error`.
-   */
-  'widget.webview_load.network',
 ] as const
 
 /** A registry code this package may pass to logFailure. */

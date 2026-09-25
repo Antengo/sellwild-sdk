@@ -13,7 +13,6 @@ object SampleIds {
     const val TAB_ADS = "sw.tab.ads"
     const val TAB_LISTINGS = "sw.tab.listings"
     const val TAB_DIAGNOSTICS = "sw.tab.diagnostics"
-    const val TAB_LEGACY = "sw.tab.legacy"
 
     // Feed. The SDK feed sets sw.listing.card and sw.feed.ad on its own rows.
     const val FEED_LIST = "sw.feed.list"
@@ -40,9 +39,4 @@ object SampleIds {
     const val DIAG_LISTINGS_URL = "sw.diag.listings_url"
     const val DIAG_FAILURES = "sw.diag.failures"
     const val DIAG_FAILURE_CONTEXT = "sw.diag.failure_context"
-
-    // Legacy
-    const val LEGACY_TITLE = "sw.legacy.title"
-    const val LEGACY_STATUS = "sw.legacy.status"
-    const val LEGACY_WEBVIEW = "sw.legacy.webview"
 }

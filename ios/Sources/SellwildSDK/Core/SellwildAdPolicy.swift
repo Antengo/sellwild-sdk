@@ -38,6 +38,23 @@ enum SellwildAdPolicy {
         max > 0 && count > max
     }
 
+    /// Whether another .prebidOnly auction fits the refresh cap. The budget is
+    /// the first render plus up to `max` refreshes; `renderCount` counts
+    /// renders, so it is spent once the count exceeds the max (the point where
+    /// `prebidRefreshSpent` stops the banner's own refresh).
+    static func hasPrebidRefreshBudget(renderCount: Int, max: Int) -> Bool {
+        max > 0 && renderCount <= max
+    }
+
+    /// The Prebid rendering banner's own auto-refresh interval: the floored
+    /// refresh interval while refresh is on. Cap 0 is no refresh: the fork
+    /// defaults refreshInterval to 60 s and its setter clamps 0 up to 15 s, so
+    /// only a negative value stores 0, which its AutoRefreshManager treats as
+    /// "don't refresh".
+    static func prebidAutoRefreshInterval(refreshMax: Int, configured: TimeInterval) -> TimeInterval {
+        refreshMax > 0 ? refreshInterval(configured) : -1
+    }
+
     // MARK: Prebid cold start
 
     /// Prebid init is async and can race the first load: wait up to about
@@ -96,19 +113,22 @@ enum SellwildAdPolicy {
         case keepPrebidCreative
         /// Prebid: re-auction now, which un-latches pause()'s stopRefresh.
         case reloadPrebid
-        /// Prebid with refresh off: nothing.
+        /// Prebid with refresh off or its refresh cap spent: nothing (the last
+        /// creative stays).
         case none
     }
 
     /// `keepCreative` is read only when there is a rendered creative to keep.
-    static func resumeAction(needsReload: Bool, stack: SellwildAdStack, refreshMax: Int,
+    /// A .prebidOnly reattach starts a new auction only while the refresh cap
+    /// has budget (`hasRefreshBudget`, from `hasPrebidRefreshBudget`).
+    static func resumeAction(needsReload: Bool, stack: SellwildAdStack, hasRefreshBudget: Bool,
                              hasRenderedCreative: Bool, keepCreative: @autoclosure () -> Bool) -> ResumeAction {
         if needsReload { return .reload }
         switch stack {
         case .both, .gamOnly:
             return .scheduleRefresh
         case .prebidOnly:
-            guard refreshMax > 0 else { return .none }
+            guard hasRefreshBudget else { return .none }
             return hasRenderedCreative && keepCreative() ? .keepPrebidCreative : .reloadPrebid
         }
     }

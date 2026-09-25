@@ -56,6 +56,13 @@ internal object AdDecisions {
      */
     fun prebidRefreshSpent(count: Int, max: Int): Boolean = max > 0 && count > max
 
+    /**
+     * Whether another prebidOnly auction fits the refresh cap. The budget is the first render
+     * plus up to [max] refreshes; [renderCount] counts renders, so it is spent once the count
+     * exceeds the max (the point where [prebidRefreshSpent] stops the banner's own refresh).
+     */
+    fun hasPrebidRefreshBudget(renderCount: Int, max: Int): Boolean = max > 0 && renderCount <= max
+
     // ── Prebid cold start ────────────────────────────────────────────────────
 
     /** What a load does while Prebid init may still be running. */
@@ -92,23 +99,25 @@ internal object AdDecisions {
         /** Re-issue the Prebid banner's loadAd() to restart its own refresh cadence. */
         RELOAD_PREBID,
 
-        /** Nothing refreshes (refresh off, or native). */
+        /** Nothing refreshes (refresh off, the prebidOnly refresh cap spent, or native). */
         NOTHING,
     }
 
     /**
      * [nativeEnabled] and [keepCreative] read remote config, so they are asked only when the
-     * answer matters, in the order the view always asked them.
+     * answer matters, in the order the view always asked them. A prebidOnly reattach starts a
+     * new auction only while [hasRefreshBudget] ([hasPrebidRefreshBudget]): once the cap is
+     * spent, the last creative stays (with either keep-creative setting).
      */
     fun resume(
         stack: Stack,
-        refreshMax: Int,
+        hasRefreshBudget: Boolean,
         nativeEnabled: () -> Boolean,
         hasRenderedCreative: Boolean,
         keepCreative: () -> Boolean,
     ): Resume = when {
         stack == Stack.GAM -> Resume.SCHEDULE_REFRESH
-        refreshMax <= 0 || nativeEnabled() -> Resume.NOTHING
+        !hasRefreshBudget || nativeEnabled() -> Resume.NOTHING
         hasRenderedCreative && keepCreative() -> Resume.KEEP_CREATIVE
         else -> Resume.RELOAD_PREBID
     }
@@ -213,57 +222,6 @@ internal object AdDecisions {
         )
         return Resolved(testUnit, listOf(issue))
     }
-
-    // ── Bidder params ────────────────────────────────────────────────────────
-
-    /**
-     * Bidder configs from the raw CDN payload, forwarded as the .both auction's
-     * imp.ext.prebid.bidder: every CONSTANT_CASE key that is not first-class typed config. A
-     * per-platform or _ALL suffix (…_ANDROID, _IOS, _ALL_ANDROID, _ALL_IOS) is stripped before
-     * the deny check, so per-platform zone ids never leak in as bidders.
-     */
-    fun bidderParams(remote: JSONObject?): Map<String, Any?> {
-        if (remote == null) return emptyMap()
-        val params = linkedMapOf<String, Any?>()
-        for (key in remote.keys()) {
-            if (key != key.uppercase()) continue
-            val base = key.removeSuffix("_ANDROID").removeSuffix("_IOS").removeSuffix("_ALL")
-            if (key in NON_BIDDER_REMOTE_KEYS || base in NON_BIDDER_REMOTE_KEYS) continue
-            params[key] = remote.opt(key)
-        }
-        return params
-    }
-
-    /** CDN keys that are first-class typed config, not bidder params. */
-    private val NON_BIDDER_REMOTE_KEYS: Set<String> = setOf(
-        "CODE", "LISTINGS", "SLUG", "NAME", "TITLE", "COLORS", "LINK_TEXT",
-        "BUY_NOW_TEXT", "FONT_FAMILY", "FONT_URL", "FONT_COLOR", "PRICE_COLOR",
-        "PRICE_FONT_COLOR", "MARGIN_BOTTOM", "CARD_WIDTH", "OVERLAY_TITLE",
-        "CSS", "WATERMARK", "WATERMARK_TITLE", "BANNER_ZID", "BOTTOM_BANNER_ZID",
-        "MOBILE_BANNER_ZID", "MOBILE_ZID", "DISPLAY_ZID", "HIDE_BANNER_TOP",
-        "HIDE_BANNER_BOTTOM", "GAM", "DISABLE_GPT", "AD_UNITS", "SAFE_FRAME",
-        "AD_DISABLE_DISPLAY", "AD_STACK", "AD_STACK_BY_ZONE", "AD_REFRESH_MAX",
-        "AD_REFRESH_MAX_MOBILE", "AD_REFRESH_INTERVAL", "MAX_FAILED_AUCTIONS",
-        "PREBID_DEFER", "PREBID_SRC", "AD_GEO_BLOCK", "AD_GEO_BLOCK_REFRESH",
-        "GPP_ENABLED", "TCF_VERSION", "CONSENT_MANAGEMENT", "SCHAIN_SID",
-        "S2S_CONFIG", "IAB_CATS", "APP_BUNDLE_ID", "APP_STORE_URL",
-        "ENABLE_INTERSTITIAL", "ENABLE_FULLSCREEN_VIDEO",
-        "INTERSTITIALS_PER_SESSION", "VIDEO_TAKEOVERS_PER_SESSION", "DEBUG",
-        "MEMBERSHIP_TYPE", "PBS_DEBUG",
-        // Ad-format toggles, read by SellwildVideo and SellwildNative.
-        "VIDEO_ENABLED", "VIDEO_ENABLED_BY_ZONE",
-        "VIDEO_SOUND_ENABLED", "VIDEO_SOUND_ENABLED_BY_ZONE",
-        "NATIVE_ENABLED", "NATIVE_ENABLED_BY_ZONE",
-        "NATIVE_MAX_HEIGHT", "NATIVE_MAX_HEIGHT_BY_ZONE",
-        // Native placement id (SellwildNative.resolveConfigId); the per-platform and _ALL
-        // variants are caught by the suffix strip.
-        "NATIVE_ZID",
-        "BANNER_SIZES", "BANNER_SIZES_BY_ZONE",
-        // GrowthCode identity, read by SellwildGrowthCode.
-        "GROWTHCODE_ENABLED", "GROWTHCODE_ENABLED_BY_ZONE",
-        "GROWTHCODE_PARTNER_ID", "GROWTHCODE_ENDPOINT", "GROWTHCODE_SYNC_URL",
-        "GROWTHCODE_SEND_MAID", "GROWTHCODE_TTL_HOURS",
-    )
 }
 
 /** Remote flags the ad and feed views read, with the exact coercion each always had. */

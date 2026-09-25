@@ -1,4 +1,4 @@
-# iOS Simulator helpers for scripts/e2e/apps/*.sh (ios, flutter-ios, rn-ios).
+# iOS Simulator helpers for scripts/e2e/apps/*.sh (ios, rn-ios).
 # Sourced by scripts/e2e/run.sh; defines functions only.
 
 # Sets IOS_SIM_ID: SELLWILD_IOS_SIM_ID, else the pick scripts/coverage/ios.sh

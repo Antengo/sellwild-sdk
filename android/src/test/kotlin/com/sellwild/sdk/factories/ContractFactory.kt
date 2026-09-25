@@ -71,3 +71,16 @@ internal fun contractArray(path: String): JSONArray = FixtureLoader.jsonArray(pa
 
 /** [items] as a JSON array. */
 internal fun jsonArrayOf(vararg items: Any): JSONArray = JSONArray().apply { items.forEach { put(it) } }
+
+/** Every Android factory, for FactoriesContractTest. */
+val ALL_FACTORIES: List<ContractFactory> = listOf(
+    AppConfigFactory,
+    ListingFactory,
+    ListingsResponseFactory,
+    LocalizedListingsConfigFactory,
+    LocalizedListingsResponseFactory,
+    ClientFailureEventFactory,
+    EventsBatchFactory,
+    GrowthCodeSyncResponseFactory,
+    EidBlobFactory,
+)

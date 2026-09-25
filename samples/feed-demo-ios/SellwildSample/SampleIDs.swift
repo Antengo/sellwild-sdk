@@ -6,7 +6,6 @@ enum SampleID {
     static let tabAds = "sw.tab.ads"
     static let tabListings = "sw.tab.listings"
     static let tabDiagnostics = "sw.tab.diagnostics"
-    static let tabLegacy = "sw.tab.legacy"
 
     // Feed
     static let feedList = "sw.feed.list"
@@ -33,9 +32,4 @@ enum SampleID {
     static let diagListingsUrl = "sw.diag.listings_url"
     static let diagFailures = "sw.diag.failures"
     static let diagFailureContext = "sw.diag.failure_context"
-
-    // Legacy
-    static let legacyTitle = "sw.legacy.title"
-    static let legacyWebView = "sw.legacy.webview"
-    static let legacyStatus = "sw.legacy.status"
 }

@@ -31,7 +31,7 @@ This document covers the Sellwild managed Prebid Server instance at `prebid.sell
 
 **Key benefits:**
 
-- Native device signals (IDFV / AAID, ATT status, OS version) are passed to demand instead of being scrubbed by WebView restrictions.
+- Native device signals (IDFV / AAID, ATT status, OS version) are passed to demand directly.
 - Reduces client-side JavaScript payload -- no individual bidder adapter scripts run on the device.
 - Centralizes bidder timeout enforcement on the server.
 - Enables server-side GDPR and consent enforcement via `regs.ext.gdpr`.
@@ -79,12 +79,12 @@ The following diagram illustrates the OpenRTB request flow when the SDK is confi
 
 Configure Prebid Server in the SDK by setting the `prebidServer` field on `SellwildConfig`:
 
-```dart
-prebidServer: PrebidServerConfig(
-  accountId: 'weatherbug',
-  endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
-  bidders: ['appnexus', 'pubmatic', 'ix', 'rubicon', 'openx'],
-  timeout: 1500,
+```kotlin
+prebidServer = PrebidServerConfig(
+    accountId = "weatherbug",
+    endpoint  = "https://prebid.sellwild.com/openrtb2/auction",
+    bidders   = listOf("appnexus", "pubmatic", "ix", "rubicon", "openx"),
+    timeout   = 1500,
 ),
 ```
 
@@ -93,7 +93,7 @@ prebidServer: PrebidServerConfig(
 | `accountId`    | `String`       | Yes      | --      | Your Prebid Server account ID. This is your Sellwild partner code.          |
 | `endpoint`     | `String`       | Yes      | --      | Full URL: `https://prebid.sellwild.com/openrtb2/auction`                    |
 | `bidders`      | `List<String>` | Yes      | --      | Bidder codes to include in the server-side auction. Must match server config.|
-| `timeout`      | `int`          | No       | 1500    | Maximum time (ms) the server waits for SSP responses before closing auction.|
+| `timeout`      | `Int`          | No       | 1500    | Maximum time (ms) the server waits for SSP responses before closing auction.|
 | `syncEndpoint` | `String?`      | No       | null    | Cookie sync endpoint. Derived from `endpoint` if omitted.                   |
 
 ### Server-Side Configuration
@@ -130,12 +130,12 @@ Adding a new SSP to your Prebid Server auction requires only your seat ID for th
 
 3. **Add the bidder code to your SDK configuration:**
 
-   ```dart
-   prebidServer: PrebidServerConfig(
-     accountId: 'weatherbug',
-     endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
-     bidders: ['appnexus', 'pubmatic', 'ix', 'rubicon', 'openx', 'new_ssp'],
-     timeout: 1500,
+   ```kotlin
+   prebidServer = PrebidServerConfig(
+       accountId = "weatherbug",
+       endpoint  = "https://prebid.sellwild.com/openrtb2/auction",
+       bidders   = listOf("appnexus", "pubmatic", "ix", "rubicon", "openx", "new_ssp"),
+       timeout   = 1500,
    ),
    ```
 
@@ -280,7 +280,7 @@ The SDK serializes these into the bid request:
 }
 ```
 
-Pass an empty array/list to clear the IDs (e.g. on logout). React Native and Flutter bridges are pending — these APIs are native iOS/Android today.
+Pass an empty array/list to clear the IDs (e.g. on logout). React Native bridges are pending — these APIs are native iOS/Android today.
 
 ### `atype` (OpenRTB agent type)
 
@@ -782,28 +782,28 @@ When no SSP returns a bid (a "no-fill"), the SDK falls back through the followin
 
 1. **Prebid Server auction** -- if configured via `PrebidServerConfig`, Prebid Mobile sends the S2S request. If `seatbid` is empty, Prebid Mobile reports no demand.
 
-2. **GAM passback** -- if `gamTag` is set in `SellwildConfig`, GPT requests the GAM ad unit. GAM can be configured with house ad line items that fill at a $0.00 CPM floor.
+2. **GAM passback** -- if `gamTag` is set in `SellwildConfig`, the Google Mobile Ads SDK requests the GAM ad unit. GAM can be configured with house ad line items that fill at a $0.00 CPM floor.
 
-3. **Zone-based fallback** -- if `bannerZid` or `zoneId` is set, the SDK loads a creative from `bidstream.sellwild.com`. This can serve a house ad or a direct-sold campaign.
+3. **House ad backdrop** -- if `MOBILE_HOUSE_AD_ENABLED` is on, the SDK shows the house creative configured via `MOBILE_HOUSE_AD_*` (per zone, then per size, then app-wide). In the native feed, an MREC slot with no configured image can fall back to a Sellwild listing. See [Configuration → House ads](./configuration#house-ads-mobile).
 
-4. **Blank slot** -- if all of the above return empty, the ad slot renders as transparent. The `SellwildBanner` widget will display an empty `SizedBox` at the specified dimensions.
+4. **Blank slot** -- if all of the above return empty, the ad slot renders as transparent and keeps its declared dimensions.
 
 ### Configuring House Ads
 
 To ensure a house ad always fills when programmatic demand is unavailable:
 
 - **In GAM:** Create a "House" line item with priority 16, $0.00 CPM, and assign a house creative. Target it to the same ad unit path used in `gamTag`.
-- **Via Sellwild zones:** Contact the Sellwild ad operations team to configure a house creative on your zone ID. The zone ad server at `bidstream.sellwild.com` will return the house creative when no programmatic fill is available.
+- **Via remote config:** Set the `MOBILE_HOUSE_AD_*` keys in the CMS. No app release is needed. See [Configuration → House ads](./configuration#house-ads-mobile).
 
 ### Controlling Refresh on No-Fill
 
 The SDK respects `maxFailedAuctions` in `SellwildConfig` (default: 3). After three consecutive no-fill auctions on an ad slot, the SDK stops refreshing that slot to conserve bandwidth and battery.
 
-```dart
+```kotlin
 SellwildConfig(
-  partnerCode: 'weatherbug',
-  maxFailedAuctions: 5,          // Allow more retries before stopping
-  adRefreshInterval: Duration(seconds: 45),  // Slow down refresh rate
+    partnerCode = "weatherbug",
+    maxFailedAuctions = 5,           // Allow more retries before stopping
+    adRefreshIntervalMs = 45_000L,   // Slow down refresh rate
 )
 ```
 

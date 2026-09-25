@@ -56,6 +56,9 @@ internal class RnSellwildFeedView(context: Context) : SellwildFeedView(context) 
  *     The bridge re-runs the CDN decoder against `config.remote` so
  *     feed-specific fields (COL1, bgColor, mobileZids, listingsUrl, …)
  *     are populated identically to a native [SellwildSDK.configure] call.
+ *   - scrollEnabled: bool — disable internal scrolling for embedding.
+ *   - consumeListingTaps: bool — when true the host owns listing taps; the
+ *     SDK does not open Custom Tabs.
  *
  * Events emitted to JS:
  *   - onFeedLoaded
@@ -84,8 +87,10 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
                     putMap("listing", listingPayload(listing))
                 }
                 emit(reactContext, view, "onListingTap", payload)
-                // SDK still owns navigation (Custom Tabs); JS just observes.
-                return false
+                // JS can't return a value through an (async) RN event, so the
+                // `consumeListingTaps` prop decides whether the SDK opens
+                // Custom Tabs (false, default) or leaves navigation to the host.
+                return pending[view]?.consumeListingTaps ?: false
             }
 
             override fun onAdImpression(zoneId: String) {
@@ -135,6 +140,11 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
         view.scrollEnabled = value
     }
 
+    @ReactProp(name = "consumeListingTaps", defaultBoolean = false)
+    fun setConsumeListingTaps(view: SellwildFeedView, value: Boolean) {
+        pendingFor(view).consumeListingTaps = value
+    }
+
     override fun onAfterUpdateTransaction(view: SellwildFeedView) {
         super.onAfterUpdateTransaction(view)
 
@@ -147,6 +157,9 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
 
     override fun onDropViewInstance(view: SellwildFeedView) {
         pending.remove(view)
+        // RN unmounted the feed for good: stop its ad rows' refresh and release
+        // the Activity (detach alone doesn't when MOBILE_PAUSE_REFRESH_DETACHED=false).
+        view.destroy()
         super.onDropViewInstance(view)
     }
 
@@ -351,8 +364,14 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
 internal class FeedProps {
     var config: ReadableMap? = null
 
-    // The config last set up, so a JS re-render does not set the feed up again.
-    private var lastAppliedKey: String? = null
+    // When true, listing taps are only forwarded to JS and the SDK does not
+    // open Custom Tabs. Read at tap time, so it applies live.
+    var consumeListingTaps: Boolean = false
+
+    // The config last set up, compared by value, so a JS re-render does not
+    // set the feed up again. A hashCode() key is only a probabilistic match
+    // (collisions ⇒ a real config change is skipped).
+    private var lastAppliedConfig: Map<String, Any?>? = null
 
     /**
      * The config to set the feed up with after this transaction, or null:
@@ -362,9 +381,9 @@ internal class FeedProps {
      */
     fun nextConfig(): SellwildConfig? {
         val configMap = config ?: return null
-        val key = "${configMap.hashCode()}"
-        if (lastAppliedKey == key) return null
-        lastAppliedKey = key
+        val configValue = configMap.toHashMap()
+        if (lastAppliedConfig == configValue) return null
+        lastAppliedConfig = configValue
         return try {
             SellwildFeedViewManager.configFromMap(configMap)
         } catch (e: Exception) {

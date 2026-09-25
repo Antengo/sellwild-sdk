@@ -1,6 +1,6 @@
 # Sellwild Sample (React Native)
 
-The React Native sample app. It has the same five tabs as the iOS, Android and Flutter samples, so one set of Maestro flows (`e2e/maestro/`) covers them all.
+The React Native sample app. It has the same four tabs as the iOS and Android samples, so one set of Maestro flows (`e2e/maestro/`) covers them all.
 
 ## Tabs
 
@@ -8,7 +8,6 @@ The React Native sample app. It has the same five tabs as the iOS, Android and F
 2. Ads: `SellwildBanner` at 320x50 and 300x250 (native Prebid Mobile + GAM). The label under each slot shows its measured size. The React Native SDK has no native ad or house ad component, and the screen says so.
 3. Listings: `useSellwildListings`, drawn with `SellwildListingCard`. Refresh clears the listings cache and fetches again.
 4. Diagnostics: the SDK version (`SDK_VERSION`), partner and slug, config source (remote or fallback), the listings URL, and the failure codes the SDK sent this launch.
-5. Legacy: "Legacy WebView widget (deprecated)", with `SellwildWidget`.
 
 ## What it passes to the SDK
 

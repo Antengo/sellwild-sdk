@@ -22,14 +22,15 @@ import { nativeViewOrNull, useMissingNativeViewReport } from './nativeViews'
 // iOS:     SellwildFeedView (UITableView-backed)
 // Android: com.sellwild.sdk.SellwildFeedView (RecyclerView-backed)
 //
-// This component is the drop-in native replacement for the WebView-based
-// <SellwildWidget>. Same one-component integration shape; native rails.
+// This is the one-component marketplace surface for React Native (the
+// WebView-based <SellwildWidget> has been removed).
 
 const NATIVE_NAME = 'SellwildFeedView'
 
 interface NativeFeedProps {
   config: object
   scrollEnabled?: boolean
+  consumeListingTaps?: boolean
   style?: StyleProp<ViewStyle>
   onFeedLoaded?: (e: NativeSyntheticEvent<{}>) => void
   onFeedReady?: (e: NativeSyntheticEvent<{ listingCount: number }>) => void
@@ -86,9 +87,23 @@ export interface SellwildFeedProps {
   onFeedReady?: (listingCount: number) => void
 
   /**
-   * Fired when a listing card is tapped. Return `true` to consume the
-   * event; return `false` (or omit) to let the SDK open `listing.url`
-   * in the platform in-app browser (Custom Tabs / SFSafariViewController).
+   * When `true`, listing taps are fully handled by the host app: the SDK does
+   * NOT open the listing in the in-app browser (Custom Tabs /
+   * SFSafariViewController) and only fires `onListingTap`. Use this to route
+   * listings through your own navigation. Defaults to `false` (the SDK opens
+   * the listing URL), so existing integrations are unaffected.
+   */
+  consumeListingTaps?: boolean
+
+  /**
+   * Fired when a listing card is tapped. This is a notification only: the
+   * return value is ignored, because React Native events are delivered to JS
+   * asynchronously — after the native side has already decided whether to
+   * open the browser. To handle navigation yourself, set
+   * `consumeListingTaps` instead.
+   *
+   * The `boolean` return type is kept only so existing handlers still compile;
+   * it is deprecated and has no effect.
    */
   onListingTap?: (listing: SellwildListing) => boolean | void
 
@@ -112,6 +127,7 @@ export function SellwildFeed({
   config,
   style,
   scrollEnabled = true,
+  consumeListingTaps = false,
   onContentSizeChange,
   onLoad,
   onFeedReady,
@@ -125,6 +141,8 @@ export function SellwildFeed({
   // scrolling, so we size our own container from the native-reported content
   // height rather than filling with flex:1.
   const [contentHeight, setContentHeight] = React.useState<number | null>(null)
+  // Dev-only: warn once per feed about the ignored `return true`, not on every tap.
+  const warnedReturnTrue = React.useRef(false)
   const embedded = scrollEnabled === false
   const containerStyle: StyleProp<ViewStyle> = embedded
     ? [contentHeight != null ? { height: contentHeight } : undefined, style]
@@ -156,6 +174,7 @@ export function SellwildFeed({
       style={containerStyle}
       config={nativeConfig}
       scrollEnabled={scrollEnabled}
+      consumeListingTaps={consumeListingTaps}
       onContentSizeChange={(e: NativeSyntheticEvent<{ width?: number; height: number }>) => {
         const { width, height } = e.nativeEvent ?? { height: 0 }
         // Only size our own container when embedded; a scrolling feed fills
@@ -168,7 +187,15 @@ export function SellwildFeed({
         onFeedReady?.(e.nativeEvent.listingCount)
       }}
       onListingTap={(e: NativeSyntheticEvent<{ listing: SellwildListing }>) => {
-        onListingTap?.(e.nativeEvent.listing)
+        const result = onListingTap?.(e.nativeEvent.listing)
+        if (__DEV__ && result === true && !consumeListingTaps && !warnedReturnTrue.current) {
+          warnedReturnTrue.current = true
+          console.warn(
+            '[Sellwild] onListingTap returned true, but the return value is ignored ' +
+              '(RN events are async). Set consumeListingTaps on <SellwildFeed> to ' +
+              'stop the SDK from opening the listing.',
+          )
+        }
       }}
       onAdImpression={(e: NativeSyntheticEvent<{ zoneId: string }>) => {
         onAdImpression?.(e.nativeEvent.zoneId)

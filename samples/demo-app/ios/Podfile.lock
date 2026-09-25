@@ -938,27 +938,6 @@ PODS:
   - React-Mapbuffer (0.74.6):
     - glog
     - React-debug
-  - react-native-webview (13.16.1):
-    - DoubleConversion
-    - glog
-    - hermes-engine
-    - RCT-Folly (= 2024.01.01.00)
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Codegen
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-rendererdebug
-    - React-utils
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - Yoga
   - React-nativeconfig (0.74.6)
   - React-NativeModulesApple (0.74.6):
     - glog
@@ -1200,7 +1179,7 @@ PODS:
     - SellwildPrebidGAMEventHandlers (= 1.4.4)
   - SellwildSDK-RN (1.7.7):
     - React-Core
-    - SellwildSDK (>= 1.4.0)
+    - SellwildSDK (>= 1.7.7)
   - SocketRocket (0.7.0)
   - Yoga (0.0.0)
 
@@ -1237,7 +1216,6 @@ DEPENDENCIES:
   - React-jsitracing (from `../node_modules/react-native/ReactCommon/hermes/executor/`)
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
-  - react-native-webview (from `../node_modules/react-native-webview`)
   - React-nativeconfig (from `../node_modules/react-native/ReactCommon`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-perflogger (from `../node_modules/react-native/ReactCommon/reactperflogger`)
@@ -1335,8 +1313,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/logger"
   React-Mapbuffer:
     :path: "../node_modules/react-native/ReactCommon"
-  react-native-webview:
-    :path: "../node_modules/react-native-webview"
   React-nativeconfig:
     :path: "../node_modules/react-native/ReactCommon"
   React-NativeModulesApple:
@@ -1423,7 +1399,6 @@ SPEC CHECKSUMS:
   React-jsitracing: 257f7a96aed4216f0f611f1f7a34fd288227c924
   React-logger: 76e7467052f51022eca5bcfe0c700004ad88954d
   React-Mapbuffer: 023e56d8228ebc662ba021b0c662e5d17ee6922b
-  react-native-webview: 3689cdf7320cb12c6f891154361a67299f172788
   React-nativeconfig: c36a079fa219a9911070cc0058b746407e1ef47d
   React-NativeModulesApple: 057d7428de4fc072da9cfa390549f4d98d3fb827
   React-perflogger: 9f21c9e3d8d220833e649a141fed8e5ca08977d9
@@ -1450,7 +1425,7 @@ SPEC CHECKSUMS:
   SellwildPrebid: 5decfc58adf6e0692f32591ccd56226360bfc735
   SellwildPrebidGAMEventHandlers: e070e553410077b7146aea1b2331f5449066429f
   SellwildSDK: ba4c711d38d4f0e3b17b9cc1dd58667eabfb991b
-  SellwildSDK-RN: d49dbf2fa8500c197dd12f6e07899492dfeb2293
+  SellwildSDK-RN: 9c76151183c8c205462f97af2bd2a2690f203c08
   SocketRocket: abac6f5de4d4d62d24e11868d7a2f427e0ef940d
   Yoga: 4f4f07a17818e76d1b04edc01b68b6d49a682100
 

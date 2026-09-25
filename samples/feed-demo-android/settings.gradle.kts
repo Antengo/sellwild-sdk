@@ -27,9 +27,8 @@ dependencyResolutionManagement {
         }
         google()
         mavenCentral()
-        // The SDK's Prebid Mobile fork (com.github.Antengo.prebid-mobile-android).
-        maven { url = uri("https://jitpack.io") }
-        // com.sellwild:omsdk-android, which the Prebid fork needs.
+        // Sellwild Maven: the namespace-shaded Prebid Mobile fork (com.sellwild:PrebidMobile-*,
+        // pinned by the SDK's POM) and its omsdk-android dependency.
         maven { url = uri("https://maven.sellwild.com/releases") }
     }
 }

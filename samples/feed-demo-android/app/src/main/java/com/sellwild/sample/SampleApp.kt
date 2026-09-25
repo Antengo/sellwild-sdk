@@ -11,7 +11,6 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,13 +42,12 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sellwild.sdk.SellwildConfig
 
-/** The five tabs, in the order and with the titles every platform's sample uses. */
+/** The four tabs, in the order and with the titles every platform's sample uses. */
 enum class SampleTab(val title: String, val id: String, val icon: ImageVector) {
     Feed("Feed", SampleIds.TAB_FEED, Icons.Filled.Home),
     Ads("Ads", SampleIds.TAB_ADS, Icons.Filled.Star),
     Listings("Listings", SampleIds.TAB_LISTINGS, Icons.AutoMirrored.Filled.List),
     Diagnostics("Diagnostics", SampleIds.TAB_DIAGNOSTICS, Icons.Filled.Info),
-    Legacy("Legacy", SampleIds.TAB_LEGACY, Icons.Filled.Warning),
 }
 
 /** Waits for `SellwildSDK.configure`, then shows the tabs. */
@@ -103,7 +101,6 @@ fun SampleTabs(config: SellwildConfig) {
                 SampleTab.Ads -> AdsScreen(config)
                 SampleTab.Listings -> ListingsScreen(config)
                 SampleTab.Diagnostics -> DiagnosticsScreen(config)
-                SampleTab.Legacy -> LegacyScreen(config)
             }
         }
     }

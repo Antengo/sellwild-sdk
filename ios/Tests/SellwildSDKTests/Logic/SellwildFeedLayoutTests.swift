@@ -39,7 +39,8 @@ final class SellwildFeedLayoutTests: XCTestCase {
 
     func testBannerZoneIsTheFirstSetOneEvenWhenEmpty() {
         XCTAssertEqual(SellwildFeedLayout.bannerZone(mobile: "m", banner: "b", bottom: "t"), "m")
-        XCTAssertEqual(SellwildFeedLayout.bannerZone(mobile: "", banner: "b", bottom: "t"), "", "an empty mobile zone wins, as before")
+        XCTAssertEqual(SellwildFeedLayout.bannerZone(mobile: "", banner: "b", bottom: "t"), "b",
+                       "a blank mobile zone does not shadow BANNER_ZID (origin b194344)")
         XCTAssertEqual(SellwildFeedLayout.bannerZone(mobile: nil, banner: "b", bottom: "t"), "b")
         XCTAssertEqual(SellwildFeedLayout.bannerZone(mobile: nil, banner: nil, bottom: "t"), "t")
         XCTAssertEqual(SellwildFeedLayout.bannerZone(mobile: nil, banner: nil, bottom: nil), "")

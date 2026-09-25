@@ -1,5 +1,5 @@
-# Android emulator helpers for scripts/e2e/apps/*.sh (android, flutter-android,
-# rn-android). Sourced by scripts/e2e/run.sh; defines functions only.
+# Android emulator helpers for scripts/e2e/apps/*.sh (android, rn-android).
+# Sourced by scripts/e2e/run.sh; defines functions only.
 #
 # Env:
 #   ANDROID_HOME / ANDROID_SDK_ROOT  the Android SDK (default ~/Library/Android/sdk)

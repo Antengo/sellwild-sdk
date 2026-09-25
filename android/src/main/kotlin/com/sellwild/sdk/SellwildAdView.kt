@@ -59,9 +59,8 @@ class SellwildFirstAdViewedGuard {
  *   - [SellwildAdStack.PREBID_ONLY] Prebid's own rendering [PrebidBannerView],
  *                                   NO GAM request (and so no GAM request fees).
  *
- * The widget surface ([SellwildWidgetView]) still uses a WebView for
- * marketplace listings — that surface is intentionally a WebView. Banners and
- * other monetizing ad units render natively.
+ * Marketplace listings render natively too, via [SellwildFeedView] — the SDK
+ * ships no WebView-based surfaces.
  *
  * Usage:
  * ```kotlin
@@ -135,7 +134,7 @@ open class SellwildAdView @JvmOverloads constructor(
      * Effective GPID override for this placement. When set, wins over the
      * remotely-resolved [SellwildGpid.resolveBase] base — the feed sets it to
      * inject the per-slot occurrence suffix (`base#n`). Standalone views leave
-     * it null and auto-resolve the bare base. Internal — not a public RN/Flutter
+     * it null and auto-resolve the bare base. Internal — not a public RN-facing
      * prop; set before [setup]/[load] so the prebidOnly imp-ext picks it up.
      */
     var gpidOverride: String? = null
@@ -182,6 +181,15 @@ open class SellwildAdView @JvmOverloads constructor(
      */
     private val effectiveRefreshMax: Int
         get() = AdDecisions.refreshMax(config.adRefreshMaxMobile, config.adRefreshMax)
+
+    /**
+     * Whether another prebidOnly auction fits the refresh cap. The budget is the
+     * first render + up to [effectiveRefreshMax] refreshes; [prebidRefreshCount]
+     * counts renders, so it's spent once the count exceeds the max (the same
+     * point the render listener calls stopRefresh()).
+     */
+    private val hasPrebidRefreshBudget: Boolean
+        get() = AdDecisions.hasPrebidRefreshBudget(prebidRefreshCount, effectiveRefreshMax)
 
     // Cold-start guard: Prebid Mobile init is async and races the first load().
     // Wait up to ~1.2s (8 × 150ms) for init before falling back to GAM-only, so
@@ -306,20 +314,22 @@ open class SellwildAdView @JvmOverloads constructor(
         // request), so re-issue loadAd() to actually resume the auto-refresh
         // cadence (parity with iOS resume()).
         //
-        // prebidOnly, flag off (default): re-issue loadAd() to un-latch the fork's
-        // refresh cadence — but this discards the current creative before its
-        // viewability tracker fires, so burl (the viewable impression) almost never
-        // fires on a scrolling feed. Flag on: keep the already-rendered creative so
-        // its tracker fires the impression/burl now that we're back on screen, and
-        // resume the cadence on a DELAYED refresh instead of an immediate
-        // re-auction. See MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH. The cheap
-        // rendered-creative flag is checked before the remote flag (a parse), so a
-        // reattach with no rendered creative (common on fast scroll) skips the parse.
+        // prebidOnly runs only while the refresh cap has budget: once it is spent, a
+        // reattach starts no new auction (with either flag) and the last creative stays.
+        // Flag off (default): re-issue loadAd() to un-latch the fork's refresh cadence —
+        // but this discards the current creative before its viewability tracker fires,
+        // so burl (the viewable impression) almost never fires on a scrolling feed.
+        // Flag on: keep the already-rendered creative so its tracker fires the
+        // impression/burl now that we're back on screen, and resume the cadence on a
+        // DELAYED refresh instead of an immediate re-auction. See
+        // MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH. The cheap rendered-creative flag is
+        // checked before the remote flag (a parse), so a reattach with no rendered
+        // creative (common on fast scroll) skips the parse.
         val stack = if (resolvedAdStack == SellwildAdStack.PREBID_ONLY) AdDecisions.Stack.PREBID_ONLY else AdDecisions.Stack.GAM
         when (
             AdDecisions.resume(
                 stack = stack,
-                refreshMax = effectiveRefreshMax,
+                hasRefreshBudget = hasPrebidRefreshBudget,
                 nativeEnabled = { nativeEnabled },
                 hasRenderedCreative = prebidHasRenderedCreative,
                 keepCreative = { keepsPrebidCreativeOnReattach },
@@ -370,7 +380,7 @@ open class SellwildAdView @JvmOverloads constructor(
      * refresh cap. Reuses the shared [refreshHandler]; never stacks callbacks.
      */
     private fun schedulePrebidRefresh() {
-        if (!AdDecisions.mayRefresh(prebidRefreshCount, effectiveRefreshMax)) return
+        if (!hasPrebidRefreshBudget) return
         val handler = refreshHandler ?: Handler(Looper.getMainLooper()).also { refreshHandler = it }
         handler.removeCallbacksAndMessages(null)
         handler.postDelayed({
@@ -715,12 +725,14 @@ open class SellwildAdView @JvmOverloads constructor(
 
         prebidWaitAttempts = 0
         val size = adSize
+        // Bidder params are configured server-side in the stored imp. Don't send
+        // CMS config inline — it includes non-bidder keys that PBS rejects
+        // (parity with iOS, which sends empty bidder params).
         SellwildPrebidMobile.runBannerAuction(
             adView = banner,
             configId = configId,
             widthDp = size.width,
             heightDp = size.height,
-            bidderParams = bidderParamsFromRemote(config),
             video = SellwildVideo.isEnabled(config.remoteJson, zoneId),
             adSizes = resolvedAdSizes,
             gpid = effectiveGpid,
@@ -1066,6 +1078,9 @@ open class SellwildAdView @JvmOverloads constructor(
     }
 
     private fun scheduleRefresh() {
+        // Detached (paused for detach): a GAM load that lands after pause() must
+        // not re-arm refresh on an off-window view — resume() restarts it.
+        if (isPausedForDetach) return
         if (!AdDecisions.mayRefresh(refreshCount, effectiveRefreshMax)) return
 
         val handler = refreshHandler ?: Handler(Looper.getMainLooper()).also { refreshHandler = it }
@@ -1101,14 +1116,5 @@ open class SellwildAdView @JvmOverloads constructor(
             }
             return resolved.value
         }
-
-        /**
-         * Forward bidder configs from the raw CDN payload as ext data on the
-         * Prebid auction. Each new bidder added to the CMS becomes available
-         * to every consuming app immediately, no SDK release. See
-         * [AdDecisions.bidderParams] for which keys are bidders.
-         */
-        internal fun bidderParamsFromRemote(config: SellwildConfig): Map<String, Any?> =
-            AdDecisions.bidderParams(remoteObject(config.remoteJson))
     }
 }

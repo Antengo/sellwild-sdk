@@ -3,6 +3,7 @@ package com.sellwild.sdk
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.google.android.gms.ads.admanager.AdManagerAdView
+import com.sellwild.prebid.Host
 import com.sellwild.prebid.ResultCode
 import com.sellwild.prebid.SellwildPrebid
 import com.sellwild.prebid.TargetingParams
@@ -54,7 +55,7 @@ class SellwildPrebidMobileTest {
     // ── Resolvers ────────────────────────────────────────────────────────────
 
     @Test
-    fun `the Prebid Server is the typed config, else an S2S_CONFIG object, else Sellwild's`() {
+    fun `the Prebid Server is the typed config, else S2S_CONFIG (object or text), else Sellwild's`() {
         val typed = SellwildConfig(
             partnerCode = "weatherbug",
             prebidServer = PrebidServerConfig("abc-123", "https://prebid.example.com/openrtb2/auction", listOf("appnexus")),
@@ -69,14 +70,14 @@ class SellwildPrebidMobileTest {
         val fromS2s = SellwildPrebidMobile.resolvePrebidServer(SellwildConfig(partnerCode = "weatherbug"), s2s)
         val fromAlternate = SellwildPrebidMobile.resolvePrebidServer(SellwildConfig(partnerCode = "weatherbug"), s2sAlternateKeys)
         val fromEmpty = SellwildPrebidMobile.resolvePrebidServer(SellwildConfig(partnerCode = "weatherbug"), s2sEmpty)
-        // The CMS text form is not read (known drift, drift/android.json).
+        // The CMS text form (a JS object literal) is read too (origin c55efa0).
         val fromText = SellwildPrebidMobile.resolvePrebidServer(SellwildConfig(partnerCode = "weatherbug"), AppConfigFactory.checked(mapOf("S2S_CONFIG" to "{ accountId: 'x' }")))
 
         assertEquals("https://prebid.example.com/openrtb2/auction" to "abc-123", fromTyped.url to fromTyped.accountId)
         assertEquals("https://prebid-cdn.example.com/openrtb2/auction" to "cdn-account", fromS2s.url to fromS2s.accountId)
         assertEquals("https://pbs.example.com/a" to "acct-2", fromAlternate.url to fromAlternate.accountId)
         assertEquals("https://prebid.sellwild.com/openrtb2/auction" to "weatherbug", fromEmpty.url to fromEmpty.accountId)
-        assertEquals("https://prebid.sellwild.com/openrtb2/auction" to "weatherbug", fromText.url to fromText.accountId)
+        assertEquals("https://prebid.sellwild.com/openrtb2/auction" to "x", fromText.url to fromText.accountId)
     }
 
     @Test
@@ -134,6 +135,33 @@ class SellwildPrebidMobileTest {
         assertFalse(SellwildPrebidMobile.isReady())
         assertEquals(emptyList<String>(), events.codes)
     }
+
+    @Test
+    fun `a later bootstrap re-applies what its config sets, and swaps the host only for a new URL`() {
+        // origin c55efa0 (re-apply, JS-literal S2S_CONFIG) and 1847555 (host swap only on a new URL).
+        val literal = "[{ accountId: 'acct-1', endpoint: { p1Consent: 'https://pbs.example.com/a' }, timeout: 1300, }]"
+        SellwildPrebidMobile.bootstrap(context, s2sConfig(literal, "PUBLISHER_ID" to "pub-1"))
+        assertEquals(listOf("https://pbs.example.com/a"), ads.network.prebidHosts.toList())
+        assertEquals("acct-1", SellwildPrebid.getPrebidServerAccountId())
+        assertEquals(1300, SellwildPrebid.getTimeoutMillis())
+        Host.createCustomHost("https://host.invalid/before")
+
+        val sameUrl = "{ accountId: 'acct-2', endpoint: 'https://pbs.example.com/a', timeout: 900 }"
+        SellwildPrebidMobile.bootstrap(context, s2sConfig(sameUrl))
+        assertEquals("acct-2", SellwildPrebid.getPrebidServerAccountId())
+        assertEquals(900, SellwildPrebid.getTimeoutMillis())
+        assertEquals("the same URL leaves the host alone", "https://host.invalid/before", Host.CUSTOM.hostUrl)
+        val publisher = mapOf("app" to mapOf("publisher" to mapOf("id" to "pub-1")))
+        assertEquals("a key the new config lacks keeps its value", publisher, globalOrtb())
+
+        SellwildPrebidMobile.bootstrap(context, s2sConfig("{ endpoint: 'https://pbs.example.com/b' }"))
+        assertEquals("https://pbs.example.com/b", Host.CUSTOM.hostUrl)
+        assertEquals("the SDKs start once", listOf("https://pbs.example.com/a"), ads.network.prebidHosts.toList())
+        assertEquals(emptyList<String>(), events.codes)
+    }
+
+    private fun s2sConfig(s2s: String, vararg more: Pair<String, Any?>): SellwildConfig =
+        configFrom(AppConfigFactory.checked(mapOf("S2S_CONFIG" to s2s, *more)))
 
     @Test
     fun `Prebid is ready when init finishes, and a status other than SUCCEEDED is reported once`() {

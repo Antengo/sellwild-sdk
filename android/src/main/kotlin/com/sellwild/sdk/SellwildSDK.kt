@@ -84,8 +84,8 @@ object SellwildSDK {
             if (status in 200..299) {
                 val body = connection.inputStream.use { String(it.readBytes(), Charsets.UTF_8) }
                 // Stash the raw payload so unmapped CDN keys (new bidders,
-                // forward-compatible settings) flow through to the WebView
-                // attribute serializer without an SDK release.
+                // forward-compatible settings) stay readable via remoteJson
+                // without an SDK release.
                 val raw = JSONObject(body)
                 config = apply(raw, config).copy(remoteJson = body)
                 remote = raw
@@ -199,8 +199,8 @@ object SellwildSDK {
             bannerZid = raw.optStringOrNull("BANNER_ZID") ?: base.bannerZid,
             bottomBannerZid = raw.optStringOrNull("BOTTOM_BANNER_ZID") ?: base.bottomBannerZid,
             // Per-platform placement resolution (this mapper only ever runs on
-            // Android — the Kotlin SDK — so RN / Flutter hosts on Android resolve
-            // here too). Three tiers, most specific first, per placement:
+            // Android — the Kotlin SDK — so RN hosts on Android resolve here
+            // too). Three tiers, most specific first, per placement:
             //   1. per-placement per-platform (MOBILE_ZID_ANDROID / MOBILE_BANNER_ZID_ANDROID)
             //   2. platform-wide "ALL" (MOBILE_ZID_ALL_ANDROID — one value every
             //      mobile placement on this OS falls back to)
@@ -230,7 +230,7 @@ object SellwildSDK {
             // Compliance
             gppEnabled = raw.optBooleanOrNull("GPP_ENABLED") ?: base.gppEnabled,
             tcfVersion = raw.optIntOrNull("TCF_VERSION") ?: base.tcfVersion,
-            iabCats = raw.optStringListOrNull("IAB_CATS") ?: base.iabCats,
+            iabCats = raw.optCsvStringListOrNull("IAB_CATS") ?: base.iabCats,
 
             // Mobile ad controls
             enableInterstitial = raw.optBooleanOrNull("ENABLE_INTERSTITIAL")
@@ -295,6 +295,21 @@ private fun JSONObject.optStringListOrNull(key: String): List<String>? {
     if (!has(key) || isNull(key)) return null
     val arr = optJSONArray(key) ?: return null
     return List(arr.length()) { i -> arr.optString(i) }
+}
+
+/**
+ * A string list that the CDN may ship as a JSON array OR a scalar string — a
+ * single value ("IAB15") or comma-separated ("IAB15,IAB19"). Entries are
+ * trimmed and blanks dropped. Used for IAB_CATS, whose live value is a string.
+ */
+private fun JSONObject.optCsvStringListOrNull(key: String): List<String>? {
+    if (!has(key) || isNull(key)) return null
+    val items = when (val v = opt(key)) {
+        is JSONArray -> List(v.length()) { i -> v.optString(i) }
+        is String -> v.split(",")
+        else -> return null
+    }
+    return items.map { it.trim() }.filter { it.isNotEmpty() }
 }
 
 /** Like [optStringOrNull] but also treats an empty string as absent. */

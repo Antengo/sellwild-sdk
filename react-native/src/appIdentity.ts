@@ -10,14 +10,13 @@ import type { SellwildConfig } from '@sellwild/sdk-core'
  * (OS-agnostic) keys onto `appBundleId`/`appStoreUrl` and stashes the raw
  * payload on `config.remote`; the platform is only known here on the device,
  * so we resolve the OS-specific value at the bridge boundary — the RN analog
- * of the native `SellwildSDK.apply()` (iOS/Android) and Flutter `dart:io`
- * resolution.
+ * of the native `SellwildSDK.apply()` (iOS/Android) resolution.
  *
  * Both native bridges (feed + banner) consume `config.appBundleId` /
  * `config.appStoreUrl`, so resolving once here makes both correct without any
  * Kotlin/Swift bridge change.
  *
- * Precedence (matches iOS/Android `apply()` and Flutter): the per-platform CDN
+ * Precedence (matches iOS/Android `apply()`): the per-platform CDN
  * value, else the shared `appBundleId`/`appStoreUrl` (which already carries any
  * host override). Backward compatible: no suffixed key = today's behavior.
  */

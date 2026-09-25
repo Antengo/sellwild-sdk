@@ -47,12 +47,13 @@ enum SellwildFeedLayout {
         mobileZids.filter { !$0.isEmpty }
     }
 
-    /// The zone of a `B` row: the first of the three that is set (an empty
-    /// one counts as set, as it always has), else "".
+    /// The zone of a `B` row: the first of the three that is not blank, else
+    /// "". The CDN can ship MOBILE_BANNER_ZID as "", which must not shadow the
+    /// BANNER_ZID fallback.
     static func bannerZone(mobile: String?, banner: String?, bottom: String?) -> String {
-        if let mobile { return mobile }
-        if let banner { return banner }
-        return bottom ?? ""
+        [mobile, banner, bottom]
+            .compactMap { $0 }
+            .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty } ?? ""
     }
 
     /// A schedule token that did not become a row. A missing listing is not

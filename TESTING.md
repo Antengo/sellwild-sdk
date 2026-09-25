@@ -40,15 +40,14 @@ How it runs:
 8. The sample steps have kind `lint`. A failed sample check never skips the
    SDK's coverage steps.
 
-`--fast`, measured 2026-09-24 (load about 2-3; the `swift-typecheck` range
-at load 20-40):
+`--fast`, measured 2026-09-25 after the origin/main merge, inside the
+`--full` run below (load 20-60, other agents busy):
 
 | Step | What it checks | Time |
 |---|---|---|
 | `tsgo-core`, `tsgo-react-native` | tsgo type check of src and tests | 1s each |
-| `flutter-analyze` | `flutter analyze --fatal-infos --fatal-warnings`, strict casts, inference and raw types | 3s |
-| `swift-typecheck` | `scripts/lint/swift-typecheck.sh`: `xcodebuild build-for-testing` of SellwildSDK and its tests for the simulator, in `ios.sh`'s derived data (`.coverage-tmp/ios-dd`), so the two share one build | 5-7s warm (nothing or one file changed), 28s cold (empty derived data) |
-| `eslint-core`, `eslint-react-native` | ESLint with type info and the house failure rules | 2s each |
+| `swift-typecheck` | `scripts/lint/swift-typecheck.sh`: `xcodebuild build-for-testing` of SellwildSDK and its tests for the simulator, in `ios.sh`'s derived data (`.coverage-tmp/ios-dd`), so the two share one build | 13s (5-7s warm at load 2, 28s cold) |
+| `eslint-core`, `eslint-react-native` | ESLint with type info and the house failure rules | 2.5s each |
 | `lint-rules-test` | tests of the house ESLint rules (`contracts/lint/`) and of both ESLint configs (`scripts/lint/eslint-config.test.mjs`) | 1s |
 | `swiftlint` | SwiftLint on `ios/`, the React Native iOS bridge and the sample apps' Swift (`samples/`), against its baseline | 0.4s |
 | `swift-lint-tests`, `kotlin-warnings-test` | tests of the Swift and Kotlin lint tooling, the SwiftLint baseline matcher included | 1s |
@@ -58,28 +57,24 @@ at load 20-40):
 | `coverage-gate-test` | tests of `tools/coverage-gate.mjs` | 0.3s |
 | `tsgo-sample-rn` | tsgo on the React Native sample, `samples/demo-app` (its `typecheck` script; it checks the SDK sources it imports too) | 1s |
 | `eslint-sample-rn` | ESLint (`@react-native` config) on `samples/demo-app`, with `--max-warnings 0` | 2s |
-| `flutter-analyze-sample` | `flutter analyze --fatal-infos --fatal-warnings` on `samples/flutter-demo`, with the SDK's rules (its `analysis_options.yaml` includes `flutter/`'s) | 4s |
-| `detekt-android` | detekt on `android/` and the React Native Android bridge | 11s; 20-40s after Kotlin changes |
-| total | | 54s (18 steps, load about 3; `swift-typecheck` 16s, detekt 12s) |
+| `detekt-android` | detekt on `android/` and the React Native Android bridge | 12s; 20-40s after Kotlin changes |
+| total | | 43s (16 steps) |
 
-`--full` adds these, in this order (measured 2026-09-24):
+`--full` adds these, in this order (measured 2026-09-25, load 20-60):
 
 | Step | What it runs | Time |
 |---|---|---|
-| `android-lint` | Android Lint (`lintDebug`) | 18s |
+| `android-lint` | Android Lint (`lintDebug`) | 16s |
 | `android-coverage` | `bash scripts/coverage/android.sh` | 21s |
-| `kotlin-warnings` | Kotlin compiler-warnings ratchet (a full recompile) | 24s |
-| `sample-android-lint` | the SDK to mavenLocal, then detekt (the SDK's rules plus the sample's `detekt.yml`) and Android Lint (warnings are errors) on `samples/feed-demo-android` | 21s |
-| `rn-bridge-android` | `bash scripts/rn/compile-bridge-android.sh`: the SDK to mavenLocal, then the bridge's Kotlin inside `samples/demo-app`. The last Gradle step: it stops both Gradle versions | 12s warm, 94s cold |
-| `rn-bridge-ios` | `bash scripts/rn/compile-bridge-ios.sh`: `pod install` when stale, then `xcodebuild` of the `SellwildSDK-RN` pod target for the simulator. No app, no simulator | 4s warm, 87s cold |
-| `core-coverage` | `npm --prefix core run coverage:summary` (core and RN) | 19s |
-| `flutter-coverage` | `bash scripts/coverage/flutter.sh` | 13s |
-| `ios-coverage` | `bash scripts/coverage/ios.sh` | 64s |
+| `kotlin-warnings` | Kotlin compiler-warnings ratchet (a full recompile) | 26s |
+| `sample-android-lint` | the SDK to mavenLocal, then detekt (the SDK's rules plus the sample's `detekt.yml`) and Android Lint (warnings are errors) on `samples/feed-demo-android` | 30s |
+| `rn-bridge-android` | `bash scripts/rn/compile-bridge-android.sh`: the SDK to mavenLocal, then the bridge's Kotlin inside `samples/demo-app`. The last Gradle step: it stops both Gradle versions | 22s (12s warm at load 2, 94s cold) |
+| `rn-bridge-ios` | `bash scripts/rn/compile-bridge-ios.sh`: `pod install` when stale, then `xcodebuild` of the `SellwildSDK-RN` pod target for the simulator. No app, no simulator | 29s after the webview pod left (4s warm, 87s cold) |
+| `core-coverage` | `npm --prefix core run coverage:summary` (core and RN) | 18s |
+| `ios-coverage` | `bash scripts/coverage/ios.sh` | 70s |
 | `swift-warnings` | Swift compiler-warnings ratchet, from the log `ios.sh` just wrote | 0.2s |
 | `coverage-thresholds` | `node tools/coverage-gate.mjs`: every `coverage-summary/*.json` gate at 95% lines, branches (regions for iOS) and functions | 0.2s |
-| total, with `--fast` | | 189s before the sample and bridge steps; they add about 45s warm |
-
-The sample and bridge times above were measured 2026-09-24 at load about 2.
+| total, with `--fast` | | 277s (26 steps) |
 
 ### Baselines
 
@@ -96,7 +91,7 @@ baselined findings, shrink the baseline in the same change:
 | Kotlin warnings | `scripts/lint/kotlin-warnings.baseline.json` | `node scripts/lint/kotlin-warnings.mjs --update` |
 | Swift warnings | `scripts/lint/swift-warnings.baseline.json` | `node scripts/lint/swift-warnings.mjs --update`, right after `ios.sh` |
 | Print gate | `contracts/print-gate.allowlist.json` | `node contracts/scripts/print-gate.mjs --update` |
-| tsgo, flutter analyze | none: kept at zero findings | fix the finding |
+| tsgo | none: kept at zero findings | fix the finding |
 | The sample apps (all their linters) | none: kept at zero findings. `samples/` has no entry in the SwiftLint baseline | fix the finding |
 
 Notes:
@@ -132,12 +127,9 @@ Notes:
 
 What each check leaves to another (all found by mutation checks, 2026-09-24):
 
-1. Dart: `flutter analyze` passes `catch (_) {}`, a comment-only catch body
-   and `debugPrint` in `lib/`. The print gate fails all three, so it is the
-   check for them. Neither sees a print through an import prefix.
-2. TypeScript: `globalThis.console`, `window.console`, `self.console` and
+1. TypeScript: `globalThis.console`, `window.console`, `self.console` and
    `global.console` fail `sellwild/no-global-console`, and the print gate.
-3. Swift: `Swift.print`, `Foundation.NSLog` and `os.os_log` fail SwiftLint's
+2. Swift: `Swift.print`, `Foundation.NSLog` and `os.os_log` fail SwiftLint's
    `no_print` and the print gate. Kotlin: `kotlin.io.println` fails the print
    gate.
 
@@ -147,7 +139,7 @@ The sample apps' Maestro e2e. `e2e/README.md` has the details: setup, the
 flows, the ids, each app, and how to add one.
 
 ```bash
-bash scripts/gate.sh --e2e                    # every app, one at a time: about 17 min warm
+bash scripts/gate.sh --e2e                    # every app, one at a time: about 10 min warm
 bash scripts/gate.sh --only e2e-ios,e2e-android
 bash scripts/e2e/run.sh ios                   # one app, without the gate
 bash scripts/e2e/run.sh --list                # the apps
@@ -155,8 +147,10 @@ bash scripts/e2e/run.sh --list                # the apps
 
 What it runs:
 
-1. Each platform has a sample app, "Sellwild Sample", with five tabs: Feed,
-   Ads, Listings, Diagnostics and Legacy.
+1. Each platform has a sample app, "Sellwild Sample", with four tabs: Feed,
+   Ads, Listings and Diagnostics. (The Legacy tab went with the WebView
+   widget, and the Flutter sample with the Flutter SDK: origin/main 9ff579f,
+   df551f7.)
 2. `scripts/e2e/run.sh <app>` builds the app, boots the device, installs the
    app, runs its Maestro flows, saves the screenshots and shuts the device
    down.
@@ -179,7 +173,7 @@ How `--e2e` runs:
    lock among its parent processes and does not take it again. Other agents
    wait for the whole run.
 6. It needs Maestro, a JDK 17, Xcode and an iPhone simulator, the Android SDK
-   with the AVD `Pixel_5_API_36`, `flutter`, Node and npm, and CocoaPods.
+   with the AVD `Pixel_5_API_36`, Node and npm, and CocoaPods.
 7. Android runs on `Pixel_5_API_36`, not `Pixel_5_API_32`: the API 32 data
    partition is full, so no sample installs there.
 8. It uses live services: the CDN (it answers 403 for the samples' config,
@@ -187,20 +181,19 @@ How `--e2e` runs:
    Prebid Server, and prod events under code `sellwild`. When one is down,
    the run fails.
 
-Times per app, whole run from build to shutdown (measured 2026-09-24):
+Times per app, whole run from build to shutdown (measured 2026-09-25 after
+the origin/main merge, warm caches, load 20-60; first runs from 2026-09-24):
 
 | App | Sample | Device | Warm | First run |
 |---|---|---|---|---|
-| `ios` | `samples/feed-demo-ios` | iPhone 17, iOS 26.5 | about 3 min (flow 70s) | not recorded |
-| `android` | `samples/feed-demo-android` | `Pixel_5_API_36` | 124s (flow 61s) | not recorded |
-| `flutter-ios` | `samples/flutter-demo` | iPhone 17 | 149s (flow 52s) | 187s |
-| `flutter-android` | `samples/flutter-demo` | `Pixel_5_API_36` | 106s (flow 51s) | 348s |
-| `rn-ios` | `samples/demo-app` | iPhone 17 | 299s (flow 70s) | 549s |
-| `rn-android` | `samples/demo-app` | `Pixel_5_API_36` | 174s (flow 55s) | 681s |
-| `--e2e`, all six | | | about 17 min | 35 min or more |
+| `ios` | `samples/feed-demo-ios` | iPhone 17, iOS 26.5 | 123s (flow 55s) | not recorded |
+| `android` | `samples/feed-demo-android` | `Pixel_5_API_36` | 103s (flow 46s) | not recorded |
+| `rn-ios` | `samples/demo-app` | iPhone 17 | 255s (flow 45s) | 549s |
+| `rn-android` | `samples/demo-app` | `Pixel_5_API_36` | 137s (flow 41s) | 681s |
+| `--e2e`, all four | | | 618s (one measured run) | 30 min or more |
 
 The first runs download Gradle, the NDK, pods and SwiftPM packages. The
-`--e2e` totals are sums of the runs above (the warm time where no first run
+first-run total is a sum of the runs above (the warm time where no first run
 was recorded), not one measured run.
 
 Output:
@@ -239,7 +232,6 @@ running:
 | react-native tests | `npm --prefix react-native test` | 7s |
 | core + RN coverage | `npm --prefix core run coverage:summary` | 25s |
 | type checks (tsgo) | `npm --prefix core run typecheck` | 1s |
-| Flutter tests + coverage | `bash scripts/coverage/flutter.sh` | 16s |
 | Android tests (no report) | `cd android && ./gradlew testDebugUnitTest` | 20s |
 | Android tests + Kover | `bash scripts/coverage/android.sh` | 35s |
 | iOS build + tests + coverage | `bash scripts/coverage/ios.sh` | 68s |
@@ -255,7 +247,6 @@ Run the narrowest command while working. Run the full suite once at the end.
 |---|---|---|
 | core, RN | `cd core && npx vitest run test/api.test.ts --maxWorkers=2` | ~5s |
 | contracts | `cd contracts && node --test test/<file>.test.mjs` | ~1-3s |
-| Flutter | `cd flutter && flutter test test/sellwild_api_test.dart` | ~7s |
 | Android | `cd android && ./gradlew testDebugUnitTest --tests 'com.sellwild.sdk.SellwildEventQueueTest'` | ~5s warm |
 | iOS | `command xcodebuild test -scheme SellwildSDK -destination 'platform=iOS Simulator,id=<udid>' -derivedDataPath .coverage-tmp/ios-dd -enableCodeCoverage YES -only-testing:SellwildSDKTests/<TestClass>` | ~40-70s |
 | iOS, compile only | `bash scripts/lint/swift-typecheck.sh` (the gate's `swift-typecheck`) | 5-7s warm |
@@ -294,7 +285,7 @@ Do not rerun the whole suite for every mutation. Use `tools/mutate.mjs`:
 
 ## Keeping the machine usable
 
-1. One native build (Xcode, Gradle, Flutter) at a time.
+1. One native build (Xcode, Gradle) at a time.
 2. Never run suites in the background or two at once.
 3. Cap vitest at `--maxWorkers=2`, and Gradle at `GRADLE_OPTS=-Dorg.gradle.workers.max=2`.
 4. When done: `cd android && ./gradlew --stop`, and `xcrun simctl shutdown all`.

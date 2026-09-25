@@ -14,8 +14,8 @@ const IDS = JSON.parse(fs.readFileSync(path.join(CONTRACTS_DIR, 'e2e', 'ids.json
 
 const ID_FORMAT = /^sw\.[a-z0-9_]+(\.[a-z0-9_]+)+$/
 const SETTERS = new Set(['app', 'sdk'])
-const SKIP_DIRS = new Set(['node_modules', 'build', 'Pods', 'DerivedData', '.dart_tool', '.gradle', '.build', '.cxx', 'coverage', '.expo'])
-const SOURCE_EXT = /\.(swift|kt|java|dart|ts|tsx|js|jsx|m|mm)$/
+const SKIP_DIRS = new Set(['node_modules', 'build', 'Pods', 'DerivedData', '.gradle', '.build', '.cxx', 'coverage', '.expo'])
+const SOURCE_EXT = /\.(swift|kt|java|ts|tsx|js|jsx|m|mm)$/
 
 /** Every file under `dir` (repo-relative) that `keep` accepts. */
 function files(dir, keep) {
@@ -45,9 +45,9 @@ function unlisted(paths, options) {
 }
 
 describe('contracts/e2e/ids.json', () => {
-  it('names the app and its five tabs', () => {
+  it('names the app and its four tabs', () => {
     assert.equal(IDS.app.name, 'Sellwild Sample')
-    assert.deepEqual(IDS.app.tabs, ['Feed', 'Ads', 'Listings', 'Diagnostics', 'Legacy'])
+    assert.deepEqual(IDS.app.tabs, ['Feed', 'Ads', 'Listings', 'Diagnostics'])
   })
 
   it('lists well-formed entries', () => {
@@ -78,7 +78,7 @@ describe('contracts/e2e/ids.json', () => {
   })
 
   it('lists every id the sample apps and the SDKs set', () => {
-    const roots = ['samples', 'ios/Sources', 'android/src/main', 'flutter/lib', 'react-native/src', 'react-native/ios', 'react-native/android/src']
+    const roots = ['samples', 'ios/Sources', 'android/src/main', 'react-native/src', 'react-native/ios', 'react-native/android/src']
     const sources = roots.flatMap((dir) => files(dir, (name) => SOURCE_EXT.test(name)))
     assert.deepEqual(unlisted(sources, { quotedOnly: true }), [])
   })

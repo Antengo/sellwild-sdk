@@ -6,7 +6,7 @@ How to build, version, and publish each platform SDK.
 
 ## Versioning
 
-All five platform packages should stay in sync on the same version number. Before any release:
+All four platform packages should stay in sync on the same version number. Before any release:
 
 1. Update version in:
    - `core/package.json`
@@ -14,8 +14,6 @@ All five platform packages should stay in sync on the same version number. Befor
    - `ios/Package.swift` (tag-based, update git tag)
    - `ios/SellwildSDK.podspec` → `s.version`
    - `android/build.gradle.kts` → `version = "x.y.z"`
-   - `flutter/pubspec.yaml` → `version:`
-   - `flutter/CHANGELOG.md` (pub.dev requires an entry for every version)
 
 2. Tag the git commit. **Push two tags — both `vX.Y.Z` and `X.Y.Z`** —
    because SPM/CocoaPods resolve by the bare version while our own conventions
@@ -331,56 +329,6 @@ Then:
 
 ---
 
-## Flutter
-
-### Requirements
-- Flutter 3.10+
-- Dart 3.0+
-
-### Validate the package
-
-```bash
-cd sdk/flutter
-flutter pub get
-flutter analyze
-flutter test
-dart pub publish --dry-run   # checks everything before actual publish
-```
-
-### Publish to pub.dev
-
-```bash
-dart pub publish
-```
-
-You'll be prompted to authenticate with your Google account. The package will be at:
-```
-https://pub.dev/packages/sellwild_sdk
-```
-
-### For private distribution (not pub.dev)
-
-Host the package in a private git repo and reference it in the host app's `pubspec.yaml`:
-```yaml
-dependencies:
-  sellwild_sdk:
-    git:
-      url: https://github.com/sellwild/sdk-flutter.git
-      ref: v1.0.0
-```
-
-Or use a private pub server (e.g., `pub_server` or Cloudsmith):
-```yaml
-dependency_overrides:
-  sellwild_sdk:
-    hosted:
-      name: sellwild_sdk
-      url: https://your-private-pub-server.com
-    version: ^1.0.0
-```
-
----
-
 ## CI/CD (GitHub Actions example)
 
 ### React Native — publish on tag
@@ -406,48 +354,17 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
-### Flutter — publish on tag
-
-```yaml
-# .github/workflows/publish-flutter.yml
-name: Publish Flutter SDK
-on:
-  push:
-    tags: ['v*']
-jobs:
-  publish:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.0'
-      - run: cd sdk/flutter && flutter pub get && flutter test
-      - uses: k-paxian/dart-package-publisher@v1.6
-        with:
-          flutter: true
-          relativePath: sdk/flutter
-          credentialJson: ${{ secrets.PUB_CREDENTIALS }}
-```
-
 ---
 
 ## What `widget.sellwild.com` needs to serve
 
-The marketplace **widget** surface (`SellwildWidget`, plus the Flutter legacy ad track) loads two scripts from the CDN:
+The native SDKs (iOS, Android, React Native) load one thing from the CDN: the per-partner app config JSON.
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `https://widget.sellwild.com/widget.js` | The compiled sellwild-widget bundle |
-| `https://widget.sellwild.com/prebid.js` | Prebid.js with configured bidder adapters |
+| `https://widget.sellwild.com/app/{partnerCode}/{slug}.json` | Remote config fetched by `SellwildSDK.configure(partnerCode, slug)` |
 
-These are already built and deployed by the existing `sellwild-widget` deploy pipeline (`npm run deploy`); the widget WebView simply loads whatever is live at that URL. **Native banner ads do not load these bundles** — they run Prebid Mobile in-process, so the CDN scripts are irrelevant to the native ad path.
-
-**To use a staging version**, set `prebidSrc` and override the widget URL via the `__SELLWILD_SDK_CONFIG__` window object injected into the WebView HTML (see `htmlBuilder.ts`, `SellwildWidgetView.swift`, `SellwildWidgetView.kt`).
-
-### Zone-based ad delivery
-
-The zone script URL `https://bidstream.sellwild.com/ads?zone=<ID>&w=<W>&h=<H>` must be set up on the Sellwild infrastructure side. Confirm the correct base URL with the ad ops team before enabling zone-based delivery for a publisher.
+The CMS publishes this file. Native ads run Prebid Mobile in-process and native listings come from the listings API, so no widget or Prebid.js bundle is involved on these platforms.
 
 ---
 
@@ -556,11 +473,11 @@ The Vite dev server proxies `/.netlify/functions/*` to `localhost:8888` so both 
 ## Checklist before first release
 
 - [ ] Partner code and listings URL confirmed with publisher
-- [ ] `widget.sellwild.com/widget.js` is live and serving the latest build
+- [ ] `widget.sellwild.com/app/{partnerCode}/{slug}.json` is published and returns 200
 - [ ] GAM ad unit path created in Google Ad Manager for the publisher
 - [ ] Zone IDs provisioned for publisher (if using zone-based delivery)
 - [ ] Prebid bidder credentials collected from ad networks
 - [ ] ATS / cleartext traffic configured in host app
-- [ ] WebView debugging tested end-to-end in simulator/emulator
+- [ ] Native ad + feed render verified end-to-end in simulator/emulator
 - [ ] Ad refresh limits confirmed with ad ops (typical: 5 refreshes / 30s interval)
 - [ ] SDK version tagged and published to the appropriate registry

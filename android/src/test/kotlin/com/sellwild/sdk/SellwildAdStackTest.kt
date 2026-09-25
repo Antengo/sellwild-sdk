@@ -11,7 +11,6 @@ import com.sellwild.sdk.support.FixtureLoader
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -196,24 +195,5 @@ class SellwildAdStackTest {
         assertEquals(1, SellwildAdStack.byZone(obj).issues.size)
         assertNull(SellwildAdStack.global(null).value)
         assertEquals(emptyMap<String, SellwildAdStack>(), SellwildAdStack.byZone(null).value)
-    }
-
-    @Test
-    fun `ad-stack keys are not forwarded as bidder params`() {
-        val raw = AppConfigFactory.checked(
-            mapOf(
-                "AD_STACK" to "PREBID",
-                "AD_STACK_BY_ZONE" to zones("43" to "GAM"),
-                "MEDIANET" to JSONObject(mapOf("cid" to "8CU9V99R6")),
-            ),
-        )
-        val config = SellwildConfig(partnerCode = "weatherbug", remoteJson = raw.toString())
-
-        val params = SellwildAdView.bidderParamsFromRemote(config)
-
-        // The bidder slips through; AD_STACK* are in the deny list. (Other top-level keys
-        // such as LAYOUT also slip through: known drift, drift/android.json.)
-        assertTrue("MEDIANET" in params.keys)
-        assertEquals(emptyList<String>(), params.keys.filter { it.startsWith("AD_STACK") })
     }
 }

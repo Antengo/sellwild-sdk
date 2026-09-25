@@ -43,7 +43,7 @@ const SOURCE_ROOT = `${MODULE}/src/main/kotlin/com/sellwild/sdk`;
 // added the logic shells it covers: configure, the listings and events client,
 // GrowthCode, house-ad images and the audio guard. Phase 3 (unit
 // sdk-android-views) added the view shells, tested under Robolectric with a fake
-// ad network: the ad, native, house-ad, feed and widget views, the Compose feed
+// ad network: the ad, native, house-ad and feed views, the Compose feed
 // wrapper and the Prebid Mobile bridge (minus the classes in EXCLUDED_CLASSES).
 const GATE_INCLUDE = [
   `${SOURCE_ROOT}/SellwildConfig.kt`,
@@ -66,7 +66,10 @@ const GATE_INCLUDE = [
   `${SOURCE_ROOT}/SellwildHouseAdView.kt`,
   `${SOURCE_ROOT}/SellwildFeedView.kt`,
   `${SOURCE_ROOT}/SellwildFeed.kt`,
-  `${SOURCE_ROOT}/SellwildWidgetView.kt`,
+  // origin/main: the tolerant S2S_CONFIG reader (c55efa0) and the multi-process
+  // WebView data directory, kept after the widget removal (d6aa615).
+  `${SOURCE_ROOT}/SellwildS2SConfig.kt`,
+  `${SOURCE_ROOT}/SellwildWebViewCompat.kt`,
   `${SOURCE_ROOT}/failures/**`,
   `${SOURCE_ROOT}/core/**`,
 ];

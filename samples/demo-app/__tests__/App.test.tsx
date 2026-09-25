@@ -18,9 +18,6 @@ import {
   withSampleValues,
 } from '../src/sampleModel';
 
-// A native module the test renderer does not have. No test draws it.
-jest.mock('react-native-webview', () => ({WebView: 'WebView'}));
-
 // configure is never reached: the App test checks the tab bar before boot.
 jest.mock('../src/sampleModel', () => {
   const actual = jest.requireActual<object>('../src/sampleModel');
@@ -56,7 +53,7 @@ function textById(root: ReactTestInstance, id: string): string {
 }
 
 describe('App', () => {
-  it('shows the five tabs with their ids and titles', () => {
+  it('shows the four tabs with their ids and titles', () => {
     const App = jest.requireActual<{default: React.ComponentType}>(
       '../App',
     ).default;
@@ -66,7 +63,6 @@ describe('App', () => {
       [SampleId.tabAds, 'Ads'],
       [SampleId.tabListings, 'Listings'],
       [SampleId.tabDiagnostics, 'Diagnostics'],
-      [SampleId.tabLegacy, 'Legacy'],
     ];
     for (const [id, title] of tabs) {
       const tab = tree.root.findAll(n => n.props.testID === id)[0];

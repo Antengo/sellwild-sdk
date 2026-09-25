@@ -136,20 +136,6 @@ final class FactoryContractTests: XCTestCase {
         try emitAll(GrowthCodeFactory.schema, fixtures: GrowthCodeFactory.variantNames(), fixture: { try GrowthCodeFactory.variant($0) })
     }
 
-    func testBridgeMessageFactory() throws {
-        let error = try BridgeMessageFactory.variant("error", ["message": "Script error."])
-        XCTAssertEqual(error["type"] as? String, "ERROR")
-        XCTAssertEqual(error["message"] as? String, "Script error.")
-        XCTAssertNil(error["_synthetic"])
-        XCTAssertEqual(try BridgeMessageFactory.make()["type"] as? String, "WIDGET_LOADED", "the default is WIDGET_LOADED")
-        let text = try BridgeMessageFactory.text(BridgeMessageFactory.variant("ad-impression-text-zone"))
-        XCTAssertEqual(text, #"{"type":"AD_IMPRESSION","zoneId":"43"}"#, "the JSON text the bridge script posts")
-        try emit(BridgeMessageFactory.make(), BridgeMessageFactory.schema, "default")
-        try emit(error, BridgeMessageFactory.schema, "override-error-message")
-        try emitAll(BridgeMessageFactory.schema, fixtures: BridgeMessageFactory.variantNames(),
-                    fixture: { try BridgeMessageFactory.variant($0) })
-    }
-
     func testEventFactory() throws {
         let event = try EventFactory.event(["label": "280"])
         XCTAssertEqual(event["event"] as? String, "adError")

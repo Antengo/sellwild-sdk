@@ -8,7 +8,6 @@ The native Android sample app (Jetpack Compose). It is also what the Android e2e
 2. Ads: `SellwildAdView` at 320x50 and 300x250, and `SellwildNativeAdView`. Each slot shows its measured size and the ad's last status. Test ads may not fill.
 3. Listings: `SellwildAPIClient.fetchListings`, drawn by the app. Refresh calls `clearCache()` and fetches again.
 4. Diagnostics: SDK version, partner code and slug, config source (remote or fallback), listings URL, and `SellwildFailures.context`. Failure codes show "not available on this platform": Android has no public failure sink.
-5. Legacy: "Legacy WebView widget (deprecated)". `SellwildWidgetView` with its listener. Do not copy it into a new app.
 
 ## Config
 
@@ -39,7 +38,7 @@ The native Android sample app (Jetpack Compose). It is also what the Android e2e
 ## Dependencies
 
 1. `com.sellwild:sdk` comes only from mavenLocal. Its version is read from `android/build.gradle.kts`, so the sample always gets the build you just published.
-2. The SDK's POM brings the rest: the Prebid Mobile fork (JitPack), `com.sellwild:omsdk-android` (maven.sellwild.com) and Google Mobile Ads.
+2. The SDK's POM brings the rest: the Prebid Mobile fork `com.sellwild:PrebidMobile-*:3.3.2-sw4` and `com.sellwild:omsdk-android` (both from maven.sellwild.com, origin a1bed54 and 01d4d8e) and Google Mobile Ads.
 3. Compose 1.6.8, the version the SDK's `SellwildFeed` builds against.
 
 ## Element ids

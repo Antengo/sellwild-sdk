@@ -1,12 +1,11 @@
 /**
- * Sellwild Sample, React Native: the same five tabs as the iOS, Android and
- * Flutter samples, so one set of Maestro flows (e2e/maestro) covers them all.
+ * Sellwild Sample, React Native: the same four tabs as the iOS and Android
+ * samples, so one set of Maestro flows (e2e/maestro) covers them all.
  *
  *   Feed         SellwildFeed: native listings with native ads between them
  *   Ads          SellwildBanner 320x50 and 300x250 (native Prebid + GAM)
  *   Listings     useSellwildListings + SellwildListingCard, with Refresh
  *   Diagnostics  SDK version, partner / slug, config source, failure codes
- *   Legacy       SellwildWidget, the deprecated WebView widget
  *
  * Run it with scripts/e2e/run.sh rn-ios or rn-android (e2e/README.md).
  */
@@ -23,7 +22,6 @@ import {
 import {AdsScreen} from './src/AdsScreen';
 import {DiagnosticsScreen} from './src/DiagnosticsScreen';
 import {FeedScreen} from './src/FeedScreen';
-import {LegacyScreen} from './src/LegacyScreen';
 import {ListingsScreen} from './src/ListingsScreen';
 import {SampleId} from './src/sampleIds';
 import {bootSample, failureLog, installFailureSink} from './src/sampleModel';
@@ -33,14 +31,13 @@ import {colors} from './src/widgets';
 // Before configure runs, so its failures reach Diagnostics too.
 installFailureSink();
 
-type Tab = 'feed' | 'ads' | 'listings' | 'diagnostics' | 'legacy';
+type Tab = 'feed' | 'ads' | 'listings' | 'diagnostics';
 
 export const TABS: readonly {key: Tab; title: string; id: string}[] = [
   {key: 'feed', title: 'Feed', id: SampleId.tabFeed},
   {key: 'ads', title: 'Ads', id: SampleId.tabAds},
   {key: 'listings', title: 'Listings', id: SampleId.tabListings},
   {key: 'diagnostics', title: 'Diagnostics', id: SampleId.tabDiagnostics},
-  {key: 'legacy', title: 'Legacy', id: SampleId.tabLegacy},
 ];
 
 export default function App() {
@@ -107,8 +104,6 @@ function Screen({tab, boot}: {tab: Tab; boot: SampleBoot}) {
       return <ListingsScreen config={boot.config} />;
     case 'diagnostics':
       return <DiagnosticsScreen boot={boot} failures={failureLog} />;
-    case 'legacy':
-      return <LegacyScreen config={boot.config} />;
   }
 }
 
