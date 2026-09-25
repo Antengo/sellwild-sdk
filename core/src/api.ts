@@ -113,7 +113,11 @@ class EventQueue {
   getUid(): string {
     if (this.uid) return this.uid
     try {
-      this.uid = crypto.randomUUID()
+      // Not every runtime has a global `crypto` (older RN/Hermes don't), so
+      // read it off globalThis rather than assuming the DOM global.
+      const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
+      if (!c?.randomUUID) throw new Error('crypto.randomUUID unavailable')
+      this.uid = c.randomUUID()
     } catch {
       this.uid = Math.random().toString(36).slice(2)
     }

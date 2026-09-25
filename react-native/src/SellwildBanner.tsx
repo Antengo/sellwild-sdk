@@ -1,5 +1,5 @@
 import React from 'react'
-import { Platform, requireNativeComponent, UIManager, ViewStyle, View, Text, StyleSheet, NativeSyntheticEvent } from 'react-native'
+import { Platform, requireNativeComponent, UIManager, StyleProp, ViewStyle, View, Text, StyleSheet, NativeSyntheticEvent } from 'react-native'
 import { resolveAdStack, type SellwildConfig, type AdSize } from '@sellwild/sdk-core'
 import { toNativeConfig } from './nativeConfig'
 
@@ -60,7 +60,7 @@ interface NativeBannerProps {
    * everything else (bidders, GAM tag, etc.).
    */
   adStack: string
-  style?: ViewStyle
+  style?: StyleProp<ViewStyle>
   onAdLoaded?: (e: NativeSyntheticEvent<{}>) => void
   onAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
   onHouseAdImpression?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void

@@ -124,7 +124,7 @@ npm view @sellwild/sdk-core version  # expect X.Y.Z
 # 3. Then RN. It ships raw .ts. Local tsc resolves core from ../core/src
 #    (tsconfig "paths"), so it can't catch a stale published core; the
 #    scratch-app check below is what proves the published pair works.
-cd ../react-native && npx tsc --noEmit  # must not exceed the error baseline CI enforces (see ci.yml)
+cd ../react-native && npx tsc --noEmit
 npm publish --access public
 npm view @sellwild/react-native-sdk version  # expect X.Y.Z
 
