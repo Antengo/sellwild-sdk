@@ -173,9 +173,10 @@ How `--e2e` runs:
    lock among its parent processes and does not take it again. Other agents
    wait for the whole run.
 6. It needs Maestro, a JDK 17, Xcode and an iPhone simulator, the Android SDK
-   with the AVD `Pixel_5_API_36`, Node and npm, and CocoaPods.
-7. Android runs on `Pixel_5_API_36`, not `Pixel_5_API_32`: the API 32 data
-   partition is full, so no sample installs there.
+   with an AVD, Node and npm, and CocoaPods.
+7. Android boots `SELLWILD_ANDROID_AVD` (default `Pixel_5_API_36`, the AVD
+   used for the times below). If your default AVD has no room, set
+   `SELLWILD_ANDROID_AVD`.
 8. It uses live services: the CDN (it answers 403 for the samples' config,
    so the flows expect "fallback"), cache.sellwild.com, Google test ads, prod
    Prebid Server, and prod events under code `sellwild`. When one is down,

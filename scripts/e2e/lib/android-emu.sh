@@ -16,11 +16,12 @@ ANDROID_EMULATOR="$ANDROID_SDK_DIR/emulator/emulator"
 ANDROID_EMU_PORT=5554
 ANDROID_SERIAL_E2E="emulator-$ANDROID_EMU_PORT"
 
-# Sets ANDROID_AVD: SELLWILD_ANDROID_AVD, else Pixel_5_API_36. Fails when it is not
-# an AVD on this machine. Not Pixel_5_API_32: its 800 MB data partition is full
-# (11 MB free after pm trim-caches), and the 15 MB sample APK does not install
-# ("Requested internal only, but not enough space"). Pixel_5_API_36 has 6 GB; it
-# boots with SELLWILD_ANDROID_MEMORY RAM (2.5 GB), not its configured 4 GB.
+# Sets ANDROID_AVD: SELLWILD_ANDROID_AVD, else Pixel_5_API_36 (an example
+# default). Fails when it is not an AVD on this machine. The AVD needs room for
+# the sample APKs (15 MB native, 59 MB React Native); a full data partition
+# fails the install ("Requested internal only, but not enough space"). If your
+# default AVD has no room, set SELLWILD_ANDROID_AVD. It boots with
+# SELLWILD_ANDROID_MEMORY RAM (2.5 GB), not the AVD's configured size.
 android_avd_pick() {
   ANDROID_AVD="${SELLWILD_ANDROID_AVD:-Pixel_5_API_36}"
   if ! "$ANDROID_EMULATOR" -list-avds | grep -qx "$ANDROID_AVD"; then

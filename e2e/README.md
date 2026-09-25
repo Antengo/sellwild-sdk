@@ -21,7 +21,7 @@
    The `PATH` prefix stops the installer from editing your shell profiles.
 2. A JDK 17. `run.sh` finds it, or set `JAVA_HOME`.
 3. iOS: Xcode 26.5. `xcodegen` only to regenerate a sample project.
-4. Android: the Android SDK in `~/Library/Android/sdk` (or `ANDROID_HOME`), with the AVD `Pixel_5_API_36` (API 36, arm64, Google APIs).
+4. Android: the Android SDK in `~/Library/Android/sdk` (or `ANDROID_HOME`), with an AVD. The default is `Pixel_5_API_36` (API 36, arm64, Google APIs), an example: `SELLWILD_ANDROID_AVD` picks yours.
 5. React Native apps: Node and npm (Node 25 here), and CocoaPods for `rn-ios` (1.16.2 here). `run.sh` runs `npm ci` itself when `node_modules` is stale.
 
 ## Run
@@ -87,8 +87,8 @@ Flags each app's flow sets in `env` (the string `"true"` turns one on):
 2. The build first publishes the SDK in `android/` to mavenLocal (`publishReleasePublicationToMavenLocal`). The sample takes `com.sellwild:sdk` only from there, at the version in `android/build.gradle.kts`. So the app tests the SDK as checked out.
 3. Then it runs `./gradlew :app:assembleDebug` in the sample, with 2 Gradle workers, and stops Gradle before the emulator boots.
 4. Flow: `e2e/maestro/android/sample.yaml`. Flags: `FEED_AD_ROWS` on, `NATIVE_AD` on, `HOUSE_AD` off, `FAILURE_SINK` off.
-5. Device: the AVD `Pixel_5_API_36` on port 5554 (`emulator-5554`), booted with `-memory 2560 -no-snapshot-save -no-audio -no-boot-anim`. 2560 MB is the emulator's floor for API 36; the AVD's own 4 GB is not used, and its config is not changed. Animations are turned off, and `pm trim-caches` clears app caches.
-6. Why not `Pixel_5_API_32`: its data partition is 800 MB and full (11 MB free after `pm trim-caches`). The 15 MB sample APK fails with "Requested internal only, but not enough space". Freeing room would mean deleting apps on that AVD or wiping it.
+5. Device: the AVD `SELLWILD_ANDROID_AVD` (default `Pixel_5_API_36`) on port 5554 (`emulator-5554`), booted with `-memory 2560 -no-snapshot-save -no-audio -no-boot-anim`. 2560 MB is the emulator's floor for API 36; the AVD's own 4 GB is not used, and its config is not changed. Animations are turned off, and `pm trim-caches` clears app caches.
+6. The AVD needs room for the APK (15 MB here, 59 MB for `rn-android`). A full data partition fails the install with "Requested internal only, but not enough space". If your default AVD has no room, set `SELLWILD_ANDROID_AVD`.
 7. `SELLWILD_ANDROID_AVD` picks another AVD, `SELLWILD_ANDROID_MEMORY` another RAM size in MB.
 8. Shutdown: `adb emu kill`, then the emulator process if it is still up after 30s, then `gradlew --stop`.
 9. Ids: the app's ids are Compose test tags, read as resource-ids (`testTagsAsResourceId`). The SDK feed's rows set their resource-id themselves (`SellwildFeedE2EIdTest`).
@@ -121,7 +121,7 @@ Flags each app's flow sets in `env` (the string `"true"` turns one on):
 8. `rn-android`:
    1. Build: `npm ci` when stale, core's dist, the SDK to mavenLocal, then `./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a` in `samples/demo-app/android`, with 2 Gradle workers. Then `gradlew --stop` for both Gradle versions (8.14.2 for the SDK, 8.6 for the app). The release APK is signed with the template's debug keystore.
    2. The first build downloads Gradle 8.6 and installs Android SDK Platform 34 (the app's `compileSdk`) into the Android SDK. The NDK it names (26.1) is not needed: without it, Gradle packs the native libraries unstripped and says so.
-   3. Device: `Pixel_5_API_36`, as for `android` (`scripts/e2e/lib/android-emu.sh`). The APK is 59 MB.
+   3. Device: the same AVD as `android` (`scripts/e2e/lib/android-emu.sh`). The APK is 59 MB.
    4. Time: about 2.5 minutes warm (137s on 2026-09-25 with four tabs, flow 41s). The first run took 681s (app build 9m 15s with the downloads).
 9. `scripts/rn/compile-bridge-ios.sh` and `scripts/rn/compile-bridge-android.sh` compile only the native bridge (no app, no device). They take no lock: run them through the lock. The gate's `--full` runs them as `rn-bridge-android` and `rn-bridge-ios`.
 10. Seen in the runs, not checked by the flows:

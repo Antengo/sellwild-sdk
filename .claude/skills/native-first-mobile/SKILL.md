@@ -51,9 +51,9 @@ Before any mobile SDK change:
 1. **Reproduce the bug** on the same surface the partner uses:
    - iOS partner issues → boot an iOS simulator (`xcrun simctl list devices booted`)
      and run the relevant sample target.
-   - Android partner issues → boot the `Pixel_5_API_36` AVD (or another configured
-     AVD) and install via `adb`. Not `Pixel_5_API_32`: its data partition is full,
-     and the sample APKs do not install there.
+   - Android partner issues → boot an AVD (`$SELLWILD_ANDROID_AVD`, see "Machine
+     settings" below) and install via `adb`. If your default AVD has no room for
+     the sample APKs, set `SELLWILD_ANDROID_AVD` to one that does.
    - React Native partner issues → run `samples/demo-app` against either simulator.
 2. **Confirm the actual code path.** Read the native view, its delegate / listener,
    and (for RN) the view-manager bridge. Don't guess which layer is in play.
@@ -79,35 +79,51 @@ bash scripts/e2e/run.sh rn-android       # samples/demo-app on the emulator
 Screenshots and logs land in `e2e/artifacts/<app>/`. One native build or booted
 device at a time: `run.sh` runs the whole session inside one call of
 `scripts/e2e/native-lock.sh` (or the script `SELLWILD_NATIVE_LOCK` names). Wrap any
-other native build in it: `bash scripts/e2e/native-lock.sh <label> -- <command>`. The steps by hand:
+other native build in it: `bash scripts/e2e/native-lock.sh <label> -- <command>`.
+
+Machine settings. The scripts read these from the environment. The defaults are
+examples from one machine, not requirements: set your own.
+
+- `JAVA_HOME`: a JDK 17. When it is unset or not 17, the scripts ask
+  `/usr/libexec/java_home -v 17`.
+- `ANDROID_HOME` (or `ANDROID_SDK_ROOT`): the Android SDK. Default
+  `~/Library/Android/sdk`.
+- `SELLWILD_ANDROID_AVD`: the AVD the e2e runs boot. Default `Pixel_5_API_36`
+  (API 36, arm64, Google APIs); list yours with `emulator -list-avds`.
+- `MAESTRO`: the Maestro CLI. Default `~/.maestro/bin/maestro`.
+- `SELLWILD_IOS_SIM_ID`: the simulator UDID. Default: a booted iPhone, else an
+  iPhone on the newest iOS runtime.
+
+The steps by hand:
 
 ### Android (native or RN-Android)
 
 ```bash
 # 1. Boot the emulator if not already running. API 36 needs at least 2560 MB of RAM.
-~/Library/Android/sdk/emulator/emulator -list-avds
-~/Library/Android/sdk/emulator/emulator -avd Pixel_5_API_36 -memory 2560 \
+ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+"$ANDROID_HOME/emulator/emulator" -list-avds
+"$ANDROID_HOME/emulator/emulator" -avd "${SELLWILD_ANDROID_AVD:-Pixel_5_API_36}" -memory 2560 \
   -no-snapshot-save -no-audio -no-boot-anim &
 
 # 2. Wait for boot and confirm device is online.
-~/Library/Android/sdk/platform-tools/adb wait-for-device
-~/Library/Android/sdk/platform-tools/adb shell getprop sys.boot_completed   # → 1
+"$ANDROID_HOME/platform-tools/adb" wait-for-device
+"$ANDROID_HOME/platform-tools/adb" shell getprop sys.boot_completed   # → 1
 
-# 3. Build + publish locally so test app pulls the change.
-export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.0.1.jdk/Contents/Home
+# 3. Build + publish locally so test app pulls the change. JDK 17.
+export JAVA_HOME="$(/usr/libexec/java_home -v 17)"   # or your own JDK 17
 (cd android && ./gradlew clean test publishReleasePublicationToMavenLocal)
 
 # 4. Install and run the native sample app, which depends on com.sellwild:sdk
 #    from `mavenLocal()` only (samples/feed-demo-android). Don't test inside the
 #    RN demo — the RN bridge layer will mask native bugs.
 (cd samples/feed-demo-android && ./gradlew :app:assembleDebug)
-~/Library/Android/sdk/platform-tools/adb install -r -t \
+"$ANDROID_HOME/platform-tools/adb" install -r -t \
   samples/feed-demo-android/app/build/outputs/apk/debug/app-debug.apk
-~/Library/Android/sdk/platform-tools/adb shell am start -n com.sellwild.sample/.MainActivity
+"$ANDROID_HOME/platform-tools/adb" shell am start -n com.sellwild.sample/.MainActivity
 
 # 5. Watch logs filtered to the SDK.
-~/Library/Android/sdk/platform-tools/adb logcat -c
-~/Library/Android/sdk/platform-tools/adb logcat | grep -E "Sellwild|LISTING"
+"$ANDROID_HOME/platform-tools/adb" logcat -c
+"$ANDROID_HOME/platform-tools/adb" logcat | grep -E "Sellwild|LISTING"
 ```
 
 Notes that bit us:
