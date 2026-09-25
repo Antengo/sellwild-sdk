@@ -45,6 +45,17 @@ export interface InvalidCase {
   error: { instancePath: string; keyword?: string }
 }
 
+/**
+ * One invalid contract fixture as it would arrive on the wire (marker
+ * dropped). Its factory test proves it fails the schema for the declared
+ * reason (expectInvalidCases). Throws on an unknown name.
+ */
+export function invalidPayload<T = unknown>(schema: SchemaName, name: string): T {
+  const found = invalidCases(schema).find((c) => c.name === name)
+  if (!found) throw new Error(`no invalid ${schema} fixture '${name}'`)
+  return withoutMarker(found.value) as T
+}
+
 /** The contract's invalid fixtures for a schema, each with the error it must produce. */
 export function invalidCases(schema: SchemaName): InvalidCase[] {
   const expected = contract<{ errors: Record<string, InvalidCase['error']> }>(`fixtures/${schema}/invalid/_expected-errors.json`).errors

@@ -1,8 +1,18 @@
 import { SellwildConfig, AdSize, AdPlacement, AdPlacementType } from './types'
+import { logFailure } from './failures'
+
+/** Where the user is, as geo, GDPR and CCPA decisions read it. */
+export interface UserLocation {
+  city: { name: string }
+  state: { code: string }
+  country: { code: string }
+  continent: { code: string }
+}
 
 // Geo region detection (populated from API response headers in web;
-// in mobile apps, populated from device locale or IP-based lookup)
-export const userLocation = {
+// in mobile apps, populated from device locale or IP-based lookup).
+// The *For functions below take a location instead of reading this one.
+export const userLocation: UserLocation = {
   city: { name: '' },
   state: { code: '' },
   country: { code: '' },
@@ -22,12 +32,24 @@ const GDPR_COUNTRIES = new Set([
 ])
 const CCPA_STATES = new Set(['CA'])
 
-export function isGdprRegion(): boolean {
-  return GDPR_COUNTRIES.has(userLocation.country.code)
+/** Whether `loc` is in a GDPR country. Pure. */
+export function isGdprRegionFor(loc: Pick<UserLocation, 'country'>): boolean {
+  return GDPR_COUNTRIES.has(loc.country.code)
 }
 
+/** Whether `loc` is in a CCPA state. Pure. */
+export function isCcpaRegionFor(loc: Pick<UserLocation, 'state'>): boolean {
+  return CCPA_STATES.has(loc.state.code)
+}
+
+/** isGdprRegionFor the global userLocation. */
+export function isGdprRegion(): boolean {
+  return isGdprRegionFor(userLocation)
+}
+
+/** isCcpaRegionFor the global userLocation. */
 export function isCcpaRegion(): boolean {
-  return CCPA_STATES.has(userLocation.state.code)
+  return isCcpaRegionFor(userLocation)
 }
 
 // Determine which ad placements should be active for a given config
@@ -79,7 +101,29 @@ export interface PrebidAdUnit {
   bids: Array<{ bidder: string; params: Record<string, unknown> }>
 }
 
+/**
+ * The [width, height] of a `WxH` ad size, or null when it is not two positive
+ * numbers split by `x`. Pure.
+ */
+export function parseAdSize(size: unknown): [number, number] | null {
+  if (typeof size !== 'string') return null
+  const parts = size.split('x').map(Number)
+  if (parts.length !== 2 || !parts.every((n) => Number.isFinite(n) && n > 0)) return null
+  return [parts[0], parts[1]]
+}
+
+// The dimensions buildPrebidAdUnit and buildGptTagUrl use. A malformed size
+// is reported (ad.size.invalid) and then read as it always was: NaN or 0
+// dimensions for text, and a TypeError for a size that is not text.
 function sizeToArray(size: AdSize): [number, number] {
+  const parsed = parseAdSize(size)
+  if (parsed) return parsed
+  logFailure({
+    code: 'ad.size.invalid',
+    component: 'banner',
+    severity: 'warn',
+    message: typeof size === 'string' ? `ad size '${size}' is not WxH` : `ad size is ${size === null ? 'null' : typeof size}, not WxH text`,
+  })
   const [w, h] = size.split('x').map(Number)
   return [w, h]
 }
@@ -156,22 +200,27 @@ export function buildGptTagUrl(config: SellwildConfig, size: AdSize): string {
   return `${proxy}/gampad/ads?iu=${encodeURIComponent(tag)}&sz=${w}x${h}&impl=s&gdfp_req=1&env=vp&output=vast&unviewed_position_start=1`
 }
 
-// Check if an ad should render based on geo block rules
+// Check if an ad should render based on geo block rules (the global userLocation)
 export function isGeoBlocked(config: SellwildConfig): boolean {
+  return isGeoBlockedFor(config, userLocation)
+}
+
+/** Whether the geo block rules of `config` block an ad at `loc`. Pure. */
+export function isGeoBlockedFor(config: Pick<SellwildConfig, 'adGeoBlock'>, loc: UserLocation): boolean {
   if (!config.adGeoBlock) return false
 
   const { countries, states, cities, continents } = config.adGeoBlock
 
-  if (continents && continents.split(',').some(c => c.trim().toLowerCase() === userLocation.continent.code.toLowerCase())) {
+  if (continents && continents.split(',').some(c => c.trim().toLowerCase() === loc.continent.code.toLowerCase())) {
     return true
   }
-  if (countries && countries.split(',').some(c => c.trim().toLowerCase() === userLocation.country.code.toLowerCase())) {
+  if (countries && countries.split(',').some(c => c.trim().toLowerCase() === loc.country.code.toLowerCase())) {
     return true
   }
-  if (states && states.split(',').some(s => s.trim().toLowerCase() === userLocation.state.code.toLowerCase())) {
+  if (states && states.split(',').some(s => s.trim().toLowerCase() === loc.state.code.toLowerCase())) {
     return true
   }
-  if (cities && cities.split(',').some(c => c.trim().toLowerCase() === userLocation.city.name.toLowerCase())) {
+  if (cities && cities.split(',').some(c => c.trim().toLowerCase() === loc.city.name.toLowerCase())) {
     return true
   }
 

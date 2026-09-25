@@ -349,8 +349,9 @@ export function sanitizeMessage(s: unknown): string {
 function basenameOfUrl(u: string): string {
   const cut = u.search(/[?#]/)
   const path = cut >= 0 ? u.slice(0, cut) : u
-  const slash = path.lastIndexOf('/')
-  return slash >= 0 ? path.slice(slash + 1) : path
+  // A URL or protocol-relative match always holds a "/" before any ? or #,
+  // as in the reference (contracts/reference/log-failure.mjs).
+  return path.slice(path.lastIndexOf('/') + 1)
 }
 
 function sanitizeFrame(line: string): string {
@@ -461,14 +462,23 @@ const RATE_RE = /^\+?([0-9]+(\.[0-9]*)?|\.[0-9]+)$/
  * [0, 1]. Anything else (null, '', NaN, '50%', booleans, objects) → 1.
  */
 export function coerceRate(v: unknown): number {
-  let n: number | null = null
-  if (typeof v === 'number') n = Number.isFinite(v) ? v : null
-  else if (typeof v === 'string') {
-    const t = trimAscii(v)
-    if (RATE_RE.test(t)) n = Number(t)
-  }
+  const n = parseRate(v)
   if (n === null) return 1
   return Math.min(1, Math.max(0, n))
+}
+
+/**
+ * The number a FAILURES_SAMPLE_RATE value names, before clamping: a finite
+ * number, or a plain decimal string. null when it names none, which
+ * coerceRate reads as 1.
+ */
+export function parseRate(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null
+  if (typeof v === 'string') {
+    const t = trimAscii(v)
+    if (RATE_RE.test(t)) return Number(t)
+  }
+  return null
 }
 
 // UTF-8 byte count of one code point. A lone surrogate counts as U+FFFD

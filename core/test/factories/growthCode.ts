@@ -2,7 +2,7 @@
 // parsed EID blob inside its `eb` text. Never sampled live (POST), so the
 // bases are the contract fixtures.
 
-import { fixtureVariants, invalidCases, load, type InvalidCase } from './base'
+import { fixtureVariants, invalidCases, invalidPayload, load, type InvalidCase } from './base'
 
 export interface GrowthCodeSyncResponsePayload {
   gc_id?: string | null
@@ -24,6 +24,11 @@ export function growthCodeSyncResponse(
 
 export function invalidGrowthCodeSyncResponses(): InvalidCase[] {
   return invalidCases('growthcode-sync-response')
+}
+
+/** One invalid sync-response fixture by name, e.g. 'not-an-object', marker dropped. */
+export function invalidGrowthCodeSyncResponse(name: string): unknown {
+  return invalidPayload('growthcode-sync-response', name)
 }
 
 export interface EidUidPayload {
@@ -55,4 +60,9 @@ export function eidEntry(overrides: Partial<EidEntryPayload> = {}): EidEntryPayl
 
 export function invalidEidBlobs(): InvalidCase[] {
   return invalidCases('eid-blob')
+}
+
+/** One invalid eid-blob fixture by name, e.g. 'missing-source', marker dropped. */
+export function invalidEidBlob(name: string): unknown {
+  return invalidPayload('eid-blob', name)
 }

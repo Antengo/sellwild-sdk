@@ -3,7 +3,7 @@
 // response. Response default: the real Alabama sports cache.
 
 import type { LocalizedListingsConfig } from '../../src/types'
-import { fixtureVariants, invalidCases, load, sampleVariants, type InvalidCase } from './base'
+import { fixtureVariants, invalidCases, invalidPayload, load, sampleVariants, type InvalidCase } from './base'
 import type { ListingsResultPayload } from './listingsResponse'
 
 /** The core type, except the CMS may send `frequency` as text. */
@@ -20,6 +20,11 @@ export function localizedListingsConfig(
 
 export function invalidLocalizedListingsConfigs(): InvalidCase[] {
   return invalidCases('localized-listings-config')
+}
+
+/** One invalid localized-listings-config fixture by name, marker dropped. */
+export function invalidLocalizedListingsConfig(name: string): Record<string, unknown> {
+  return invalidPayload('localized-listings-config', name)
 }
 
 export interface LocalizedListingsResultPayload extends ListingsResultPayload {

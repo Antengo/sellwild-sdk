@@ -7,6 +7,7 @@
 // checks it. A test that needs the real queue path sets its own sink or
 // `setFailureContext({ sink: undefined })`.
 
+import { vi } from 'vitest'
 import { resetFailuresForTests, setFailureContext, type ClientFailureEvent, type FailureSink } from '../../src/failures'
 
 export interface RecordedFailure {
@@ -54,4 +55,32 @@ export function takeFailureEvents(): ClientFailureEvent[] {
 /** `action` of each recorded event, and clears them: the quick check. */
 export function takeFailureCodes(): string[] {
   return takeFailureEvents().map((e) => e.action)
+}
+
+/**
+ * How many times logFailure ran, per code, while `run` ran, dropped calls
+ * included. The gate folds a repeat of the same failure within 60 s, so the
+ * sink alone cannot tell one call from two. The debug echo prints one line
+ * per call, sent or dropped, so this turns debug on, counts those lines
+ * (printing nothing) and turns debug off again. `run` must not turn debug
+ * off itself (configure() without a `debug: true` override does).
+ */
+export async function countLogFailureCalls(run: () => unknown): Promise<Record<string, number>> {
+  const lines: string[] = []
+  const log = vi.spyOn(console, 'log').mockImplementation((line: unknown) => {
+    lines.push(String(line))
+  })
+  setFailureContext({ debug: true })
+  try {
+    await run()
+  } finally {
+    setFailureContext({ debug: false })
+    log.mockRestore()
+  }
+  const counts: Record<string, number> = {}
+  for (const line of lines) {
+    const code = /^\[Sellwild\] failure (\S+) /.exec(line)?.[1]
+    if (code) counts[code] = (counts[code] ?? 0) + 1
+  }
+  return counts
 }

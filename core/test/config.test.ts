@@ -4,17 +4,21 @@ import {
   buildConfigWithRemote,
   configure,
   currencyToSymbol,
+  getDefaultConfig,
   getMainUrl,
+  mergeConfig,
   DEFAULT_LISTINGS_URL,
   EVENTS_URL,
 } from '../src/config'
 import { isDebugLogging } from '../src/debug-log'
 import { eventQueue } from '../src/event-queue'
-import { logFailure } from '../src/failures'
+import { logFailure, setFailureContext } from '../src/failures'
 import { clearRemoteConfigCache } from '../src/remote-config'
 import { resolveListingsUrl } from '../src/api'
-import { appConfig } from './factories'
-import { takeFailureEvents } from './support/failures'
+import { appConfig, type AppConfigPayload } from './factories'
+import { contract } from './support/contracts'
+import { expectValid } from './support/factory-checks'
+import { countLogFailureCalls, takeFailureEvents } from './support/failures'
 
 type Call = [string, RequestInit]
 
@@ -35,9 +39,33 @@ function stubNetwork(config: unknown | Error) {
 
 const probe = { code: 'listings.fetch.network', component: 'listings' } as const
 
+// The real weatherbug config with an AD_STACK core cannot read (a
+// config.adstack.invalid) plus `overrides`, checked against the contract.
+function withBadAdStack(overrides: Partial<AppConfigPayload> = {}): AppConfigPayload {
+  const raw = appConfig({ AD_STACK: 'weird', ...overrides })
+  expectValid('app-config', raw)
+  return raw
+}
+
 describe('configure', () => {
   beforeEach(() => {
     clearRemoteConfigCache()
+  })
+
+  // Known drift (contracts/expectations/drift/core.json other.debug.remote):
+  // iOS, Android and Flutter map a boolean DEBUG to config.debug; core does
+  // not. Recorded, not changed (A9). Fixing it means removing the entry.
+  it('does not read the remote DEBUG key', async () => {
+    const raw = appConfig({ DEBUG: true })
+    expectValid('app-config', raw)
+    stubNetwork(raw)
+
+    const config = await configure('weatherbug', 'weatherbug-weatherbug')
+
+    expect(config.debug).toBe(false)
+    expect(isDebugLogging()).toBe(false)
+    expect(config.remote?.DEBUG).toBe(true)
+    expect(contract<{ other: Record<string, string> }>('expectations/drift/core.json').other['debug.remote']).toMatch(/^configure\(\) .* never read the remote DEBUG key/)
   })
 
   it('merges defaults, partner and slug, the remote config and overrides, in that order', async () => {
@@ -131,6 +159,60 @@ describe('configure', () => {
     expect(net.events).toHaveLength(1)
   })
 
+  // FAILURES.md 10.1: the kill switch drops every event, clientFailure too.
+  // The value reports used to go out before configure applied the flags of
+  // the very config they were about, so this POSTed a clientFailure.
+  it('sends no report about a config that turns events off', async () => {
+    const net = stubNetwork(withBadAdStack({ EVENTS_ENABLED: false }))
+    setFailureContext({ sink: undefined }) // the real events queue
+
+    const config = await configure('weatherbug', 'weatherbug-weatherbug')
+
+    expect(config).toMatchObject({ eventsEnabled: false, adStack: undefined })
+    expect(net.configCalls()).toHaveLength(1)
+    expect(net.events).toEqual([])
+  })
+
+  it.each([
+    [{ FAILURES_ENABLED: false }],
+    [{ FAILURES_SAMPLE_RATE: '0' }],
+  ])('sends no report about a config that sets %j', async (flag) => {
+    stubNetwork(withBadAdStack(flag))
+
+    const calls = await countLogFailureCalls(() => configure('weatherbug', 'weatherbug-weatherbug', { overrides: { debug: true } }))
+
+    // Handed to logFailure once, after the flags, and dropped by the gate.
+    expect(calls).toEqual({ 'config.adstack.invalid': 1 })
+    expect(takeFailureEvents()).toEqual([])
+  })
+
+  it('reports each CMS value it had to ignore or coerce once, after the flags, for the partner', async () => {
+    stubNetwork(withBadAdStack())
+
+    const calls = await countLogFailureCalls(async () => {
+      await configure('weatherbug', 'weatherbug-weatherbug', { overrides: { debug: true } })
+      // A second configure reads the cache and reports nothing again.
+      await configure('weatherbug', 'weatherbug-weatherbug', { overrides: { debug: true } })
+    })
+
+    expect(calls).toEqual({ 'config.adstack.invalid': 1 })
+    expect(takeFailureEvents()).toMatchObject([
+      {
+        action: 'config.adstack.invalid',
+        label: 'remoteConfig',
+        attributes: { code: 'weatherbug', severity: 'warn', msg: 'AD_STACK is not a known mode, read as unset', host: 'widget.sellwild.com' },
+      },
+    ])
+  })
+
+  it('lets a local failuresEnabled override win for the value reports too', async () => {
+    stubNetwork(withBadAdStack({ FAILURES_ENABLED: false }))
+
+    await configure('weatherbug', 'weatherbug-weatherbug', { overrides: { failuresEnabled: true } })
+
+    expect(takeFailureEvents().map((e) => e.action)).toEqual(['config.adstack.invalid'])
+  })
+
   it('turns debug off again on a later configure without it', async () => {
     stubNetwork(appConfig())
     await configure('weatherbug', 'weatherbug-weatherbug', { overrides: { debug: true } })
@@ -155,6 +237,18 @@ describe('buildConfigWithRemote', () => {
     expect(config).toMatchObject({ partnerCode: 'weatherbug', title: 'From CDN', linkText: 'More', buyNowText: 'Buy now' })
   })
 
+  it('reports the CMS values it had to ignore or coerce after the flags, so a partial that turns events off sends none', async () => {
+    stubNetwork(withBadAdStack())
+
+    await buildConfigWithRemote({ partnerCode: 'weatherbug', eventsEnabled: false }, 'weatherbug-weatherbug')
+    expect(takeFailureEvents()).toEqual([])
+
+    clearRemoteConfigCache()
+    const calls = await countLogFailureCalls(() => buildConfigWithRemote({ partnerCode: 'weatherbug', debug: true }, 'weatherbug-weatherbug'))
+    expect(calls).toEqual({ 'config.adstack.invalid': 1 })
+    expect(takeFailureEvents()).toMatchObject([{ action: 'config.adstack.invalid', attributes: { code: 'weatherbug' } }])
+  })
+
   it('attributes a failed fetch to the partner and applies the flags', async () => {
     stubNetwork(new TypeError('offline'))
 
@@ -177,6 +271,28 @@ describe('buildConfig', () => {
     expect(config).toMatchObject({ partnerCode: 'static', eventsEnabled: false, debug: true, failuresEnabled: true, failuresSampleRate: 1, colors: ['#333333'] })
     expect(isDebugLogging()).toBe(false)
     expect(net.events).toHaveLength(1)
+  })
+})
+
+describe('getDefaultConfig and mergeConfig', () => {
+  it('gives a copy of the defaults that a caller can change without touching them', () => {
+    const defaults = getDefaultConfig()
+    expect({ ...defaults, partnerCode: 'p' }).toEqual(buildConfig({ partnerCode: 'p' }))
+
+    defaults.colors!.push('#ff0000')
+    defaults.breakpoints!.col2 = 1
+    defaults.title = 'changed'
+
+    expect(buildConfig({ partnerCode: 'p' })).toMatchObject({ colors: ['#333333'], breakpoints: { col2: 600 }, title: '' })
+    expect(getDefaultConfig()).not.toBe(getDefaultConfig())
+  })
+
+  it('spreads the layers over the defaults in order, skipping undefined layers', () => {
+    const merged = mergeConfig(getDefaultConfig(), { partnerCode: 'a', title: 'one' }, undefined, { title: 'two', linkText: undefined })
+
+    expect(merged).toMatchObject({ partnerCode: 'a', title: 'two', buyNowText: 'Buy now' })
+    // A key set to undefined still wins, as object spread always did.
+    expect(merged).toHaveProperty('linkText', undefined)
   })
 })
 

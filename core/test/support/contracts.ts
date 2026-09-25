@@ -12,6 +12,7 @@ const files = import.meta.glob<unknown>(
     '../../../contracts/fixtures/**/*.json',
     '../../../contracts/schemas/*.json',
     '../../../contracts/expectations/*.json',
+    '../../../contracts/expectations/drift/*.json',
     '../../../contracts/golden/*.json',
     '../../../contracts/failure-codes.json',
   ],

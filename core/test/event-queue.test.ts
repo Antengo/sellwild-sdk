@@ -1,10 +1,19 @@
 import { describe, expect, it, vi } from 'vitest'
 import eventQueueSource from '../src/event-queue.ts?raw'
 import { EVENTS_URL, SDK_VERSION } from '../src/config'
-import { createEventQueue, eventQueue, type EventQueueDeps } from '../src/event-queue'
+import {
+  capQueue,
+  createEventQueue,
+  eventQueue,
+  requeueFailedBatch,
+  resolveUid,
+  stampEventAttributes,
+  takeBatch,
+  type EventQueueDeps,
+} from '../src/event-queue'
 import { getFailureInternalErrors, logFailure, setFailureContext } from '../src/failures'
 import type { SdkEvent } from '../src/types'
-import { sdkEvent } from './factories'
+import { sdkEvent, wireEvents } from './factories'
 import { takeFailureEvents } from './support/failures'
 import { validate } from './support/schemas'
 
@@ -55,9 +64,25 @@ const flat = (batches: Sent[][]): Sent[] => ([] as Sent[]).concat(...batches)
 // Let rejected sends settle their .catch.
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
-const click = (n: number): SdkEvent => ({ event: 'click', label: String(n) })
+// A minimal host event: the flutter-minimal fixture's click, numbered by
+// label, with no attributes of its own (the queue stamps them).
+const click = (n: number): SdkEvent => sdkEvent({ label: String(n), attributes: undefined }, 'flutter-minimal')
 
 describe('createEventQueue', () => {
+  it('builds its test events from the contract', () => {
+    const check = validate('events-batch', wireEvents([click(1), click(2)]))
+    expect(check.ok, check.text).toBe(true)
+  })
+
+  it('drops an event pushed while off, so turning it back on does not send it', () => {
+    const h = harness()
+    h.queue.setEnabled(false)
+    h.queue.push(click(1))
+    h.queue.setEnabled(true)
+    h.queue.flush()
+    expect(h.fetch).not.toHaveBeenCalled()
+  })
+
   it('stamps sdkVersion, the platform and the partner code, and keeps the caller attributes', () => {
     const h = harness()
     h.queue.push({ event: 'adError', action: 'No fill', label: '43', attributes: { zone: 43 } })
@@ -295,5 +320,54 @@ describe('transport never reports itself (contract A7)', () => {
     const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init.body)) as SdkEvent[])
     expect(bodies.map((b) => b.map((e) => e.action))).toEqual([['listings.fetch.network'], ['listings.fetch.network']])
     expect(getFailureInternalErrors()).toBe(0)
+  })
+})
+
+describe('stampEventAttributes', () => {
+  it('puts the partner code first, the caller attributes next, then type and sdkVersion', () => {
+    const stamp = { partnerCode: 'weatherbug', platform: 'react-native', sdkVersion: SDK_VERSION }
+    expect(stampEventAttributes(sdkEvent({ attributes: { zone: 43 } }).attributes, stamp)).toEqual({
+      code: 'weatherbug',
+      zone: 43,
+      type: 'react-native',
+      sdkVersion: SDK_VERSION,
+    })
+    // A caller's own code wins; the SDK's type and sdkVersion always win.
+    expect(stampEventAttributes({ code: 'caller', type: 'x', sdkVersion: '0' }, stamp)).toEqual({ code: 'caller', type: 'react-native', sdkVersion: SDK_VERSION })
+  })
+
+  it('leaves out an empty partner code and platform', () => {
+    expect(stampEventAttributes(undefined, { partnerCode: '', platform: '', sdkVersion: '1.0.0' })).toEqual({ sdkVersion: '1.0.0' })
+  })
+})
+
+describe('capQueue, takeBatch and requeueFailedBatch', () => {
+  it('keeps the newest events up to the cap, as a new array', () => {
+    const events = [1, 2, 3, 4]
+    expect(capQueue(events, 2)).toEqual([3, 4])
+    expect(capQueue(events, 4)).toEqual([1, 2, 3, 4])
+    expect(capQueue(events, 9)).not.toBe(events)
+    expect(capQueue(events, 0)).toEqual([])
+    expect(events).toEqual([1, 2, 3, 4])
+  })
+
+  it('splits off the first batch and keeps the rest', () => {
+    expect(takeBatch([1, 2, 3], 2)).toEqual({ batch: [1, 2], rest: [3] })
+    expect(takeBatch([1], 2)).toEqual({ batch: [1], rest: [] })
+    expect(takeBatch([], 2)).toEqual({ batch: [], rest: [] })
+  })
+
+  it('puts a failed batch back in front of newer events, dropping the oldest over the cap', () => {
+    expect(requeueFailedBatch([3, 4], [1, 2], 10)).toEqual([1, 2, 3, 4])
+    expect(requeueFailedBatch([3, 4], [1, 2], 3)).toEqual([2, 3, 4])
+  })
+})
+
+describe('resolveUid', () => {
+  it('uses randomUUID, and a base-36 id from random when it throws (Hermes has no crypto.randomUUID)', () => {
+    const random = vi.fn(() => 0.5)
+    expect(resolveUid(() => 'uuid-1', random)).toBe('uuid-1')
+    expect(random).not.toHaveBeenCalled()
+    expect(resolveUid(() => { throw new TypeError('crypto.randomUUID is not a function') }, () => 0.123456789)).toBe((0.123456789).toString(36).slice(2))
   })
 })

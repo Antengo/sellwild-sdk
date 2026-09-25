@@ -1,7 +1,7 @@
 // A listings cache response (GET cache.sellwild.com/listings-*), listings in
 // result.rs. Default: the real listings-img-data-sm cache.
 
-import { fixtureVariants, invalidCases, load, sampleVariants, type InvalidCase } from './base'
+import { fixtureVariants, invalidCases, invalidPayload, load, sampleVariants, type InvalidCase } from './base'
 import type { ListingPayload } from './listing'
 
 export interface ListingsResultPayload {
@@ -31,4 +31,9 @@ export function listingsResponse(overrides: Partial<ListingsResultPayload> = {},
 
 export function invalidListingsResponses(): InvalidCase[] {
   return invalidCases('listings-response')
+}
+
+/** One invalid fixture by name, e.g. 'rs-not-array', marker dropped. */
+export function invalidListingsResponse(name: string): unknown {
+  return invalidPayload('listings-response', name)
 }

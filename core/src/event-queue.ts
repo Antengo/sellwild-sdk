@@ -70,35 +70,14 @@ export class EventQueue {
   }
 
   getUid(): string {
-    if (this.uid) return this.uid
-    try {
-      this.uid = this.deps.randomUUID()
-    } catch {
-      // No crypto.randomUUID (Hermes): a non-RFC id still keys the session.
-      this.uid = this.deps.random().toString(36).slice(2)
-    }
+    if (!this.uid) this.uid = resolveUid(this.deps.randomUUID, this.deps.random)
     return this.uid
   }
 
   push(event: SdkEvent): void {
     if (!this.enabled) return
-    // Stamp platform + sdkVersion into the free-form `attributes` passthrough
-    // bag (queryable in BigQuery, no server change). `type` is the platform
-    // discriminator the events view reads (JSON_EXTRACT(attributes,'type') →
-    // the `type` column); `sdkVersion` is an installed-base census field. Both
-    // are SDK-reserved, so they are applied last and always present. The
-    // partner `code` goes first, so a caller's own code (logFailure's cleaned
-    // one) wins.
-    const attributes = {
-      ...(this.partnerCode ? { code: this.partnerCode } : {}),
-      ...event.attributes,
-      ...(this.platform ? { type: this.platform } : {}),
-      sdkVersion: SDK_VERSION,
-    }
-    this.events.push({ ...event, attributes, uid: this.getUid(), createdTime: this.deps.now() })
-    if (this.events.length > this.maxQueue) {
-      this.events.splice(0, this.events.length - this.maxQueue) // drop oldest over the cap
-    }
+    const attributes = stampEventAttributes(event.attributes, { partnerCode: this.partnerCode, platform: this.platform, sdkVersion: SDK_VERSION })
+    this.events = capQueue([...this.events, { ...event, attributes, uid: this.getUid(), createdTime: this.deps.now() }], this.maxQueue)
     this.schedule()
   }
 
@@ -118,11 +97,12 @@ export class EventQueue {
       this.timer = null
     }
     if (!this.enabled) {
-      this.events.length = 0
+      this.events = []
       return
     }
-    const batch = this.events.splice(0, this.maxBatch)
+    const { batch, rest } = takeBatch(this.events, this.maxBatch)
     if (!batch.length) return
+    this.events = rest
 
     this.deps.fetch(this.deps.url ?? EVENTS_URL, {
       method: 'POST',
@@ -132,12 +112,67 @@ export class EventQueue {
       // Re-queue on failure, capped, and reschedule so a transient outage
       // recovers without waiting for the next push() — and can't grow unbounded.
       // Not reported: see the note at the top of this file.
-      this.events.unshift(...batch)
-      if (this.events.length > this.maxQueue) {
-        this.events.splice(0, this.events.length - this.maxQueue) // drop oldest over the cap
-      }
+      this.events = requeueFailedBatch(this.events, batch, this.maxQueue)
       this.schedule()
     })
+  }
+}
+
+/** The newest `max` events: the oldest over the cap are dropped. Pure. */
+export function capQueue<T>(events: readonly T[], max: number): T[] {
+  return events.slice(Math.max(0, events.length - max))
+}
+
+/** The first `max` events to send now, and the rest to keep. Pure. */
+export function takeBatch<T>(events: readonly T[], max: number): { batch: T[]; rest: T[] } {
+  return { batch: events.slice(0, max), rest: events.slice(max) }
+}
+
+/**
+ * A batch whose POST failed, back in front of what was queued since, capped
+ * so a failing endpoint cannot grow the queue (the oldest are dropped). Pure.
+ */
+export function requeueFailedBatch<T>(events: readonly T[], batch: readonly T[], max: number): T[] {
+  return capQueue([...batch, ...events], max)
+}
+
+/**
+ * The session uid: randomUUID(), else a base-36 id from random(). A throw
+ * from randomUUID is expected, not a failure: Hermes has no
+ * crypto.randomUUID, and a non-RFC id still keys the session.
+ */
+export function resolveUid(randomUUID: () => string, random: () => number): string {
+  try {
+    return randomUUID()
+  } catch {
+    return random().toString(36).slice(2)
+  }
+}
+
+/** What push() stamps into every event. Empty text leaves that key out. */
+export interface EventStamp {
+  partnerCode: string
+  platform: string
+  sdkVersion: string
+}
+
+/**
+ * The `attributes` push() sends for an event. Pure.
+ *
+ * Stamps platform + sdkVersion into the free-form `attributes` passthrough
+ * bag (queryable in BigQuery, no server change). `type` is the platform
+ * discriminator the events view reads (JSON_EXTRACT(attributes,'type') → the
+ * `type` column); `sdkVersion` is an installed-base census field. Both are
+ * SDK-reserved, so they are applied last and always present (`type` only
+ * once a platform is set). The partner `code` goes first, so a caller's own
+ * code (logFailure's cleaned one) wins.
+ */
+export function stampEventAttributes(attributes: SdkEvent['attributes'], stamp: EventStamp): Record<string, string | number | boolean> {
+  return {
+    ...(stamp.partnerCode ? { code: stamp.partnerCode } : {}),
+    ...attributes,
+    ...(stamp.platform ? { type: stamp.platform } : {}),
+    sdkVersion: stamp.sdkVersion,
   }
 }
 

@@ -15,6 +15,8 @@ import { isDebugLogging, setDebugLogging } from '../debug-log'
 import { eventQueue } from '../event-queue'
 import type { FailureCode } from './codes'
 import {
+  coerceFlag,
+  coerceRate,
   decideFailure,
   initialState,
   messageFull,
@@ -93,12 +95,13 @@ type StoredContext = Omit<FailureContextInput, 'debug'>
 
 const DEFAULT_CLIENT = 'core'
 
-// Longest message, error message and stack text (UTF-16 units) handed to the
-// pure core. Its sanitizer patterns backtrack quadratically on long runs of
-// letters and digits (10,000 characters take about 0.35 s in V8, more on
-// Hermes), and logFailure must never block the thread (FAILURES.md 3.4). Only
-// 200 code points of message and 5 stack frames are ever sent, so the cut
-// changes nothing but pathological input.
+// Input cap (FAILURES.md 3.3 item 4): the longest message, error message and
+// stack text (UTF-16 units) handed to the pure core. Its sanitizer patterns
+// backtrack superlinearly on long runs of letters and digits (10,000
+// characters take about 0.35 s in V8, more on Hermes), and logFailure must
+// never block the thread (FAILURES.md 3.4). Only 200 code points of message
+// and 5 stack frames are ever sent, so the cut changes nothing but
+// pathological input.
 const MESSAGE_INPUT_MAX = 1000
 const STACK_INPUT_MAX = 2000
 
@@ -157,9 +160,23 @@ function bounded(value: unknown, max: number): unknown {
   return typeof value === 'string' && value.length > max ? value.slice(0, max) : value
 }
 
+// V8 starts error.stack with the header `<name>: <message>` (`<name>` alone
+// when the message is empty). When the stack is over the cap, that header is
+// removed before the cut, so a long message cannot push every frame out of it.
+// Under the cap the pure core drops the header itself (FAILURES.md 7.4).
+function boundedStack(stack: unknown, name: unknown, message: unknown): unknown {
+  if (typeof stack !== 'string' || stack.length <= STACK_INPUT_MAX) return stack
+  let rest = stack
+  if (typeof name === 'string') {
+    const header = typeof message === 'string' && message !== '' ? `${name}: ${message}` : name
+    if (stack.startsWith(header) && (stack.length === header.length || stack[header.length] === '\n')) rest = stack.slice(header.length)
+  }
+  return bounded(rest, STACK_INPUT_MAX)
+}
+
 // FAILURES.md 3.3: an Error gives name, message and stack; a string gives the
 // message; anything else is ignored. Other inputs pass through as given, long
-// text cut to the bounds above.
+// text cut to the input cap above.
 function toCoreInput(input: LogFailureInput): CoreFailureInput {
   const src: Partial<LogFailureInput> = input !== null && typeof input === 'object' ? input : {}
   const error = read(() => src.error)
@@ -174,9 +191,11 @@ function toCoreInput(input: LogFailureInput): CoreFailureInput {
   }
   if (read(() => error instanceof Error)) {
     const err = error as Error
-    out.errName = read(() => err.name)
-    out.errMessage = bounded(read(() => err.message), MESSAGE_INPUT_MAX)
-    out.stack = bounded(read(() => err.stack), STACK_INPUT_MAX)
+    const name = read(() => err.name)
+    const message = read(() => err.message)
+    out.errName = name
+    out.errMessage = bounded(message, MESSAGE_INPUT_MAX)
+    out.stack = boundedStack(read(() => err.stack), name, message)
   } else if (typeof error === 'string') {
     out.errMessage = bounded(error, MESSAGE_INPUT_MAX)
   }
@@ -203,6 +222,48 @@ function echoInternalError(error: unknown): void {
     console.log(`[Sellwild] failure internal-error ${name}`)
   } catch {
     internalErrors += 1
+  }
+}
+
+/** The kill switches a config sets: raw or coerced EVENTS_ENABLED, FAILURES_ENABLED and FAILURES_SAMPLE_RATE. */
+export interface FailureFlags {
+  eventsEnabled?: unknown
+  failuresEnabled?: unknown
+  failuresSampleRate?: unknown
+}
+
+/**
+ * The stricter of two sets of kill switches: each switch on only when both
+ * are on, and the lower sample rate. Unset means on and rate 1
+ * (FAILURES.md 3.2). Pure.
+ */
+export function strictestFailureFlags(a: FailureFlags, b: FailureFlags): Required<FailureFlags> {
+  return {
+    eventsEnabled: coerceFlag(a.eventsEnabled, true) && coerceFlag(b.eventsEnabled, true),
+    failuresEnabled: coerceFlag(a.failuresEnabled, true) && coerceFlag(b.failuresEnabled, true),
+    failuresSampleRate: Math.min(coerceRate(a.failuresSampleRate), coerceRate(b.failuresSampleRate)),
+  }
+}
+
+/**
+ * Report `inputs` under `flags` as well as the context's own kill switches:
+ * each goes out only when both allow it, at the lower sample rate
+ * (strictestFailureFlags). The context is left as it was, so `flags` never
+ * reach a later report. For reports about a config that is not the active
+ * one: they honor that config's switches (FAILURES.md 10.1) without undoing
+ * the active config or a host override (FAILURES.md 3.2).
+ */
+export function logFailuresWithFlags(flags: FailureFlags, inputs: readonly LogFailureInput[]): void {
+  const saved: FailureFlags = {
+    eventsEnabled: context.eventsEnabled,
+    failuresEnabled: context.failuresEnabled,
+    failuresSampleRate: context.failuresSampleRate,
+  }
+  context = { ...context, ...strictestFailureFlags(saved, flags) }
+  try {
+    for (const input of inputs) logFailure(input)
+  } finally {
+    context = { ...context, ...saved }
   }
 }
 

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // A real CDN response, captured read-only (contracts/samples/SOURCES.json).
 import appConfigSample from '../../contracts/samples/app-config/antengo_antengo-sellwild-tv.json'
 import * as core from '../src/index'
-import { takeFailureEvents } from './support/failures'
+import { countLogFailureCalls, takeFailureEvents } from './support/failures'
 import { takeBlockedNetworkCalls } from './setup'
 
 describe('package index', () => {
@@ -29,6 +29,17 @@ describe('package index', () => {
       'resetFailuresForTests',
       'getFailureInternalErrors',
       'createEventQueue',
+      // Pure helpers (phase 3 extraction)
+      'fetchRemoteConfigWithIssues',
+      'classifyFetchError',
+      'mapRemoteConfigWithIssues',
+      'getDefaultConfig',
+      'mergeConfig',
+      'capQueue',
+      'takeBatch',
+      'requeueFailedBatch',
+      'resolveUid',
+      'stampEventAttributes',
       'debugLog',
       'setDebugLogging',
       'isDebugLogging',
@@ -48,6 +59,33 @@ describe('package index', () => {
     expect(core.WIDGET_BASE_URL).toBe('https://widget.sellwild.com')
     expect(core.EVENTS_URL).toBe('https://events.sellwild.com/events/queue')
     expect(core.SDK_VERSION).toMatch(/^\d+\.\d+\.\d+$/)
+  })
+})
+
+describe('countLogFailureCalls', () => {
+  it('counts every logFailure call, the ones the gate folds too, and prints nothing', async () => {
+    const probe = { code: 'listings.fetch.network', component: 'listings' } as const
+
+    const counts = await countLogFailureCalls(() => {
+      core.logFailure(probe)
+      core.logFailure(probe)
+      core.logFailure({ code: 'config.fetch.http', component: 'remoteConfig' })
+    })
+
+    expect(counts).toEqual({ 'listings.fetch.network': 2, 'config.fetch.http': 1 })
+    // The sink saw the repeat folded away: why the count is needed.
+    expect(takeFailureEvents().map((e) => e.action)).toEqual(['listings.fetch.network', 'config.fetch.http'])
+    expect(core.isDebugLogging()).toBe(false)
+  })
+
+  it('waits for an async run and turns debug off even when it throws', async () => {
+    await expect(
+      countLogFailureCalls(async () => {
+        await Promise.resolve()
+        throw new Error('boom')
+      }),
+    ).rejects.toThrow('boom')
+    expect(core.isDebugLogging()).toBe(false)
   })
 })
 

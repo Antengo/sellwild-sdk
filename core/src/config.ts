@@ -1,7 +1,7 @@
 import { SellwildConfig, PartialSellwildConfig } from './types'
-import { fetchRemoteConfig, type RemoteConfigOptions } from './remote-config'
+import { fetchRemoteConfigWithIssues, type RemoteConfigOptions } from './remote-config'
 import { eventQueue } from './event-queue'
-import { setFailureContext } from './failures'
+import { logFailure, setFailureContext, type LogFailureInput } from './failures'
 import { coerceFlag } from './failures/core'
 
 export const WIDGET_BASE_URL = 'https://widget.sellwild.com'
@@ -106,14 +106,36 @@ const defaultConfig: Omit<SellwildConfig, 'partnerCode'> = {
 }
 
 /**
+ * A copy of the SDK defaults. Arrays and objects in it are copied too, so the
+ * caller can change it without touching the shared defaults. Pure.
+ */
+export function getDefaultConfig(): Omit<SellwildConfig, 'partnerCode'> {
+  const copy: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(defaultConfig)) {
+    copy[key] = Array.isArray(value) ? [...value] : value !== null && typeof value === 'object' ? { ...value } : value
+  }
+  return copy as Omit<SellwildConfig, 'partnerCode'>
+}
+
+/**
+ * `layers` spread over `defaults` in order, later layers winning key by key,
+ * as configure() and buildConfigWithRemote() merge. A key a layer sets to
+ * undefined still wins, as spread always has; an undefined layer adds
+ * nothing. Pure.
+ */
+export function mergeConfig(
+  defaults: Omit<SellwildConfig, 'partnerCode'>,
+  ...layers: Array<Partial<SellwildConfig> | undefined>
+): SellwildConfig {
+  return layers.reduce<Record<string, unknown>>((merged, layer) => ({ ...merged, ...layer }), { ...defaults }) as unknown as SellwildConfig
+}
+
+/**
  * @deprecated since 1.2.0 — prefer `configure(partnerCode, slug)` for the
  * remote-config-first flow. `buildConfig` remains for static/offline integrations.
  */
 export function buildConfig(partial: PartialSellwildConfig): SellwildConfig {
-  return {
-    ...defaultConfig,
-    ...partial,
-  } as SellwildConfig
+  return mergeConfig(defaultConfig, partial)
 }
 
 // Partner first, before any fetch, so a failed config fetch is still
@@ -126,8 +148,9 @@ function setRuntimePartner(partnerCode: string): void {
 // After the remote config resolves: the EVENTS_ENABLED kill switch, debug and
 // the clientFailure flags. `eventsEnabled` is coerced again because host
 // overrides are not type-checked at runtime (an `undefined` would otherwise
-// turn events off).
-function applyRuntimeFlags(config: SellwildConfig): void {
+// turn events off). Then the CMS values the fetch had to ignore or coerce are
+// reported, so they honor this config's kill switches (FAILURES.md 10.1).
+function applyRuntimeFlags(config: SellwildConfig, issues: readonly LogFailureInput[]): void {
   eventQueue.setEnabled(coerceFlag(config.eventsEnabled, true))
   setFailureContext({
     debug: config.debug,
@@ -135,6 +158,7 @@ function applyRuntimeFlags(config: SellwildConfig): void {
     failuresEnabled: config.failuresEnabled,
     failuresSampleRate: config.failuresSampleRate,
   })
+  for (const issue of issues) logFailure(issue)
 }
 
 /**
@@ -148,6 +172,8 @@ function applyRuntimeFlags(config: SellwildConfig): void {
  * If the fetch fails (network, timeout, 404), falls back to the static config
  * so the app is never blocked by remote config availability. The fetch
  * reports its own failure (logFailure); this fallback does not report it again.
+ * CMS values the fetch had to ignore or coerce are reported after the merged
+ * config's kill switches apply, as configure() does.
  */
 export async function buildConfigWithRemote(
   partial: PartialSellwildConfig,
@@ -155,13 +181,9 @@ export async function buildConfigWithRemote(
   options?: RemoteConfigOptions,
 ): Promise<SellwildConfig> {
   setRuntimePartner(partial.partnerCode)
-  const remote = await fetchRemoteConfig(partial.partnerCode, remoteSlug, options)
-  const config = {
-    ...defaultConfig,
-    ...partial,
-    ...remote,
-  } as SellwildConfig
-  applyRuntimeFlags(config)
+  const { config: remote, issues } = await fetchRemoteConfigWithIssues(partial.partnerCode, remoteSlug, options)
+  const config = mergeConfig(defaultConfig, partial, remote)
+  applyRuntimeFlags(config, issues)
   return config
 }
 
@@ -193,7 +215,10 @@ export interface ConfigureOptions extends RemoteConfigOptions {
  *
  * Runtime state: sets the partner for events and failure reports before the
  * fetch, then applies `eventsEnabled` to the events queue and `debug`,
- * `failuresEnabled` and `failuresSampleRate` to failure reporting.
+ * `failuresEnabled` and `failuresSampleRate` to failure reporting. Only then
+ * does it report the CMS values it had to ignore or coerce
+ * (config.adstack.invalid, config.field.invalid), so a config that turns
+ * events or failures off sends no report about itself.
  *
  * @example
  *   const config = await configure('weatherbug', 'weatherbug-main')
@@ -210,15 +235,9 @@ export async function configure(
 ): Promise<SellwildConfig> {
   const { overrides, ...remoteOptions } = options
   setRuntimePartner(partnerCode)
-  const remote = await fetchRemoteConfig(partnerCode, slug, remoteOptions)
-  const config = {
-    ...defaultConfig,
-    partnerCode,
-    slug,
-    ...remote,
-    ...(overrides ?? {}),
-  } as SellwildConfig
-  applyRuntimeFlags(config)
+  const { config: remote, issues } = await fetchRemoteConfigWithIssues(partnerCode, slug, remoteOptions)
+  const config = mergeConfig(defaultConfig, { partnerCode, slug }, remote, overrides)
+  applyRuntimeFlags(config, issues)
   return config
 }
 

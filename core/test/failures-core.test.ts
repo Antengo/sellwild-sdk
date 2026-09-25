@@ -93,6 +93,25 @@ describe('golden coverage', () => {
 
 // Paths the vectors do not reach: null arguments and the canonical JSON
 // escapes (vector text is cleaned before it is measured).
+describe('parseRate', () => {
+  // The number coerceRate clamps, or null where coerceRate falls back to 1.
+  // remote-config uses it to tell a sent rate from one it had to ignore.
+  it('agrees with every coerceRate row of the golden unit table', () => {
+    const table = files['log-failure.vectors.json'].units.coerceRate
+    expect(table.length).toBeGreaterThan(5)
+    for (const { input, expected } of table) {
+      const parsed = core.parseRate(input)
+      expect(parsed === null ? 1 : Math.min(1, Math.max(0, parsed)), JSON.stringify(input)).toBe(expected)
+    }
+  })
+
+  it.each([
+    [0.25, 0.25], [2, 2], [-1, -1], [' +.5 ', 0.5], ['3.', 3], ['', null], ['50%', null], [Number.NaN, null], [Infinity, null], [true, null], [null, null], [{}, null],
+  ])('reads %j as %j', (input, expected) => {
+    expect(core.parseRate(input)).toBe(expected)
+  })
+})
+
 describe('pure core edges', () => {
   const NOW = 1790000000000
 
