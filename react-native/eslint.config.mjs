@@ -42,9 +42,8 @@ export default defineConfig(
   {
     languageOptions: {
       parserOptions: {
-        // tsconfig.test.json covers src, test and vitest.config.ts;
-        // tsconfig.json holds test/stubs/rn-globals.d.ts, which the test one leaves out.
-        project: ['./tsconfig.test.json', './tsconfig.json'],
+        // tsconfig.test.json covers src, test and vitest.config.ts.
+        project: ['./tsconfig.test.json'],
         tsconfigRootDir: import.meta.dirname,
       },
     },
