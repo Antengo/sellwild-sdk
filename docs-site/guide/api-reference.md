@@ -9,8 +9,7 @@ Per-platform reference for all public classes, methods, delegates, and types in 
 1. [iOS (Swift)](#ios-swift)
 2. [Android (Kotlin)](#android-kotlin)
 3. [React Native (TypeScript)](#react-native-typescript)
-4. [Flutter (Dart)](#flutter-dart)
-5. [Core Types](#core-types)
+4. [Core Types](#core-types)
 
 ---
 
@@ -18,7 +17,7 @@ Per-platform reference for all public classes, methods, delegates, and types in 
 
 ### SellwildConfig
 
-Primary configuration struct. All ad views and widgets read from this object.
+Primary configuration struct. All ad views and feeds read from this object.
 
 ```swift
 public struct SellwildConfig: Codable {
@@ -152,46 +151,9 @@ The view calls `load()` automatically when it appears. Refresh timers are manage
 
 ---
 
-### SellwildWidgetView (UIKit)
+### Marketplace feed
 
-A `UIView` subclass that renders the full Sellwild marketplace widget (listing carousel with embedded ad placements) in a WebView.
-
-**Properties:**
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `delegate` | `SellwildWidgetViewDelegate?` | Delegate for widget lifecycle callbacks. |
-
-**Methods:**
-
-| Method | Description |
-|--------|-------------|
-| `pause()` | Pause WebView and ad refresh. |
-| `resume()` | Resume WebView rendering. |
-| `destroy()` | Release all WebView resources. Do not use the instance after calling. |
-
----
-
-### SellwildWidget (SwiftUI)
-
-SwiftUI wrapper for the marketplace widget. Requires iOS 14+.
-
-```swift
-SellwildWidget(
-    config: config,
-    onListingTap: { listing in /* ... */ },
-    onLoad: { /* ... */ },
-    onError: { error in /* ... */ }
-)
-.frame(height: 400)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `config` | `SellwildConfig` | Yes | SDK configuration. |
-| `onListingTap` | `((SellwildListing) -> Void)?` | No | Called when the user taps a listing. |
-| `onLoad` | `(() -> Void)?` | No | Called when the widget finishes loading. |
-| `onError` | `((Error) -> Void)?` | No | Called on widget errors. |
+`SellwildWidgetView`, `SellwildWidgetViewDelegate`, and the SwiftUI `SellwildWidget` have been removed. Use the native feed instead: `SellwildFeedView` (UIKit) or `SellwildFeed` (SwiftUI). See [Native Marketplace Feed](/guide/ios#native-marketplace-feed-1-3-5).
 
 ---
 
@@ -342,28 +304,9 @@ All callbacks are dispatched on the main thread. All methods have default (empty
 
 ---
 
-### SellwildWidgetView
+### Marketplace feed
 
-A `FrameLayout` subclass that renders the full marketplace widget.
-
-**Methods:**
-
-| Method | Description |
-|--------|-------------|
-| `pause()` | Pause WebView and ad refresh. |
-| `resume()` | Resume WebView rendering. |
-| `destroy()` | Release all resources. |
-
-**Listener:**
-
-```kotlin
-interface Listener {
-    fun onWidgetLoaded() {}
-    fun onListingTap(listing: SellwildListing) {}
-    fun onAdImpression(zoneId: String) {}
-    fun onError(message: String) {}
-}
-```
+`SellwildWidgetView` and its `Listener` have been removed. Use `SellwildFeedView` instead. See [Native Marketplace Feed](/guide/android#native-marketplace-feed-1-3-5).
 
 ---
 
@@ -437,31 +380,9 @@ import { SellwildBanner, buildConfig } from '@sellwild/react-native-sdk';
 
 ---
 
-### SellwildWidget
+### SellwildFeed
 
-Full marketplace widget with listing carousel and embedded ad placements.
-
-```tsx
-import { SellwildWidget, type PartialSellwildConfig } from '@sellwild/react-native-sdk';
-
-<SellwildWidget
-  config={partialConfig}
-  onListingPress={(listing) => {}}
-  onAdImpression={(zoneId) => {}}
-  onLoad={() => {}}
-  onError={(error) => {}}
-  style={{ height: 420 }}
-/>
-```
-
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `config` | `PartialSellwildConfig` | Yes | Partial config (calls `buildConfig()` internally). |
-| `onListingPress` | `(listing: SellwildListing) => void` | No | Called when a listing is tapped. |
-| `onAdImpression` | `(zoneId: string) => void` | No | Called on ad impression. |
-| `onLoad` | `() => void` | No | Called when the widget finishes loading. |
-| `onError` | `(error: Error) => void` | No | Called on widget errors. |
-| `style` | `ViewStyle` | No | React Native style object. |
+`<SellwildWidget>` and `SellwildWidgetProps` have been removed. Use `<SellwildFeed>`, the native all-in-one feed. See [Native Feed](/guide/react-native#native-feed-1-3-5) and the [migration guide](/guide/migration-widget-to-feed).
 
 ---
 
@@ -528,7 +449,7 @@ const config: SellwildConfig = buildConfig({
 });
 ```
 
-`SellwildBanner` requires a full `SellwildConfig` (call `buildConfig()` first). `SellwildWidget` accepts `PartialSellwildConfig` and calls `buildConfig()` internally.
+`SellwildBanner` requires a full `SellwildConfig`. Call `buildConfig()` first.
 
 ---
 
@@ -568,7 +489,7 @@ const config = await configure('weatherbug', 'weatherbug-weatherbug', {
 
 Results are cached in-memory per `(partnerCode, slug)` for the lifetime of the process. Call `clearRemoteConfigCache()` to force a re-fetch.
 
-**Platform parity.** Native consumers get the same surface via `SellwildSDK.configure(partnerCode:slug:)` (iOS), `SellwildSDK.configure(partnerCode, slug)` (Android), and `SellwildSDK.configure(partnerCode:, slug:)` (Flutter).
+**Platform parity.** Native consumers get the same surface via `SellwildSDK.configure(partnerCode:slug:)` (iOS) and `SellwildSDK.configure(partnerCode, slug)` (Android).
 
 ---
 
@@ -595,176 +516,6 @@ import { currencyToSymbol } from '@sellwild/react-native-sdk';
 currencyToSymbol('USD'); // '$'
 currencyToSymbol('EUR'); // '\u20ac'
 currencyToSymbol('GBP'); // '\u00a3'
-```
-
----
-
-## Flutter (Dart)
-
-### SellwildConfig
-
-Immutable configuration class. All fields are `final`.
-
-```dart
-final config = SellwildConfig(
-  partnerCode: 'weatherbug',
-  appBundleId: 'com.aws.android',
-  appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
-  prebidServer: PrebidServerConfig(
-    accountId: 'weatherbug',
-    endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
-    bidders: ['appnexus', 'pubmatic', 'ix', 'rubicon', 'openx'],
-    timeout: 1500,
-  ),
-);
-```
-
-Constructor accepts all fields from the [Configuration Reference](/guide/configuration). The class is `const`-constructible when all arguments are compile-time constants.
-
----
-
-### SellwildWidget
-
-The primary Flutter widget. Renders the full marketplace experience in a WebView.
-
-```dart
-SellwildWidget(
-  config: config,
-  onListingTap: (SellwildListing listing) { /* ... */ },
-  onAdImpression: (String zoneId) { /* ... */ },
-  onLoad: () { /* ... */ },
-  onError: (Object error) { /* ... */ },
-)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `config` | `SellwildConfig` | Yes | SDK configuration. |
-| `onListingTap` | `void Function(SellwildListing)?` | No | Called when a listing is tapped. |
-| `onAdImpression` | `void Function(String)?` | No | Called on ad impression with zone ID. |
-| `onLoad` | `void Function()?` | No | Called when the widget finishes loading. |
-| `onError` | `void Function(Object)?` | No | Called on errors. |
-
-The widget expands to fill its parent. Wrap it in a `SizedBox` or `Expanded` to control dimensions:
-
-```dart
-SizedBox(height: 400, child: SellwildWidget(config: config))
-```
-
----
-
-### SellwildBanner
-
-Standalone banner ad widget.
-
-```dart
-SellwildBanner(
-  config: config,
-  adSize: SellwildAdSize.mrec300x250,
-  zoneId: '12345',
-  onImpression: () { /* ... */ },
-  onClick: () { /* ... */ },
-  onError: (Object error) { /* ... */ },
-)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `config` | `SellwildConfig` | Yes | SDK configuration. |
-| `adSize` | `SellwildAdSize` | Yes | IAB standard ad dimensions. |
-| `zoneId` | `String?` | No | Ad zone identifier. |
-| `onImpression` | `void Function()?` | No | Called when the ad renders. |
-| `onClick` | `void Function()?` | No | Called when the user taps the ad. |
-| `onError` | `void Function(Object)?` | No | Called on errors. |
-
----
-
-### SellwildListingCard
-
-Native Flutter widget for rendering a single listing card.
-
-```dart
-SellwildListingCard(
-  listing: listing,
-  config: config,
-  onTap: (SellwildListing listing) { /* ... */ },
-)
-```
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `listing` | `SellwildListing` | Yes | Listing data to render. |
-| `config` | `SellwildConfig` | Yes | Used for styling (colors, font size). |
-| `onTap` | `void Function(SellwildListing)?` | No | Called when the card is tapped. |
-
-The card renders at a fixed width of 160px with an image, price badge, and title. Customize appearance through `SellwildConfig` fields (`priceColor`, `priceFontColor`, `fontSize`).
-
----
-
-### SellwildAPIClient
-
-Singleton HTTP client for fetching listing data.
-
-```dart
-final client = SellwildAPIClient.instance;
-
-// Fetch listings
-final response = await client.fetchListings(config);
-for (final listing in response.listings) {
-  print('${listing.title} -- ${listing.displayPrice}');
-}
-
-// Clear cache
-client.clearCache();
-
-// Dispose (for test teardown)
-client.dispose();
-```
-
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `fetchListings(config)` | `Future<SellwildListingsResponse>` | Fetch listings. Caches by URL. |
-| `clearCache()` | `void` | Clear the response cache. |
-| `dispose()` | `void` | Close the HTTP client. Call only in test teardown. |
-
-**Error handling:** Throws `SellwildException` on network or parsing errors.
-
-```dart
-try {
-  final response = await SellwildAPIClient.instance.fetchListings(config);
-} on SellwildException catch (e) {
-  debugPrint('API error: ${e.message}');
-}
-```
-
----
-
-### SellwildAdSize
-
-Enum of supported ad dimensions.
-
-```dart
-enum SellwildAdSize {
-  banner320x50,          // 320 x 50  -- Mobile Banner
-  mrec300x250,           // 300 x 250 -- Medium Rectangle
-  leaderboard728x90,     // 728 x 90  -- Leaderboard
-  halfPage300x600,       // 300 x 600 -- Half Page
-  wideSkyscraper160x600, // 160 x 600 -- Wide Skyscraper
-}
-```
-
----
-
-### PrebidServerConfig
-
-```dart
-class PrebidServerConfig {
-  final String accountId;
-  final String endpoint;
-  final List<String> bidders;
-  final int timeout;            // default: 1500
-  final String? syncEndpoint;   // derived from endpoint if null
-}
 ```
 
 ---
@@ -908,7 +659,7 @@ Ad dimensions. See [Ad Size Reference](/guide/configuration#ad-size-reference) f
 
 ### AdPlacement
 
-Describes a single ad placement within the widget layout.
+Describes a single ad placement within a listings layout.
 
 | Field | Type | Description |
 |-------|------|-------------|

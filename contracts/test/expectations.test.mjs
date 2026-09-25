@@ -8,9 +8,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { CONTRACTS_DIR } from '../scripts/lib/paths.mjs'
 
-const PLATFORMS = ['core', 'react-native', 'ios', 'android', 'flutter', 'widget']
+const PLATFORMS = ['core', 'react-native', 'ios', 'android', 'widget']
 // The widget keeps its drift in sellwild-widget/contracts.
-const DRIFT_PLATFORMS = ['android', 'core', 'flutter', 'ios', 'react-native']
+const DRIFT_PLATFORMS = ['android', 'core', 'ios', 'react-native']
 const read = (p) => JSON.parse(fs.readFileSync(path.join(CONTRACTS_DIR, p), 'utf8'))
 const jsonIn = (dir) => fs.readdirSync(path.join(CONTRACTS_DIR, dir)).filter((f) => f.endsWith('.json') && !f.startsWith('_')).map((f) => `${dir}/${f}`)
 
@@ -83,18 +83,18 @@ test('app-config drift pins the verified weatherbug differences', () => {
   assert.deepEqual(wb.expected.adStack.resolved, { 43: 'prebidOnly', 280: 'prebidOnly', 999: 'prebidOnly' })
   assert.equal(wb.expected.eventsEnabled, true)
   assert.equal(wb.expected.failuresSampleRate, 1)
-  for (const p of ['ios', 'android', 'flutter']) assert.match(drift[p].expectations['app-config'][wbFile], /iabCats:/)
-  assert.match(drift.flutter.expectations['app-config'][wbFile], /mobileZids:/)
-  assert.match(drift.android.expectations['app-config'][wbFile], /"LAYOUT"/)
+  // origin/main fixed text IAB_CATS and JS-literal S2S_CONFIG on iOS and Android
+  // (fd19058, c55efa0); both now send no bidder params (c1d7d63 on Android).
+  for (const p of ['ios', 'android']) {
+    assert.doesNotMatch(drift[p].expectations['app-config'][wbFile], /iabCats:|S2S_CONFIG:/)
+    assert.match(drift[p].expectations['app-config'][wbFile], /^auctionBidderParams: .*BIDDERS never reach the auction\.$/)
+  }
   assert.match(drift['react-native'].other['bridge.android'], /toHashMap/)
   assert.match(drift['react-native'].other['bridge.ios'], /as\? String/)
 })
 
 test('drift that phase 2 fixed is gone, and core has none', () => {
   const texts = (p, name) => Object.values(drift[p].expectations[name])
-  // Flutter: fromJson no longer throws on real caches, and EVENTS_ENABLED is mapped.
-  for (const t of texts('flutter', 'listings-response')) assert.doesNotMatch(t, /^items:|throws/)
-  for (const t of texts('flutter', 'app-config')) assert.doesNotMatch(t, /eventsEnabled:/)
   // Android: a JSON-null remote_url is no longer the text "null".
   for (const t of texts('android', 'listings-response')) assert.doesNotMatch(t, /nullRemoteUrlIds:/)
   assert.deepEqual(drift.core.expectations, { 'app-config': {}, 'listings-response': {} })

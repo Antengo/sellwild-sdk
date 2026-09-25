@@ -48,7 +48,6 @@ GATE_IOS_STOP='xcrun simctl shutdown all'
 # Type checks. A failure here skips the coverage steps.
 step tsgo-core            fast typecheck -       -            'npm --prefix core run --silent typecheck'
 step tsgo-react-native    fast typecheck -       -            'npm --prefix react-native run --silent typecheck'
-step flutter-analyze      fast typecheck -       -            'cd flutter && flutter analyze --fatal-infos --fatal-warnings'
 # Lint. Each baseline sits next to its config; a new finding fails.
 step eslint-core          fast lint      -       -            'npm --prefix core run --silent lint'
 step eslint-react-native  fast lint      -       -            'npm --prefix react-native run --silent lint'
@@ -68,10 +67,9 @@ step android-coverage     full coverage  gradle  -            'bash scripts/cove
 step kotlin-warnings      full warnings  gradle  -            'node scripts/lint/kotlin-warnings.mjs'
 # The other platforms' coverage, one at a time.
 step core-coverage        full coverage  -       -            'npm --prefix core run --silent coverage:summary'
-step flutter-coverage     full coverage  flutter -            'bash scripts/coverage/flutter.sh'
 step ios-coverage         full coverage  ios     -            'bash scripts/coverage/ios.sh'
 # Reads the log and .dia files ios.sh just left; refuses a stale log.
 step swift-warnings       full warnings  -       ios-coverage 'node scripts/lint/swift-warnings.mjs'
-step coverage-thresholds  full coverage  -       -            'node tools/coverage-gate.mjs --expect core,react-native,flutter,android,ios'
+step coverage-thresholds  full coverage  -       -            'node tools/coverage-gate.mjs --expect core,react-native,android,ios'
 
 gate_main "$@"

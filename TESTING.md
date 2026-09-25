@@ -35,7 +35,6 @@ How it runs:
 | Step | What it checks | Time |
 |---|---|---|
 | `tsgo-core`, `tsgo-react-native` | tsgo type check of src and tests | 1s each |
-| `flutter-analyze` | `flutter analyze --fatal-infos --fatal-warnings`, strict casts, inference and raw types | 3s |
 | `eslint-core`, `eslint-react-native` | ESLint with type info and the house failure rules | 2s each |
 | `lint-rules-test` | tests of the house ESLint rules (`contracts/lint/`) | 0.5s |
 | `swiftlint` | SwiftLint on `ios/` and the React Native iOS bridge | 0.3s |
@@ -55,7 +54,6 @@ How it runs:
 | `android-coverage` | `bash scripts/coverage/android.sh` | 21s |
 | `kotlin-warnings` | Kotlin compiler-warnings ratchet (a full recompile) | 24s |
 | `core-coverage` | `npm --prefix core run coverage:summary` (core and RN) | 19s |
-| `flutter-coverage` | `bash scripts/coverage/flutter.sh` | 13s |
 | `ios-coverage` | `bash scripts/coverage/ios.sh` | 64s |
 | `swift-warnings` | Swift compiler-warnings ratchet, from the log `ios.sh` just wrote | 0.2s |
 | `coverage-thresholds` | `node tools/coverage-gate.mjs`: every `coverage-summary/*.json` gate at 95% lines, branches (regions for iOS) and functions | 0.2s |
@@ -76,7 +74,7 @@ baselined findings, shrink the baseline in the same change:
 | Kotlin warnings | `scripts/lint/kotlin-warnings.baseline.json` | `node scripts/lint/kotlin-warnings.mjs --update` |
 | Swift warnings | `scripts/lint/swift-warnings.baseline.json` | `node scripts/lint/swift-warnings.mjs --update`, right after `ios.sh` |
 | Print gate | `contracts/print-gate.allowlist.json` | `node contracts/scripts/print-gate.mjs --update` |
-| tsgo, flutter analyze | none: kept at zero findings | fix the finding |
+| tsgo | none: kept at zero findings | fix the finding |
 
 Notes:
 
@@ -115,7 +113,6 @@ running:
 | react-native tests | `npm --prefix react-native test` | 7s |
 | core + RN coverage | `npm --prefix core run coverage:summary` | 25s |
 | type checks (tsgo) | `npm --prefix core run typecheck` | 1s |
-| Flutter tests + coverage | `bash scripts/coverage/flutter.sh` | 16s |
 | Android tests (no report) | `cd android && ./gradlew testDebugUnitTest` | 20s |
 | Android tests + Kover | `bash scripts/coverage/android.sh` | 35s |
 | iOS build + tests + coverage | `bash scripts/coverage/ios.sh` | 68s |
@@ -131,7 +128,6 @@ Run the narrowest command while working. Run the full suite once at the end.
 |---|---|---|
 | core, RN | `cd core && npx vitest run test/api.test.ts --maxWorkers=2` | ~5s |
 | contracts | `cd contracts && node --test test/<file>.test.mjs` | ~1-3s |
-| Flutter | `cd flutter && flutter test test/sellwild_api_test.dart` | ~7s |
 | Android | `cd android && ./gradlew testDebugUnitTest --tests 'com.sellwild.sdk.SellwildEventQueueTest'` | ~5s warm |
 | iOS | `command xcodebuild test -scheme SellwildSDK -destination 'platform=iOS Simulator,id=<udid>' -derivedDataPath .coverage-tmp/ios-dd -enableCodeCoverage YES -only-testing:SellwildSDKTests/<TestClass>` | ~40-70s |
 
@@ -169,7 +165,7 @@ Do not rerun the whole suite for every mutation. Use `tools/mutate.mjs`:
 
 ## Keeping the machine usable
 
-1. One native build (Xcode, Gradle, Flutter) at a time.
+1. One native build (Xcode, Gradle) at a time.
 2. Never run suites in the background or two at once.
 3. Cap vitest at `--maxWorkers=2`, and Gradle at `GRADLE_OPTS=-Dorg.gradle.workers.max=2`.
 4. When done: `cd android && ./gradlew --stop`, and `xcrun simctl shutdown all`.

@@ -10,7 +10,6 @@ import { contract, contractFiles } from './contracts'
 
 export type SchemaName =
   | 'app-config'
-  | 'bridge-message'
   | 'client-failure-event'
   | 'eid-blob'
   | 'events-batch'

@@ -31,44 +31,38 @@ test('codes are unique, sorted and in the dotted format', () => {
 
 test('the codes every lane depends on exist for the right clients', () => {
   const need = {
-    'config.fetch.network': ['core', 'react-native', 'ios', 'android', 'flutter', 'widget'],
-    'config.fetch.timeout': ['core', 'react-native', 'ios', 'android', 'flutter', 'widget'],
-    'config.fetch.http': ['core', 'react-native', 'ios', 'android', 'flutter', 'widget'],
-    'config.fetch.parse': ['core', 'react-native', 'ios', 'android', 'flutter', 'widget'],
-    'listings.fetch.network': ['core', 'react-native', 'ios', 'android', 'flutter', 'widget'],
-    'listings.fetch.timeout': ['core', 'react-native', 'ios', 'android', 'flutter', 'widget'],
-    'listings.fetch.http': ['core', 'react-native', 'ios', 'android', 'flutter', 'widget'],
-    'listings.fetch.parse': ['core', 'react-native', 'ios', 'android', 'flutter', 'widget'],
+    'config.fetch.network': ['core', 'react-native', 'ios', 'android', 'widget'],
+    'config.fetch.timeout': ['core', 'react-native', 'ios', 'android', 'widget'],
+    'config.fetch.http': ['core', 'react-native', 'ios', 'android', 'widget'],
+    'config.fetch.parse': ['core', 'react-native', 'ios', 'android', 'widget'],
+    'listings.fetch.network': ['core', 'react-native', 'ios', 'android', 'widget'],
+    'listings.fetch.timeout': ['core', 'react-native', 'ios', 'android', 'widget'],
+    'listings.fetch.http': ['core', 'react-native', 'ios', 'android', 'widget'],
+    'listings.fetch.parse': ['core', 'react-native', 'ios', 'android', 'widget'],
     'localized.fetch.network': ['ios', 'android', 'widget'],
     'localized.fetch.timeout': ['ios', 'android', 'widget'],
     'localized.fetch.http': ['ios', 'android', 'widget'],
     'localized.fetch.parse': ['ios', 'android', 'widget'],
-    'widget.webview_load.network': ['react-native', 'ios', 'android', 'flutter'],
-    'widget.webview_load.http': ['react-native', 'ios', 'android', 'widget'],
-    'bridge.script.exception': ['react-native', 'ios', 'android', 'flutter'],
-    'bridge.message.parse': ['react-native', 'ios', 'android', 'flutter'],
+    'widget.webview_load.http': ['widget'],
     'widget.element.exception': ['widget'],
     'widget.customelements.unsupported': ['widget'],
     'growthcode.sync.network': ['ios', 'android'],
     'growthcode.sync.http': ['ios', 'android'],
     'growthcode.sync.parse': ['ios', 'android'],
-    'client.code.invalid': ['core', 'react-native', 'ios', 'android', 'flutter', 'widget'],
+    'client.code.invalid': ['core', 'react-native', 'ios', 'android', 'widget'],
   }
   for (const [code, clients] of Object.entries(need)) {
     const e = registry.find((x) => x.code === code)
     assert.ok(e, `missing ${code}`)
     for (const c of clients) assert.ok(e.clients.includes(c), `${code} lacks client ${c}`)
   }
-  // Clients a code must not list, because the platform cannot observe it.
-  const never = {
-    // Dart Uri.parse never throws on a partner code or slug.
-    'config.url.invalid': ['flutter'],
-    // NavigationDelegate.onHttpError needs webview_flutter 4.8.0; the pubspec floor is ^4.4.0.
-    'widget.webview_load.http': ['flutter'],
-  }
-  for (const [code, clients] of Object.entries(never)) {
-    const e = registry.find((x) => x.code === code)
-    for (const c of clients) assert.ok(!e.clients.includes(c), `${code} must not list ${c}`)
+  // Clients no code may list: the platform is gone from this repo. origin
+  // removed the Flutter SDK (df551f7) and the SDK's WebView widget and banner
+  // paths (9ff579f), so no SDK client emits a bridge message or WebView code.
+  for (const e of registry) assert.ok(!e.clients.includes('flutter'), `${e.code} must not list flutter`)
+  const webViewOnly = registry.filter((e) => /^bridge\.(message|script)\.|^widget\.webview_/.test(e.code))
+  for (const e of webViewOnly) {
+    for (const c of ['core', 'react-native', 'ios', 'android']) assert.ok(!e.clients.includes(c), `${e.code} must not list ${c}`)
   }
 })
 

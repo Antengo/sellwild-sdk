@@ -20,14 +20,13 @@
  *   6. Replace 'YOUR_PARTNER_CODE' with your real partner code.
  *
  * The default route is `NativeBannerFragment` — a native banner ad backed by
- * Prebid Mobile + GMA, with no WebView in the ad path. The widget tab still
- * uses a WebView for the marketplace listings surface only; that is
- * intentional. Ads always render natively in 1.3.0+.
+ * Prebid Mobile + GMA, with no WebView in the ad path. Marketplace listings
+ * render natively too, via `SellwildFeedView`.
  *
  * Files covered:
  *   - MainActivity.kt          — entry point
  *   - NativeBannerFragment.kt  — default tab: native 320×50 banner
- *   - WidgetFragment.kt        — marketplace listings (WebView surface only)
+ *   - FeedFragment.kt          — all-in-one native feed (listings + native ads)
  *   - NativeListingsFragment.kt — native RecyclerView + banner combo
  *   - ListingsViewModel.kt     — ViewModel using coroutines
  */
@@ -103,7 +102,7 @@ class MainActivity : AppCompatActivity() {
 
         // To explore the other surfaces, swap the call above for one of:
         //   .replace(android.R.id.content, NativeListingsFragment())
-        //   .replace(android.R.id.content, WidgetFragment())
+        //   .replace(android.R.id.content, FeedFragment())
     }
 }
 
@@ -175,55 +174,50 @@ class NativeBannerFragment : Fragment() {
     override fun onDestroyView() { super.onDestroyView(); bannerView.destroy() }
 }
 
-// ─── B. WidgetFragment — Marketplace listings (WebView surface) ──────────────
+// ─── B. FeedFragment — All-in-one native feed ───────────────────────────────
 //
-// The widget surface intentionally renders the marketplace listing grid
-// inside a WebView. This is *not* the ad pipeline — banners and other
-// monetizing units render natively via [NativeBannerFragment] above.
+// `SellwildFeedView` renders native listing cards interleaved with native
+// Prebid + GAM ads, scheduled by the CDN-published COL1 string. Every row is
+// native; listing taps open in Custom Tabs unless the listener consumes them.
 
-class WidgetFragment : Fragment() {
+class FeedFragment : Fragment() {
 
-    private lateinit var widgetView: SellwildWidgetView
+    private lateinit var feedView: SellwildFeedView
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        widgetView = SellwildWidgetView(requireContext())
-        widgetView.setup(DEMO_CONFIG)
-        widgetView.listener = object : SellwildWidgetView.Listener {
-
-            override fun onWidgetLoaded(widgetView: SellwildWidgetView) {
-                Log.d(TAG, "Widget loaded")
+        feedView = SellwildFeedView(requireContext())
+        feedView.listener = object : SellwildFeedView.Listener {
+            override fun onLoad() {
+                Log.d(TAG, "Feed loaded")
             }
 
-            override fun onListingTapped(listing: SellwildListing) {
-                // listing.url is populated from the window.open() interception bridge
-                listing.url?.let { url ->
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                }
+            override fun onListingTap(listing: SellwildListing): Boolean {
+                Log.d(TAG, "Listing tapped: ${listing.title}")
+                return false // let the SDK open Custom Tabs
             }
 
-            override fun onAdImpression(widgetView: SellwildWidgetView, zoneId: String) {
+            override fun onAdImpression(zoneId: String) {
                 Log.d(TAG, "Ad impression, zoneId=$zoneId")
             }
 
-            override fun onError(widgetView: SellwildWidgetView, message: String) {
-                Log.e(TAG, "Widget error: $message")
+            override fun onError(message: String) {
+                Log.e(TAG, "Feed error: $message")
             }
         }
-        return widgetView
+        return feedView
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Fetch remote config and re-setup the widget. This proves the
-        // passthrough path end-to-end: configure() returns a SellwildConfig
-        // whose `remoteJson` field carries every key from the CDN, including
-        // unmapped bidders (MEDIANET, AMX, SOVRN, etc.).
-        lifecycleScope.launch {
+        // Fetch remote config, then set up the feed. configure() returns a
+        // SellwildConfig whose `remoteJson` field carries every key from the
+        // CDN, including unmapped bidders (MEDIANET, AMX, SOVRN, etc.).
+        viewLifecycleOwner.lifecycleScope.launch {
             val config = SellwildSDK.configure(
                 partnerCode = STATIC_CONFIG.partnerCode,
                 slug = REMOTE_SLUG,
@@ -235,14 +229,10 @@ class WidgetFragment : Fragment() {
             } ?: emptyList()
             Log.d(TAG, "configure() resolved. remote passthrough keys: $keys")
 
-            widgetView.setup(config)
-            widgetView.load()
+            feedView.setup(config)
+            feedView.load()
         }
     }
-
-    override fun onResume() { super.onResume(); widgetView.resume() }
-    override fun onPause()  { super.onPause();  widgetView.pause()  }
-    override fun onDestroyView() { super.onDestroyView(); widgetView.destroy() }
 }
 
 // ─── C. NativeListingsFragment — Native banner + RecyclerView listings ──────

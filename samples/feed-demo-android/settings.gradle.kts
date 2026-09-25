@@ -16,8 +16,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url = uri("https://jitpack.io") }
-        // Local Maven for namespace-shaded Prebid Mobile fork (dev only)
+        // Sellwild Maven: namespace-shaded Prebid Mobile fork + omsdk-android
+        maven { url = uri("https://maven.sellwild.com/releases") }
+        // Local Maven for a locally built SDK AAR (dev only)
         mavenLocal()
     }
 }

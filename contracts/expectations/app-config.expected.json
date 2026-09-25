@@ -10,8 +10,7 @@
       "platforms": [
         "core",
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
       "meaning": "CODE, the partner code, unchanged."
     },
@@ -19,8 +18,7 @@
       "platforms": [
         "core",
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
       "meaning": "SLUG, the config slug, unchanged."
     },
@@ -29,16 +27,14 @@
         "core",
         "react-native",
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
-      "meaning": "Feed ad zones. ios/android: MOBILE_ZID_<OS> when non-empty, else [MOBILE_ZID_ALL_<OS>] when non-empty, else MOBILE_ZID. shared: MOBILE_ZID. core has no OS and must produce shared; react-native, ios, android and flutter must produce the value for the OS they run on."
+      "meaning": "Feed ad zones. ios/android: MOBILE_ZID_<OS> when non-empty, else [MOBILE_ZID_ALL_<OS>] when non-empty, else MOBILE_ZID. shared: MOBILE_ZID. core has no OS and must produce shared; react-native, ios and android must produce the value for the OS they run on."
     },
     "mobileBannerZid": {
       "platforms": [
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
       "meaning": "Mobile banner zone. <OS>: MOBILE_BANNER_ZID_<OS> when not '', else MOBILE_ZID_ALL_<OS> when not '', else MOBILE_BANNER_ZID when it is text; null = unset (platform default)."
     },
@@ -46,17 +42,15 @@
       "platforms": [
         "core",
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
-      "meaning": "AD_REFRESH_INTERVAL in milliseconds; null = unset (platform default 30000). iOS stores seconds (adRefreshInterval = ms / 1000); Flutter stores a Duration."
+      "meaning": "AD_REFRESH_INTERVAL in milliseconds; null = unset (platform default 30000). iOS stores seconds (adRefreshInterval = ms / 1000)."
     },
     "iabCats": {
       "platforms": [
         "core",
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
       "meaning": "IAB_CATS as a list: a list stays as is; text is split on commas, trimmed, empties dropped."
     },
@@ -64,8 +58,7 @@
       "platforms": [
         "core",
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
       "meaning": "Parsed AD_STACK (null when unset or unknown), parsed AD_STACK_BY_ZONE (unknown modes dropped), and the resolved stack for zones 43, 280, 999 (global wins, then per zone, then both)."
     },
@@ -73,8 +66,7 @@
       "platforms": [
         "core",
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
       "meaning": "coerceFlag(EVENTS_ENABLED), FAILURES.md section 5.3. Absent = true."
     },
@@ -83,8 +75,7 @@
         "core",
         "react-native",
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
       "meaning": "coerceFlag(FAILURES_ENABLED); absent = true. A local failuresEnabled override would win."
     },
@@ -93,8 +84,7 @@
         "core",
         "react-native",
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
       "meaning": "coerceRate(FAILURES_SAMPLE_RATE), FAILURES.md section 5.4."
     },
@@ -102,8 +92,7 @@
       "platforms": [
         "react-native",
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
       "meaning": "APP_BUNDLE_ID_<OS> when it is text (even empty), else APP_BUNDLE_ID; null = unset."
     },
@@ -111,8 +100,7 @@
       "platforms": [
         "react-native",
         "ios",
-        "android",
-        "flutter"
+        "android"
       ],
       "meaning": "APP_STORE_URL_<OS> when it is text (even empty), else APP_STORE_URL; null = unset."
     },

@@ -67,19 +67,37 @@ class AdDecisionsTest {
     fun `resume on GAM restarts the refresh timer without reading remote flags`() {
         assertEquals(
             AdDecisions.Resume.SCHEDULE_REFRESH,
-            AdDecisions.resume(AdDecisions.Stack.GAM, refreshMax = 0, nativeEnabled = never, hasRenderedCreative = true, keepCreative = never),
+            AdDecisions.resume(
+                AdDecisions.Stack.GAM,
+                hasRefreshBudget = false,
+                nativeEnabled = never,
+                hasRenderedCreative = true,
+                keepCreative = never,
+            ),
         )
     }
 
     @Test
-    fun `resume on Prebid does nothing without refresh or for native`() {
+    fun `resume on Prebid does nothing without refresh budget or for native`() {
         assertEquals(
             AdDecisions.Resume.NOTHING,
-            AdDecisions.resume(AdDecisions.Stack.PREBID_ONLY, refreshMax = 0, nativeEnabled = never, hasRenderedCreative = true, keepCreative = never),
+            AdDecisions.resume(
+                AdDecisions.Stack.PREBID_ONLY,
+                hasRefreshBudget = false,
+                nativeEnabled = never,
+                hasRenderedCreative = true,
+                keepCreative = never,
+            ),
         )
         assertEquals(
             AdDecisions.Resume.NOTHING,
-            AdDecisions.resume(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { true }, hasRenderedCreative = true, keepCreative = never),
+            AdDecisions.resume(
+                AdDecisions.Stack.PREBID_ONLY,
+                hasRefreshBudget = true,
+                nativeEnabled = { true },
+                hasRenderedCreative = true,
+                keepCreative = never,
+            ),
         )
     }
 
@@ -87,16 +105,34 @@ class AdDecisionsTest {
     fun `resume on Prebid keeps a rendered creative only when the flag says so`() {
         assertEquals(
             AdDecisions.Resume.KEEP_CREATIVE,
-            AdDecisions.resume(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { false }, hasRenderedCreative = true, keepCreative = { true }),
+            AdDecisions.resume(
+                AdDecisions.Stack.PREBID_ONLY,
+                hasRefreshBudget = true,
+                nativeEnabled = { false },
+                hasRenderedCreative = true,
+                keepCreative = { true },
+            ),
         )
         assertEquals(
             AdDecisions.Resume.RELOAD_PREBID,
-            AdDecisions.resume(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { false }, hasRenderedCreative = true, keepCreative = { false }),
+            AdDecisions.resume(
+                AdDecisions.Stack.PREBID_ONLY,
+                hasRefreshBudget = true,
+                nativeEnabled = { false },
+                hasRenderedCreative = true,
+                keepCreative = { false },
+            ),
         )
         // Nothing rendered yet: the flag is not even read.
         assertEquals(
             AdDecisions.Resume.RELOAD_PREBID,
-            AdDecisions.resume(AdDecisions.Stack.PREBID_ONLY, refreshMax = 3, nativeEnabled = { false }, hasRenderedCreative = false, keepCreative = never),
+            AdDecisions.resume(
+                AdDecisions.Stack.PREBID_ONLY,
+                hasRefreshBudget = true,
+                nativeEnabled = { false },
+                hasRenderedCreative = false,
+                keepCreative = never,
+            ),
         )
     }
 
@@ -220,28 +256,6 @@ class AdDecisionsTest {
 
         assertEquals(AdDecisions.GAM_TEST_AD_UNIT_ADAPTIVE, resolved.value)
         assertEquals(1, resolved.issues.size)
-    }
-
-    // ── Bidder params ────────────────────────────────────────────────────────
-
-    @Test
-    fun `bidder params are the CONSTANT_CASE keys that are not typed config, in order`() {
-        val cdn = remote(
-            "MEDIANET" to JSONObject().put("cid", "8CU9V99R6"),
-            "title" to "lower case is not a bidder",
-            "NATIVE_ZID_ANDROID" to "n1",
-            "MOBILE_ZID_ALL_IOS" to "m2",
-            "MOBILE_BANNER_ZID_ANDROID" to "b1",
-            "VIDEO_SOUND_ENABLED" to true,
-            "GAM" to "/1/x",
-        )
-
-        val params = AdDecisions.bidderParams(cdn)
-
-        // The minimal fixture's own LAYOUT and BIDDERS pass too: known drift (drift/android.json).
-        assertEquals(setOf("MEDIANET", "LAYOUT", "BIDDERS"), params.keys)
-        assertEquals("8CU9V99R6", (params["MEDIANET"] as JSONObject).getString("cid"))
-        assertEquals(emptyMap<String, Any?>(), AdDecisions.bidderParams(null))
     }
 
     // ── AdFlags ──────────────────────────────────────────────────────────────

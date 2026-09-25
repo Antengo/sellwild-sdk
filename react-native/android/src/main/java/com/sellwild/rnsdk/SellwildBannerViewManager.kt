@@ -314,6 +314,10 @@ internal class BannerProps {
     // ad is driven by the SDK's internal timer.
     private var lastAppliedKey: String? = null
 
+    // Last applied config, compared by value. A hashCode() in the key is only
+    // a probabilistic match (collisions ⇒ a real change is skipped).
+    private var lastAppliedConfig: Map<String, Any?>? = null
+
     // A re-render with the same bad props does not report them again.
     private val propsProblem = ReportOnce()
 
@@ -350,9 +354,11 @@ internal class BannerProps {
         val adSize = SellwildBannerViewManager.adSizeFromLabel(sizeLabel) ?: return null
 
         // Skip if the props identity hasn't changed since last apply.
-        val key = "$sizeLabel|$zone|$adStack|${configMap.hashCode()}"
-        if (lastAppliedKey == key) return null
+        val key = "$sizeLabel|$zone|$adStack"
+        val configValue = configMap.toHashMap()
+        if (lastAppliedKey == key && lastAppliedConfig == configValue) return null
         lastAppliedKey = key
+        lastAppliedConfig = configValue
 
         val cfg = try {
             SellwildBannerViewManager.configFromMap(configMap)

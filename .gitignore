@@ -18,15 +18,6 @@ local.properties
 *.iml
 .idea/
 
-# Flutter / Dart
-.dart_tool/
-.packages
-.pub-cache/
-.pub/
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
-
 # Node / React Native
 node_modules/
 dist/
@@ -63,7 +54,6 @@ contracts/out/
 contracts/node_modules/
 core/coverage/
 react-native/coverage/
-flutter/coverage/
 *.xcresult
 *.profraw
 *.profdata

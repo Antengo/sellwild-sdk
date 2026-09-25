@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SellwildListing } from '@sellwild/sdk-core'
 import { listingCardView } from '../src/listingCard'
-import { listingStub } from '../src/widgetBridge'
 import type { InvalidCase } from '../../core/test/factories/base'
 import { invalidPayload, listing as listingPayload } from './factories'
 import { expectInvalid, expectValid } from './support/schemas'
@@ -98,7 +97,6 @@ describe('listingCardView: a cached listing', () => {
     expectValid('listing', empty)
     expect(view(empty)).toMatchObject({ photoUrl: null, issues: [] })
     expect(view(invalidPayload<SellwildListing>('listing', 'missing-photos'))).toMatchObject({ photoUrl: null, issues: [] })
-    expect(view(listingStub('https://sellwild.com/listing/1'))).toMatchObject({ photoUrl: null, price: null, issues: [] })
   })
 
   it('uses the currency symbol of the listing currency', () => {

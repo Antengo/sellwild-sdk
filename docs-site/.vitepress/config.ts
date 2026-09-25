@@ -18,7 +18,6 @@ export default defineConfig({
         { text: 'iOS', link: '/guide/ios' },
         { text: 'Android', link: '/guide/android' },
         { text: 'React Native', link: '/guide/react-native' },
-        { text: 'Flutter', link: '/guide/flutter' },
       ]},
       { text: 'Prebid Server', link: '/guide/prebid-server' },
     ],
@@ -38,7 +37,6 @@ export default defineConfig({
             { text: 'iOS (Swift)', link: '/guide/ios' },
             { text: 'Android (Kotlin)', link: '/guide/android' },
             { text: 'React Native', link: '/guide/react-native' },
-            { text: 'Flutter', link: '/guide/flutter' },
           ],
         },
         {
@@ -53,6 +51,7 @@ export default defineConfig({
           text: 'Reference',
           items: [
             { text: 'API Reference', link: '/guide/api-reference' },
+            { text: 'Migration: Widget to Feed', link: '/guide/migration-widget-to-feed' },
           ],
         },
       ],

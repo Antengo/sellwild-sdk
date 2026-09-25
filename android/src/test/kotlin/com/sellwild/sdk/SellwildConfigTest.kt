@@ -42,7 +42,9 @@ class SellwildConfigTest {
         assertEquals("View all", full.getString("linkText"))
         assertEquals("Buy now", full.getString("buyNowText"))
         assertEquals("/1234/fixture", full.getString("gamTag"))
-        assertEquals("https://gpt.invalid/proxy", full.getString("gptProxyUrl"))
+        // A no-op since the WebView widget was removed (origin 2bee67c): kept for source
+        // compatibility, never written.
+        assertFalse(full.has("gptProxyUrl"))
         assertTrue(full.getBoolean("boltive"))
         assertEquals("antengo", full.getString("boltiveClientId"))
         assertTrue(full.getBoolean("debug"))

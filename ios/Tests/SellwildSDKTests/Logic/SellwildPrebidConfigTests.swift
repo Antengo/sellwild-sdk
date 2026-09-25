@@ -8,25 +8,35 @@ final class SellwildPrebidConfigTests: XCTestCase {
     func testTypedConfigWins() throws {
         let typed = PrebidServerConfig(accountId: "acct", endpoint: "https://pbs.example/openrtb2/auction", bidders: [])
         let remote = try AppConfigFactory.remote(["S2S_CONFIG": ["endpoint": "https://other"]])
-        XCTAssertEqual(SellwildPrebidConfig.server(typed: typed, remoteValues: remote, partnerCode: "p"),
-                       .init(url: "https://pbs.example/openrtb2/auction", accountId: "acct"))
+        XCTAssertEqual(SellwildPrebidConfig.specifiedServer(typed: typed, remoteValues: remote),
+                       SellwildS2SConfig(accountId: "acct", endpoint: "https://pbs.example/openrtb2/auction",
+                                         timeout: 1500))
     }
 
     func testAnS2SObjectIsReadWithItsAliases() throws {
         let first = try AppConfigFactory.remote(["S2S_CONFIG": ["endpoint": "https://a", "accountId": "A"]])
-        XCTAssertEqual(SellwildPrebidConfig.server(typed: nil, remoteValues: first, partnerCode: "p"), .init(url: "https://a", accountId: "A"))
+        XCTAssertEqual(SellwildPrebidConfig.specifiedServer(typed: nil, remoteValues: first),
+                       SellwildS2SConfig(accountId: "A", endpoint: "https://a", timeout: nil))
         let second = try AppConfigFactory.remote(["S2S_CONFIG": ["url": "https://b", "account": "B"]])
-        XCTAssertEqual(SellwildPrebidConfig.server(typed: nil, remoteValues: second, partnerCode: "p"), .init(url: "https://b", accountId: "B"))
+        XCTAssertEqual(SellwildPrebidConfig.specifiedServer(typed: nil, remoteValues: second),
+                       SellwildS2SConfig(accountId: "B", endpoint: "https://b", timeout: nil))
         let empty = try AppConfigFactory.remote(["S2S_CONFIG": [String: Any]()])
-        XCTAssertEqual(SellwildPrebidConfig.server(typed: nil, remoteValues: empty, partnerCode: "p"),
-                       .init(url: SellwildPrebidConfig.defaultEndpoint, accountId: "p"))
+        XCTAssertNil(SellwildPrebidConfig.specifiedServer(typed: nil, remoteValues: empty))
     }
 
-    func testS2STextFallsBackToTheHostedServer() throws {
+    func testS2STextIsReadToo() throws {
+        // The CMS ships a JS object literal; origin c55efa0 reads it.
         let text = try AppConfigFactory.remote(["S2S_CONFIG": "{ accountId: 'x' }"])
-        XCTAssertEqual(SellwildPrebidConfig.server(typed: nil, remoteValues: text, partnerCode: "p"),
-                       .init(url: "https://prebid.sellwild.com/openrtb2/auction", accountId: "p"), "known drift: text is not read")
-        XCTAssertEqual(SellwildPrebidConfig.server(typed: nil, remoteValues: nil, partnerCode: "p").accountId, "p")
+        XCTAssertEqual(SellwildPrebidConfig.specifiedServer(typed: nil, remoteValues: text),
+                       SellwildS2SConfig(accountId: "x", endpoint: nil, timeout: nil))
+        XCTAssertNil(SellwildPrebidConfig.specifiedServer(typed: nil, remoteValues: nil))
+    }
+
+    func testTheFirstBootstrapFallsBackToTheHostedServer() throws {
+        let fields = SellwildPrebidConfig.initialFields(of: try AppConfigFactory.config(partnerCode: "p"))
+        XCTAssertEqual(fields.serverURL, SellwildPrebidConfig.defaultEndpoint)
+        XCTAssertEqual(fields.accountId, "p")
+        XCTAssertEqual(fields.timeout, SellwildPrebidConfig.defaultTimeoutMillis)
     }
 
     func testPublisherIdIsTextOrANumber() throws {

@@ -41,9 +41,8 @@ public final class SellwildFirstAdViewedGuard {
 //   - .prebidOnly — Prebid's own rendering BannerView, NO GAM request (and so
 //                   no GAM request/serving fees).
 //
-// The widget surface (SellwildWidget / SellwildWidgetView) still uses a
-// WebView for marketplace listings — that surface is intentionally a WebView.
-// Banners and other monetizing ad units render natively.
+// Marketplace listings render natively too, via `SellwildFeedView` — the SDK
+// ships no WebView-based surfaces.
 //
 // The decisions (refresh, cold start, resume, detach, GAM unit, house
 // backdrop, placement, no-fill) live in `SellwildAdPolicy`. What the view
@@ -77,7 +76,7 @@ public final class SellwildAdView: UIView {
     /// `SellwildFeedView` injects `base#n` here so two ad slots that share a base
     /// on one screen stay unique. Standalone views leave this nil and auto-resolve
     /// the bare base from config. Internal on purpose: gpid is resolved from CMS
-    /// config, not a public RN/Flutter-facing property.
+    /// config, not a public RN-facing property.
     var gpidOverride: String?
 
     public weak var delegate: SellwildAdViewDelegate?
@@ -149,6 +148,9 @@ public final class SellwildAdView: UIView {
     // it (so its viewability tracker can fire the impression/burl) rather than
     // discarding it with a fresh auction.
     private var prebidHasRenderedCreative = false
+    // True while a .prebidOnly click has an ad modal (in-app browser / store
+    // sheet) open, so a leave-app from inside it isn't counted as a 2nd click.
+    private var prebidClickModalOpen = false
 
     /// Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
     /// when set, else the shared `AD_REFRESH_MAX` (matches Android + web). iOS
@@ -156,6 +158,14 @@ public final class SellwildAdView: UIView {
     /// its refresh revenue — for partners who set only `AD_REFRESH_MAX`.
     private var effectiveRefreshMax: Int {
         SellwildAdPolicy.refreshMax(mobile: config.adRefreshMaxMobile, shared: config.adRefreshMax)
+    }
+
+    /// Whether another .prebidOnly auction fits the refresh cap. The budget is
+    /// the first render + up to effectiveRefreshMax refreshes; prebidRefreshCount
+    /// counts renders, so it's spent once the count exceeds the max (the same
+    /// point the render delegate calls stopRefresh()).
+    private var hasPrebidRefreshBudget: Bool {
+        SellwildAdPolicy.hasPrebidRefreshBudget(renderCount: prebidRefreshCount, max: effectiveRefreshMax)
     }
 
     // Cold-start guard: Prebid init is async and can race the first load(). Wait
@@ -272,12 +282,14 @@ public final class SellwildAdView: UIView {
     /// current creative before its viewability tracker fires, so burl (the
     /// viewable impression) almost never fires on a scrolling feed. With
     /// `MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH` on, the rendered creative stays
-    /// and the cadence resumes on a DELAYED refresh instead.
+    /// and the cadence resumes on a DELAYED refresh instead. Either way only while
+    /// the refresh cap has budget: once it is spent, a reattach starts no new
+    /// auction and the last creative stays.
     public func resume() {
         let action = SellwildAdPolicy.resumeAction(
             needsReload: needsReloadOnResume,
             stack: resolvedAdStack,
-            refreshMax: effectiveRefreshMax,
+            hasRefreshBudget: hasPrebidRefreshBudget,
             hasRenderedCreative: prebidHasRenderedCreative,
             keepCreative: keepsPrebidCreativeOnReattach
         )
@@ -313,7 +325,7 @@ public final class SellwildAdView: UIView {
     /// fire the impression/burl. Only re-auctions if still attached and under the
     /// refresh cap.
     private func schedulePrebidRefresh() {
-        guard SellwildAdPolicy.mayRefresh(count: prebidRefreshCount, max: effectiveRefreshMax) else { return }
+        guard hasPrebidRefreshBudget else { return }
         refreshTimer?.cancel()
         refreshTimer = environment.scheduler.schedule(after: SellwildAdPolicy.refreshInterval(config.adRefreshInterval)) { [weak self] in
             self?.reloadPrebidIfAttached()
@@ -459,6 +471,7 @@ public final class SellwildAdView: UIView {
             pb.removeFromSuperview()
             prebidBanner = nil
             prebidHasRenderedCreative = false
+            prebidClickModalOpen = false // didDismissModal may never arrive
         }
         if let na = nativeAdView { na.removeFromSuperview(); nativeAdView = nil }
         if let existing = gamBanner { return existing }
@@ -506,9 +519,9 @@ public final class SellwildAdView: UIView {
         // cadence when configured — floored like the GAM timer so a mis-scaled
         // AD_REFRESH_INTERVAL can't drive a sub-second refresh storm. The refresh
         // COUNT is capped in the didReceiveAdWithAdSize delegate.
-        if effectiveRefreshMax > 0 {
-            banner.refreshInterval = SellwildAdPolicy.refreshInterval(config.adRefreshInterval)
-        }
+        // Cap 0 is no refresh (SellwildAdPolicy.prebidAutoRefreshInterval).
+        banner.refreshInterval = SellwildAdPolicy.prebidAutoRefreshInterval(refreshMax: effectiveRefreshMax,
+                                                                           configured: config.adRefreshInterval)
         prebidRefreshCount = 0
         prebidHasRenderedCreative = false
         environment.network.loadPrebid(banner)
@@ -574,7 +587,13 @@ public final class SellwildAdView: UIView {
     private func ensureNativeAdView(configId: String) -> SellwildNativeAdView {
         // Tear down banner render paths if we previously rendered one.
         if let gb = gamBanner { gb.removeFromSuperview(); gamBanner = nil }
-        if let pb = prebidBanner { pb.stopRefresh(); pb.removeFromSuperview(); prebidBanner = nil; prebidHasRenderedCreative = false }
+        if let pb = prebidBanner {
+            pb.stopRefresh()
+            pb.removeFromSuperview()
+            prebidBanner = nil
+            prebidHasRenderedCreative = false
+            prebidClickModalOpen = false // didDismissModal may never arrive
+        }
         if let existing = nativeAdView { return existing }
 
         let cap = SellwildNative.maxHeight(
@@ -762,6 +781,9 @@ public final class SellwildAdView: UIView {
     // MARK: Refresh (GAM path only — Prebid path self-refreshes)
 
     private func scheduleRefresh() {
+        // Detached (paused for detach): a GAM load that lands after pause() must
+        // not re-arm refresh on an off-window view — resume() restarts it.
+        guard !isPausedForDetach else { return }
         guard SellwildAdPolicy.mayRefresh(count: refreshCount, max: effectiveRefreshMax) else { return }
         refreshTimer?.cancel() // never stack refresh timers (resume()/re-load)
         refreshTimer = environment.scheduler.schedule(after: SellwildAdPolicy.refreshInterval(config.adRefreshInterval)) { [weak self] in
@@ -1012,6 +1034,30 @@ extension SellwildAdView: PrebidBannerViewDelegate {
                                  message: "the Prebid rendering banner failed to load an ad", zoneId: zoneId)
         }
         recordHouseImpressionIfShowing()
+    }
+
+    // Prebid's rendering BannerView has no click callback — a click surfaces as
+    // either an ad modal (in-app browser / App Store sheet) or leaving the app.
+    // Report either as the same click the GAM path reports via
+    // bannerViewDidRecordClick (delegate + "click" event).
+    public func bannerViewWillPresentModal(_ bannerView: PrebidBannerView) {
+        prebidClickModalOpen = true
+        recordPrebidClick()
+    }
+
+    public func bannerViewDidDismissModal(_ bannerView: PrebidBannerView) {
+        prebidClickModalOpen = false
+    }
+
+    public func bannerViewWillLeaveApplication(_ bannerView: PrebidBannerView) {
+        // Leaving from inside a click-opened modal is the same click.
+        guard !prebidClickModalOpen else { return }
+        recordPrebidClick()
+    }
+
+    private func recordPrebidClick() {
+        delegate?.sellwildAdViewDidRecordClick?(self)
+        environment.events.sendEvent(SellwildEvent(event: "click", label: zoneLabel))
     }
 }
 

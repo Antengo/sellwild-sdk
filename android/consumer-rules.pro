@@ -1,7 +1,9 @@
 # Consumer ProGuard rules — these are bundled into the AAR and applied automatically
 # to any app that depends on the Sellwild SDK.
 
-# Keep the JS bridge interface so WebView can invoke it at runtime
+# Keep @JavascriptInterface methods app-wide. Not widget-only: the ad SDKs'
+# creative WebViews (e.g. Prebid's MRAID bridge, com.sellwild.prebid...
+# BaseJSInterface) are called only from JS, and R8 would strip them.
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }

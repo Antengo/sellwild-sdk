@@ -2,6 +2,8 @@
 
 This is the formal failure-reporting contract for all six clients: core, react-native, ios, android, flutter and widget. It merges the phase-1 proposal and the orchestrator amendments A1–A10 into one document. Where they differed, the amendments won. Section 17 lists every decision this document adds on top of both.
 
+Update 2026-09-25: origin/main removed the Flutter SDK (df551f7) and the SDK's WebView widget and banner paths (9ff579f). No SDK lane is Flutter any more and no SDK client posts bridge messages; the Flutter rows below are history. The wire enums (`client`, `wrapper`) and the golden vectors keep `flutter`, so values already sent stay valid. `failure-codes.json` lists no `flutter` client, and codes only the removed code emitted are gone (`failure-codes.sources.json` maps their phase-1 points to the `removed` exclusion).
+
 The reference implementation is `reference/log-failure.mjs`. The golden vectors in `golden/` are generated from it. If this document and the reference disagree, fix the wrong one and regenerate the vectors in the same change (`npm run vectors`).
 
 ## 0. Files
@@ -11,7 +13,7 @@ The reference implementation is `reference/log-failure.mjs`. The golden vectors 
 | `FAILURES.md` | This contract. |
 | `failure-codes.json` | Canonical code registry (section 4). |
 | `failure-codes.sources.json` | Where each code came from: all 641 phase-1 failure points, each mapped to a code or excluded with a reason, plus `added` for later codes. |
-| `scripts/add-code.mjs`, `scripts/gen-codes.mjs` | The only way to change the registry, and the generator of the four platform mirrors (section 4.4). |
+| `scripts/add-code.mjs`, `scripts/gen-codes.mjs` | The only way to change the registry, and the generator of the three platform mirrors (section 4.4). |
 | `reference/log-failure.mjs` | Dependency-free JS reference of the pure core (sections 5–7). |
 | `golden/log-failure.vectors.json` | Golden vectors every platform must reproduce (section 12). |
 | `golden/log-failure.utf16.vectors.json` | Extra vectors with lone UTF-16 surrogates, for TS, Kotlin and Dart only. |
@@ -128,7 +130,7 @@ logFailure(input):
 ### 4.2 Registry (A4)
 
 1. `failure-codes.json` is canonical and language neutral. Each entry: `code`, `area`, `operation`, `reason`, `component` (usual label), `severity` (recommended), `clients` (platforms that emit it), `description`.
-2. Each platform mirrors the codes whose `clients` include it as constants. `scripts/gen-codes.mjs` generates the four mirrors (`core/src/failures/codes.ts`, `ios/Sources/SellwildSDK/Failures/SellwildFailureCode.swift`, `android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailureCode.kt`, `flutter/lib/src/failures/sellwild_failure_code.dart`); nobody edits them by hand. A parity test on each platform reads the JSON and checks its constants match. The core mirror holds the codes for `core` and `react-native`, because react-native re-exports core.
+2. Each platform mirrors the codes whose `clients` include it as constants. `scripts/gen-codes.mjs` generates the three mirrors (`core/src/failures/codes.ts`, `ios/Sources/SellwildSDK/Failures/SellwildFailureCode.swift`, `android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailureCode.kt`); nobody edits them by hand. A parity test on each platform reads the JSON and checks its constants match. The core mirror holds the codes for `core` and `react-native`, because react-native re-exports core.
 3. The widget vendors the registry (sha256 sync check) and may add widget-only codes in `sellwild-widget/contracts/failure-codes.widget.json`, same format.
 4. `severity` in the registry is a recommendation for call sites. logFailure itself defaults to `error` when no severity is passed.
 5. Seeded from all 641 phase-1 failure points (219 codes). `failure-codes.sources.json` maps each point to its code, or to an exclusion: no-fill, events transport, kill switch, by design, log-once, node tooling, known drift, defect, in-page, caller abort, privacy, lifecycle, dead code, security review, unreachable. Codes added later are listed in its `added` array with the date and why.
@@ -151,7 +153,7 @@ logFailure(input):
      --note "Why the code exists."
    ```
 
-   It checks the entry (format, area, reason, component and severity enums, clients, a one-sentence description with no `/*` or `*/`, which would break a generated doc comment; no no-fill, no-bid or events code, per 4.3), takes `contracts/.lock`, re-reads the registry, inserts the entry in code order, records the new code in `failure-codes.sources.json` `added`, writes both files, regenerates the four mirrors and releases the lock. Adding an identical entry again changes nothing.
+   It checks the entry (format, area, reason, component and severity enums, clients, a one-sentence description with no `/*` or `*/`, which would break a generated doc comment; no no-fill, no-bid or events code, per 4.3), takes `contracts/.lock`, re-reads the registry, inserts the entry in code order, records the new code in `failure-codes.sources.json` `added`, writes both files, regenerates the three mirrors and releases the lock. Adding an identical entry again changes nothing.
 3. Never edit `failure-codes.json` or a mirror by hand. `node contracts/scripts/gen-codes.mjs --check` and `test/gen-codes.test.mjs` fail when a mirror differs from what the registry generates.
 4. To let another platform emit an existing code: `add-code.mjs --merge-clients --code <code> --clients <platform>`. To drop a client or change another field: `add-code.mjs --replace` with the whole entry. When a client is dropped, remap that platform's phase-1 points in `failure-codes.sources.json`; `test/registry.test.mjs` checks that a mapped point's platform emits its code.
 5. Several units may run add-code at once. The lock is `contracts/.lock`: a run writes its owner file into a fresh temp directory and renames that directory to `.lock` in one atomic step, so a lock never exists without its owner and a failed write leaves no lock behind. Release moves the lock aside before deleting it. A run tries every 50 ms for up to 60 s, and a lock older than 120 s is taken to be from a run that died and is broken. Every file is written through a temp file in `contracts/` (git-ignored) and a rename, so a run that dies leaves nothing in an SDK source folder. A bad entry is refused before any wait for the lock. Only a new code gets an `added` record in `failure-codes.sources.json`; `--merge-clients` and `--replace` leave that file alone.
@@ -398,7 +400,7 @@ Listing titles and text, search keywords, user names, emails, phone numbers, IDF
 
 `scripts/print-gate.mjs` and `test/print-gate.test.mjs` enforce sections 1 and 2 on shipped SDK source.
 
-1. Scanned: `core/src`, `react-native/src`, `react-native/ios`, `react-native/android/src`, `ios/Sources`, `android/src/main`, `flutter/lib`. Test folders and `*.test.*`/`*.spec.*` files are skipped.
+1. Scanned: `core/src`, `react-native/src`, `react-native/ios`, `react-native/android/src`, `ios/Sources`, `android/src/main`. Test folders and `*.test.*`/`*.spec.*` files are skipped.
 2. Comments are ignored. Strings are code in TS (page scripts built in template strings are JS); in Swift, Kotlin, Dart and ObjC the native rules see code only and the JS rules below see string contents (scripts injected into the WebView).
 3. Counted as prints:
    - TS/JS: `console.log|error|warn|info|debug|trace(`.
@@ -439,7 +441,7 @@ Listing titles and text, search keywords, user names, emails, phone numbers, IDF
 ## 14. Behavior-change policy (A9)
 
 1. Fix a bug only if it throws, crashes, or yields an obviously invalid value (for example the string "null" used as a URL) AND a test proves it. Record each fix as a behavior change: file, before, after, why.
-2. Cross-platform semantic drift (IAB_CATS scalar handling, MOBILE_ZID_* per OS, S2S_CONFIG text vs object, Android bidder passthrough of non-bidder keys) is NOT changed in this program. It is recorded in `expectations/drift/<platform>.json`, one file per SDK platform (`core`, `react-native`, `ios`, `android`, `flutter`; the widget keeps its own in sellwild-widget):
+2. Cross-platform semantic drift (IAB_CATS scalar handling, MOBILE_ZID_* per OS, S2S_CONFIG text vs object, Android bidder passthrough of non-bidder keys) is NOT changed in this program. It is recorded in `expectations/drift/<platform>.json`, one file per SDK platform (`core`, `react-native`, `ios`, `android`; the widget keeps its own in sellwild-widget). origin/main has since fixed text IAB_CATS (fd19058), JS-literal S2S_CONFIG (c55efa0) and the Android bidder passthrough (c1d7d63, now no bidder params at all), and those entries are gone:
    - `expectations` maps each expectations file (`app-config`, `listings-response`) and case file to text that names every field that differs, as `field: why`. A conformance test passes a case when the platform matches `expected`, or differs only in a field its entry names; a named field that matches fails the test, so the entry is removed in the change that fixes the drift.
    - `other` records verified drift that no expectations case pins, keyed by a short topic (for example `bridge.android`).
    - Each platform unit edits only its own file. `test/expectations.test.mjs` checks that every entry names a real case and a field that platform is held to.

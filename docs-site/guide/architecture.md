@@ -29,7 +29,7 @@ The Sellwild SDK uses a server-to-server (S2S) architecture for programmatic ad 
 | Server-side auctions | A single HTTP request to managed Prebid Server replaces the traditional waterfall of sequential SDK calls. |
 | Native Prebid Mobile + GAM | Real device signals (IDFV / AAID, ATT status, SKAdNetwork) are passed to demand. Avoids GAM mobile-ads-in-WebView policy issues. |
 | `ortb2.app` injection | Ensures DSPs classify traffic as in-app (not web), enabling app-ads.txt enforcement. |
-| Marketplace widget in WebView | `SellwildWidget` (listing carousel) is intentionally rendered in `WKWebView` / Android `WebView` so the storefront stays a single web surface across platforms. |
+| Native marketplace feed | `SellwildFeedView` / `SellwildFeed` renders listings and interleaved Prebid + GAM ads natively (`UITableView` / `RecyclerView`). The SDK ships no WebView surface. |
 
 ---
 
@@ -253,14 +253,15 @@ When no SSP returns a winning bid, the SDK walks through a fallback chain to ens
         Yes  |
              v
 +---------------------------+
-| 3. Zone-Based Fallback    |
-|    (if bannerZid or        |
-|     zoneId is set)         |
+| 3. House Ad Backdrop      |
+|    (if MOBILE_HOUSE_AD_    |
+|     ENABLED is on)         |
 |                           |
-|    Loads a creative from   |
-|    bidstream.sellwild.com. |
-|    Can serve house ads or  |
-|    direct-sold campaigns.  |
+|    Shows the CMS house     |
+|    creative (per zone,     |
+|    per size, app-wide).    |
+|    Feed MREC slots can     |
+|    fall back to a listing. |
 +------------+--------------+
              |
         No creative?
@@ -283,7 +284,7 @@ When no SSP returns a winning bid, the SDK walks through a fallback chain to ens
 | Config Field | Default | Effect |
 |-------------|---------|--------|
 | `gamTag` | `null` | When set, enables GAM passback as fallback step 2. |
-| `bannerZid` / `zoneId` | `null` | When set, enables zone-based fallback as step 3. |
+| `MOBILE_HOUSE_AD_*` (CDN) | off | When enabled, fills step 3 with a house creative. See [Configuration → House ads](/guide/configuration#house-ads-mobile). |
 | `maxFailedAuctions` | `3` | After N consecutive no-fills, the SDK stops refreshing that slot. |
 | `adRefreshInterval` | `30s` | Time between refresh attempts. Longer intervals reduce no-fill impact. |
 
@@ -339,7 +340,6 @@ The SDK tracks ad lifecycle events and reports them to the Sellwild analytics ba
 | `AD_CLICK` | User tap on the creative | Zone ID, destination URL |
 | `AD_ERROR` | Auction failure or render error | Error message, zone ID |
 | `LISTING_CLICK` | User tap on a marketplace listing | Listing URL |
-| `WIDGET_LOADED` | Listing widget initialization complete | Partner code |
 
 ### Batching and Delivery
 

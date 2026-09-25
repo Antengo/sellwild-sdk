@@ -3,7 +3,7 @@
 Get a native marketplace feed or banner ad rendering with server-side header bidding in under 5 minutes. Choose your platform below.
 
 For full integration guides with all ad formats, GDPR, lifecycle management, and troubleshooting, see the dedicated platform pages:
-[iOS](/guide/ios) | [Android](/guide/android) | [React Native](/guide/react-native) | [Flutter](/guide/flutter)
+[iOS](/guide/ios) | [Android](/guide/android) | [React Native](/guide/react-native)
 
 ---
 
@@ -30,7 +30,7 @@ end
 
 Then run `pod install` and open the `.xcworkspace` file.
 
-### 2. Marketplace Feed ⭐ Recommended
+### 2. Marketplace Feed (Recommended)
 
 Drop in a full native marketplace feed with listings and interleaved ads — one component, native scrolling, higher CPMs:
 
@@ -207,7 +207,7 @@ In `AndroidManifest.xml`:
 <uses-permission android:name="android.permission.INTERNET" />
 ```
 
-### 3. Marketplace Feed ⭐ Recommended
+### 3. Marketplace Feed (Recommended)
 
 Drop in a full native marketplace feed with listings and interleaved ads — one component, native scrolling, higher CPMs:
 
@@ -344,7 +344,7 @@ npm install @sellwild/react-native-sdk
 cd ios && pod install && cd ..
 ```
 
-### 2. Marketplace Feed ⭐ Recommended
+### 2. Marketplace Feed (Recommended)
 
 Drop in a full native marketplace feed — no WebView, native scrolling on both platforms:
 
@@ -403,98 +403,15 @@ import { SellwildBanner } from '@sellwild/react-native-sdk';
 
 ---
 
-## Flutter
-
-### 1. Install
-
-Add to `pubspec.yaml`:
-
-```yaml
-dependencies:
-  sellwild_sdk: ^1.4.0
-```
-
-Then run:
-
-```bash
-flutter pub get
-```
-
-### 2. Platform setup
-
-**iOS:** Add to `ios/Runner/Info.plist`:
-
-```xml
-<key>NSAppTransportSecurity</key>
-<dict>
-  <key>NSAllowsArbitraryLoadsInWebContent</key>
-  <true/>
-</dict>
-```
-
-**Android:** Add to `android/app/src/main/AndroidManifest.xml`:
-
-```xml
-<uses-permission android:name="android.permission.INTERNET" />
-```
-
-### 3. Render
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:sellwild_sdk/sellwild_sdk.dart';
-
-class MyApp extends StatefulWidget {
-  @override
-  _MyAppState createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  SellwildConfig? _config;
-
-  @override
-  void initState() {
-    super.initState();
-    _initSellwild();
-  }
-
-  Future<void> _initSellwild() async {
-    final config = await SellwildSDK.configure(
-      partnerCode: 'weatherbug',
-      slug: 'weatherbug-weatherbug',
-    );
-    setState(() => _config = config);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_config == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return SellwildBanner(
-      config: _config!,
-      size: AdSize.mrec300x250,
-      onImpression: () => print('Ad impression'),
-      onError: (error) => print('Error: $error'),
-    );
-  }
-}
-```
-
-**Next:** [Full Flutter Guide](/guide/flutter) -- Platform setup, GDPR, troubleshooting.
-
----
-
 ## What Happens Next
 
 After `load()` is called (or the SwiftUI/Compose view appears), the SDK:
 
-1. Builds a lightweight WebView with Prebid.js configured in S2S mode.
-2. Sends a single OpenRTB request to `prebid.sellwild.com/openrtb2/auction`.
+1. Builds an OpenRTB request natively with Prebid Mobile.
+2. Sends a single request to `prebid.sellwild.com/openrtb2/auction`.
 3. Prebid Server fans out to all configured SSPs in parallel.
-4. The winning bid's creative renders in the ad slot.
-5. Impression and click events fire through the JS bridge to your native callbacks.
+4. The winning bid's keywords go to Google Ad Manager, which renders the creative in a native `AdManagerBannerView` / `AdManagerAdView`.
+5. Impression and click events fire to your native callbacks.
 
 No client-side bidder SDKs. No waterfall. No cookies. Total auction time: under 200ms.
 

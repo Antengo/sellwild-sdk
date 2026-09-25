@@ -50,8 +50,6 @@ class AppConfigConformanceTest {
         val house = expected.getJSONObject("houseAd")
         val (width, height) = house.getString("size").split("x").map { it.toInt() }
         val localized = SellwildLocalizedListings.resolve(config)
-        val bidders = SellwildGpid.impExtJson(null, SellwildAdView.bidderParamsFromRemote(config))
-            ?.let { JSONObject(it).getJSONObject("ext").getJSONObject("prebid").getJSONObject("bidder") }
         return mapOf(
             "partnerCode" to config.partnerCode,
             "slug" to config.slug,
@@ -93,7 +91,10 @@ class AppConfigConformanceTest {
                     "everyNth" to SellwildLocalizedListings.everyN(it.frequency),
                 )
             },
-            "auctionBidderParams" to (Conformance.plain(bidders) ?: emptyMap<String, Any?>()),
+            // The .both auction sends no bidder params: SellwildAdView.loadGam passes none to
+            // runBannerAuction (bidder params live server-side in the stored imp; iOS parity).
+            // SellwildAdViewTest checks the imp ext of a real auction.
+            "auctionBidderParams" to emptyMap<String, Any?>(),
         )
     }
 

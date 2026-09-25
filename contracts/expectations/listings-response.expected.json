@@ -7,7 +7,6 @@
         "react-native",
         "ios",
         "android",
-        "flutter",
         "widget"
       ],
       "meaning": "Number of listings the parser returns (no item is dropped: every item in these files is valid)."
@@ -18,7 +17,6 @@
         "react-native",
         "ios",
         "android",
-        "flutter",
         "widget"
       ],
       "meaning": "Listing ids as text, in order."
@@ -27,7 +25,6 @@
       "platforms": [
         "ios",
         "android",
-        "flutter",
         "widget"
       ],
       "meaning": "Ids whose remote_url is JSON null. Parsers must treat it as absent (never the text \"null\")."
@@ -37,7 +34,6 @@
         "core",
         "ios",
         "android",
-        "flutter",
         "widget"
       ],
       "meaning": "result.widgetCacheVersionId, or '0' when absent."

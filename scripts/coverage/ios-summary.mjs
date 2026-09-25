@@ -79,7 +79,7 @@ const GATE_INCLUDE = [
   `${SOURCE_ROOT}/SellwildHouseAd.swift`,
   `${SOURCE_ROOT}/SellwildGrowthCode.swift`,
   `${SOURCE_ROOT}/SellwildAdAudioGuard.swift`,
-  // Phase 3 (sdk-ios-views): the view shells. GMA, Prebid, WKWebView, timers,
+  // Phase 3 (sdk-ios-views): the view shells. GMA, Prebid, timers,
   // images and URL opening sit behind injected environments, so the shells run
   // in XCTest with fakes; their decisions moved into Core/.
   `${SOURCE_ROOT}/SellwildAdView.swift`,
@@ -87,8 +87,9 @@ const GATE_INCLUDE = [
   `${SOURCE_ROOT}/SellwildNativeAdView.swift`,
   `${SOURCE_ROOT}/SellwildHouseAdView.swift`,
   `${SOURCE_ROOT}/SellwildFeedView.swift`,
-  `${SOURCE_ROOT}/SellwildWidgetView.swift`,
   `${SOURCE_ROOT}/SellwildSwiftUI.swift`,
+  // origin/main (c55efa0): the tolerant S2S_CONFIG reader.
+  `${SOURCE_ROOT}/SellwildS2SConfig.swift`,
   `${SOURCE_ROOT}/Failures/**`,
   `${SOURCE_ROOT}/Core/**`,
 ];

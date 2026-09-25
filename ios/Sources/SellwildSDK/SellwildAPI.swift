@@ -555,8 +555,9 @@ public final class SellwildAPIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
 
-        eventTransport.send(request) { [weak self] error in
-            guard let self = self, error != nil else { return }
+        eventTransport.send(request) { [weak self] status, error in
+            guard let self = self,
+                  Self.shouldRetryEventBatch(statusCode: status, error: error) else { return }
             // Re-queue on failure (capped) and reschedule so a transient outage
             // recovers without waiting for the next event.
             self.eventQueue.async {
@@ -575,6 +576,17 @@ public final class SellwildAPIClient {
         cancelEventFlush = eventClock.schedule(eventFlushInterval, eventQueue) { [weak self] in
             self?.flushEventsLocked()
         }
+    }
+
+    /// Whether a failed event POST should be re-queued: any network error, or
+    /// any non-2xx except 4xx — a permanent rejection, dropped so it can't
+    /// retry forever — other than 408 Request Timeout / 429 Too Many Requests.
+    static func shouldRetryEventBatch(statusCode: Int?, error: Error?) -> Bool {
+        if error != nil { return true }
+        guard let code = statusCode else { return true }
+        if (200..<300).contains(code) { return false }
+        if (400..<500).contains(code) { return code == 408 || code == 429 }
+        return true
     }
 
     private func registerLifecycleFlush() {
@@ -630,15 +642,17 @@ public struct SellwildEvent: Codable {
 
 // MARK: - Event transport and clock
 
-/// Sends one events batch (a POST to /events/queue) and reports the
-/// transport error, or nil. Like the rest of the queue it never reports its
-/// own failures.
+/// Sends one events batch (a POST to /events/queue) and reports the HTTP
+/// status (nil without a response) and the transport error, or nil. Like the
+/// rest of the queue it never reports its own failures.
 struct SellwildEventTransport {
-    var send: (_ request: URLRequest, _ completion: @escaping (Error?) -> Void) -> Void
+    var send: (_ request: URLRequest, _ completion: @escaping (_ statusCode: Int?, _ error: Error?) -> Void) -> Void
 
     static func session(_ session: URLSession) -> SellwildEventTransport {
         SellwildEventTransport { request, completion in
-            session.dataTask(with: request) { _, _, error in completion(error) }.resume()
+            session.dataTask(with: request) { _, response, error in
+                completion((response as? HTTPURLResponse)?.statusCode, error)
+            }.resume()
         }
     }
 }

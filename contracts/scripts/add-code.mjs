@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Adds one failure code to failure-codes.json (FAILURES.md 4.4), or changes
-// the clients of one, and regenerates the four platform mirrors. The only way
+// the clients of one, and regenerates the three platform mirrors. The only way
 // to change the registry: never edit failure-codes.json or a mirror by hand.
 //
 //   node scripts/add-code.mjs '<json entry>'

@@ -1,12 +1,14 @@
 # Migration Guide: SellwildWidget → SellwildFeed
 
-This guide walks you through migrating from the WebView-based `<SellwildWidget>` to the native `<SellwildFeed>` component.
+The WebView-based `<SellwildWidget>` has been **removed** from the SDK, along with `SellwildWidgetProps` and the `react-native-webview` peer dependency. The native iOS and Android equivalents (`SellwildWidgetView`, SwiftUI `SellwildWidget`) are gone too. Apps that still import them will not compile against the current SDK.
+
+Replace it with `<SellwildFeed>`, the all-in-one native feed. Native apps use `SellwildFeedView` (UIKit / Android Views) or `SellwildFeed` (SwiftUI / Compose). See the [iOS](/guide/ios#native-marketplace-feed-1-3-5) and [Android](/guide/android#native-marketplace-feed-1-3-5) guides.
 
 ---
 
-## Why Migrate?
+## What Changes
 
-| Feature | SellwildWidget (WebView) | SellwildFeed (Native) |
+| Feature | SellwildWidget (removed) | SellwildFeed (Native) |
 |---------|--------------------------|----------------------|
 | Rendering | WebView (HTML/JS) | Native (UITableView / RecyclerView) |
 | Ad monetization | Lower CPMs | **Higher CPMs** (native demand) |
@@ -15,7 +17,7 @@ This guide walks you through migrating from the WebView-based `<SellwildWidget>`
 | Memory | WebView process | Lean native views |
 | Pull-to-refresh | JS-based | Native gesture |
 
-**Bottom line:** `SellwildFeed` delivers better ad revenue and a smoother user experience.
+`SellwildFeed` runs native Prebid Mobile + GAM demand and renders every row natively.
 
 ---
 
@@ -36,7 +38,7 @@ cd ios && pod install --repo-update && cd ..
 
 ## Step 1: Update Imports
 
-**Before (WebView):**
+**Before (removed API):**
 ```tsx
 import { SellwildWidget } from '@sellwild/react-native-sdk';
 ```
@@ -50,7 +52,7 @@ import { SellwildFeed } from '@sellwild/react-native-sdk';
 
 ## Step 2: Replace Component
 
-**Before (WebView):**
+**Before (removed API):**
 ```tsx
 <SellwildWidget
   config={config}
@@ -70,10 +72,9 @@ import { SellwildFeed } from '@sellwild/react-native-sdk';
   style={{ flex: 1 }}
   onLoad={() => console.log('Feed loaded')}
   onListingTap={(listing) => {
-    // Return true to consume the tap (handle yourself)
-    // Return false/undefined to let SDK open in-app browser
+    // Notification only — the SDK opens listing.url in the in-app browser.
+    // To handle navigation yourself, set `consumeListingTaps` (see Step 3).
     console.log('Tapped:', listing.title);
-    return false; // SDK opens listing.url
   }}
   onAdImpression={(zoneId) => console.log('Ad impression:', zoneId)}
   onAdClicked={(zoneId) => console.log('Ad clicked:', zoneId)}
@@ -87,10 +88,12 @@ import { SellwildFeed } from '@sellwild/react-native-sdk';
 
 The key behavioral difference is in `onListingTap`:
 
-| Behavior | SellwildWidget | SellwildFeed |
+| Behavior | SellwildWidget (removed) | SellwildFeed |
 |----------|----------------|--------------|
 | Default tap action | Opens URL via WebView `<a>` tag | Opens URL in in-app browser (Custom Tabs / SFSafariViewController) |
-| Custom handling | Not reliable (WebView navigation issues) | Return `true` from callback to consume tap |
+| Custom handling | Not reliable (WebView navigation issues) | Set the `consumeListingTaps` prop; the SDK then only fires `onListingTap` |
+
+> The `onListingTap` return value is ignored: React Native delivers native events to JS asynchronously, after the tap has already been handled, so a callback can't veto the SDK's navigation. Use the `consumeListingTaps` prop instead.
 
 ### Example: Custom Product Detail Screen
 
@@ -104,6 +107,7 @@ function MarketplaceFeed({ config }) {
     <SellwildFeed
       config={config}
       style={{ flex: 1 }}
+      consumeListingTaps // SDK won't open the browser
       onListingTap={(listing) => {
         // Navigate to your own product detail screen
         navigation.navigate('ProductDetail', { 
@@ -111,7 +115,6 @@ function MarketplaceFeed({ config }) {
           title: listing.title,
           url: listing.url,
         });
-        return true; // Consume tap — SDK won't open browser
       }}
     />
   );
@@ -125,25 +128,22 @@ function MarketplaceFeed({ config }) {
   config={config}
   style={{ flex: 1 }}
   onListingTap={(listing) => {
-    // Log analytics, then let SDK open the URL
+    // Log analytics; the SDK opens the in-app browser (default)
     analytics.track('listing_tap', { id: listing.id });
-    return false; // SDK opens in-app browser
   }}
 />
 ```
 
 ---
 
-## Step 4: Remove react-native-webview (Optional)
+## Step 4: Remove react-native-webview
 
-If `<SellwildWidget>` was your only use of `react-native-webview`, you can remove it:
+The SDK no longer depends on `react-native-webview`. If `<SellwildWidget>` was your only use of it, remove it:
 
 ```bash
 npm uninstall react-native-webview
 cd ios && pod install && cd ..
 ```
-
-This reduces your bundle size and removes the WebView dependency.
 
 > **Note:** Keep `react-native-webview` if other parts of your app use it.
 
@@ -155,28 +155,20 @@ This reduces your bundle size and removes the WebView dependency.
 
 | Prop | Type | Required | Description |
 |------|------|----------|-------------|
-| `config` | `SellwildConfig` | ✅ | Config from `configure()` or `buildConfig()` |
+| `config` | `SellwildConfig` | Yes | Config from `configure()` or `buildConfig()` |
 | `style` | `ViewStyle` | | Optional style override |
 | `onLoad` | `() => void` | | Fired when listings fetch completes |
-| `onListingTap` | `(listing: SellwildListing) => boolean \| void` | | Tap handler. Return `true` to consume. |
+| `consumeListingTaps` | `boolean` | | Default `false`. When `true`, the SDK does not open the in-app browser on listing tap — handle navigation in `onListingTap`. |
+| `onListingTap` | `(listing: SellwildListing) => void` | | Tap notification. Return value is ignored; use `consumeListingTaps` to take over navigation. |
 | `onAdImpression` | `(zoneId: string) => void` | | Fired on ad impression |
 | `onAdClicked` | `(zoneId: string) => void` | | Fired on ad click |
+| `scrollEnabled` | `boolean` | | Defaults to `true`. Set `false` to embed in a parent `ScrollView`. |
+| `onContentSizeChange` | `(e: { width?: number; height: number }) => void` | | Fired when the feed's content height changes |
 | `onError` | `(error: Error) => void` | | Fired on fetch/render failure |
 
 ### SellwildListing Object
 
-```ts
-interface SellwildListing {
-  id: string;
-  title: string;
-  url: string;           // Tap destination URL
-  price?: number;
-  currency?: string;     // 'USD', 'EUR', etc.
-  photoUrl?: string;
-  sellerFirstName?: string;
-  sellerLastInitial?: string;
-}
-```
+See [TypeScript Reference → SellwildListing](/guide/react-native#sellwildlisting) for the full shape.
 
 ---
 
@@ -226,7 +218,7 @@ Ensure GAM is configured:
 
 ## Full Migration Example
 
-### Before (WebView-based)
+### Before (removed API)
 
 ```tsx
 import React from 'react';

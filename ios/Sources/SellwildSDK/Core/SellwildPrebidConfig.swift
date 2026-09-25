@@ -8,30 +8,65 @@ enum SellwildPrebidConfig {
     /// Sellwild's hosted Prebid Server.
     static let defaultEndpoint = "https://prebid.sellwild.com/openrtb2/auction"
 
-    struct Server: Equatable {
-        let url: String
-        let accountId: String
+    /// The Prebid Server timeout when the config sets none, in ms.
+    static let defaultTimeoutMillis = 1500
+
+    /// Per-config Prebid fields `bootstrap` applies (and re-applies when a
+    /// later config differs). nil = "this config doesn't specify it".
+    struct Fields: Equatable {
+        var serverURL: String?
+        var accountId: String?
+        var timeout: Int?
+        var storeURL: String?
+        var publisherId: String?
+        var cats: [String]?
+
+        /// Fill fields this value leaves nil from `base`.
+        func overlaying(_ base: Fields?) -> Fields {
+            guard let base else { return self }
+            return Fields(
+                serverURL: serverURL ?? base.serverURL,
+                accountId: accountId ?? base.accountId,
+                timeout: timeout ?? base.timeout,
+                storeURL: storeURL ?? base.storeURL,
+                publisherId: publisherId ?? base.publisherId,
+                cats: cats ?? base.cats
+            )
+        }
     }
 
-    /// The typed `PrebidServerConfig` wins; then the raw `S2S_CONFIG` when it
-    /// is an object (`endpoint` or `url`, `accountId` or `account`); then the
-    /// hosted default with the partner code as the account. The CMS ships
-    /// `S2S_CONFIG` as text, which is not read (known drift, recorded in
-    /// contracts/expectations/drift/ios.json).
-    static func server(typed: PrebidServerConfig?, remoteValues: [String: Any]?, partnerCode: String) -> Server {
+    /// The fields `config` specifies. IAB content categories (IAB_CATS) become
+    /// ORTB app.cat: a content signal, not consent, so it is always attached
+    /// when the CMS provides it.
+    static func fields(of config: SellwildConfig) -> Fields {
+        let server = specifiedServer(typed: config.prebidServer, remoteValues: config.remoteValues)
+        return Fields(
+            serverURL: server?.endpoint,
+            accountId: server?.accountId,
+            timeout: server?.timeout,
+            storeURL: config.appStoreUrl,
+            publisherId: publisherId(remoteValues: config.remoteValues),
+            cats: config.iabCats.isEmpty ? nil : config.iabCats
+        )
+    }
+
+    /// What the first bootstrap applies: `fields(of:)` over Sellwild's hosted
+    /// Prebid Server, the partner code as the account and the default timeout,
+    /// so the SDK still does something on partial CMS config.
+    static func initialFields(of config: SellwildConfig) -> Fields {
+        fields(of: config).overlaying(Fields(serverURL: defaultEndpoint, accountId: config.partnerCode,
+                                             timeout: defaultTimeoutMillis))
+    }
+
+    /// The Prebid Server fields the config actually specifies: the typed
+    /// `PrebidServerConfig` wins, else the CDN `S2S_CONFIG` (an object, an
+    /// array, JSON text or the CMS's JS object-literal text; see
+    /// `SellwildS2SConfig`). nil when neither is usable.
+    static func specifiedServer(typed: PrebidServerConfig?, remoteValues: [String: Any]?) -> SellwildS2SConfig? {
         if let typed {
-            return Server(url: typed.endpoint, accountId: typed.accountId)
+            return SellwildS2SConfig(accountId: typed.accountId, endpoint: typed.endpoint, timeout: typed.timeout)
         }
-        if let s2s = remoteValues?["S2S_CONFIG"] as? [String: Any] {
-            return Server(url: firstText(s2s, "endpoint", "url") ?? defaultEndpoint,
-                          accountId: firstText(s2s, "accountId", "account") ?? partnerCode)
-        }
-        return Server(url: defaultEndpoint, accountId: partnerCode)
-    }
-
-    private static func firstText(_ object: [String: Any], _ first: String, _ second: String) -> String? {
-        if let value = object[first] as? String { return value }
-        return object[second] as? String
+        return SellwildS2SConfig.parse(remoteValues?["S2S_CONFIG"])
     }
 
     /// `app.publisher.id` (the sellers.json seller id): the top-level
@@ -66,9 +101,8 @@ enum SellwildPrebidConfig {
         try JSONSerialization.data(withJSONObject: object)
     }
 
-    /// Why a value could not be written as JSON (`ad.ortb_config.exception`
-    /// for the global ORTB object, `widget.attributes.exception` for a widget
-    /// attribute).
+    /// Why the global ORTB object could not be written as JSON
+    /// (`ad.ortb_config.exception`).
     enum JSONProblem: Error {
         /// It holds a value JSON cannot carry, such as a NaN latitude.
         case notJSON

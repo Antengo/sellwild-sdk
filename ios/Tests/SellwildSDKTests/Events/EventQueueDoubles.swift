@@ -2,17 +2,26 @@ import Foundation
 @testable import SellwildSDK
 
 /// An events transport that records each batch POST instead of sending it.
-/// Answers at once (on the client's queue) with `error`, or nil.
+/// Answers at once (on the client's queue) with `status` and `error`.
 final class CapturingEventTransport {
 
     private let lock = NSLock()
     private var sent: [URLRequest] = []
-    private var pending: [(Error?) -> Void] = []
+    private var pending: [(Int?, Error?) -> Void] = []
 
-    /// What each send reports. nil is success.
+    /// The HTTP status each send reports; nil is no response.
+    var status: Int? = 200
+    /// The transport error each send reports. nil is none.
     var error: Error?
     /// Keep the completions instead of calling them (`completePending`).
     var holdCompletions = false
+
+    /// What one send answers, read under the lock.
+    private struct Answer {
+        let hold: Bool
+        let status: Int?
+        let error: Error?
+    }
 
     var requests: [URLRequest] { locked { sent } }
 
@@ -30,21 +39,21 @@ final class CapturingEventTransport {
 
     var transport: SellwildEventTransport {
         SellwildEventTransport { [self] request, completion in
-            let (hold, error) = self.locked { () -> (Bool, Error?) in
+            let answer = self.locked { () -> Answer in
                 self.sent.append(request)
                 if self.holdCompletions { self.pending.append(completion) }
-                return (self.holdCompletions, self.error)
+                return Answer(hold: self.holdCompletions, status: self.status, error: self.error)
             }
-            if !hold { completion(error) }
+            if !answer.hold { completion(answer.error == nil ? answer.status : nil, answer.error) }
         }
     }
 
-    func completePending(with error: Error?) {
-        let completions = locked { () -> [(Error?) -> Void] in
+    func completePending(with error: Error?, status: Int? = 200) {
+        let completions = locked { () -> [(Int?, Error?) -> Void] in
             defer { pending = [] }
             return pending
         }
-        completions.forEach { $0(error) }
+        completions.forEach { $0(error == nil ? status : nil, error) }
     }
 
     private func locked<T>(_ body: () -> T) -> T {

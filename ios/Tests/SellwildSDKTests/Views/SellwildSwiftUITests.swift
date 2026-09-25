@@ -1,7 +1,6 @@
 import XCTest
 import SwiftUI
 import UIKit
-import WebKit
 @testable import SellwildSDK
 
 /// The SwiftUI wrappers, hosted in a UIHostingController so SwiftUI makes and
@@ -9,15 +8,8 @@ import WebKit
 @available(iOS 14, *)
 final class SellwildSwiftUITests: ViewTestCase {
 
-    private var widgetLoads = 0
-
     override func setUp() {
         super.setUp()
-        widgetLoads = 0
-        SellwildWidgetView.environment = SellwildWidgetView.Environment(
-            loadPage: { [weak self] _, _, _ in self?.widgetLoads += 1 },
-            serializeJSON: SellwildPrebidConfig.serializeJSON
-        )
         SellwildFeedView.environment = SellwildFeedView.Environment(
             makeAPIClient: { SellwildAPIClient(session: StubURLProtocol.makeSession()) },
             makeAdView: SellwildAdView.init(config:adSize:zoneId:),
@@ -27,7 +19,6 @@ final class SellwildSwiftUITests: ViewTestCase {
     }
 
     override func tearDown() {
-        SellwildWidgetView.environment = .live
         SellwildFeedView.environment = .live
         super.tearDown()
     }
@@ -118,39 +109,6 @@ final class SellwildSwiftUITests: ViewTestCase {
         delegate.sellwildFeed(feedView, didRecordAdImpressionForZoneId: "43")
         delegate.sellwildFeedDidLoad(feedView)
         XCTAssertEqual(calls.count, 5, "the new wrapper's callbacks are empty")
-        withExtendedLifetime(window) {}
-    }
-
-    func testTheWidgetLoadsAndForwardsLoadTapsAndErrors() throws {
-        var calls: [String] = []
-        let widget = SellwildWidget(config: try config(),
-                                    onListingTap: { calls.append("tap \($0.url ?? "")") },
-                                    onLoad: { calls.append("load") },
-                                    onError: { _ in calls.append("error") })
-        let (window, controller) = host(widget)
-        let widgetView = try XCTUnwrap(find(SellwildWidgetView.self, in: controller.view))
-        XCTAssertEqual(widgetLoads, 1, "makeUIView loads the page")
-        widgetView.handleMessage(body: try BridgeMessageFactory.text(BridgeMessageFactory.variant("widget-loaded")))
-        widgetView.handleMessage(body: try BridgeMessageFactory.text(BridgeMessageFactory.variant("listing-click-url")))
-        widgetView.webView(widgetView.webView, didFail: nil, withError: URLError(.cancelled))
-        XCTAssertEqual(calls, ["load", "tap https://sellwild.com/listing/105140231", "error"])
-
-        controller.rootView = SellwildWidget(config: try config())
-        controller.view.layoutIfNeeded()
-        drainMain()
-        XCTAssertTrue(find(SellwildWidgetView.self, in: controller.view) === widgetView)
-        widgetView.webView.configuration.userContentController
-            .removeScriptMessageHandler(forName: SellwildWidgetPage.messageHandlerName)
-        withExtendedLifetime(window) {}
-    }
-
-    func testTheWidgetWithoutCallbacksIgnoresThem() throws {
-        let (window, controller) = host(SellwildWidget(config: try config()))
-        let widgetView = try XCTUnwrap(find(SellwildWidgetView.self, in: controller.view))
-        widgetView.handleMessage(body: try BridgeMessageFactory.text(BridgeMessageFactory.variant("widget-loaded")))
-        widgetView.webView(widgetView.webView, didFail: nil, withError: URLError(.cancelled))
-        widgetView.webView.configuration.userContentController
-            .removeScriptMessageHandler(forName: SellwildWidgetPage.messageHandlerName)
         withExtendedLifetime(window) {}
     }
 }

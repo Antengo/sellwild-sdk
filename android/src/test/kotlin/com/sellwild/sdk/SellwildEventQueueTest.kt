@@ -222,17 +222,15 @@ class SellwildEventQueueTest {
     }
 
     @Test
-    fun `a failed batch is dropped, not retried`() {
-        sender.status = 500
+    fun `a batch rejected with a permanent 4xx is dropped, not retried`() {
+        sender.status = 400
         queue.track("adError", label = "43")
-        sender.status = 199
-        queue.track("adError", label = "43")
-        assertEquals("a status below 200 is a failed POST too", 2, queue.failedPosts.get())
+        assertEquals(1, queue.failedPosts.get())
         sender.status = 200
 
         runBlocking { queue.flush() }
 
-        assertEquals(2, sender.posts.size)
-        assertEquals(2, queue.failedPosts.get())
+        assertEquals("nothing was left to send again", 1, sender.posts.size)
+        assertEquals(1, queue.failedPosts.get())
     }
 }

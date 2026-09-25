@@ -15,8 +15,8 @@
  *   4. Replace 'YOUR_PARTNER_CODE' with your real partner code.
  *
  * This file shows three usage patterns:
- *   A. UIKit  — full widget in a UIViewController
- *   B. SwiftUI — full widget + banner ad
+ *   A. UIKit  — all-in-one native feed (SellwildFeedView) in a UIViewController
+ *   B. SwiftUI — native banner ads + native feed
  *   C. Native listings — fetch listings via SellwildAPIClient, display in SwiftUI List
  */
 
@@ -30,8 +30,8 @@ import SellwildSDK
 // Ad path (1.3.0+):
 //   `SellwildAdView` / `SellwildAdBanner` runs a NATIVE Prebid Mobile auction
 //   and renders the winner into a NATIVE GAM `AdManagerBannerView`. There is
-//   no WebView in the banner ad path. The marketplace `SellwildWidget` still
-//   uses a WebView; that surface is intentional.
+//   no WebView in the banner ad path. Marketplace listings render natively
+//   too, via `SellwildFeedView` / `SellwildFeed`.
 //
 // Prebid Mobile + GMA bootstrap automatically on the first ad view — partners
 // don't need to call `MobileAds.shared.start()` themselves. Server URL +
@@ -59,9 +59,9 @@ extension SellwildConfig {
       c.debug = true
     }
 
-    // Passthrough verification: log every CDN key that flowed through to the
-    // widget. Confirms unmapped bidders (MEDIANET, AMX, SOVRN, etc.) survive.
-    if let remote = config.remote {
+    // Passthrough verification: log every CDN key kept on the config.
+    // Confirms unmapped bidders (MEDIANET, AMX, SOVRN, etc.) survive.
+    if let remote = config.remoteValues {
       let keys = remote.keys.sorted()
       print("[Sellwild] configure() resolved. remote passthrough keys:", keys)
     } else {
@@ -86,54 +86,52 @@ extension SellwildConfig {
   }
 }
 
-// ─── A. UIKit — Full Widget ───────────────────────────────────────────────────
+// ─── A. UIKit — All-in-one Native Feed ───────────────────────────────────────
 
-final class WidgetViewController: UIViewController {
+final class FeedViewController: UIViewController {
 
-  private lazy var widgetView = SellwildWidgetView(config: .staticDemo)
+  private lazy var feedView = SellwildFeedView(config: .staticDemo)
 
   override func viewDidLoad() {
     super.viewDidLoad()
     title = "Sellwild"
     view.backgroundColor = .systemBackground
 
-    widgetView.delegate = self
-    widgetView.translatesAutoresizingMaskIntoConstraints = false
-    view.addSubview(widgetView)
+    feedView.delegate = self
+    feedView.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(feedView)
 
     NSLayoutConstraint.activate([
-      widgetView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-      widgetView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-      widgetView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-      widgetView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+      feedView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+      feedView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      feedView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      feedView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
     ])
 
-    widgetView.load()
+    feedView.load()
   }
 }
 
-extension WidgetViewController: SellwildWidgetViewDelegate {
-  func sellwildWidgetViewDidLoad(_ widgetView: SellwildWidgetView) {
-    print("[Sellwild] Widget loaded")
+extension FeedViewController: SellwildFeedViewDelegate {
+  func sellwildFeedDidLoad(_ feed: SellwildFeedView) {
+    print("[Sellwild] Feed loaded")
   }
 
-  func sellwildWidgetView(_ widgetView: SellwildWidgetView, didTapListing listing: SellwildListing) {
-    // listing.url is set for WebView-sourced taps (from window.open interception)
-    if let urlStr = listing.url, let url = URL(string: urlStr) {
-      UIApplication.shared.open(url)
-    }
+  func sellwildFeed(_ feed: SellwildFeedView, didTapListing listing: SellwildListing) -> Bool {
+    // Return false to let the SDK open listing.url in SFSafariViewController.
+    false
   }
 
-  func sellwildWidgetView(_ widgetView: SellwildWidgetView, didReceiveAdImpressionForZoneId zoneId: String) {
+  func sellwildFeed(_ feed: SellwildFeedView, didRecordAdImpressionForZoneId zoneId: String) {
     print("[Sellwild] Ad impression, zoneId:", zoneId)
   }
 
-  func sellwildWidgetView(_ widgetView: SellwildWidgetView, didFailWithError error: Error) {
-    print("[Sellwild] Widget error:", error.localizedDescription)
+  func sellwildFeed(_ feed: SellwildFeedView, didFailWithError message: String) {
+    print("[Sellwild] Feed error:", message)
   }
 }
 
-// ─── B. SwiftUI — Full Widget + Banner ───────────────────────────────────────
+// ─── B. SwiftUI — Native Banners + Feed ─────────────────────────────────────
 
 @available(iOS 14, *)
 struct SellwildDemoView: View {
@@ -180,24 +178,18 @@ struct SellwildDemoView: View {
       .padding()
       .tabItem { Label("Banners", systemImage: "rectangle.3.group") }
 
-      // Tab 2: Marketplace widget (still WebView — that's the right surface
-      // for marketplace listings, not for ad rendering).
-      SellwildWidget(
+      // Tab 2: All-in-one native feed — listings interleaved with native ads.
+      SellwildFeed(
         config: config,
-        onListingTap: { listing in
-          if let urlStr = listing.url, let url = URL(string: urlStr) {
-            UIApplication.shared.open(url)
-          }
-        },
         onLoad: {
-          print("[Sellwild] Widget ready")
+          print("[Sellwild] Feed ready")
         },
-        onError: { error in
-          print("[Sellwild] Widget error:", error.localizedDescription)
+        onError: { message in
+          print("[Sellwild] Feed error:", message)
         }
       )
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .tabItem { Label("Widget", systemImage: "house") }
+      .tabItem { Label("Feed", systemImage: "house") }
 
       // Tab 3: Native listings via SellwildAPIClient
       NativeListingsView(config: config)

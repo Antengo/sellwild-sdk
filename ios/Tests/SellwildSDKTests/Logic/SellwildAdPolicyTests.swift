@@ -63,27 +63,28 @@ final class SellwildAdPolicyTests: XCTestCase {
     // MARK: Resume and detach
 
     func testResumeReloadsWhenTheFirstAuctionNeverFinished() {
-        XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: true, stack: .prebidOnly, refreshMax: 0,
+        XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: true, stack: .prebidOnly, hasRefreshBudget: false,
                                                      hasRenderedCreative: true, keepCreative: true), .reload)
     }
 
     func testResumeRestartsTheGAMRefreshTimer() {
         for stack in [SellwildAdStack.both, .gamOnly] {
-            XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: false, stack: stack, refreshMax: 0,
+            XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: false, stack: stack, hasRefreshBudget: false,
                                                          hasRenderedCreative: false, keepCreative: false), .scheduleRefresh)
         }
     }
 
     func testResumeOnPrebidKeepsTheCreativeOnlyWhenOneRenderedAndTheFlagIsOn() {
-        XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: false, stack: .prebidOnly, refreshMax: 0,
-                                                     hasRenderedCreative: true, keepCreative: true), .none, "refresh off")
-        XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: false, stack: .prebidOnly, refreshMax: 2,
+        XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: false, stack: .prebidOnly, hasRefreshBudget: false,
+                                                     hasRenderedCreative: true, keepCreative: true), .none,
+                       "no refresh budget")
+        XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: false, stack: .prebidOnly, hasRefreshBudget: true,
                                                      hasRenderedCreative: true, keepCreative: true), .keepPrebidCreative)
-        XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: false, stack: .prebidOnly, refreshMax: 2,
+        XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: false, stack: .prebidOnly, hasRefreshBudget: true,
                                                      hasRenderedCreative: true, keepCreative: false), .reloadPrebid)
         var reads = 0
         func keep() -> Bool { reads += 1; return true }
-        XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: false, stack: .prebidOnly, refreshMax: 2,
+        XCTAssertEqual(SellwildAdPolicy.resumeAction(needsReload: false, stack: .prebidOnly, hasRefreshBudget: true,
                                                      hasRenderedCreative: false, keepCreative: keep()), .reloadPrebid)
         XCTAssertEqual(reads, 0, "the flag is not read without a creative to keep")
     }

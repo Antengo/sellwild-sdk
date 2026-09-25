@@ -2,7 +2,7 @@
 
 ## Core
 
-The WebView widget (`SellwildWidgetView` — Prebid.js inside a WebView) WILL NOT PRODUCE THE CPMs NECESSARY FOR THE DEAL. WE NEED NATIVE (Prebid Mobile + GAM via `SellwildAdView` / `SellwildAdBanner`).
+The WebView widget (`SellwildWidgetView` / `SellwildWidget` — Prebid.js inside a WebView) has been REMOVED from iOS, Android, and React Native. It could not produce the CPMs the deal needs. Native (Prebid Mobile + GAM via `SellwildAdView` / `SellwildAdBanner` / `SellwildFeedView` / `SellwildNativeAdView`) is the only supported path. DO NOT reintroduce a WebView ad or listings surface.
 
 ## Release Checklist — iOS SDK
 

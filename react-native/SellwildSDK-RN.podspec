@@ -28,6 +28,8 @@ Pod::Spec.new do |s|
   # The host app must already pull in SellwildSDK (the iOS SDK pod). We
   # depend on it explicitly so `pod install` resolves both with one
   # declaration in the host Podfile.
-  s.dependency 'SellwildSDK', '>= 1.4.0'
+  # Floor tracks this package's version (lockstep releases): the bridge uses
+  # SellwildGeo / SellwildEid / prewarm, which older SellwildSDK pods lack.
+  s.dependency 'SellwildSDK', ">= #{package['version']}"
   s.dependency 'React-Core'
 end

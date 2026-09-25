@@ -1,13 +1,14 @@
 ---
 name: native-first-mobile
 description: |
-  Activate for any work on the Sellwild mobile SDKs (iOS, Android, React Native, Flutter)
+  Activate for any work on the Sellwild mobile SDKs (iOS, Android, React Native)
   involving listings, ad surfaces, the "all-in-one" widget, or partner integrations
   (WeatherBug, Sports Merch, Bargain Hunter, Rtings). Enforces our native-only directive,
   the reproduce-before-fix discipline, and the emulator/sim verification loop we hardened
-  through SDK 1.3.0–1.3.4. Use whenever a task touches `SellwildWidgetView`,
-  `SellwildWidget`, `SellwildAdView`, `SellwildAdBanner`, `fetchListings`, or
-  `useSellwildListings`.
+  through SDK 1.3.0–1.3.4. Use whenever a task touches `SellwildAdView`,
+  `SellwildAdBanner`, `SellwildFeedView`, `SellwildFeed`, `SellwildNativeAdView`,
+  `fetchListings`, or `useSellwildListings` — or anyone asks to bring back the
+  removed WebView widget.
 ---
 
 # native-first-mobile
@@ -20,22 +21,21 @@ cannot earn the CPMs partner deals are sized against. We are done with that patt
 
 The WebView widget (`SellwildWidgetView` on iOS/Android, `SellwildWidget` in RN, the
 embedded `partner.js`) **WILL NOT PRODUCE THE CPMs NECESSARY FOR THE DEAL. WE NEED
-NATIVE.** This is also stated in `AGENTS.md` at the repo root.
+NATIVE.** It has been **removed** from iOS, Android, and React Native. This is also
+stated in `AGENTS.md` at the repo root.
 
 Concretely:
 
 - The supported monetization path is **native Prebid Mobile + GAM** via
-  `SellwildAdView` / `SellwildAdBanner` (iOS, Android), the RN bindings, and the
-  forthcoming Flutter equivalent.
+  `SellwildAdView` / `SellwildAdBanner` (iOS, Android) and the RN bindings.
 - The supported listings path is **native fetch + native render**:
   - iOS: `SellwildAPIClient.fetchListings(...)`
   - Android: `SellwildAPIClient.fetchListings(...)`
   - React Native: `useSellwildListings(config)`
-  - Flutter: (TBD — pattern matches RN hook)
 - The best-of-both path is **native listings + native ads interspersed in the same
-  feed**, as demonstrated in `samples/demo-app/App.tsx`.
-- The WebView widget is **deprecated**. Do not add features, do not write bug-fix
-  releases that target it, do not show it as a primary example in docs.
+  feed**: `SellwildFeedView` (iOS/Android), SwiftUI `SellwildFeed`, RN `SellwildFeed`.
+- The WebView widget is **removed**. Do not reintroduce a WebView ad or listings
+  surface, and do not document it as an option.
 
 ## Reproduce before you fix
 
@@ -52,9 +52,8 @@ Before any mobile SDK change:
    - Android partner issues → boot the `Pixel_Fold_API_36` AVD (or another configured
      AVD) and install via `adb`.
    - React Native partner issues → run `samples/demo-app` against either simulator.
-2. **Confirm the actual code path.** Read the relevant `partner.js` flow, the
-   `WebViewClient` / `WKUIDelegate` / RN `WebView` glue, and the JS bridge. Don't
-   guess which interception layer is in play.
+2. **Confirm the actual code path.** Read the native view, its delegate / listener,
+   and (for RN) the view-manager bridge. Don't guess which layer is in play.
 3. **Add a log line that proves you reproduced.** If you cannot show the bad behavior
    in a console, you have not reproduced it.
 
@@ -80,8 +79,8 @@ cd android && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Content
   ./gradlew clean test publishReleasePublicationToMavenLocal
 
 # 4. Install and run a minimal native test app that depends on com.sellwild:sdk
-#    from `mavenLocal()`. Don't test inside the RN demo — RN ships its own WebView
-#    component and will mask native bugs.
+#    from `mavenLocal()`. Don't test inside the RN demo — the RN bridge layer
+#    will mask native bugs.
 cd /tmp/widgettest && ./gradlew installDebug
 ~/Library/Android/sdk/platform-tools/adb shell am start -n com.test.widgettest/.MainActivity
 
@@ -94,8 +93,8 @@ Notes that bit us:
 - Gradle 8.14.2 does **not** run on Java 25. Always set `JAVA_HOME` to Java 17 for SDK
   builds. SDK 1.3.4 reverted to Kotlin 2.1.20 + Gradle 8.14.2 to keep partners on
   Java 17/21 unblocked. Do not silently upgrade Kotlin or Gradle.
-- The RN demo (`samples/demo-app`) uses RN's `WebView` component, not the native
-  `SellwildWidgetView`. It is **not** a proxy for native widget testing.
+- The RN demo (`samples/demo-app`) runs through the RN bridge. It is **not** a proxy
+  for native SDK testing.
 
 ### iOS
 
@@ -162,6 +161,8 @@ When invoked inside a goal (`/goal sellwild-native-audit`,
 | Native banner | `SellwildAdView` / `SellwildAdBanner` | `SellwildAdView` | `SellwildBanner` | **supported** |
 | Native listings fetch | `SellwildAPIClient.fetchListings` | `SellwildAPIClient.fetchListings` | `useSellwildListings` | **supported** |
 | Native listing card | partner-rendered | partner-rendered | `SellwildListingCard` | **supported** |
-| WebView widget | `SellwildWidgetView` | `SellwildWidgetView` | `SellwildWidget` | **deprecated** |
+| All-in-one native feed | `SellwildFeedView` / `SellwildFeed` | `SellwildFeedView` | `SellwildFeed` | **supported** |
+| Native ad view | `SellwildNativeAdView` | `SellwildNativeAdView` | — | **supported** |
+| WebView widget | `SellwildWidgetView` | `SellwildWidgetView` | `SellwildWidget` | **removed** |
 
 If in doubt: native.

@@ -37,7 +37,7 @@ Integration guide for the Sellwild native ad SDK. The SDK runs server-side heade
 | Swift | 5.5 or later |
 | macOS (build host) | 14.0 (Sonoma) |
 
-As of 1.3.2 the SDK supports `PrebidMobile` `>= 3.0.1, < 4.0` and `Google-Mobile-Ads-SDK` `>= 12.0, < 14.0` for native banner rendering. Both are pulled in transitively by CocoaPods / SPM; no additional declaration is required. If your app already pins to a specific version of GMA (12.x or 13.x) or Prebid Mobile (3.x), the SDK will resolve against it. The marketplace `SellwildWidget` continues to use `WebKit`, which ships with iOS.
+As of 1.3.2 the SDK supports `PrebidMobile` `>= 3.0.1, < 4.0` and `Google-Mobile-Ads-SDK` `>= 12.0, < 14.0` for native banner rendering. Both are pulled in transitively by CocoaPods / SPM; no additional declaration is required. If your app already pins to a specific version of GMA (12.x or 13.x) or Prebid Mobile (3.x), the SDK will resolve against it.
 
 ::: tip Upgrading from GMA 11.x
 SellwildSDK requires `Google-Mobile-Ads-SDK` 12.0 or newer. If your project is still on GMA 11.x, see Google's [11.x → 12.x migration guide](https://developers.google.com/admob/ios/migration). You do not need to jump to GMA 13.x — 12.x is fully supported.
@@ -119,7 +119,7 @@ As of 1.3.0, `SellwildAdView` no longer renders banner creatives in a WebView. I
 - **First-use bootstrap.** The first time a `SellwildAdView` is created, `SellwildPrebidMobile.bootstrap()` initializes Prebid Mobile (host, account ID, timeouts) using values from `SellwildConfig.prebidServer`. Subsequent ad views reuse the initialized stack.
 - **Auction flow.** `SellwildAdView.load()` builds an OpenRTB request with PrebidMobile, sends it to `prebid.sellwild.com`, applies the winning bid's keywords as targeting on a `GAMRequest`, then calls `AdManagerBannerView.load(_:)`. The GAM SDK selects between the Prebid line item and any direct-sold demand and renders natively.
 - **Required Info.plist key.** GMA will not initialize without `GADApplicationIdentifier`. See [Info.plist Configuration](#infoplist-configuration) below.
-- **Marketplace listings.** `SellwildWidgetView` (the marketplace listings surface) is a separate component and is not part of the ad path. If your integration only requires banner ads, you do not need to use it.
+- **Marketplace listings.** Use [`SellwildFeedView` / `SellwildFeed`](#native-marketplace-feed-1-3-5) for the all-in-one listings surface. The WebView-based `SellwildWidgetView` / `SellwildWidget` have been removed.
 
 If you want to bypass the native ad path entirely and consume bids yourself, see [Direct Prebid Server Auction](#prebid-server-configuration).
 
@@ -143,13 +143,13 @@ struct MarketplaceView: View {
     var body: some View {
         SellwildFeed(
             config: config,
-            onLoad: { print("Feed loaded") },
             onListingTap: { listing in
                 print("Tapped: \(listing.title)")
                 return false // false = SDK opens in SFSafariViewController
             },
             onAdImpression: { zoneId in print("Ad impression: \(zoneId)") },
             onAdClicked: { zoneId in print("Ad clicked: \(zoneId)") },
+            onLoad: { print("Feed loaded") },
             onError: { error in print("Feed error: \(error)") }
         )
     }
@@ -216,7 +216,7 @@ class FeedViewController: UIViewController, SellwildFeedViewDelegate {
 
 The `didTapListing` delegate method returns a `Bool`:
 
-- **Return `false`** (recommended): The SDK opens the listing URL in `SFSafariViewController`. This matches the WebView widget behavior.
+- **Return `false`** (recommended): The SDK opens the listing URL in `SFSafariViewController`.
 - **Return `true`**: You handle navigation yourself. The SDK does nothing.
 
 ### Embedding in a Scroll View (1.4.0+)
@@ -256,7 +256,7 @@ The feed respects these CDN config keys:
 
 ### Per-platform ad zones
 
-`MOBILE_ZID` (feed zones) and `MOBILE_BANNER_ZID` (320×50 banner) can resolve to iOS-specific Prebid stored-impression IDs. On iOS the SDK uses `MOBILE_ZID_IOS` / `MOBILE_BANNER_ZID_IOS` when present and non-empty, otherwise it falls back to the unsuffixed key. The pick is made in the native Swift mapper keyed on the runtime OS, so React Native and Flutter apps running on iOS resolve the `_IOS` keys automatically. If no suffixed key is set, behavior is unchanged. See [Configuration → Per-platform ad zones](/guide/configuration#per-platform-ad-zones).
+`MOBILE_ZID` (feed zones) and `MOBILE_BANNER_ZID` (320×50 banner) can resolve to iOS-specific Prebid stored-impression IDs. On iOS the SDK uses `MOBILE_ZID_IOS` / `MOBILE_BANNER_ZID_IOS` when present and non-empty, otherwise it falls back to the unsuffixed key. The pick is made in the native Swift mapper keyed on the runtime OS, so React Native apps running on iOS resolve the `_IOS` keys automatically. If no suffixed key is set, behavior is unchanged. See [Configuration → Per-platform ad zones](/guide/configuration#per-platform-ad-zones).
 
 ---
 
@@ -532,7 +532,7 @@ extension AdViewController: SellwildAdViewDelegate {
 
 ## SwiftUI Integration
 
-The SDK provides `SellwildAdBanner` and `SellwildWidget` as native SwiftUI views. Both require iOS 14 or later.
+The SDK provides `SellwildAdBanner` and `SellwildFeed` as native SwiftUI views. Both require iOS 14 or later. See [Native Marketplace Feed](#native-marketplace-feed-1-3-5) for `SellwildFeed`.
 
 ### Quick Start (copy-paste this)
 
@@ -617,23 +617,6 @@ struct AdContentView: View {
             .frame(width: 300, height: 250)
 
             Spacer()
-
-            // Listing widget
-            SellwildWidget(
-                config: config,
-                onListingTap: { listing in
-                    if let url = listing.url, let link = URL(string: url) {
-                        UIApplication.shared.open(link)
-                    }
-                },
-                onLoad: {
-                    print("[Sellwild] Widget loaded")
-                },
-                onError: { error in
-                    print("[Sellwild] Widget error: \(error.localizedDescription)")
-                }
-            )
-            .frame(height: 400)
 
             // 320x50 banner at the bottom
             SellwildAdBanner(
@@ -818,7 +801,7 @@ Task {
         // Optional: override CDN values with app-controlled ones.
         c.appBundleId = Bundle.main.bundleIdentifier
     }
-    // Hand `config` to your SellwildAdView / SellwildAdBanner / SellwildWidget.
+    // Hand `config` to your SellwildAdView / SellwildAdBanner / SellwildFeedView.
 }
 ```
 
@@ -832,7 +815,7 @@ See [Configuration → Remote Config](./configuration#remote-config) for the ful
 
 ## Prebid Server Configuration
 
-The SDK routes header bidding through Prebid Server. The auction is initiated in-process by Prebid Mobile and resolved server-side, which eliminates the cookie and IDFA limitations of running header bidding inside a WebView.
+The SDK routes header bidding through Prebid Server. The auction is initiated in-process by Prebid Mobile and resolved server-side. No on-device waterfall, no cookie dependency.
 
 ```swift
 var config = SellwildConfig(partnerCode: "weatherbug")
@@ -865,7 +848,7 @@ When `prebidServer` is set on `SellwildConfig`, the first `SellwildAdView.load()
 3. Attaches the winning bid's keywords to a `GAMRequest` as targeting.
 4. Calls `AdManagerBannerView.load(_:)`. Google Ad Manager picks between the Prebid line item and any direct-sold demand and renders the creative through the native GMA view.
 
-Because the auction runs natively, the SDK can supply real device signals (IDFV, App Tracking Transparency status, SKAdNetwork attribution) to Prebid Server -- a level of demand fidelity that is not possible from a WebView.
+Because the auction runs natively, the SDK can supply real device signals (IDFV, App Tracking Transparency status, SKAdNetwork attribution) to Prebid Server.
 
 ---
 
@@ -1103,7 +1086,7 @@ This enables verbose Prebid Mobile and Google Mobile Ads logging on the Xcode co
 
 ### SellwildConfig
 
-Primary configuration object. All ad views and widgets read from this struct.
+Primary configuration object. All ad views and feeds read from this struct.
 
 ```swift
 public struct SellwildConfig: Codable {
@@ -1175,16 +1158,17 @@ SellwildAdBanner(
 .frame(width: 320, height: 50)
 ```
 
-### SellwildWidget (SwiftUI)
+### SellwildFeed (SwiftUI)
 
 ```swift
-SellwildWidget(
+SellwildFeed(
     config: config,
-    onListingTap: { listing in /* ... */ },
+    onListingTap: { listing in false }, // false = SDK opens SFSafariViewController
+    onAdImpression: { zoneId in /* ... */ },
+    onAdClicked: { zoneId in /* ... */ },
     onLoad: { /* ... */ },
-    onError: { error in /* ... */ }
+    onError: { message in /* ... */ }
 )
-.frame(height: 400)
 ```
 
 ### SellwildAPIClient

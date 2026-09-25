@@ -54,7 +54,7 @@ class SellwildPrebidMobileTest {
     // ── Resolvers ────────────────────────────────────────────────────────────
 
     @Test
-    fun `the Prebid Server is the typed config, else an S2S_CONFIG object, else Sellwild's`() {
+    fun `the Prebid Server is the typed config, else S2S_CONFIG (object or text), else Sellwild's`() {
         val typed = SellwildConfig(
             partnerCode = "weatherbug",
             prebidServer = PrebidServerConfig("abc-123", "https://prebid.example.com/openrtb2/auction", listOf("appnexus")),
@@ -69,14 +69,14 @@ class SellwildPrebidMobileTest {
         val fromS2s = SellwildPrebidMobile.resolvePrebidServer(SellwildConfig(partnerCode = "weatherbug"), s2s)
         val fromAlternate = SellwildPrebidMobile.resolvePrebidServer(SellwildConfig(partnerCode = "weatherbug"), s2sAlternateKeys)
         val fromEmpty = SellwildPrebidMobile.resolvePrebidServer(SellwildConfig(partnerCode = "weatherbug"), s2sEmpty)
-        // The CMS text form is not read (known drift, drift/android.json).
+        // The CMS text form (a JS object literal) is read too (origin c55efa0).
         val fromText = SellwildPrebidMobile.resolvePrebidServer(SellwildConfig(partnerCode = "weatherbug"), AppConfigFactory.checked(mapOf("S2S_CONFIG" to "{ accountId: 'x' }")))
 
         assertEquals("https://prebid.example.com/openrtb2/auction" to "abc-123", fromTyped.url to fromTyped.accountId)
         assertEquals("https://prebid-cdn.example.com/openrtb2/auction" to "cdn-account", fromS2s.url to fromS2s.accountId)
         assertEquals("https://pbs.example.com/a" to "acct-2", fromAlternate.url to fromAlternate.accountId)
         assertEquals("https://prebid.sellwild.com/openrtb2/auction" to "weatherbug", fromEmpty.url to fromEmpty.accountId)
-        assertEquals("https://prebid.sellwild.com/openrtb2/auction" to "weatherbug", fromText.url to fromText.accountId)
+        assertEquals("https://prebid.sellwild.com/openrtb2/auction" to "x", fromText.url to fromText.accountId)
     }
 
     @Test

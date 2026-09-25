@@ -309,7 +309,7 @@ test('bad entries are refused and nothing is written', () => {
 test('a new code lands in order, is recorded in sources, and reaches only its mirrors', () => {
   const tree = makeTree()
   try {
-    const [, , , iosBefore, , flutterBefore] = tree.snapshot()
+    const [, , , iosBefore] = tree.snapshot()
     const sourcesBefore = tree.sources()
     const dayBefore = localDate(new Date())
     const r = runAdd(tree, [JSON.stringify(good), '--note', 'Probe for the add-code test.'])
@@ -331,9 +331,8 @@ test('a new code lands in order, is recorded in sources, and reaches only its mi
     assert.equal(tree.registryText(), jsonText(expectedList))
     assert.equal(tree.sourcesText(), jsonText({ ...sourcesBefore, added: [...sourcesBefore.added, record] }))
 
-    const [, , , iosAfter, , flutterAfter] = tree.snapshot()
+    const [, , , iosAfter] = tree.snapshot()
     assert.ok(iosAfter === iosBefore, 'ios is not a client, so its mirror is untouched')
-    assert.ok(flutterAfter === flutterBefore, 'flutter is not a client, so its mirror is untouched')
     assert.match(fs.readFileSync(path.join(tree.root, MIRRORS[0].path), 'utf8'), /'listings\.probe\.invalid',/)
     assert.match(fs.readFileSync(path.join(tree.root, MIRRORS[2].path), 'utf8'), /LISTINGS_PROBE_INVALID = "listings\.probe\.invalid"/)
     assert.deepEqual(staleMirrors(tree.registry(), tree.root), [])
@@ -945,11 +944,11 @@ test('add-code writes every temp file in its contracts dir, never next to a mirr
   const tree = makeTree()
   try {
     const rename = t.mock.method(fs, 'renameSync')
-    const result = await addCode({ entry: { ...good, clients: ['core', 'ios', 'android', 'flutter'] }, contractsDir: tree.contracts })
+    const result = await addCode({ entry: { ...good, clients: ['core', 'ios', 'android'] }, contractsDir: tree.contracts })
     assert.equal(result.action, 'added')
-    assert.equal(result.mirrors.length, 4)
+    assert.equal(result.mirrors.length, 3)
     const temps = rename.mock.calls.map((c) => c.arguments[0]).filter((from) => /\.tmp-/.test(from))
-    assert.equal(temps.length, 6, 'registry, sources and four mirrors')
+    assert.equal(temps.length, 5, 'registry, sources and three mirrors')
     for (const from of temps) assert.equal(path.dirname(from), tree.contracts, from)
     for (const m of MIRRORS) {
       const dir = path.dirname(path.join(tree.root, m.path))

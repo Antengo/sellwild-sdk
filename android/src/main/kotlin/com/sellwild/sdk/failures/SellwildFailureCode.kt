@@ -46,16 +46,8 @@ object SellwildFailureCode {
     const val BRIDGE_EVENT_EMIT_EXCEPTION = "bridge.event_emit.exception"
     /** setGeo got a payload it could not read: one that is not an object (geo was cleared) or a field of the wrong type (that field was dropped). */
     const val BRIDGE_GEO_INVALID = "bridge.geo.invalid"
-    /** A WebView bridge message had a missing or wrong-typed field (type, url, listing, zoneId, message). */
-    const val BRIDGE_MESSAGE_INVALID = "bridge.message.invalid"
-    /** A WebView bridge message was not valid JSON. */
-    const val BRIDGE_MESSAGE_PARSE = "bridge.message.parse"
-    /** A WebView bridge message had an unknown type. */
-    const val BRIDGE_MESSAGE_UNSUPPORTED = "bridge.message.unsupported"
     /** A native view got missing props or an unsupported size label, so no ad was set up. */
     const val BRIDGE_PROPS_INVALID = "bridge.props.invalid"
-    /** The widget page reported a JavaScript error through the bridge ERROR message. */
-    const val BRIDGE_SCRIPT_EXCEPTION = "bridge.script.exception"
     /** Replacement action when a call site passes a code that fails the registry format. The label keeps the caller component. Never pass it directly. */
     const val CLIENT_CODE_INVALID = "client.code.invalid"
     /** AD_STACK or an AD_STACK_BY_ZONE entry is not a known mode (or not a map); the default is used. */
@@ -150,16 +142,6 @@ object SellwildFailureCode {
     const val LOCALIZED_URL_INVALID = "localized.url.invalid"
     /** Writing a stored value (localStorage, disk cache) failed. */
     const val STORAGE_WRITE_EXCEPTION = "storage.write.exception"
-    /** A host app callback (onLoad, onListingTap, onAdImpression, onError) threw inside the SDK. */
-    const val WIDGET_HOST_CALLBACK_EXCEPTION = "widget.host_callback.exception"
-    /** The native widget view was loaded before setup(). */
-    const val WIDGET_SETUP_MISSING = "widget.setup.missing"
-    /** The widget WebView got an HTTP error status (4xx or 5xx) for its page or a main-frame resource. */
-    const val WIDGET_WEBVIEW_LOAD_HTTP = "widget.webview_load.http"
-    /** The widget WebView failed to load its page or a main resource (offline, DNS, TLS, navigation failure). */
-    const val WIDGET_WEBVIEW_LOAD_NETWORK = "widget.webview_load.network"
-    /** The WebView content process crashed or was killed (iOS webViewWebContentProcessDidTerminate, Android onRenderProcessGone). The widget is blank until reloaded. */
-    const val WIDGET_WEBVIEW_PROCESS_EXCEPTION = "widget.webview_process.exception"
 
     /** Every code above, in code order. */
     val ALL: List<String> = listOf(
@@ -181,11 +163,7 @@ object SellwildFailureCode {
         BRIDGE_EIDS_INVALID,
         BRIDGE_EVENT_EMIT_EXCEPTION,
         BRIDGE_GEO_INVALID,
-        BRIDGE_MESSAGE_INVALID,
-        BRIDGE_MESSAGE_PARSE,
-        BRIDGE_MESSAGE_UNSUPPORTED,
         BRIDGE_PROPS_INVALID,
-        BRIDGE_SCRIPT_EXCEPTION,
         CLIENT_CODE_INVALID,
         CONFIG_ADSTACK_INVALID,
         CONFIG_APPLY_EXCEPTION,
@@ -233,11 +211,6 @@ object SellwildFailureCode {
         LOCALIZED_FETCH_TIMEOUT,
         LOCALIZED_URL_INVALID,
         STORAGE_WRITE_EXCEPTION,
-        WIDGET_HOST_CALLBACK_EXCEPTION,
-        WIDGET_SETUP_MISSING,
-        WIDGET_WEBVIEW_LOAD_HTTP,
-        WIDGET_WEBVIEW_LOAD_NETWORK,
-        WIDGET_WEBVIEW_PROCESS_EXCEPTION,
     )
 }
 

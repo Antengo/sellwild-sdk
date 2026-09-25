@@ -49,6 +49,14 @@ internal object FeedSchedule {
     fun normalize(col1: String?): String = (col1?.takeIf { it.isNotBlank() } ?: DEFAULT).uppercase()
 
     /**
+     * The banner zone: the first non-blank of MOBILE_BANNER_ZID, BANNER_ZID and
+     * BOTTOM_BANNER_ZID. The CDN can ship MOBILE_BANNER_ZID as "", which must not shadow
+     * the BANNER_ZID fallback.
+     */
+    fun bannerZone(mobileBannerZid: String?, bannerZid: String?, bottomBannerZid: String?): String? =
+        listOf(mobileBannerZid, bannerZid, bottomBannerZid).firstOrNull { !it.isNullOrBlank() }
+
+    /**
      * The rows for [schedule]. An ad token with no zone to fill is dropped and reported as
      * feed.ad_zone.missing, one issue per kind with the count dropped.
      *

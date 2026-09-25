@@ -4,10 +4,8 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import Ajv2020 from 'ajv/dist/2020'
 import addFormats from 'ajv-formats'
 import { eventQueue } from '@sellwild/sdk-core'
-import widgetLoaded from '../../contracts/fixtures/bridge-message/valid/widget-loaded.json'
 import androidRenderBatch from '../../contracts/fixtures/events-batch/valid/android-render.json'
 import appConfigSchema from '../../contracts/schemas/app-config.schema.json'
-import bridgeMessageSchema from '../../contracts/schemas/bridge-message.schema.json'
 import clientFailureEventSchema from '../../contracts/schemas/client-failure-event.schema.json'
 import eventsBatchSchema from '../../contracts/schemas/events-batch.schema.json'
 import localizedListingsConfigSchema from '../../contracts/schemas/localized-listings-config.schema.json'
@@ -25,7 +23,6 @@ const ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true }
 addFormats(ajv)
 ajv.addSchema([clientFailureEventSchema, appConfigSchema, localizedListingsConfigSchema])
 const validateEventsBatch = ajv.compile(eventsBatchSchema)
-const validateBridgeMessage = ajv.compile(bridgeMessageSchema)
 const validateNativeConfig = ajv.compile(rnNativeConfigSchema)
 
 function render(element: React.ReactElement): ReactTestRenderer {
@@ -43,7 +40,6 @@ function hosts(tree: ReactTestRenderer, type: string): ReactTestInstance[] {
 describe('package index', () => {
   it('exports the components, the hook, the native setters and the core re-exports', () => {
     const functions = [
-      'SellwildWidget',
       'SellwildBanner',
       'SellwildFeed',
       'SellwildListingCard',
@@ -120,26 +116,6 @@ describe('network block (contract A8)', () => {
 })
 
 describe('react-native stubs', () => {
-  it('render SellwildWidget as a WebView that loads the widget HTML', () => {
-    const onLoad = vi.fn()
-    const tree = render(<sdk.SellwildWidget config={{ partnerCode: 'harness' }} onLoad={onLoad} />)
-
-    const [webView] = hosts(tree, 'WebView')
-    expect(webView.props.source.baseUrl).toBe('https://widget.sellwild.com/')
-    expect(webView.props.source.html).toContain('partner-code="harness"')
-    expect(hosts(tree, 'ActivityIndicator')).toHaveLength(1)
-
-    // The recorded onMessage prop drives the component like the real bridge.
-    expect(validateBridgeMessage(widgetLoaded), ajv.errorsText(validateBridgeMessage.errors)).toBe(true)
-    act(() => {
-      webView.props.onMessage({ nativeEvent: { data: JSON.stringify(widgetLoaded) } })
-    })
-    expect(onLoad).toHaveBeenCalledOnce()
-    expect(hosts(tree, 'ActivityIndicator')).toHaveLength(0)
-
-    act(() => tree.unmount())
-  })
-
   it('render SellwildBanner through the native view manager', () => {
     const config = sdk.buildConfig({ partnerCode: 'harness' })
     const tree = render(<sdk.SellwildBanner config={config} size="300x250" zoneId={43} />)

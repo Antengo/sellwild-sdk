@@ -15,7 +15,8 @@
     "lifecycle": "Normal ad or view lifecycle (expiry, disposal). Not a failure.",
     "dead-code": "Programmer-error path in dead code pending the delete decision.",
     "security": "Security review item, not a runtime failure path.",
-    "unreachable": "The failure cannot happen on this platform: the call it guards never fails there (verified). The code stays for the platforms where it can."
+    "unreachable": "The failure cannot happen on this platform: the call it guards never fails there (verified). The code stays for the platforms where it can.",
+    "removed": "The code this point was in was removed upstream (origin/main 2026-09-23: df551f7 removed the Flutter SDK, 9ff579f retired the WebView widget and banner paths). Nothing emits it any more."
   },
   "added": [
     {
@@ -39,11 +40,6 @@
       "note": "Phase 2 contract: timeouts get their own reason, split from the network failure the survey proposed."
     },
     {
-      "code": "widget.webview_process.exception",
-      "date": "2026-09-23",
-      "note": "Phase 2 contract: the WebView content process crash (iOS webViewWebContentProcessDidTerminate, Android onRenderProcessGone) had no survey point."
-    },
-    {
       "code": "widget.webview_load.http",
       "date": "2026-09-23",
       "note": "Phase 3 prep: the React Native lane needs it for react-native-webview onHttpError; iOS (WKNavigationResponse status) and Android (WebViewClient.onReceivedHttpError, minSdk 23) can observe it too. Not flutter: NavigationDelegate.onHttpError needs webview_flutter 4.8.0 and the pubspec floor is ^4.4.0."
@@ -57,11 +53,6 @@
       "code": "listings.tag_cache.parse",
       "date": "2026-09-24",
       "note": "Phase 3 sdk-core: fetchTagCacheListings swallowed a non-JSON 2xx body into []; it now reports it, split from listings.tag_cache.network."
-    },
-    {
-      "code": "widget.webview_load.exception",
-      "date": "2026-09-24",
-      "note": "Flutter reported a failed WebView setup call as widget.webview_load.network, but a platform exception such as a StateError is not a network failure (phase-3 verifier, sdk-flutter-rest round 2)."
     },
     {
       "code": "geo.seed.exception",
@@ -87,6 +78,11 @@
       "code": "growthcode.sync.exception",
       "date": "2026-09-24",
       "note": "Android phase 3 (verifier round 3): the sync's catch also covers SharedPreferences reads, which were reported as growthcode.sync.network."
+    },
+    {
+      "code": "config.apply.exception",
+      "date": "2026-09-25",
+      "note": "Its only phase-1 point was in the Flutter SDK, which origin removed (df551f7); Android still reports it when SellwildSDK.apply throws on a CDN config."
     }
   ],
   "points": [
@@ -508,7 +504,7 @@
       "line": 91,
       "proposedCode": "widget_load_before_setup",
       "currentHandling": "thrown",
-      "code": "widget.setup.missing"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-android",
@@ -516,7 +512,7 @@
       "line": 158,
       "proposedCode": "widget_bridge_message_invalid",
       "currentHandling": "swallowed",
-      "code": "bridge.message.parse"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-android",
@@ -524,7 +520,7 @@
       "line": 153,
       "proposedCode": "widget_js_error",
       "currentHandling": "event",
-      "code": "bridge.script.exception"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-android",
@@ -532,7 +528,7 @@
       "line": 117,
       "proposedCode": "widget_webview_load_failed",
       "currentHandling": "none",
-      "code": "widget.webview_load.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-android",
@@ -548,7 +544,7 @@
       "line": 280,
       "proposedCode": "remote_config_parse_failed",
       "currentHandling": "swallowed",
-      "code": "config.remote_values.parse"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-android",
@@ -876,7 +872,7 @@
       "line": 94,
       "proposedCode": "widget_message_parse_failed",
       "currentHandling": "swallowed",
-      "code": "bridge.message.parse"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-core-rn",
@@ -884,7 +880,7 @@
       "line": 91,
       "proposedCode": "widget_js_error",
       "currentHandling": "event",
-      "code": "bridge.script.exception"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-core-rn",
@@ -892,7 +888,7 @@
       "line": 122,
       "proposedCode": "widget_webview_load_failed",
       "currentHandling": "event",
-      "code": "widget.webview_load.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-core-rn",
@@ -900,7 +896,7 @@
       "line": 68,
       "proposedCode": "widget_listing_click_invalid",
       "currentHandling": "silent-fallback",
-      "code": "bridge.message.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-core-rn",
@@ -908,7 +904,7 @@
       "line": 305,
       "proposedCode": "widget_script_load_failed",
       "currentHandling": "none",
-      "code": "widget.script_load.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-core-rn",
@@ -917,7 +913,7 @@
       "proposedCode": "widget_load_unverified",
       "currentHandling": "none",
       "note": "Needs a real render signal plus a watchdog before the timeout can be logged.",
-      "code": "widget.load.timeout"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-core-rn",
@@ -949,7 +945,7 @@
       "line": 381,
       "proposedCode": "banner_html_ad_load_failed",
       "currentHandling": "none",
-      "code": "ad.banner_script.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-core-rn",
@@ -1094,7 +1090,7 @@
       "line": 51,
       "proposedCode": "config_fetch_failed",
       "currentHandling": "swallowed",
-      "code": "config.fetch.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1102,7 +1098,7 @@
       "line": 54,
       "proposedCode": "config_fetch_timeout",
       "currentHandling": "swallowed",
-      "code": "config.fetch.timeout"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1110,7 +1106,7 @@
       "line": 55,
       "proposedCode": "config_http_status",
       "currentHandling": "silent-fallback",
-      "code": "config.fetch.http"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1118,7 +1114,7 @@
       "line": 56,
       "proposedCode": "config_parse_failed",
       "currentHandling": "swallowed",
-      "code": "config.fetch.parse"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1126,7 +1122,7 @@
       "line": 56,
       "proposedCode": "config_shape_invalid",
       "currentHandling": "swallowed",
-      "code": "config.parse.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1134,7 +1130,7 @@
       "line": 59,
       "proposedCode": "config_apply_failed",
       "currentHandling": "swallowed",
-      "code": "config.apply.exception"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1142,7 +1138,7 @@
       "line": 65,
       "proposedCode": "config_overrides_threw",
       "currentHandling": "thrown",
-      "code": "config.overrides.exception"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1150,7 +1146,7 @@
       "line": 71,
       "proposedCode": "config_value_type_mismatch",
       "currentHandling": "silent-fallback",
-      "code": "config.field.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1158,7 +1154,7 @@
       "line": 128,
       "proposedCode": "config_ad_stack_unknown",
       "currentHandling": "silent-fallback",
-      "code": "config.adstack.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1166,7 +1162,7 @@
       "line": 131,
       "proposedCode": "config_ad_stack_by_zone_invalid",
       "currentHandling": "silent-fallback",
-      "code": "config.adstack.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1174,7 +1170,7 @@
       "line": 144,
       "proposedCode": "config_refresh_interval_suspicious",
       "currentHandling": "none",
-      "code": "config.refresh_interval.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1182,7 +1178,7 @@
       "line": 18,
       "proposedCode": "listings_fetch_failed",
       "currentHandling": "thrown",
-      "code": "listings.fetch.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1190,7 +1186,7 @@
       "line": 19,
       "proposedCode": "listings_http_status",
       "currentHandling": "thrown",
-      "code": "listings.fetch.http"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1198,7 +1194,7 @@
       "line": 23,
       "proposedCode": "listings_parse_failed",
       "currentHandling": "thrown",
-      "code": "listings.fetch.parse"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1206,7 +1202,7 @@
       "line": 24,
       "proposedCode": "listings_shape_invalid",
       "currentHandling": "thrown",
-      "code": "listings.parse.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1214,7 +1210,7 @@
       "line": 25,
       "proposedCode": "listings_item_dropped",
       "currentHandling": "silent-fallback",
-      "code": "listings.item.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1222,7 +1218,7 @@
       "line": 43,
       "proposedCode": "api_client_closed",
       "currentHandling": "thrown",
-      "code": "listings.client.missing"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1246,7 +1242,7 @@
       "line": 95,
       "proposedCode": "listing_parse_failed",
       "currentHandling": "thrown",
-      "code": "listings.item.parse"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1254,7 +1250,7 @@
       "line": 88,
       "proposedCode": "listing_photo_dropped",
       "currentHandling": "silent-fallback",
-      "code": "listings.item.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1262,7 +1258,7 @@
       "line": 115,
       "proposedCode": "listing_price_unparseable",
       "currentHandling": "silent-fallback",
-      "code": "listings.item.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1270,7 +1266,7 @@
       "line": 60,
       "proposedCode": "listing_image_load_failed",
       "currentHandling": "silent-fallback",
-      "code": "feed.image.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1278,7 +1274,7 @@
       "line": 100,
       "proposedCode": "config_color_invalid",
       "currentHandling": "silent-fallback",
-      "code": "config.color.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1286,7 +1282,7 @@
       "line": 112,
       "proposedCode": "listing_currency_unknown",
       "currentHandling": "silent-fallback",
-      "code": "listings.item.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1294,7 +1290,7 @@
       "line": 110,
       "proposedCode": "widget_web_resource_error",
       "currentHandling": "event",
-      "code": "widget.webview_load.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1302,7 +1298,7 @@
       "line": 94,
       "proposedCode": "widget_load_timeout",
       "currentHandling": "none",
-      "code": "widget.load.timeout"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1310,7 +1306,7 @@
       "line": 119,
       "proposedCode": "widget_bridge_parse_failed",
       "currentHandling": "swallowed",
-      "code": "bridge.message.parse"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1318,7 +1314,7 @@
       "line": 129,
       "proposedCode": "widget_bridge_shape_invalid",
       "currentHandling": "swallowed",
-      "code": "bridge.message.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1326,7 +1322,7 @@
       "line": 121,
       "proposedCode": "widget_bridge_unknown_type",
       "currentHandling": "silent-fallback",
-      "code": "bridge.message.unsupported"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1334,7 +1330,7 @@
       "line": 131,
       "proposedCode": "widget_listing_click_empty",
       "currentHandling": "silent-fallback",
-      "code": "bridge.message.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1350,7 +1346,7 @@
       "line": 149,
       "proposedCode": "host_callback_threw",
       "currentHandling": "swallowed",
-      "code": "widget.host_callback.exception"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1358,7 +1354,7 @@
       "line": 144,
       "proposedCode": "widget_js_error",
       "currentHandling": "event",
-      "code": "bridge.script.exception"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1366,7 +1362,7 @@
       "line": 275,
       "proposedCode": "widget_script_load_failed",
       "currentHandling": "none",
-      "code": "widget.script_load.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1383,7 +1379,7 @@
       "proposedCode": "widget_loaded_unverified",
       "currentHandling": "silent-fallback",
       "note": "Needs a real render signal plus a watchdog before the timeout can be logged.",
-      "code": "widget.load.timeout"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1399,7 +1395,7 @@
       "line": 353,
       "proposedCode": "banner_bridge_parse_failed",
       "currentHandling": "swallowed",
-      "code": "bridge.message.parse"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1407,7 +1403,7 @@
       "line": 357,
       "proposedCode": "banner_web_resource_error",
       "currentHandling": "event",
-      "code": "widget.webview_load.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1415,7 +1411,7 @@
       "line": 374,
       "proposedCode": "banner_no_ad_config",
       "currentHandling": "silent-fallback",
-      "code": "ad.banner_config.missing"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1423,7 +1419,7 @@
       "line": 402,
       "proposedCode": "banner_gpt_load_failed",
       "currentHandling": "none",
-      "code": "ad.banner_script.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1431,7 +1427,7 @@
       "line": 407,
       "proposedCode": "banner_gpt_slot_failed",
       "currentHandling": "silent-fallback",
-      "code": "ad.gpt_slot.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -1447,7 +1443,7 @@
       "line": 420,
       "proposedCode": "banner_zone_script_failed",
       "currentHandling": "none",
-      "code": "ad.banner_script.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-flutter",
@@ -2045,7 +2041,7 @@
       "line": 366,
       "proposedCode": "widget_js_error",
       "currentHandling": "event",
-      "code": "bridge.script.exception"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-ios",
@@ -2053,7 +2049,7 @@
       "line": 333,
       "proposedCode": "widget_message_invalid",
       "currentHandling": "silent-fallback",
-      "code": "bridge.message.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-ios",
@@ -2061,7 +2057,7 @@
       "line": 368,
       "proposedCode": "widget_message_unknown_type",
       "currentHandling": "silent-fallback",
-      "code": "bridge.message.unsupported"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-ios",
@@ -2069,7 +2065,7 @@
       "line": 355,
       "proposedCode": "widget_listing_stub_failed",
       "currentHandling": "swallowed",
-      "code": "bridge.message.invalid"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-ios",
@@ -2077,7 +2073,7 @@
       "line": 379,
       "proposedCode": "widget_navigation_failed",
       "currentHandling": "event",
-      "code": "widget.webview_load.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-ios",
@@ -2086,7 +2082,7 @@
       "proposedCode": "widget_provisional_navigation_failed",
       "currentHandling": "none",
       "note": "Also implement webViewWebContentProcessDidTerminate → widget.webview_process.exception.",
-      "code": "widget.webview_load.network"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-ios",
@@ -2094,7 +2090,7 @@
       "line": 194,
       "proposedCode": "widget_attr_serialize_failed",
       "currentHandling": "swallowed",
-      "code": "widget.attributes.exception"
+      "excluded": "removed"
     },
     {
       "unit": "sdk-ios",

@@ -17,6 +17,8 @@ interface NetlifyUser {
     refresh_token: string
     expires_at: number
   }
+  /** Current access token, refreshed first if expired. */
+  jwt?: (forceRefresh?: boolean) => Promise<string>
 }
 
 declare global {

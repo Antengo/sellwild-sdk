@@ -21,6 +21,13 @@ final class SellwildRemoteConfigTests: XCTestCase {
         )
     }
 
+    func testApplyAcceptsIabCatsAsArrayOrCommaSeparatedString() {
+        let base = SellwildConfig(partnerCode: "weatherbug")
+        XCTAssertEqual(SellwildSDK.apply(["IAB_CATS": "IAB15"], to: base).iabCats, ["IAB15"])
+        XCTAssertEqual(SellwildSDK.apply(["IAB_CATS": " IAB15, IAB19 ,,"], to: base).iabCats, ["IAB15", "IAB19"])
+        XCTAssertEqual(SellwildSDK.apply(["IAB_CATS": ["IAB15", "IAB19"]], to: base).iabCats, ["IAB15", "IAB19"])
+    }
+
     func testApplyPopulatesAdZonesAndRefresh() throws {
         let base = SellwildConfig(partnerCode: "weatherbug")
         let raw = try AppConfigFactory.remote([
@@ -82,8 +89,8 @@ final class SellwildRemoteConfigTests: XCTestCase {
 
     /// Verifies remote-config passthrough: arbitrary CDN keys (including
     /// bidders the SDK was never built to know about — MEDIANET, AMX, SOVRN)
-    /// must surface via `remoteValues` so the WebView attribute serializer
-    /// can forward them to the widget.
+    /// must surface via `remoteValues` so native surfaces can read them
+    /// without an SDK release.
     func testRemoteJSONExposesUnmappedKeys() throws {
         var config = SellwildConfig(partnerCode: "weatherbug")
         let payload = try AppConfigFactory.remote([

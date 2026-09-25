@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regenerates the four platform mirrors of failure-codes.json (FAILURES.md
+// Regenerates the three platform mirrors of failure-codes.json (FAILURES.md
 // 4.2). Each mirror holds the codes whose `clients` include its platform, in
 // registry order; the core mirror holds `core` OR `react-native`, because
 // React Native re-exports core. The public names and shapes are the ones the
@@ -41,7 +41,7 @@ export function wrap(text, prefix, width) {
   return lines
 }
 
-/** `ad.audio_guard.exception` → `adAudioGuardException` (Swift and Dart names). */
+/** `ad.audio_guard.exception` → `adAudioGuardException` (Swift names). */
 export function camelName(code) {
   return code
     .split(/[._]/)
@@ -169,78 +169,11 @@ object SellwildFailureSeverity {
 `
 }
 
-function renderDart(entries) {
-  const constants = entries.map((e) => {
-    const decl = `  static const String ${camelName(e.code)} = '${e.code}';`
-    const lines = decl.length <= 80 ? [decl] : [`  static const String ${camelName(e.code)} =`, `      '${e.code}';`]
-    return [...wrap(e.description, '  /// ', 80), ...lines].join('\n')
-  })
-  const all = entries.map((e) => `    ${camelName(e.code)},`)
-  return `// ${GENERATED_NOTE}
-//
-// Flutter mirror of contracts/failure-codes.json (FAILURES.md 4.2): every code
-// whose \`clients\` include \`flutter\`, plus the component and severity values
-// logFailure accepts. test/failures/failure_codes_parity_test.dart checks this
-// file against the JSON. To add a code, run contracts/scripts/add-code.mjs
-// (FAILURES.md 4.4); it regenerates this file.
-//
-// Constants only: no executable lines, so it is excluded from coverage.
-// coverage:ignore-file constants only no executable lines
-
-/// Failure codes for [SellwildFailures.log], \`<area>.<operation>.<reason>\`.
-abstract final class SellwildFailureCode {
-${constants.join('\n\n')}
-
-  /// Every code above, in registry order.
-  static const List<String> all = [
-${all.join('\n')}
-  ];
-}
-
-/// What failed: the \`label\` of a clientFailure event. Anything else is sent
-/// as \`unknown\`.
-abstract final class SellwildFailureComponent {
-  static const String configure = 'configure';
-  static const String remoteConfig = 'remoteConfig';
-  static const String listings = 'listings';
-  static const String localized = 'localized';
-  static const String feed = 'feed';
-  static const String banner = 'banner';
-  static const String native = 'native';
-  static const String video = 'video';
-  static const String house = 'house';
-  static const String bridge = 'bridge';
-  static const String webview = 'webview';
-  static const String widget = 'widget';
-  static const String shorts = 'shorts';
-  static const String tv = 'tv';
-  static const String flipcard = 'flipcard';
-  static const String growthcode = 'growthcode';
-  static const String geo = 'geo';
-  static const String storage = 'storage';
-}
-
-/// How bad a failure is. [SellwildFailures.log] uses [error] when none is
-/// given.
-abstract final class SellwildFailureSeverity {
-  /// The surface could not render.
-  static const String fatal = 'fatal';
-
-  /// The operation failed and a fallback was used.
-  static const String error = 'error';
-
-  /// Degraded but handled.
-  static const String warn = 'warn';
-}
-`
-}
-
-/** The four mirrors: path from the SDK root, which clients it holds, and its renderer. */
+/** The three mirrors: path from the SDK root, which clients it holds, and its renderer. */
 export const MIRRORS = Object.freeze([
   { platform: 'core', path: 'core/src/failures/codes.ts', clients: ['core', 'react-native'], render: renderTs },
   { platform: 'ios', path: 'ios/Sources/SellwildSDK/Failures/SellwildFailureCode.swift', clients: ['ios'], render: renderSwift },
   { platform: 'android', path: 'android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailureCode.kt', clients: ['android'], render: renderKotlin },
-  { platform: 'flutter', path: 'flutter/lib/src/failures/sellwild_failure_code.dart', clients: ['flutter'], render: renderDart },
 ])
 
 /** The registry entries a mirror holds, in registry order. */

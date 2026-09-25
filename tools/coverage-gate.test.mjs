@@ -87,7 +87,7 @@ describe('main', () => {
   })
 
   it('exits 1 when any summary fails', () => {
-    const dir = dirWith({ core: gate({ lines: pct(50) }), flutter: gate() })
+    const dir = dirWith({ core: gate({ lines: pct(50) }), android: gate() })
     const { code, text } = run(['--dir', dir, '--target', '90'])
     assert.equal(code, 1)
     assert.match(text, /^core .*FAIL: lines 50% is under 90%$/m)

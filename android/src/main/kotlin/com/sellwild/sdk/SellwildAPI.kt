@@ -12,7 +12,9 @@ import com.sellwild.sdk.failures.SellwildFailures
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -379,6 +381,9 @@ class SellwildEventQueue internal constructor(
 
     private val queue = mutableListOf<SellwildEvent>()
 
+    // Pending delayed re-flush after a failed POST (guarded by `queue`).
+    private var retryJob: Job? = null
+
     /**
      * Analytics kill switch. Defaults on; [SellwildAdView] sets this from the
      * resolved remote config (EVENTS_ENABLED) so events can be stopped via CMS
@@ -399,9 +404,9 @@ class SellwildEventQueue internal constructor(
     val uid: String by lazy(uidProvider)
 
     /**
-     * POSTs that threw or were answered with a non-2xx status. The batch is dropped
-     * (no retry), and the transport never reports itself through logFailure
-     * (FAILURES.md 8.4): an outage must not feed more events into the queue.
+     * POSTs that threw or were answered with a non-2xx status. [flush] re-queues the
+     * batch when that is retryable, and the transport never reports itself through
+     * logFailure (FAILURES.md 8.4): an outage must not feed more events into the queue.
      */
     internal val failedPosts = AtomicInteger()
 
@@ -428,23 +433,74 @@ class SellwildEventQueue internal constructor(
         // trigger a ConcurrentModificationException / drop events.
         synchronized(queue) {
             queue.add(e)
+            trimLocked()
         }
     }
 
-    /** POSTs everything queued as one batch. Never throws and never calls logFailure. */
-    suspend fun flush() {
-        withContext(dispatcher) {
-            val batch = synchronized(queue) {
-                val snapshot = queue.toList()
-                queue.clear()
-                snapshot
-            }
-            if (batch.isEmpty()) return@withContext
+    /** Put a failed batch back at the head of the queue (oldest first). */
+    private fun requeue(batch: List<SellwildEvent>) {
+        synchronized(queue) {
+            queue.addAll(0, batch)
+            trimLocked()
+        }
+    }
 
-            runCatching {
-                val status = sender.post(EVENTS_URL, buildBatchJson(batch, partnerCode, SellwildSDK.SDK_VERSION))
-                if (status !in 200..299) failedPosts.incrementAndGet()
-            }.onFailure { failedPosts.incrementAndGet() }
+    // Drop oldest so a persistently-failing endpoint can't grow unbounded
+    // (in-memory only; matches the iOS / web cap). Caller holds `queue`.
+    private fun trimLocked() {
+        if (queue.size > MAX_QUEUE) queue.subList(0, queue.size - MAX_QUEUE).clear()
+    }
+
+    /** Re-flush after [RETRY_DELAY_MS] so an outage recovers without a new event. */
+    private fun scheduleRetry() {
+        synchronized(queue) {
+            if (retryJob?.isActive == true) return
+            retryJob = launchRetry()
+        }
+    }
+
+    // Outside scheduleRetry's synchronized lambda: Android Lint's Compose coroutine
+    // detector crashes resolving a launch made inside a stdlib inline lambda.
+    private fun launchRetry(): Job = scope.launch {
+        delay(RETRY_DELAY_MS)
+        // Clear first so a failure of THIS flush can schedule the next retry.
+        synchronized(queue) { retryJob = null }
+        flush()
+    }
+
+    /**
+     * POSTs what is queued, at most [MAX_BATCH] events per POST. A batch that fails on
+     * the network or with a retryable status ([isRetryableStatus]) goes back to the head
+     * of the queue and a re-flush is scheduled. Never throws and never calls logFailure.
+     */
+    suspend fun flush(): Unit = withContext(dispatcher) {
+        // At most MAX_BATCH per POST: after an outage the queue can hold up to
+        // MAX_QUEUE re-queued events, and one oversized body rejected with a 4xx
+        // would drop them all. The rest go out in follow-up POSTs below.
+        val batch = synchronized(queue) {
+            val head = queue.subList(0, minOf(queue.size, MAX_BATCH))
+            val snapshot = head.toList()
+            head.clear()
+            snapshot
+        }
+        if (batch.isEmpty()) return@withContext
+
+        // Retry on transport failure or a retryable status (see [isRetryableStatus]).
+        // Stays false for a failure BEFORE the POST (e.g. JSON build) so a poison
+        // batch is dropped instead of retried forever.
+        var retry = false
+        runCatching {
+            val body = buildBatchJson(batch, partnerCode, SellwildSDK.SDK_VERSION)
+            retry = true // from here on a throw is a network failure
+            val status = sender.post(EVENTS_URL, body)
+            retry = isRetryableStatus(status)
+            if (status !in 200..299) failedPosts.incrementAndGet()
+        }.onFailure { failedPosts.incrementAndGet() }
+        if (retry) {
+            requeue(batch)
+            scheduleRetry()
+        } else if (synchronized(queue) { queue.isNotEmpty() }) {
+            flush() // drain the remainder, one bounded batch at a time
         }
     }
 
@@ -475,6 +531,17 @@ class SellwildEventQueue internal constructor(
 
     companion object {
         internal const val EVENTS_URL = "https://events.sellwild.com/events/queue"
+        private const val MAX_QUEUE = 1000
+        private const val MAX_BATCH = 100 // matches iOS maxEventBatch
+        private const val RETRY_DELAY_MS = 10_000L
+
+        /**
+         * Whether a batch that got HTTP [code] should be re-queued: any non-2xx
+         * except 4xx, which is a permanent rejection (dropped) — other than
+         * 408 Request Timeout / 429 Too Many Requests, which are transient.
+         */
+        internal fun isRetryableStatus(code: Int): Boolean =
+            code !in 200..299 && (code !in 400..499 || code == 408 || code == 429)
 
         @Volatile private var instance: SellwildEventQueue? = null
 
