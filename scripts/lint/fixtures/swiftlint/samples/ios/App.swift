@@ -1,5 +1,6 @@
-// samples/ is not linted yet (sample apps are being rebuilt).
+// samples/ is linted. The print bans cover shipped SDK code only, so a
+// sample may print; an empty catch still fails.
 func sample() {
-    print("not linted")
-    do { try work() } catch {}
+    print("a sample may print")
+    do { try work() } catch {} // expect: empty_catch
 }

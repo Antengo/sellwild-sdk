@@ -1,4 +1,5 @@
-# SwiftLint for the iOS SDK and the React Native iOS bridge.
+# SwiftLint for the iOS SDK, the React Native iOS bridge and the sample apps'
+# Swift (samples/: the native iOS sample and the Flutter sample's Runner).
 #
 #   bash scripts/lint/swiftlint.sh             # the gate (installs the pinned SwiftLint first)
 #   bash scripts/lint/swiftlint.sh --update    # rewrite the baseline after fixing findings
@@ -16,11 +17,11 @@ included:
   - ios/Tests
   - react-native/ios
   - react-native/native-checks/ios
-
-# samples/ is left out for now: the sample apps are being rebuilt next. Add
-# them back (and re-baseline) once the new ones land.
-excluded:
   - samples
+
+# Build output and generated code. The Flutter sample's ios/Flutter/ephemeral
+# holds the Swift packages flutter generates on each build.
+excluded:
   - .coverage-tmp
   - .build
   - .swiftpm
@@ -29,6 +30,8 @@ excluded:
   - "**/build"
   - "**/Pods"
   - "**/node_modules"
+  - "**/ephemeral"
+  - "**/.symlinks"
 
 opt_in_rules:
   # A Task { try ... } whose error nobody reads is a silent swallow
