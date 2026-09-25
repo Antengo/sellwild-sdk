@@ -9,7 +9,7 @@ One command runs every type check and linter, the print gate and the
 contracts checks. `--full` adds coverage on every platform.
 
 ```bash
-bash scripts/gate.sh                          # --fast (the default): about 30s, no device, no coverage
+bash scripts/gate.sh                          # --fast (the default): about 40s warm, no device, no coverage
 bash scripts/gate.sh --full                   # --fast plus coverage and the warnings ratchets: about 3 min
 bash scripts/gate.sh --only swiftlint,eslint-core
 bash scripts/gate.sh --list                   # step ids and commands
@@ -23,29 +23,35 @@ How it runs:
    step, and the exit status is 1 if any step failed.
 3. One exception: after a failed type check, the coverage steps are skipped.
 4. Steps run one at a time, so there is never more than one native build. A
-   Gradle or iOS step first waits while another `xcodebuild` or Gradle build
-   runs on the machine (up to `GATE_NATIVE_WAIT` seconds, default 600).
+   Gradle or Xcode step first waits while another `xcodebuild` or Gradle build
+   runs on the machine (up to `GATE_NATIVE_WAIT` seconds, default 600). On a
+   machine shared by several agents, run the whole gate under the native lock
+   too.
 5. vitest runs at most 2 workers and Gradle 2 workers. `JAVA_HOME` is set to a
    JDK 17.
 6. The Gradle steps run back to back on one daemon, then `gradlew --stop`
-   runs. `xcrun simctl shutdown all` runs after the iOS step.
+   runs. `xcrun simctl shutdown all` runs after the iOS coverage step.
+   `swift-typecheck` only builds, so no simulator boots and none is shut
+   down (gate-lib's `xcode` kind).
 
-`--fast`, measured 2026-09-24 (load about 2):
+`--fast`, measured 2026-09-24 (load about 2; `swift-typecheck` and the
+second total at load 20-40):
 
 | Step | What it checks | Time |
 |---|---|---|
 | `tsgo-core`, `tsgo-react-native` | tsgo type check of src and tests | 1s each |
 | `flutter-analyze` | `flutter analyze --fatal-infos --fatal-warnings`, strict casts, inference and raw types | 3s |
+| `swift-typecheck` | `scripts/lint/swift-typecheck.sh`: `xcodebuild build-for-testing` of SellwildSDK and its tests for the simulator, in `ios.sh`'s derived data (`.coverage-tmp/ios-dd`), so the two share one build | 5-7s warm (nothing or one file changed), 28s cold (empty derived data) |
 | `eslint-core`, `eslint-react-native` | ESLint with type info and the house failure rules | 2s each |
-| `lint-rules-test` | tests of the house ESLint rules (`contracts/lint/`) | 0.5s |
-| `swiftlint` | SwiftLint on `ios/` and the React Native iOS bridge | 0.3s |
-| `swift-lint-tests`, `kotlin-warnings-test` | tests of the Swift and Kotlin lint tooling | 1s |
+| `lint-rules-test` | tests of the house ESLint rules (`contracts/lint/`) and of both ESLint configs (`scripts/lint/eslint-config.test.mjs`) | 1s |
+| `swiftlint` | SwiftLint on `ios/` and the React Native iOS bridge, against its baseline | 0.4s |
+| `swift-lint-tests`, `kotlin-warnings-test` | tests of the Swift and Kotlin lint tooling, the SwiftLint baseline matcher included | 1s |
 | `print-gate` | FAILURES.md section 11 | 0.3s |
 | `contracts-validate` | every contract file against its schema | 0.3s |
 | `contracts-test` | `npm --prefix contracts test` | 5s |
 | `coverage-gate-test` | tests of `tools/coverage-gate.mjs` | 0.3s |
 | `detekt-android` | detekt on `android/` and the React Native Android bridge | 11s; 20-40s after Kotlin changes |
-| total | | 29s |
+| total | | 29s before `swift-typecheck`; 58s with it at load 20-40 (detekt 31s of it) |
 
 `--full` adds these, in this order (measured 2026-09-24):
 
@@ -70,7 +76,7 @@ baselined findings, shrink the baseline in the same change:
 | Tool | Baseline | Shrink it with |
 |---|---|---|
 | ESLint | `core/eslint-suppressions.json`, `react-native/eslint-suppressions.json` | `npm --prefix core run lint -- --prune-suppressions` (same for `react-native`) |
-| SwiftLint | `.swiftlint.baseline.json` | `bash scripts/lint/swiftlint.sh --update` |
+| SwiftLint | `scripts/lint/swiftlint.baseline.json` | `bash scripts/lint/swiftlint.sh --update` |
 | detekt | `android/config/detekt/baseline-*.xml` | `cd android && ./gradlew detektBaseline` |
 | Android Lint | `android/config/lint/lint-baseline.xml` | `cd android && ./gradlew updateLintBaselineDebug` |
 | Kotlin warnings | `scripts/lint/kotlin-warnings.baseline.json` | `node scripts/lint/kotlin-warnings.mjs --update` |
@@ -89,8 +95,36 @@ Notes:
    diff only removes entries.
 4. Never re-baseline to get green. Fix the finding, or disable the rule on
    that one line with a reason.
-5. SwiftLint's baseline only matches from the checkout's real path, not from a
-   copy under `/tmp`.
+5. The SwiftLint baseline is ours, not SwiftLint's `--baseline` (which broke
+   on any added or removed line in a long file, because the size rules put
+   the measured number in the reason). `scripts/lint/swiftlint-baseline.mjs`
+   matches a finding by file, rule and reason with numbers as `#`, counted
+   per key; line numbers and line text do not count. The size rules (file,
+   type and function length, complexity, parameter count, line length) also
+   keep the measured number: it may stay or shrink, never grow. So a comment
+   or a removed line passes, and one more line in a baselined long function
+   fails. `file_length` ignores comment-only lines. Two long functions in
+   one file are paired by size, so they can trade lines unseen. With no
+   baseline file, `--update` needs `--allow-increase`.
+6. detekt's `SwallowedException` has no baseline entries: every catch that
+   drops its exception fails.
+7. ESLint exceptions are per catch, never per file or function: an
+   `// eslint-disable-next-line sellwild/<rule> -- FAILURES.md <section>: <why>`
+   at the site. `sellwild/disable-reason` fails one without a reason that
+   cites FAILURES.md, and `scripts/lint/eslint-config.test.mjs` lists every
+   such site in src (a new one needs an entry there) and fails a comment
+   that turns every rule off, which `disable-reason` cannot see.
+
+What each check leaves to another (all found by mutation checks, 2026-09-24):
+
+1. Dart: `flutter analyze` passes `catch (_) {}`, a comment-only catch body
+   and `debugPrint` in `lib/`. The print gate fails all three, so it is the
+   check for them. Neither sees a print through an import prefix.
+2. TypeScript: `globalThis.console`, `window.console`, `self.console` and
+   `global.console` fail `sellwild/no-global-console`, and the print gate.
+3. Swift: `Swift.print`, `Foundation.NSLog` and `os.os_log` fail SwiftLint's
+   `no_print` and the print gate. Kotlin: `kotlin.io.println` fails the print
+   gate.
 
 ## Timings
 
@@ -134,6 +168,7 @@ Run the narrowest command while working. Run the full suite once at the end.
 | Flutter | `cd flutter && flutter test test/sellwild_api_test.dart` | ~7s |
 | Android | `cd android && ./gradlew testDebugUnitTest --tests 'com.sellwild.sdk.SellwildEventQueueTest'` | ~5s warm |
 | iOS | `command xcodebuild test -scheme SellwildSDK -destination 'platform=iOS Simulator,id=<udid>' -derivedDataPath .coverage-tmp/ios-dd -enableCodeCoverage YES -only-testing:SellwildSDKTests/<TestClass>` | ~40-70s |
+| iOS, compile only | `bash scripts/lint/swift-typecheck.sh` (the gate's `swift-typecheck`) | 5-7s warm |
 
 Notes:
 1. iOS: use `.coverage-tmp/ios-dd` with `-enableCodeCoverage YES`, the same as
