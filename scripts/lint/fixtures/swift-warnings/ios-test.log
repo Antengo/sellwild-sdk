@@ -1,5 +1,5 @@
 Command line invocation:
-    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -scheme SellwildSDK -destination "platform=iOS Simulator,id=C43FAF7C" -enableCodeCoverage YES -derivedDataPath /ROOT/.coverage-tmp/ios-dd -resultBundlePath /ROOT/.coverage-tmp/ios.xcresult
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -scheme SellwildSDK -destination "platform=iOS Simulator,id=<udid>" -enableCodeCoverage YES -derivedDataPath /ROOT/.coverage-tmp/ios-dd -resultBundlePath /ROOT/.coverage-tmp/ios.xcresult
 
 SwiftCompile normal arm64 Compiling\ SellwildAdStack.swift /ROOT/ios/Sources/SellwildSDK/SellwildAdStack.swift (in target 'SellwildSDK' from project 'SellwildSDK')
     cd /ROOT

@@ -43,6 +43,9 @@ TEST_BIN="$DERIVED/Build/Products/Debug-iphonesimulator/SellwildSDKTests.xctest/
 
 # Repo-relative form of a path, so the committed summary carries no local paths.
 rel() { case "$1" in "$ROOT"/*) printf '%s' "${1#"$ROOT"/}" ;; *) printf '%s' "$1" ;; esac; }
+# The same with any simulator UDID in it as <udid>: the summary is committed,
+# and tests.device already names the simulator.
+rel_no_udid() { rel "$1" | sed -E 's/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/<udid>/g'; }
 
 # A booted iPhone first (reusing it skips a boot), else the first iPhone by
 # name on the newest iOS runtime. Prints "<udid><TAB><label>".
@@ -150,10 +153,10 @@ xcrun llvm-cov export -instr-profile "$PROFDATA" "$TEST_BIN" -sources "$SOURCES"
 timing_phase coverage-export
 commands=(
   "bash scripts/coverage/ios.sh"
-  "command xcodebuild test -scheme SellwildSDK -destination 'platform=iOS Simulator,id=$SIM_ID' -enableCodeCoverage YES -derivedDataPath $(rel "$DERIVED") -resultBundlePath $(rel "$RESULT")"
+  "command xcodebuild test -scheme SellwildSDK -destination 'platform=iOS Simulator,id=<udid>' -enableCodeCoverage YES -derivedDataPath $(rel "$DERIVED") -resultBundlePath $(rel "$RESULT")"
   "xcrun xccov view --report --json $(rel "$RESULT")"
   "xcrun xccov view --archive --json $(rel "$RESULT")"
-  "xcrun llvm-cov export -instr-profile $(rel "$PROFDATA") $(rel "$TEST_BIN") -sources $(rel "$SOURCES")"
+  "xcrun llvm-cov export -instr-profile $(rel_no_udid "$PROFDATA") $(rel "$TEST_BIN") -sources $(rel "$SOURCES")"
 )
 
 contracts_status="skipped: contracts/scripts/validate.mjs not found"
