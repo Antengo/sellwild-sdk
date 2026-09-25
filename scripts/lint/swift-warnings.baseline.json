@@ -1,0 +1,5 @@
+{
+  "description": "Unique Swift compiler warnings in ios/Sources and ios/Tests, from the last scripts/coverage/ios.sh run. The gate fails when count goes up. Lower it in the same change that removes warnings: node scripts/lint/swift-warnings.mjs --update.",
+  "count": 0,
+  "warnings": []
+}

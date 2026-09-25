@@ -10,32 +10,39 @@ import SellwildSDK
 @objc(SellwildRNModule)
 final class SellwildRNModule: NSObject {
 
+    override init() {
+        super.init()
+        SellwildRNWrapper.install()
+    }
+
     /// Off-main is fine — the setters just update process-wide state.
     @objc static func requiresMainQueueSetup() -> Bool { false }
 
     /// JS: `SellwildRNModule.setGeo({ state: "NY", zip: "10001", ... })`.
     /// Pass an empty object to clear. Mirrors the native
     /// `SellwildPrebidMobile.setGeo(_:)` — updates the Prebid auction geo AND the
-    /// shared `SellwildGeoStore`.
+    /// shared `SellwildGeoStore`. A payload that is not an object clears geo; a
+    /// field of the wrong type is dropped and the others are set, as before.
+    /// Both are reported (`bridge.geo.invalid`), with the same text as Android.
     @objc(setGeo:)
     func setGeo(_ geo: NSDictionary) {
-        let map = geo as? [String: Any] ?? [:]
-        SellwildPrebidMobile.setGeo(SellwildGeo(bridged: map))
+        let parsed = SellwildRNBridgeRules.geoMap(geo)
+        if let problem = parsed.problem {
+            SellwildFailures.log(code: .bridgeGeoInvalid, component: .bridge, severity: .warn, message: problem)
+        }
+        SellwildPrebidMobile.setGeo(SellwildGeo(bridged: parsed.map))
     }
 
     /// JS: `SellwildRNModule.setExternalUserIds([{ source, uids: [{ id, atype, ext? }] }])`.
     /// Pass `[]` to clear. Mirrors `SellwildPrebidMobile.setExternalUserIds(_:)`.
     @objc(setExternalUserIds:)
     func setExternalUserIds(_ eids: NSArray) {
-        let mapped: [SellwildEid] = (eids as? [[String: Any]] ?? []).compactMap { dict in
-            guard let source = dict["source"] as? String,
-                  let rawUids = dict["uids"] as? [[String: Any]] else { return nil }
-            let uids: [SellwildEidUID] = rawUids.compactMap { u in
-                guard let id = u["id"] as? String else { return nil }
-                let atype = (u["atype"] as? NSNumber)?.intValue ?? 0
-                return SellwildEidUID(id: id, atype: atype, ext: u["ext"] as? [String: Any])
-            }
-            return SellwildEid(source: source, uids: uids)
+        let parsed = SellwildRNBridgeRules.eids(eids)
+        if let problem = parsed.problem {
+            SellwildFailures.log(code: .bridgeEidsInvalid, component: .bridge, severity: .warn, message: problem)
+        }
+        let mapped = parsed.eids.map { eid in
+            SellwildEid(source: eid.source, uids: eid.uids.map { SellwildEidUID(id: $0.id, atype: $0.atype, ext: $0.ext) })
         }
         SellwildPrebidMobile.setExternalUserIds(mapped)
     }
@@ -48,9 +55,28 @@ final class SellwildRNModule: NSObject {
     /// Android's `SellwildSDK.prewarm`.
     @objc(prewarm:)
     func prewarm(_ config: NSDictionary) {
+        // The mapping is a static on the banner's host view.
         let cfg = SellwildBannerHostView.configFromMap(config)
         DispatchQueue.main.async {
             _ = SellwildPrebidMobile.bootstrap(with: cfg)
         }
+    }
+}
+
+/// Marks every failure the native SDK reports as coming from React Native
+/// (`wrapper: react-native`, contracts/FAILURES.md 3.1). The native SDK logs
+/// its own failures; the bridge only adds the wrapper and never logs them
+/// again (FAILURES.md 9).
+///
+/// This module and both view managers call `install()` from `init`, so the
+/// wrapper is set before any native SDK code runs, whichever class React
+/// Native creates first. The `static let` runs once, thread-safely.
+enum SellwildRNWrapper {
+    private static let installed: Void = {
+        SellwildFailures.setWrapper("react-native")
+    }()
+
+    static func install() {
+        _ = installed
     }
 }

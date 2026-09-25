@@ -73,12 +73,24 @@ public enum SellwildGpid {
         }
         guard !ext.isEmpty else { return nil }
         let imp: [String: Any] = ["ext": ext]
-        guard JSONSerialization.isValidJSONObject(imp),
-              let data = try? JSONSerialization.data(withJSONObject: imp),
-              let s = String(data: data, encoding: .utf8) else {
+        do {
+            // JSONSerialization raises an Objective-C exception (a crash), not
+            // a Swift error, on a value JSON cannot hold, so check first.
+            guard JSONSerialization.isValidJSONObject(imp) else { throw ImpExtError.notJSON }
+            return String(decoding: try JSONSerialization.data(withJSONObject: imp), as: UTF8.self)
+        } catch {
+            SellwildFailures.log(code: .adGpidException, component: .banner, severity: .warn, error: error,
+                                 message: "imp.ext could not be serialized, so no gpid is sent")
             return nil
         }
-        return s
+    }
+
+    /// Why `impExtJSON` could not write imp.ext.
+    enum ImpExtError: LocalizedError {
+        /// A bidder param is not a JSON value (for example a Date or a view).
+        case notJSON
+
+        var errorDescription: String? { "a bidder param is not a JSON value" }
     }
 
     /// Disambiguate a list of GPID bases in row order: a base used exactly once

@@ -1,0 +1,65 @@
+{
+  "description": "For each invalid fixture: an ajv error that must be among the failures (instancePath, and keyword when given). Proves the fixture fails for the intended reason.",
+  "errors": {
+    "missing-code.json": {
+      "instancePath": "",
+      "keyword": "required"
+    },
+    "code-empty.json": {
+      "instancePath": "/CODE",
+      "keyword": "minLength"
+    },
+    "bidders-array.json": {
+      "instancePath": "/BIDDERS",
+      "keyword": "type"
+    },
+    "mobile-zid-string.json": {
+      "instancePath": "/MOBILE_ZID",
+      "keyword": "type"
+    },
+    "refresh-interval-text.json": {
+      "instancePath": "/AD_REFRESH_INTERVAL",
+      "keyword": "type"
+    },
+    "layout-widget.json": {
+      "instancePath": "/LAYOUT",
+      "keyword": "const"
+    },
+    "col1-unknown-token.json": {
+      "instancePath": "/COL1",
+      "keyword": "pattern"
+    },
+    "platform-web.json": {
+      "instancePath": "/PLATFORM",
+      "keyword": "enum"
+    },
+    "events-enabled-object.json": {
+      "instancePath": "/EVENTS_ENABLED",
+      "keyword": "type"
+    },
+    "failures-sample-rate-object.json": {
+      "instancePath": "/FAILURES_SAMPLE_RATE",
+      "keyword": "type"
+    },
+    "banner-sizes-bad-entry.json": {
+      "instancePath": "/BANNER_SIZES/0",
+      "keyword": "pattern"
+    },
+    "zone-map-array.json": {
+      "instancePath": "/AD_STACK_BY_ZONE",
+      "keyword": "type"
+    },
+    "house-map-string-creative.json": {
+      "instancePath": "/MOBILE_HOUSE_AD_BY_ZONE/43",
+      "keyword": "type"
+    },
+    "localized-template-without-state.json": {
+      "instancePath": "/LOCALIZED_LISTINGS/urlTemplate",
+      "keyword": "pattern"
+    },
+    "not-an-object.json": {
+      "instancePath": "",
+      "keyword": "type"
+    }
+  }
+}

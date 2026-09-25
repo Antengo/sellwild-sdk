@@ -1,0 +1,17 @@
+{
+  "description": "For each invalid fixture: an ajv error that must be among the failures (instancePath, and keyword when given). Proves the fixture fails for the intended reason.",
+  "errors": {
+    "idi-text.json": {
+      "instancePath": "/idi",
+      "keyword": "type"
+    },
+    "gc-id-number.json": {
+      "instancePath": "/gc_id",
+      "keyword": "type"
+    },
+    "not-an-object.json": {
+      "instancePath": "",
+      "keyword": "type"
+    }
+  }
+}

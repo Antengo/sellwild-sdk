@@ -1,0 +1,33 @@
+{
+  "description": "For each invalid fixture: an ajv error that must be among the failures (instancePath, and keyword when given). Proves the fixture fails for the intended reason.",
+  "errors": {
+    "empty-array.json": {
+      "instancePath": "",
+      "keyword": "minItems"
+    },
+    "missing-uid.json": {
+      "instancePath": "/0",
+      "keyword": "required"
+    },
+    "created-seconds.json": {
+      "instancePath": "/0/createdTime",
+      "keyword": "minimum"
+    },
+    "client-failure-number-attribute.json": {
+      "instancePath": "/1/attributes/repeat",
+      "keyword": "type"
+    },
+    "client-failure-extra-attribute.json": {
+      "instancePath": "/1/attributes",
+      "keyword": "additionalProperties"
+    },
+    "unknown-top-level-key.json": {
+      "instancePath": "/0",
+      "keyword": "additionalProperties"
+    },
+    "not-an-array.json": {
+      "instancePath": "",
+      "keyword": "type"
+    }
+  }
+}

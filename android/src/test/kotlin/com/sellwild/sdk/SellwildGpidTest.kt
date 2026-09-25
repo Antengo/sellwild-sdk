@@ -1,7 +1,18 @@
 package com.sellwild.sdk
 
+import com.sellwild.sdk.factories.AppConfigFactory
+import com.sellwild.sdk.failures.FailuresRule
+import com.sellwild.sdk.failures.FakeFailureSink
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailures
+import com.sellwild.sdk.support.FixtureLoader
 import org.json.JSONObject
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -12,46 +23,63 @@ import org.junit.Test
  */
 class SellwildGpidTest {
 
+    @get:Rule
+    val failures = FailuresRule()
+
+    private val sink = FakeFailureSink()
+
+    @Before
+    fun attachSink() {
+        SellwildFailures.bind(sink)
+    }
+
+    private fun config(vararg entries: Pair<String, Any?>): String = AppConfigFactory.checked(mapOf(*entries)).toString()
+
+    private val byZone = JSONObject().put("43", "/zone/43")
+
     // ── resolveBase ──────────────────────────────────────────────────────────
 
     @Test
     fun `by-zone override wins over global`() {
-        val json = """{"GPID_BASE":"/global/slot","GPID_BASE_BY_ZONE":{"43":"/zone/43"}}"""
-        assertEquals("/zone/43", SellwildGpid.resolveBase(json, "43"))
+        assertEquals("/zone/43", SellwildGpid.resolveBase(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to byZone), "43"))
     }
 
     @Test
     fun `falls back to global when zone absent from by-zone`() {
-        val json = """{"GPID_BASE":"/global/slot","GPID_BASE_BY_ZONE":{"43":"/zone/43"}}"""
-        assertEquals("/global/slot", SellwildGpid.resolveBase(json, "99"))
+        assertEquals("/global/slot", SellwildGpid.resolveBase(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to byZone), "99"))
     }
 
     @Test
     fun `global fallback used when no by-zone object`() {
-        assertEquals("/global/slot", SellwildGpid.resolveBase("""{"GPID_BASE":"/global/slot"}""", "43"))
+        assertEquals("/global/slot", SellwildGpid.resolveBase(config("GPID_BASE" to "/global/slot"), "43"))
+        assertEquals("/global/slot", SellwildGpid.resolveBase(config("GPID_BASE" to "/global/slot", "GPID_BASE_BY_ZONE" to ""), "43"))
     }
 
     @Test
     fun `neither present resolves null`() {
-        assertNull(SellwildGpid.resolveBase("""{"SOMETHING_ELSE":"x"}""", "43"))
+        assertNull(SellwildGpid.resolveBase(config(), "43"))
     }
 
     @Test
-    fun `null and blank remoteJson resolve null`() {
+    fun `no remote config resolves null, and config that does not parse is reported`() {
         assertNull(SellwildGpid.resolveBase(null, "43"))
         assertNull(SellwildGpid.resolveBase("", "43"))
-        assertNull(SellwildGpid.resolveBase("not json", "43"))
+        assertEquals(emptyList<String>(), sink.pushed.map { it.action })
+
+        assertNull(SellwildGpid.resolveBase(FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml"), "43"))
+        assertEquals(listOf(SellwildFailureCode.CONFIG_REMOTE_VALUES_PARSE), sink.pushed.map { it.action })
     }
 
     @Test
     fun `null zone still resolves global`() {
-        assertEquals("/global/slot", SellwildGpid.resolveBase("""{"GPID_BASE":"/global/slot"}""", null))
+        assertEquals("/global/slot", SellwildGpid.resolveBase(config("GPID_BASE" to "/global/slot"), null))
     }
 
     @Test
     fun `empty base string treated as absent`() {
-        assertNull(SellwildGpid.resolveBase("""{"GPID_BASE":""}""", "43"))
-        assertNull(SellwildGpid.resolveBase("""{"GPID_BASE_BY_ZONE":{"43":""},"GPID_BASE":""}""", "43"))
+        assertNull(SellwildGpid.resolveBase(config("GPID_BASE" to ""), "43"))
+        assertNull(SellwildGpid.resolveBase(config("GPID_BASE_BY_ZONE" to JSONObject().put("43", ""), "GPID_BASE" to ""), "43"))
+        assertNull(SellwildGpid.resolveBase(AppConfigFactory.offSchema(mapOf("GPID_BASE" to JSONObject.NULL)).toString(), "43"))
     }
 
     // ── impExtJson ───────────────────────────────────────────────────────────

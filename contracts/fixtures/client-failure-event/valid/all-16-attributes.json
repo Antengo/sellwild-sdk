@@ -1,0 +1,26 @@
+{
+  "_synthetic": true,
+  "event": "clientFailure",
+  "action": "widget.element.exception",
+  "label": "widget",
+  "attributes": {
+    "code": "weatherbug",
+    "client": "android",
+    "clientVersion": "1.7.7",
+    "severity": "warn",
+    "fv": "1",
+    "msg": "x is undefined",
+    "httpStatus": "200",
+    "host": "widget.sellwild.com",
+    "zoneId": "280",
+    "seq": "20",
+    "repeat": "1",
+    "errName": "TypeError",
+    "stack": "at render (widget.sellwild.com)",
+    "wrapper": "react-native",
+    "release": "abc1234",
+    "capped": "1"
+  },
+  "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+  "createdTime": 1790000000000
+}

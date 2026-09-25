@@ -1,0 +1,438 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ArgumentListWrapping:AdDecisions.kt$AdFlags$(RemoteValues.optAny(remote, KEEP_CREATIVE))</ID>
+    <ID>ArgumentListWrapping:AdDecisions.kt$AdFlags$(remote, KEEP_CREATIVE)</ID>
+    <ID>ArgumentListWrapping:AdDecisions.kt$AdFlags$(remote, PAUSE_DETACHED)</ID>
+    <ID>ArgumentListWrapping:FailuresCore.kt$FailuresCore$("|")</ID>
+    <ID>ArgumentListWrapping:FailuresCore.kt$FailuresCore$(URL_ALT, PROTO_REL_ALT, EMAIL_ALT, UUID_ALT, IPV4_ALT, PATH_ALT, QUERY_ALT)</ID>
+    <ID>ArgumentListWrapping:FeedSchedule.kt$FeedSchedule$(bannerZone)</ID>
+    <ID>ArgumentListWrapping:FeedSchedule.kt$FeedSchedule$(bannerZone, FeedRow.Banner(bannerZone))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeSync.kt$GrowthCodeSync$(gcId = ListingsParser.optTextOrNull(json, "gc_id"), eb = ListingsParser.optTextOrNull(json, "eb"))</ID>
+    <ID>ArgumentListWrapping:GrowthCodeSync.kt$GrowthCodeSync$(json, "eb")</ID>
+    <ID>ArgumentListWrapping:GrowthCodeSync.kt$GrowthCodeSync$(json, "gc_id")</ID>
+    <ID>ArgumentListWrapping:SellwildAPI.kt$SellwildEventQueue$(event = event, action = action, label = label, attributes = attributes, uid = uid, createdTime = clock())</ID>
+    <ID>ArgumentListWrapping:SellwildAdView.kt$SellwildAdView.&lt;no name provided&gt;$(self.prebidRefreshCount, self.effectiveRefreshMax)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedView.kt$SellwildFeedView$(SellwildFailureCode.FEED_OPEN_URL_INVALID, message = "the listing or partner URL is not http(s)")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedView.kt$SellwildFeedView$(cfg.remoteJson, it)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedView.kt$SellwildFeedView$(schedule, listings, cfg.mobileZids, bannerZone)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedView.kt$SellwildFeedView.RowAdapter$(cfg, it)</ID>
+    <ID>ArgumentListWrapping:SellwildFeedView.kt$SellwildFeedView.RowAdapter$(row.listing, colors.price)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAd.kt$SellwildHouseAd$("cached image could not be read", error = e)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAd.kt$SellwildHouseAd$(i)</ID>
+    <ID>ArgumentListWrapping:SellwildHouseAd.kt$SellwildHouseAd$(imageValue.optString(i))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListings.kt$SellwildLocalizedListings$("$from lacks baseUrl or urlTemplate")</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListings.kt$SellwildLocalizedListings$(integration)</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListings.kt$SellwildLocalizedListings$(invalid("$from lacks baseUrl or urlTemplate"))</ID>
+    <ID>ArgumentListWrapping:SellwildLocalizedListings.kt$SellwildLocalizedListings$(null, listOf(invalid("$from lacks baseUrl or urlTemplate")))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdView.kt$SellwildNativeAdView$(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdView.kt$SellwildNativeAdView$(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdView.kt$SellwildNativeAdView$(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdView.kt$SellwildNativeAdView$(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdView.kt$SellwildNativeAdView$(bodyView, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = px(8) })</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdView.kt$SellwildNativeAdView$(ctaButton, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdView.kt$SellwildNativeAdView$(footer, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdView.kt$SellwildNativeAdView$(header, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))</ID>
+    <ID>ArgumentListWrapping:SellwildNativeAdView.kt$SellwildNativeAdView$(mediaView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = px(8); bottomMargin = px(8) })</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobile.kt$LiveAdNetwork$(::PrebidNativeContent)</ID>
+    <ID>ArgumentListWrapping:SellwildPrebidMobile.kt$LiveAdNetwork$(cacheId)</ID>
+    <ID>ComplexCondition:FailuresCore.kt$FailuresCore$!errName.isNullOrEmpty() &amp;&amp; lines.isNotEmpty() &amp;&amp; (lines[0] == errName || lines[0].startsWith("$errName:"))</ID>
+    <ID>ComplexCondition:FailuresCore.kt$FailuresCore$cp == '/'.code || cp == '?'.code || cp == '#'.code || !isAuthorityChar(cp)</ID>
+    <ID>ComplexCondition:SellwildS2SConfig.kt$SellwildS2SConfig.Companion$i &lt; s.length &amp;&amp; (isIdentPart(s[i]) || s[i] == '.' || ((s[i] == '+' || s[i] == '-') &amp;&amp; (s[i - 1] == 'e' || s[i - 1] == 'E')))</ID>
+    <ID>CyclomaticComplexMethod:ConfigFields.kt$ConfigFields$private fun isInvalid(v: Any?, kind: Kind): Boolean</ID>
+    <ID>CyclomaticComplexMethod:FailuresCore.kt$FailuresCore$fun decideFailure( state: FailureState?, input: FailureInput?, context: FailureContext?, uid: String?, now: Long, ): FailureDecision</ID>
+    <ID>CyclomaticComplexMethod:FailuresCore.kt$FailuresCore$fun hostOf(url: Any?): String?</ID>
+    <ID>CyclomaticComplexMethod:FeedSchedule.kt$FeedSchedule$fun build( schedule: String, listings: List&lt;SellwildListing&gt;, gamZones: List&lt;String&gt;, bannerZone: String?, gpidBase: (String) -&gt; String?, ): Resolved&lt;List&lt;FeedRow&gt;&gt;</ID>
+    <ID>CyclomaticComplexMethod:SellwildGeo.kt$SellwildGeo.Companion$fun northAmericaAlpha3(alpha2: String): String?</ID>
+    <ID>CyclomaticComplexMethod:SellwildS2SConfig.kt$SellwildS2SConfig.Companion$internal fun jsLiteralToJson(s: String): String</ID>
+    <ID>CyclomaticComplexMethod:SellwildSDK.kt$SellwildSDK$fun apply(raw: JSONObject, base: SellwildConfig): SellwildConfig</ID>
+    <ID>EnumEntryNameCase:SellwildConfig.kt$AdSize$BANNER_320x50 : AdSize</ID>
+    <ID>EnumEntryNameCase:SellwildConfig.kt$AdSize$HALF_PAGE_300x600 : AdSize</ID>
+    <ID>EnumEntryNameCase:SellwildConfig.kt$AdSize$LEADERBOARD_728x90 : AdSize</ID>
+    <ID>EnumEntryNameCase:SellwildConfig.kt$AdSize$MREC_300x250 : AdSize</ID>
+    <ID>EnumEntryNameCase:SellwildConfig.kt$AdSize$WIDE_SKYSCRAPER_160x600 : AdSize</ID>
+    <ID>FunctionNaming:SellwildFeed.kt$@Composable public fun SellwildFeed( config: SellwildConfig, modifier: Modifier = Modifier.fillMaxSize(), onListingTap: (SellwildListing) -&gt; Boolean = { false }, onAdImpression: (String) -&gt; Unit = {}, onAdClicked: (String) -&gt; Unit = {}, onLoad: () -&gt; Unit = {}, onError: (String) -&gt; Unit = {}, )</ID>
+    <ID>ImplicitDefaultLocale:SellwildAPI.kt$SellwildListing$String.format("%.0f", value)</ID>
+    <ID>ImportOrdering:SellwildAdSizes.kt$import com.sellwild.sdk.core.Issue import com.sellwild.sdk.core.RemoteValues import com.sellwild.sdk.core.Resolved import com.sellwild.sdk.failures.SellwildFailureCode import com.sellwild.sdk.failures.SellwildFailureComponent import com.sellwild.sdk.failures.SellwildFailureSeverity import org.json.JSONArray import org.json.JSONException import org.json.JSONObject import com.google.android.gms.ads.AdSize as GmaAdSize import com.google.android.gms.ads.admanager.AdManagerAdView import com.sellwild.prebid.AdSize as PrebidAdSize import com.sellwild.prebid.BannerAdUnit import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView</ID>
+    <ID>ImportOrdering:SellwildAdView.kt$import android.content.Context import android.os.Handler import android.os.Looper import android.util.AttributeSet import android.view.View import android.view.ViewGroup import android.widget.FrameLayout import androidx.browser.customtabs.CustomTabsIntent import com.google.android.gms.ads.AdListener import com.google.android.gms.ads.LoadAdError import com.google.android.gms.ads.admanager.AdManagerAdRequest import com.google.android.gms.ads.admanager.AdManagerAdView import com.sellwild.prebid.AdSize as PrebidAdSize import com.sellwild.prebid.api.exceptions.AdException import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView import com.sellwild.prebid.api.rendering.VideoView as PrebidVideoView import com.sellwild.prebid.api.rendering.listeners.BannerViewListener import com.sellwild.sdk.core.AdDecisions import com.sellwild.sdk.core.AdFlags import com.sellwild.sdk.failures.SellwildFailureCode import com.sellwild.sdk.failures.SellwildFailureComponent import com.sellwild.sdk.failures.SellwildFailureSeverity import com.sellwild.sdk.failures.SellwildFailures import com.sellwild.sdk.failures.SellwildLog import java.util.concurrent.atomic.AtomicBoolean</ID>
+    <ID>ImportOrdering:SellwildNative.kt$import com.sellwild.sdk.core.RemoteValues import com.sellwild.prebid.NativeAdUnit import com.sellwild.prebid.NativeTitleAsset import com.sellwild.prebid.NativeImageAsset import com.sellwild.prebid.NativeDataAsset import com.sellwild.prebid.NativeEventTracker</ID>
+    <ID>ImportOrdering:SellwildPrebidMobile.kt$import android.content.Context import android.os.Bundle import com.google.android.gms.ads.MobileAds import com.google.android.gms.ads.admanager.AdManagerAdRequest import com.google.android.gms.ads.admanager.AdManagerAdView import com.sellwild.prebid.BannerAdUnit import com.sellwild.prebid.BannerParameters import com.sellwild.prebid.ExternalUserId import com.sellwild.prebid.NativeAdUnit import com.sellwild.prebid.OnCompleteListener import com.sellwild.prebid.PrebidNativeAd import com.sellwild.prebid.ResultCode import com.sellwild.prebid.SellwildPrebid import com.sellwild.prebid.Signals import com.sellwild.prebid.TargetingParams import com.sellwild.prebid.api.data.InitializationStatus import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView import com.sellwild.sdk.core.PrebidSetup import com.sellwild.sdk.failures.SellwildFailureCode import com.sellwild.sdk.failures.SellwildFailureComponent import com.sellwild.sdk.failures.SellwildFailureSeverity import com.sellwild.sdk.failures.SellwildFailures import com.sellwild.sdk.failures.SellwildLog import org.json.JSONObject</ID>
+    <ID>ImportOrdering:SellwildVideo.kt$import com.sellwild.sdk.core.RemoteValues import java.util.EnumSet import com.sellwild.prebid.Signals import com.sellwild.prebid.VideoParameters import com.sellwild.prebid.api.data.AdUnitFormat</ID>
+    <ID>InjectDispatcher:SellwildFeedView.kt$FeedImages$IO</ID>
+    <ID>InjectDispatcher:SellwildSDK.kt$SellwildSDK$IO</ID>
+    <ID>LongMethod:SellwildS2SConfig.kt$SellwildS2SConfig.Companion$internal fun jsLiteralToJson(s: String): String</ID>
+    <ID>LongMethod:SellwildSDK.kt$SellwildSDK$fun apply(raw: JSONObject, base: SellwildConfig): SellwildConfig</ID>
+    <ID>LongParameterList:FailuresCore.kt$FailuresCore.Fields$( val action: String, val label: String, val severity: String, val errName: String?, val msg: String?, val stack: String?, val httpStatus: String?, val host: String?, val zoneId: String?, val seq: Int, val repeat: Int, val capped: Boolean, )</ID>
+    <ID>LongParameterList:SellwildFailures.kt$SellwildFailures$( code: String, component: String, severity: String? = null, error: Throwable? = null, message: String? = null, httpStatus: Int? = null, url: String? = null, zoneId: String? = null, )</ID>
+    <ID>LongParameterList:SellwildFailures.kt$SellwildFailures$( code: String, component: String, severity: String?, error: Throwable?, message: String?, httpStatus: Int?, url: String?, zoneId: String?, )</ID>
+    <ID>LongParameterList:SellwildFeed.kt$( config: SellwildConfig, modifier: Modifier = Modifier.fillMaxSize(), onListingTap: (SellwildListing) -&gt; Boolean = { false }, onAdImpression: (String) -&gt; Unit = {}, onAdClicked: (String) -&gt; Unit = {}, onLoad: () -&gt; Unit = {}, onError: (String) -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:SellwildFeedView.kt$SellwildFeedView.AdRowView$( config: SellwildConfig, zoneId: String, gpid: String?, priceColor: Int, onImpression: (String) -&gt; Unit, onHouseImpression: (String) -&gt; Unit, onClick: (String) -&gt; Unit, houseListing: SellwildListing?, onListingTap: (SellwildListing) -&gt; Unit, onRowResize: () -&gt; Unit, surfaceGuard: SellwildFirstAdViewedGuard, )</ID>
+    <ID>LongParameterList:SellwildGrowthCode.kt$SellwildGrowthCode$( prefs: SharedPreferences, settings: Settings, pid: String, syncUrl: String, gcid: String?, maid: Pair&lt;String, String&gt;?, cachedEb: String?, )</ID>
+    <ID>LongParameterList:SellwildPrebidMobile.kt$SellwildPrebidMobile$( adView: AdManagerAdView, configId: String, widthDp: Int, heightDp: Int, bidderParams: Map&lt;String, Any?&gt; = emptyMap(), video: Boolean = false, adSizes: List&lt;SellwildAdSizes.Size&gt; = emptyList(), gpid: String? = null, completion: ((ResultCode) -&gt; Unit)? = null, )</ID>
+    <ID>LoopWithTooManyJumpStatements:GrowthCodeSync.kt$GrowthCodeSync$for</ID>
+    <ID>MagicNumber:AdDecisions.kt$AdDecisions$1000L</ID>
+    <ID>MagicNumber:AdDecisions.kt$AdDecisions$250</ID>
+    <ID>MagicNumber:AdDecisions.kt$AdDecisions$300</ID>
+    <ID>MagicNumber:AdDecisions.kt$AdDecisions$320</ID>
+    <ID>MagicNumber:AdDecisions.kt$AdDecisions$50</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x01000193</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x0300</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x036f</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x10000</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x1680</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x1ab0</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x1aff</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x1dc0</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x1dff</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x1f1e6</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x1f1ff</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x1f3fb</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x1f3ff</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x20</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x2000</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x200a</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x200d</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x2028</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x2029</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x202f</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x205f</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x20d0</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x20ff</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x3000</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x3f</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x7f</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x80</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x800</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0x9f</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xa0</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xc0</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xd800</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xdfff</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xe0</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xe0020</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xe007f</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xe0100</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xe01ef</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xf0</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xfe00</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xfe0f</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xfe20</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xfe2f</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xfeff</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xfffd</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$0xffffffffL</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$100.0</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$12</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$16</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$18</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$3</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$32</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$4</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$4294967296.0</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$5</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$6</ID>
+    <ID>MagicNumber:FailuresCore.kt$FailuresCore$999.0</ID>
+    <ID>MagicNumber:Fetch.kt$Fetch$403</ID>
+    <ID>MagicNumber:Fetch.kt$Fetch$404</ID>
+    <ID>MagicNumber:GrowthCodeSync.kt$GrowthCodeSync$3_600_000</ID>
+    <ID>MagicNumber:HouseImages.kt$HouseImages$33</ID>
+    <ID>MagicNumber:HouseImages.kt$HouseImages$5381L</ID>
+    <ID>MagicNumber:SellwildAPI.kt$HttpEventSender$10_000</ID>
+    <ID>MagicNumber:SellwildAPI.kt$HttpEventSender$15_000</ID>
+    <ID>MagicNumber:SellwildAPI.kt$HttpEventSender$200</ID>
+    <ID>MagicNumber:SellwildAPI.kt$HttpEventSender$299</ID>
+    <ID>MagicNumber:SellwildAPI.kt$SellwildAPIClient$10_000</ID>
+    <ID>MagicNumber:SellwildAPI.kt$SellwildAPIClient$15_000</ID>
+    <ID>MagicNumber:SellwildAPI.kt$SellwildEventQueue$200</ID>
+    <ID>MagicNumber:SellwildAPI.kt$SellwildEventQueue$299</ID>
+    <ID>MagicNumber:SellwildAPI.kt$SellwildEventQueue.Companion$200</ID>
+    <ID>MagicNumber:SellwildAPI.kt$SellwildEventQueue.Companion$299</ID>
+    <ID>MagicNumber:SellwildAPI.kt$SellwildEventQueue.Companion$400</ID>
+    <ID>MagicNumber:SellwildAPI.kt$SellwildEventQueue.Companion$408</ID>
+    <ID>MagicNumber:SellwildAPI.kt$SellwildEventQueue.Companion$429</ID>
+    <ID>MagicNumber:SellwildAPI.kt$SellwildEventQueue.Companion$499</ID>
+    <ID>MagicNumber:SellwildAdAudioGuard.kt$SellwildAdAudioGuard$1200L</ID>
+    <ID>MagicNumber:SellwildAdAudioGuard.kt$SellwildAdAudioGuard$2500L</ID>
+    <ID>MagicNumber:SellwildAdAudioGuard.kt$SellwildAdAudioGuard$400L</ID>
+    <ID>MagicNumber:SellwildConfig.kt$AdSize.BANNER_320x50$320</ID>
+    <ID>MagicNumber:SellwildConfig.kt$AdSize.BANNER_320x50$50</ID>
+    <ID>MagicNumber:SellwildConfig.kt$AdSize.HALF_PAGE_300x600$300</ID>
+    <ID>MagicNumber:SellwildConfig.kt$AdSize.HALF_PAGE_300x600$600</ID>
+    <ID>MagicNumber:SellwildConfig.kt$AdSize.LEADERBOARD_728x90$728</ID>
+    <ID>MagicNumber:SellwildConfig.kt$AdSize.LEADERBOARD_728x90$90</ID>
+    <ID>MagicNumber:SellwildConfig.kt$AdSize.MREC_300x250$250</ID>
+    <ID>MagicNumber:SellwildConfig.kt$AdSize.MREC_300x250$300</ID>
+    <ID>MagicNumber:SellwildConfig.kt$AdSize.WIDE_SKYSCRAPER_160x600$160</ID>
+    <ID>MagicNumber:SellwildConfig.kt$AdSize.WIDE_SKYSCRAPER_160x600$600</ID>
+    <ID>MagicNumber:SellwildConfig.kt$ReportedIssues.&lt;no name provided&gt;$0.75f</ID>
+    <ID>MagicNumber:SellwildConfig.kt$ReportedIssues.&lt;no name provided&gt;$16</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$FeedImages$32</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.AdRowView$8</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.HeaderView$11f</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.HeaderView$16</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.HeaderView$18f</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.ListingCardView$11f</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.ListingCardView$12</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.ListingCardView$15f</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.ListingCardView$16</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.ListingCardView$18f</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.ListingCardView$200</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.ListingCardView$4</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.ListingCardView$6</ID>
+    <ID>MagicNumber:SellwildFeedView.kt$SellwildFeedView.ListingCardView$8</ID>
+    <ID>MagicNumber:SellwildGrowthCode.kt$SellwildGrowthCode$10_000</ID>
+    <ID>MagicNumber:SellwildGrowthCode.kt$SellwildGrowthCode$15_000</ID>
+    <ID>MagicNumber:SellwildGrowthCode.kt$SellwildGrowthCode$200</ID>
+    <ID>MagicNumber:SellwildGrowthCode.kt$SellwildGrowthCode$299</ID>
+    <ID>MagicNumber:SellwildHouseAd.kt$SellwildHouseAd$8</ID>
+    <ID>MagicNumber:SellwildHouseAdView.kt$SellwildHouseAdView$12</ID>
+    <ID>MagicNumber:SellwildHouseAdView.kt$SellwildHouseAdView$15f</ID>
+    <ID>MagicNumber:SellwildHouseAdView.kt$SellwildHouseAdView$18</ID>
+    <ID>MagicNumber:SellwildHouseAdView.kt$SellwildHouseAdView$18f</ID>
+    <ID>MagicNumber:SellwildHouseAdView.kt$SellwildHouseAdView$23</ID>
+    <ID>MagicNumber:SellwildHouseAdView.kt$SellwildHouseAdView$235</ID>
+    <ID>MagicNumber:SellwildHouseAdView.kt$SellwildHouseAdView$38</ID>
+    <ID>MagicNumber:SellwildHouseAdView.kt$SellwildHouseAdView$8</ID>
+    <ID>MagicNumber:SellwildHouseAdView.kt$SellwildHouseAdView$99</ID>
+    <ID>MagicNumber:SellwildLocalizedListings.kt$SellwildLocalizedListings$100</ID>
+    <ID>MagicNumber:SellwildLocalizedListings.kt$SellwildLocalizedListings$100.0</ID>
+    <ID>MagicNumber:SellwildNative.kt$SellwildNative$140</ID>
+    <ID>MagicNumber:SellwildNative.kt$SellwildNative$157</ID>
+    <ID>MagicNumber:SellwildNative.kt$SellwildNative$20</ID>
+    <ID>MagicNumber:SellwildNative.kt$SellwildNative$25</ID>
+    <ID>MagicNumber:SellwildNative.kt$SellwildNative$300</ID>
+    <ID>MagicNumber:SellwildNative.kt$SellwildNative$90</ID>
+    <ID>MagicNumber:SellwildNativeAdView.kt$SellwildNativeAdView$11f</ID>
+    <ID>MagicNumber:SellwildNativeAdView.kt$SellwildNativeAdView$13f</ID>
+    <ID>MagicNumber:SellwildNativeAdView.kt$SellwildNativeAdView$15f</ID>
+    <ID>MagicNumber:SellwildNativeAdView.kt$SellwildNativeAdView$3</ID>
+    <ID>MagicNumber:SellwildNativeAdView.kt$SellwildNativeAdView$40</ID>
+    <ID>MagicNumber:SellwildNativeAdView.kt$SellwildNativeAdView$8</ID>
+    <ID>MagicNumber:SellwildS2SConfig.kt$SellwildS2SConfig.Companion$16</ID>
+    <ID>MagicNumber:SellwildSDK.kt$SellwildSDK$200</ID>
+    <ID>MagicNumber:SellwildSDK.kt$SellwildSDK$299</ID>
+    <ID>MagicNumber:SellwildVideo.kt$SellwildVideo$30</ID>
+    <ID>MagicNumber:SellwildVideo.kt$SellwildVideo$5</ID>
+    <ID>MaxLineLength:AdDecisions.kt$AdDecisions$fun</ID>
+    <ID>MaxLineLength:AdDecisions.kt$AdFlags$fun</ID>
+    <ID>MaxLineLength:FailuresCore.kt$FailuresCore$val FRAME_PATTERN = listOf(URL_ALT, PROTO_REL_ALT, EMAIL_ALT, UUID_ALT, IPV4_ALT, PATH_ALT, QUERY_ALT).joinToString("|")</ID>
+    <ID>MaxLineLength:FeedSchedule.kt$FeedSchedule$'B' -&gt; if (bannerZone.isNullOrEmpty()) droppedBanner++ else addAd(bannerZone, FeedRow.Banner(bannerZone))</ID>
+    <ID>MaxLineLength:Format.kt$FeedTheme$fun</ID>
+    <ID>MaxLineLength:Format.kt$Format$fun</ID>
+    <ID>MaxLineLength:GrowthCodeSync.kt$GrowthCodeSync$return Response(gcId = ListingsParser.optTextOrNull(json, "gc_id"), eb = ListingsParser.optTextOrNull(json, "eb"))</ID>
+    <ID>MaxLineLength:SellwildAPI.kt$SellwildEventQueue$SellwildEvent(event = event, action = action, label = label, attributes = attributes, uid = uid, createdTime = clock())</ID>
+    <ID>MaxLineLength:SellwildAdView.kt$SellwildAdView$val stack = if (resolvedAdStack == SellwildAdStack.PREBID_ONLY) AdDecisions.Stack.PREBID_ONLY else AdDecisions.Stack.GAM</ID>
+    <ID>MaxLineLength:SellwildAdView.kt$SellwildAdView.&lt;no name provided&gt;$if (AdDecisions.prebidRefreshSpent(self.prebidRefreshCount, self.effectiveRefreshMax)) bannerView?.stopRefresh()</ID>
+    <ID>MaxLineLength:SellwildConfig.kt$ReportedIssues.&lt;no name provided&gt;$override fun removeEldestEntry(eldest: MutableMap.MutableEntry&lt;String?, MutableSet&lt;String&gt;&gt;)</ID>
+    <ID>MaxLineLength:SellwildFailureCode.kt$SellwildFailureCode$/** A native bid won but the cache id was missing or the native ad could not be created. No-fill stays on adError. */</ID>
+    <ID>MaxLineLength:SellwildFailureCode.kt$SellwildFailureCode$/** Applying the geo seeded from the listings response's CloudFront viewer headers threw, so auctions may not carry it as device.geo. */</ID>
+    <ID>MaxLineLength:SellwildFailureCode.kt$SellwildFailureCode$/** GAM failed to load an ad for a reason other than no-fill (network, invalid request, internal). No-fill stays on adError. */</ID>
+    <ID>MaxLineLength:SellwildFailureCode.kt$SellwildFailureCode$/** Prebid Mobile initialization threw or completed with an error, so every auction waits and may run without Prebid. */</ID>
+    <ID>MaxLineLength:SellwildFailureCode.kt$SellwildFailureCode$/** Replacement action when a call site passes a code that fails the registry format. The label keeps the caller component. Never pass it directly. */</ID>
+    <ID>MaxLineLength:SellwildFailureCode.kt$SellwildFailureCode$/** The GrowthCode sync threw something other than a network, timeout or parse error, for example a stored value of the wrong type. */</ID>
+    <ID>MaxLineLength:SellwildFailureCode.kt$SellwildFailureCode$/** The localized (per-state) cache fetch threw something other than a network, timeout or parse error; the primary feed renders alone. */</ID>
+    <ID>MaxLineLength:SellwildFailureCode.kt$SellwildFailureCode$/** setGeo got a payload it could not read: one that is not an object (geo was cleared) or a field of the wrong type (that field was dropped). */</ID>
+    <ID>MaxLineLength:SellwildFeedView.kt$SellwildFeedView$logOpenUrl(SellwildFailureCode.FEED_OPEN_URL_INVALID, message = "the listing or partner URL is not http(s)")</ID>
+    <ID>MaxLineLength:SellwildFeedView.kt$SellwildFeedView$return</ID>
+    <ID>MaxLineLength:SellwildFeedView.kt$SellwildFeedView.RowAdapter$is FeedRow.Listing -&gt; (holder as ListingHolder).view.bind(row.listing, colors.price) { handleFeedListingTap(cfg, it) }</ID>
+    <ID>MaxLineLength:SellwildFeedView.kt$SellwildFeedView.RowAdapter$private</ID>
+    <ID>MaxLineLength:SellwildGrowthCode.kt$SellwildGrowthCode$endpoint = local?.endpoint ?: nonEmpty(RemoteValues.optText(obj, "GROWTHCODE_ENDPOINT")) ?: DEFAULT_ENDPOINT</ID>
+    <ID>MaxLineLength:SellwildGrowthCode.kt$SellwildGrowthCode$private</ID>
+    <ID>MaxLineLength:SellwildHouseAd.kt$SellwildHouseAd$is JSONArray -&gt; (0 until imageValue.length()).mapNotNull { i -&gt; nonEmpty(imageValue.optString(i))?.let { i to it } }</ID>
+    <ID>MaxLineLength:SellwildHouseAd.kt$SellwildHouseAd$val cached = runCatching { disk.readBytes() }.getOrElse { e -&gt; return invalid("cached image could not be read", error = e) }</ID>
+    <ID>MaxLineLength:SellwildLocalizedListings.kt$SellwildLocalizedListings$if (integration != null) Resolved(integration) else Resolved(null, listOf(invalid("$from lacks baseUrl or urlTemplate")))</ID>
+    <ID>MaxLineLength:SellwildNativeAdView.kt$SellwildNativeAdView$addView(bodyView, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = px(8) })</ID>
+    <ID>MaxLineLength:SellwildNativeAdView.kt$SellwildNativeAdView$addView(ctaButton, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))</ID>
+    <ID>MaxLineLength:SellwildNativeAdView.kt$SellwildNativeAdView$addView(footer, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))</ID>
+    <ID>MaxLineLength:SellwildNativeAdView.kt$SellwildNativeAdView$addView(header, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))</ID>
+    <ID>MaxLineLength:SellwildNativeAdView.kt$SellwildNativeAdView$addView(mediaView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = px(8); bottomMargin = px(8) })</ID>
+    <ID>MaxLineLength:SellwildNativeAdView.kt$SellwildNativeAdView$message = if (cacheId == null) "native win without a cache id" else "native ad could not be created from the cache"</ID>
+    <ID>MaxLineLength:SellwildPrebidMobile.kt$LiveAdNetwork$override fun nativeAd(cacheId: String): NativeAdContent?</ID>
+    <ID>MaxLineLength:SellwildSDK.kt$SellwildSDK$appBundleId = raw.optStringOrNull("APP_BUNDLE_ID_ANDROID") ?: raw.optStringOrNull("APP_BUNDLE_ID") ?: base.appBundleId</ID>
+    <ID>MaxLineLength:SellwildSDK.kt$SellwildSDK$appStoreUrl = raw.optStringOrNull("APP_STORE_URL_ANDROID") ?: raw.optStringOrNull("APP_STORE_URL") ?: base.appStoreUrl</ID>
+    <ID>MaximumLineLength:AdDecisions.kt$AdDecisions$ </ID>
+    <ID>MaximumLineLength:AdDecisions.kt$AdFlags$ </ID>
+    <ID>MaximumLineLength:FailuresCore.kt$FailuresCore$ </ID>
+    <ID>MaximumLineLength:FeedSchedule.kt$FeedSchedule$ </ID>
+    <ID>MaximumLineLength:Format.kt$FeedTheme$ </ID>
+    <ID>MaximumLineLength:Format.kt$Format$ </ID>
+    <ID>MaximumLineLength:GrowthCodeSync.kt$GrowthCodeSync$ </ID>
+    <ID>MaximumLineLength:SellwildAPI.kt$SellwildEventQueue$ </ID>
+    <ID>MaximumLineLength:SellwildAdView.kt$SellwildAdView$ </ID>
+    <ID>MaximumLineLength:SellwildAdView.kt$SellwildAdView.&lt;no name provided&gt;$ </ID>
+    <ID>MaximumLineLength:SellwildConfig.kt$ReportedIssues.&lt;no name provided&gt;$ </ID>
+    <ID>MaximumLineLength:SellwildFeedView.kt$SellwildFeedView$ </ID>
+    <ID>MaximumLineLength:SellwildFeedView.kt$SellwildFeedView.RowAdapter$ </ID>
+    <ID>MaximumLineLength:SellwildGrowthCode.kt$SellwildGrowthCode$ </ID>
+    <ID>MaximumLineLength:SellwildHouseAd.kt$SellwildHouseAd$ </ID>
+    <ID>MaximumLineLength:SellwildLocalizedListings.kt$SellwildLocalizedListings$ </ID>
+    <ID>MaximumLineLength:SellwildNativeAdView.kt$SellwildNativeAdView$ </ID>
+    <ID>MaximumLineLength:SellwildPrebidMobile.kt$LiveAdNetwork$ </ID>
+    <ID>MaximumLineLength:SellwildSDK.kt$SellwildSDK$ </ID>
+    <ID>MultiLineIfElse:SellwildAdSizes.kt$SellwildAdSizes$null</ID>
+    <ID>MultiLineIfElse:SellwildPrebidMobile.kt$SellwildPrebidMobile.PerConfigFields$PerConfigFields( serverUrl = serverUrl ?: base.serverUrl, accountId = accountId ?: base.accountId, timeout = timeout ?: base.timeout, bundleName = bundleName ?: base.bundleName, storeUrl = storeUrl ?: base.storeUrl, publisherId = publisherId ?: base.publisherId, cats = cats ?: base.cats, )</ID>
+    <ID>MultiLineIfElse:SellwildPrebidMobile.kt$SellwildPrebidMobile.PerConfigFields$this</ID>
+    <ID>MultiLineIfElse:SellwildS2SConfig.kt$SellwildS2SConfig.Companion$nonEmpty(v)</ID>
+    <ID>MultiLineIfElse:SellwildS2SConfig.kt$SellwildS2SConfig.Companion$nonEmpty(v.opt("p1Consent")) ?: nonEmpty(v.opt("noP1Consent"))</ID>
+    <ID>MultiLineIfElse:SellwildS2SConfig.kt$SellwildS2SConfig.Companion$raw</ID>
+    <ID>NestedBlockDepth:SellwildS2SConfig.kt$SellwildS2SConfig.Companion$internal fun jsLiteralToJson(s: String): String</ID>
+    <ID>NoMultipleSpaces:SellwildConfig.kt$SellwildConfig$ </ID>
+    <ID>NoMultipleSpaces:SellwildFeedView.kt$SellwildFeedView.AdRowView$ </ID>
+    <ID>NoMultipleSpaces:SellwildGeo.kt$SellwildGeo.Companion$ </ID>
+    <ID>NoMultipleSpaces:SellwildHouseAdView.kt$SellwildHouseAdView$ </ID>
+    <ID>NoUnusedImports:SellwildGrowthCode.kt$com.sellwild.sdk.SellwildGrowthCode.kt</ID>
+    <ID>ParameterListWrapping:AdDecisions.kt$AdDecisions$(enabled: Boolean, image: I?, listing: L?, widthDp: Int, heightDp: Int)</ID>
+    <ID>ParameterListWrapping:AdDecisions.kt$AdFlags$(remote: JSONObject?)</ID>
+    <ID>ParameterListWrapping:Format.kt$FeedTheme$(String)</ID>
+    <ID>ParameterListWrapping:Format.kt$FeedTheme$(priceColor: String?, titleColor: String?, linkColor: String?, parse: (String) -&gt; Int)</ID>
+    <ID>ParameterListWrapping:Format.kt$Format$(sponsoredBy: String?)</ID>
+    <ID>ParameterListWrapping:SellwildConfig.kt$ReportedIssues.&lt;no name provided&gt;$(eldest: MutableMap.MutableEntry&lt;String?, MutableSet&lt;String&gt;&gt;)</ID>
+    <ID>ReturnCount:AdDecisions.kt$AdDecisions$fun gamAdUnit(gamTag: String?, remote: JSONObject?, widthDp: Int, heightDp: Int): Resolved&lt;String&gt;</ID>
+    <ID>ReturnCount:AdDecisions.kt$AdDecisions$fun healedSize(width: Int, height: Int, parentWidth: Int, parentHeight: Int): Pair&lt;Int, Int&gt;?</ID>
+    <ID>ReturnCount:FailuresCore.kt$FailuresCore$fun decideFailure( state: FailureState?, input: FailureInput?, context: FailureContext?, uid: String?, now: Long, ): FailureDecision</ID>
+    <ID>ReturnCount:FailuresCore.kt$FailuresCore$fun hostOf(url: Any?): String?</ID>
+    <ID>ReturnCount:FailuresCore.kt$FailuresCore$fun isSampled(uid: String?, rate: Double): Boolean</ID>
+    <ID>ReturnCount:FailuresCore.kt$FailuresCore$fun normalizeCode(code: Any?): String</ID>
+    <ID>ReturnCount:FailuresCore.kt$FailuresCore$fun sanitizeStack(stack: Any?, errName: String?): String?</ID>
+    <ID>ReturnCount:GrowthCodeSync.kt$GrowthCodeSync$fun parseEidBlob(eb: String): Resolved&lt;List&lt;SellwildEid&gt;&gt;</ID>
+    <ID>ReturnCount:GrowthCodeSync.kt$GrowthCodeSync$fun shouldSync(gcid: String?, lastSyncMs: Long?, ttlHours: Double, nowMs: Long): Boolean</ID>
+    <ID>ReturnCount:GrowthCodeSync.kt$GrowthCodeSync$private fun parseUid(u: JSONObject?): SellwildEidUid?</ID>
+    <ID>ReturnCount:HouseImages.kt$HouseImages$fun source(url: String): Source</ID>
+    <ID>ReturnCount:SellwildAPI.kt$SellwildListing$fun tapUrl(partnerCode: String?, bhTag: String? = null): String?</ID>
+    <ID>ReturnCount:SellwildAdStack.kt$SellwildAdStack.Companion$internal fun byZone(obj: JSONObject?): Resolved&lt;Map&lt;String, SellwildAdStack&gt;&gt;</ID>
+    <ID>ReturnCount:SellwildAdStack.kt$SellwildAdStack.Companion$internal fun global(obj: JSONObject?): Resolved&lt;SellwildAdStack?&gt;</ID>
+    <ID>ReturnCount:SellwildAdView.kt$SellwildAdView$private fun ensureNativeAdView(): SellwildNativeAdView?</ID>
+    <ID>ReturnCount:SellwildAdView.kt$SellwildAdView$private fun ensurePrebidBanner(): PrebidBannerView?</ID>
+    <ID>ReturnCount:SellwildAdView.kt$SellwildAdView$private fun loadGam(runAuction: Boolean)</ID>
+    <ID>ReturnCount:SellwildAdView.kt$SellwildAdView$private fun videoViews(root: View): List&lt;PrebidVideoView&gt;</ID>
+    <ID>ReturnCount:SellwildFeedView.kt$FeedImages$private fun decodeInline(base64: String): Bitmap?</ID>
+    <ID>ReturnCount:SellwildFeedView.kt$FeedImages$private fun loadRemote(url: URL, text: String): Bitmap?</ID>
+    <ID>ReturnCount:SellwildFeedView.kt$SellwildFeedView$private suspend fun applyLocalizedDispersion( config: SellwildConfig, client: SellwildAPIClient, primary: List&lt;SellwildListing&gt;, ): List&lt;SellwildListing&gt;</ID>
+    <ID>ReturnCount:SellwildGpid.kt$SellwildGpid$fun resolveBase(remoteJson: String?, zoneId: String?): String?</ID>
+    <ID>ReturnCount:SellwildGrowthCode.kt$SellwildGrowthCode$fun resolveIfNeeded(context: Context, config: SellwildConfig, zoneId: String?)</ID>
+    <ID>ReturnCount:SellwildGrowthCode.kt$SellwildGrowthCode$private fun performSync( prefs: SharedPreferences, settings: Settings, pid: String, syncUrl: String, gcid: String?, maid: Pair&lt;String, String&gt;?, cachedEb: String?, )</ID>
+    <ID>ReturnCount:SellwildHouseAd.kt$SellwildHouseAd$private fun decodeInline(base64: String): Bitmap?</ID>
+    <ID>ReturnCount:SellwildHouseAd.kt$SellwildHouseAd$private fun loadRemote(disk: File, key: String, url: URL): Bitmap?</ID>
+    <ID>ReturnCount:SellwildLocalizedListings.kt$SellwildLocalizedListings$@JvmOverloads fun merge( primary: List&lt;SellwildListing&gt;, secondary: List&lt;SellwildListing&gt;, everyN: Int, random: Random = Random.Default, ): List&lt;SellwildListing&gt;</ID>
+    <ID>ReturnCount:SellwildLocalizedListings.kt$SellwildLocalizedListings$fun everyN(frequencyPercent: Int): Int</ID>
+    <ID>ReturnCount:SellwildLocalizedListings.kt$SellwildLocalizedListings$fun normState(value: String?): String?</ID>
+    <ID>ReturnCount:SellwildLocalizedListings.kt$SellwildLocalizedListings$internal fun resolveFrom(local: SellwildLocalizedListingsConfig?, remote: JSONObject?): Resolved&lt;Integration?&gt;</ID>
+    <ID>ReturnCount:SellwildLocalizedListings.kt$SellwildLocalizedListings$private fun make( source: String?, baseUrl: String?, urlTemplate: String?, frequency: Int?, forceState: String?, ): Integration?</ID>
+    <ID>ReturnCount:SellwildNative.kt$SellwildNative$fun isEnabled(remoteJson: String?, zoneId: String?): Boolean</ID>
+    <ID>ReturnCount:SellwildS2SConfig.kt$SellwildS2SConfig.Companion$fun parse(raw: Any?): SellwildS2SConfig?</ID>
+    <ID>ReturnCount:SellwildSDK.kt$private fun JSONObject.optCsvStringListOrNull(key: String): List&lt;String&gt;?</ID>
+    <ID>ReturnCount:SellwildSDK.kt$private fun JSONObject.optStringListOrNull(key: String): List&lt;String&gt;?</ID>
+    <ID>ReturnCount:SellwildSDK.kt$private fun JSONObject.optStringOrNull(key: String): String?</ID>
+    <ID>ReturnCount:SellwildVideo.kt$SellwildVideo$private fun flag(remoteJson: String?, zoneId: String?, key: String, byZoneKey: String): Boolean</ID>
+    <ID>SpacingBetweenDeclarationsWithAnnotations:SellwildGrowthCode.kt$SellwildGrowthCode$@Volatile private var didAttempt = false</ID>
+    <ID>SpacingBetweenDeclarationsWithAnnotations:SellwildPrebidMobile.kt$SellwildPrebidMobile$// Whether PrebidMobile.initializeSdk reached SUCCEEDED. If not, callers // should skip the auction and load GAM directly so ads still serve when // Prebid Server is unreachable. @Volatile private var prebidReady = false</ID>
+    <ID>SpacingBetweenDeclarationsWithAnnotations:SellwildPrebidMobile.kt$SellwildPrebidMobile$@Volatile private var didBootstrap = false</ID>
+    <ID>SpacingBetweenDeclarationsWithAnnotations:SellwildPrebidMobile.kt$SellwildPrebidMobile$@Volatile private var resolvedCats: List&lt;String&gt;? = null</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildAdView.kt$SellwildAdView$// House-ad backdrop. Sits behind the paid creative and shows through only</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildAdView.kt$SellwildAdView$// Set when pause() interrupts an in-flight first auction (cold-start wait);</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildAdView.kt$SellwildAdView$// True once the prebidOnly BannerView has rendered a creative at least once.</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildAdView.kt$SellwildAdView$// prebidOnly renders (initial + auto-refreshes). Caps Prebid's internal</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildAdView.kt$SellwildAdView.Listener$/** * The ad rendered at [width]x[height] (dp). Fires on every render so a * host can resize its slot to the actual creative — the winning * multi-size banner, an outstream video, or the capped native template. * Enables dynamic sizing where the slot isn't a fixed banner (React * Native especially). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A BANNER_SIZES entry could not be parsed or has non-positive dimensions; it was dropped. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A config field has an unexpected type or value and was ignored or coerced. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A config value from JS has the wrong type or is incomplete for the native bridge. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A configured color string is not a valid color; the fallback color is used. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A house ad click URL was refused because it is not http(s). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A house ad image failed to download. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A house ad image was rejected (scheme), too large, or could not be decoded. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A listing or partner URL was refused because it is not http(s). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A listing photo URL was rejected (scheme), too large, or could not be decoded. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A listing photo failed to download. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A native bid won but the cache id was missing or the native ad could not be created. No-fill stays on adError. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A native view got missing props or an unsupported size label, so no ad was set up. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** A video creative won a banner-only zone (the existing placementMismatch event is also sent). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** AD_STACK or an AD_STACK_BY_ZONE entry is not a known mode (or not a map); the default is used. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** An ad placement needs a zone id and none was given, so the auction is skipped. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Applying the fetched config threw; defaults are kept. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Applying the geo seeded from the listings response's CloudFront viewer headers threw, so auctions may not carry it as device.geo. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Emitting an event to JS failed because the React instance is gone. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** GAM failed to load an ad for a reason other than no-fill (network, invalid request, internal). No-fill stays on adError. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Google Mobile Ads initialization threw. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** GrowthCode is enabled but the partner id or sync URL is missing, so the sync cannot run. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** GrowthCode sync POST timed out. The throttle is not persisted, so it retries next launch. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** LOCALIZED_LISTINGS is set but not an object, or lacks baseUrl/urlTemplate; the feature is off. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Listings GET did not answer within the client timeout. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Localized (per-state) listings cache GET timed out. The primary feed renders alone. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** No GAM ad unit is configured (gamTag and GAM both empty), so Google's test ad unit is used. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Opening a house ad click URL threw. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Opening a listing or partner URL threw (no browser, no presenter). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Prebid Mobile initialization finished with a non-success status. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Prebid Mobile initialization threw or completed with an error, so every auction waits and may run without Prebid. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Prebid was not ready after the cold-start wait, so the ad loaded without header bidding. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Reading the winning bid (isVideo) threw, so video mute enforcement was skipped. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Replacement action when a call site passes a code that fails the registry format. The label keeps the caller component. Never pass it directly. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The COL1 layout asks for an ad or banner row but no zone is configured, so the row is dropped. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The GrowthCode eid blob (eb) is not valid JSON. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The GrowthCode eid blob is not an array, or entries lack source/uids/id; they were dropped. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The GrowthCode endpoint URL could not be built. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The GrowthCode sync request failed at the network level. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The GrowthCode sync response is not valid JSON. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The GrowthCode sync returned a non-2xx status; the throttle is not saved, so it retries next launch. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The GrowthCode sync threw something other than a network, timeout or parse error, for example a stored value of the wrong type. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The Prebid auction returned an error result code other than no-bids (for example an invalid config id). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The Prebid rendering banner failed to load an ad for a reason other than no-fill. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The ad view was loaded or resumed before setup(). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The feed adapter got an unknown view type. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The feed was loaded before setup(). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The listings GET failed at the network level (DNS, offline, TLS, reset). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The listings GET returned a non-2xx status. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The listings URL is not a valid URL. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The listings body is not valid JSON (for example an HTML error page). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The listings fetch threw something other than a network, timeout or parse error, so the feed has no listings. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The listings response had zero items, so listing slots stay empty. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The localized (per-state) cache fetch threw something other than a network, timeout or parse error; the primary feed renders alone. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The localized (per-state) cache request failed at the network level. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The localized cache URL could not be built from baseUrl and urlTemplate. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The localized cache body is not valid JSON. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The localized cache returned a non-2xx status other than the expected 403/404 for a state without a cache. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The remote config body is not valid JSON. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The remote config request did not answer within the client timeout. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The remote config request failed at the network level (DNS, offline, TLS, reset). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The remote config request returned a non-2xx status (a missing file returns 403 AccessDenied XML). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** The stored remote config JSON could not be parsed, so every remote flag falls back to its default. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** Writing a stored value (localStorage, disk cache) failed. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** setExternalUserIds got an entry without source, uids or id; it was skipped. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFailureCode.kt$SellwildFailureCode$/** setGeo got a payload it could not read: one that is not an object (geo was cleared) or a field of the wrong type (that field was dropped). */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFeedView.kt$SellwildFeedView$// True once a fetch has succeeded (even with zero listings). Gates the</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFeedView.kt$SellwildFeedView.AdRowView$// A CMS house IMAGE renders in-slot via the ad view (MREC), so when one is</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFeedView.kt$SellwildFeedView.AdRowView$// Full-width listing fallback shown when the ad no-fills and no CMS house</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFeedView.kt$SellwildFeedView.AdRowView$// Notifies the feed that this row's height changed so it can force the</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFeedView.kt$SellwildFeedView.AdRowView$// Set by every bind() before the row's ad view exists, so they are always set</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFeedView.kt$SellwildFeedView.Listener$/** * A house ad backfilled an empty ad slot in the feed (a no-fill). NOT a * paid impression — report it separately. See [SellwildHouseAd]. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFeedView.kt$SellwildFeedView.Listener$/** * Called whenever the feed's rendered content height changes (deduped * against the last reported value). Use this to size the feed's * container when embedding it inside a parent scroll view with * `scrollEnabled = false`. [heightDp] is in density-independent pixels. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildFeedView.kt$SellwildFeedView.Listener$/** * Fires after a successful fetch with the number of listings bound to the * feed adapter. `count == 0` means an empty / header-only render — the * fetch succeeded but returned no listings (e.g. a config that resolved to * the wrong/empty listings source). Unlike [onLoad] (a "fetch completed" * signal that also fires on empty), this reliably reflects whether listings * were attached. RecyclerView lays the item views out on the next frame; * this fires when the rows are bound to the adapter. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:SellwildPrebidMobile.kt$SellwildPrebidMobile$// Whether PrebidMobile.initializeSdk reached SUCCEEDED. If not, callers</ID>
+    <ID>SpreadOperator:SellwildAdSizes.kt$SellwildAdSizes$(*extras.toTypedArray())</ID>
+    <ID>SpreadOperator:SellwildAdSizes.kt$SellwildAdSizes$(*sizes.map { GmaAdSize(it.width, it.height) }.toTypedArray())</ID>
+    <ID>StringTemplate:SellwildConfig.kt$AdSize$${height}</ID>
+    <ID>TooManyFunctions:AdDecisions.kt$AdDecisions</ID>
+    <ID>TooManyFunctions:FailuresCore.kt$FailuresCore</ID>
+    <ID>TooManyFunctions:GrowthCodeSync.kt$GrowthCodeSync</ID>
+    <ID>TooManyFunctions:SellwildAdView.kt$SellwildAdView : FrameLayout</ID>
+    <ID>TooManyFunctions:SellwildFailures.kt$SellwildFailures</ID>
+    <ID>TooManyFunctions:SellwildFeedView.kt$SellwildFeedView : LinearLayout</ID>
+    <ID>TooManyFunctions:SellwildGrowthCode.kt$SellwildGrowthCode</ID>
+    <ID>TooManyFunctions:SellwildHouseAd.kt$SellwildHouseAd</ID>
+    <ID>TooManyFunctions:SellwildLocalizedListings.kt$SellwildLocalizedListings</ID>
+    <ID>TooManyFunctions:SellwildPrebidMobile.kt$SellwildPrebidMobile</ID>
+    <ID>UnusedParameter:SellwildHouseAdView.kt$SellwildHouseAdView$config: SellwildConfig</ID>
+    <ID>Wrapping:SellwildAPI.kt$(</ID>
+    <ID>Wrapping:SellwildAdView.kt$SellwildAdView$;</ID>
+    <ID>Wrapping:SellwildFeedView.kt$SellwildFeedView$SellwildGpid.resolveBase(cfg.remoteJson, it)</ID>
+    <ID>Wrapping:SellwildHouseAd.kt$SellwildHouseAd$;</ID>
+    <ID>Wrapping:SellwildHouseAd.kt$SellwildHouseAd$disk.readBytes()</ID>
+    <ID>Wrapping:SellwildNative.kt$SellwildNative$(</ID>
+    <ID>Wrapping:SellwildNativeAdView.kt$SellwildNativeAdView$(</ID>
+    <ID>Wrapping:SellwildNativeAdView.kt$SellwildNativeAdView$(this, listOf(ctaButton, titleView, mediaView), object : PrebidNativeAdEventListener { override fun onAdClicked() { onClick?.invoke() } override fun onAdImpression() { onImpression?.invoke() } // Expiry before an impression is lifecycle, not a failure: trace only. override fun onAdExpired() { SellwildLog.debug { "[native] ad expired — zone $zoneId" } } })</ID>
+    <ID>Wrapping:SellwildNativeAdView.kt$SellwildNativeAdView$;</ID>
+    <ID>Wrapping:SellwildNativeAdView.kt$SellwildNativeAdView$rightMargin = px(8)</ID>
+    <ID>Wrapping:SellwildNativeAdView.kt$SellwildNativeAdView$topMargin = px(8); bottomMargin = px(8)</ID>
+    <ID>Wrapping:SellwildS2SConfig.kt$SellwildS2SConfig.Companion$(</ID>
+  </CurrentIssues>
+</SmellBaseline>

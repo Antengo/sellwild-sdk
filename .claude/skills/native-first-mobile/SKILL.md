@@ -33,7 +33,9 @@ Concretely:
   - Android: `SellwildAPIClient.fetchListings(...)`
   - React Native: `useSellwildListings(config)`
 - The best-of-both path is **native listings + native ads interspersed in the same
-  feed**: `SellwildFeedView` (iOS/Android), SwiftUI `SellwildFeed`, RN `SellwildFeed`.
+  feed**: `SellwildFeedView` (iOS/Android), SwiftUI `SellwildFeed`, RN `SellwildFeed`,
+  as the Feed tab of each sample app shows: `samples/feed-demo-ios`,
+  `samples/feed-demo-android`, `samples/demo-app` (React Native, `src/FeedScreen.tsx`).
 - The WebView widget is **removed**. Do not reintroduce a WebView ad or listings
   surface, and do not document it as an option.
 
@@ -49,8 +51,9 @@ Before any mobile SDK change:
 1. **Reproduce the bug** on the same surface the partner uses:
    - iOS partner issues → boot an iOS simulator (`xcrun simctl list devices booted`)
      and run the relevant sample target.
-   - Android partner issues → boot the `Pixel_Fold_API_36` AVD (or another configured
-     AVD) and install via `adb`.
+   - Android partner issues → boot an AVD (`$SELLWILD_ANDROID_AVD`, see "Machine
+     settings" below) and install via `adb`. If your default AVD has no room for
+     the sample APKs, set `SELLWILD_ANDROID_AVD` to one that does.
    - React Native partner issues → run `samples/demo-app` against either simulator.
 2. **Confirm the actual code path.** Read the native view, its delegate / listener,
    and (for RN) the view-manager bridge. Don't guess which layer is in play.
@@ -61,32 +64,66 @@ Only then propose a fix.
 
 ## Emulator / simulator verification loop
 
-The loop that works for this repo:
+The loop that works for this repo. Each sample app ("Sellwild Sample", four tabs:
+Feed, Ads, Listings, Diagnostics) has one command that builds it, boots the
+device, installs, runs its Maestro flows and shuts the device down
+(`e2e/README.md`):
+
+```bash
+bash scripts/e2e/run.sh ios              # samples/feed-demo-ios
+bash scripts/e2e/run.sh android          # samples/feed-demo-android
+bash scripts/e2e/run.sh rn-ios           # samples/demo-app on the simulator
+bash scripts/e2e/run.sh rn-android       # samples/demo-app on the emulator
+```
+
+Screenshots and logs land in `e2e/artifacts/<app>/`. One native build or booted
+device at a time: `run.sh` runs the whole session inside one call of
+`scripts/e2e/native-lock.sh` (or the script `SELLWILD_NATIVE_LOCK` names). Wrap any
+other native build in it: `bash scripts/e2e/native-lock.sh <label> -- <command>`.
+
+Machine settings. The scripts read these from the environment. The defaults are
+examples from one machine, not requirements: set your own.
+
+- `JAVA_HOME`: a JDK 17. When it is unset or not 17, the scripts ask
+  `/usr/libexec/java_home -v 17`.
+- `ANDROID_HOME` (or `ANDROID_SDK_ROOT`): the Android SDK. Default
+  `~/Library/Android/sdk`.
+- `SELLWILD_ANDROID_AVD`: the AVD the e2e runs boot. Default `Pixel_5_API_36`
+  (API 36, arm64, Google APIs); list yours with `emulator -list-avds`.
+- `MAESTRO`: the Maestro CLI. Default `~/.maestro/bin/maestro`.
+- `SELLWILD_IOS_SIM_ID`: the simulator UDID. Default: a booted iPhone, else an
+  iPhone on the newest iOS runtime.
+
+The steps by hand:
 
 ### Android (native or RN-Android)
 
 ```bash
-# 1. Boot the emulator if not already running.
-~/Library/Android/sdk/emulator/emulator -list-avds
-~/Library/Android/sdk/emulator/emulator -avd Pixel_Fold_API_36 &
+# 1. Boot the emulator if not already running. API 36 needs at least 2560 MB of RAM.
+ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+"$ANDROID_HOME/emulator/emulator" -list-avds
+"$ANDROID_HOME/emulator/emulator" -avd "${SELLWILD_ANDROID_AVD:-Pixel_5_API_36}" -memory 2560 \
+  -no-snapshot-save -no-audio -no-boot-anim &
 
 # 2. Wait for boot and confirm device is online.
-~/Library/Android/sdk/platform-tools/adb wait-for-device
-~/Library/Android/sdk/platform-tools/adb shell getprop sys.boot_completed   # → 1
+"$ANDROID_HOME/platform-tools/adb" wait-for-device
+"$ANDROID_HOME/platform-tools/adb" shell getprop sys.boot_completed   # → 1
 
-# 3. Build + publish locally so test app pulls the change.
-cd android && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
-  ./gradlew clean test publishReleasePublicationToMavenLocal
+# 3. Build + publish locally so test app pulls the change. JDK 17.
+export JAVA_HOME="$(/usr/libexec/java_home -v 17)"   # or your own JDK 17
+(cd android && ./gradlew clean test publishReleasePublicationToMavenLocal)
 
-# 4. Install and run a minimal native test app that depends on com.sellwild:sdk
-#    from `mavenLocal()`. Don't test inside the RN demo — the RN bridge layer
-#    will mask native bugs.
-cd /tmp/widgettest && ./gradlew installDebug
-~/Library/Android/sdk/platform-tools/adb shell am start -n com.test.widgettest/.MainActivity
+# 4. Install and run the native sample app, which depends on com.sellwild:sdk
+#    from `mavenLocal()` only (samples/feed-demo-android). Don't test inside the
+#    RN demo — the RN bridge layer will mask native bugs.
+(cd samples/feed-demo-android && ./gradlew :app:assembleDebug)
+"$ANDROID_HOME/platform-tools/adb" install -r -t \
+  samples/feed-demo-android/app/build/outputs/apk/debug/app-debug.apk
+"$ANDROID_HOME/platform-tools/adb" shell am start -n com.sellwild.sample/.MainActivity
 
 # 5. Watch logs filtered to the SDK.
-~/Library/Android/sdk/platform-tools/adb logcat -c
-~/Library/Android/sdk/platform-tools/adb logcat | grep -E "Sellwild|LISTING|widgettest"
+"$ANDROID_HOME/platform-tools/adb" logcat -c
+"$ANDROID_HOME/platform-tools/adb" logcat | grep -E "Sellwild|LISTING"
 ```
 
 Notes that bit us:
@@ -99,30 +136,40 @@ Notes that bit us:
 ### iOS
 
 ```bash
-# 1. Boot a sim.
+# 1. Boot a sim (several runtimes may have an "iPhone 17": boot one by UDID).
 xcrun simctl list devices available | grep -E "iPhone (15|16|17)"
-xcrun simctl boot "iPhone 17 Pro"
+xcrun simctl boot <UDID>
 open -a Simulator
 
-# 2. Build the iOS sample or demo against the local pod.
-cd samples/ios && pod install
-xcodebuild -workspace SellwildSample.xcworkspace -scheme SellwildSample \
-  -destination "platform=iOS Simulator,name=iPhone 17 Pro" build
+# 2. Build the iOS sample against the SDK as checked out. It is an xcodegen
+#    project that takes the SDK from the root Package.swift (SwiftPM, no pods).
+xcodebuild -project samples/feed-demo-ios/SellwildSample.xcodeproj -scheme SellwildSample \
+  -destination "platform=iOS Simulator,id=<UDID>" -derivedDataPath e2e/.cache/ios/DerivedData build
 
 # 3. Install and launch.
-xcrun simctl install booted ./build/.../SellwildSample.app
+xcrun simctl install booted e2e/.cache/ios/DerivedData/Build/Products/Debug-iphonesimulator/SellwildSample.app
 xcrun simctl launch --console-pty booted com.sellwild.sample
 ```
 
 ### React Native
 
+The app is `samples/demo-app` (RN 0.74, npm, bundle/application id
+`com.sellwild.sample.rn`). Metro takes the JS SDK from `react-native/` and `core/`;
+core is read from its gitignored `dist/`, so build it first.
+
 ```bash
-cd samples/demo-app
-npm install
-cd ios && pod install && cd ..
-npx react-native run-ios --simulator="iPhone 17 Pro"
-# or
-npx react-native run-android
+npm --prefix samples/demo-app ci
+npm --prefix core run build:dev                 # core/dist, with tsgo (release: build, tsc)
+(cd samples/demo-app/ios && pod install)        # local pods SellwildSDK + SellwildSDK-RN
+(cd android && ./gradlew publishReleasePublicationToMavenLocal)   # com.sellwild:sdk for the bridge
+
+# Compile only the native bridge (react-native/ios, react-native/android):
+bash scripts/rn/compile-bridge-ios.sh
+bash scripts/rn/compile-bridge-android.sh
+
+# A Release build with the JS bundle inside, on a device, with the Maestro flows:
+bash scripts/e2e/run.sh rn-ios
+bash scripts/e2e/run.sh rn-android
 ```
 
 ## Version + publish discipline

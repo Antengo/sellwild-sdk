@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/listing.schema.json",
+  "title": "Listing",
+  "description": "One listing from a listings cache, a localized cache, a tag cache or the legacy JSON-RPC response. Produced outside the SDK, so unknown fields are allowed. Types vary by cache (see fixtures/listing).",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "photos"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "numOrNumericString": {
+      "description": "A number or its decimal text.",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "photo": {
+      "description": "One listing photo.",
+      "type": "object",
+      "required": [
+        "url"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "url": {
+          "description": "Photo URL, or an inline data:image/jpeg|avif;base64 URI (listings-img-data-sm* caches).",
+          "type": "string"
+        },
+        "thumbUrl": {
+          "description": "Thumbnail URL (JSON-RPC responses only).",
+          "type": "string"
+        },
+        "background": {
+          "description": "Background color behind the photo.",
+          "type": "string"
+        }
+      }
+    },
+    "user": {
+      "description": "Seller summary.",
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Seller id (string on every cache; a number drops the listing on iOS).",
+          "type": "string"
+        },
+        "trustLevel": {
+          "description": "Seller trust level.",
+          "type": "string"
+        },
+        "firstName": {
+          "description": "Seller first name. Never sent in events.",
+          "type": "string"
+        },
+        "lastName": {
+          "description": "Seller last name. Never sent in events.",
+          "type": "string"
+        },
+        "username": {
+          "description": "Seller username (JSON-RPC responses only).",
+          "type": "string"
+        },
+        "membershipType": {
+          "description": "Seller membership type (JSON-RPC responses only).",
+          "type": "string"
+        }
+      }
+    }
+  },
+  "properties": {
+    "_synthetic": {
+      "description": "Fixture marker. Present only in hand-made fixtures, never on the wire.",
+      "const": true
+    },
+    "id": {
+      "description": "Listing id. Text on every real cache; JSON-RPC may send a number.",
+      "type": [
+        "string",
+        "integer"
+      ]
+    },
+    "title": {
+      "description": "Listing title. Never sent in events.",
+      "type": "string"
+    },
+    "text": {
+      "description": "Listing description.",
+      "type": "string"
+    },
+    "photos": {
+      "description": "Photos; the first is shown.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/photo"
+      }
+    },
+    "price": {
+      "description": "Price: numeric text ('19315') on Sellwild caches, a number on bargainhunter.",
+      "$ref": "#/$defs/numOrNumericString"
+    },
+    "strikePrice": {
+      "description": "Original price shown struck through.",
+      "$ref": "#/$defs/numOrNumericString"
+    },
+    "currency": {
+      "description": "ISO currency code (localized cache).",
+      "type": "string"
+    },
+    "status": {
+      "description": "Listing status ('1' active). JSON-RPC may send a number.",
+      "type": [
+        "string",
+        "integer"
+      ]
+    },
+    "url": {
+      "description": "Direct click URL (bargainhunter, localized).",
+      "type": "string"
+    },
+    "remote_url": {
+      "description": "Partner URL used for dataSourceId 31 listings. JSON null on some items.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "shippable": {
+      "description": "true on primary caches, '1'/'0' on localized and JSON-RPC.",
+      "type": [
+        "boolean",
+        "string",
+        "integer"
+      ]
+    },
+    "categoryGroupId": {
+      "description": "Category group id.",
+      "type": "string"
+    },
+    "categoryId": {
+      "description": "Category id.",
+      "type": [
+        "string",
+        "integer"
+      ]
+    },
+    "dataSourceId": {
+      "description": "Data source id ('31' Lotlinx autos, '35' SportServer).",
+      "type": [
+        "string",
+        "integer"
+      ]
+    },
+    "createdDate": {
+      "description": "Creation date.",
+      "type": "string"
+    },
+    "has_photo": {
+      "description": "Photo flag.",
+      "type": [
+        "boolean",
+        "string",
+        "integer"
+      ]
+    },
+    "distance": {
+      "description": "Distance from the user.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "user": {
+      "description": "Seller summary.",
+      "$ref": "#/$defs/user"
+    }
+  }
+}

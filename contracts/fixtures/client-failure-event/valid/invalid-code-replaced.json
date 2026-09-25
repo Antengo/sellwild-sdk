@@ -1,0 +1,18 @@
+{
+  "_synthetic": true,
+  "event": "clientFailure",
+  "action": "client.code.invalid",
+  "label": "unknown",
+  "attributes": {
+    "code": "weatherbug",
+    "client": "widget",
+    "clientVersion": "1.1.114",
+    "severity": "error",
+    "fv": "1",
+    "release": "f00dbabe",
+    "seq": "3",
+    "repeat": "2"
+  },
+  "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+  "createdTime": 1790000000000
+}

@@ -1,0 +1,231 @@
+{
+  "platform": "core",
+  "generatedAt": "2026-09-25T18:29:27.562Z",
+  "tool": "vitest 3.2.7 + @vitest/coverage-v8 3.2.7 (experimentalAstAwareRemapping)",
+  "commands": [
+    "cd core && node_modules/.bin/vitest run --coverage",
+    "cd core && node_modules/.bin/vitest run --coverage --mode whole"
+  ],
+  "gate": {
+    "include": [
+      "src/**"
+    ],
+    "lines": {
+      "covered": 806,
+      "total": 806,
+      "pct": 100
+    },
+    "branches": {
+      "covered": 916,
+      "total": 916,
+      "pct": 100
+    },
+    "regions": null,
+    "functions": {
+      "covered": 201,
+      "total": 201,
+      "pct": 100
+    },
+    "unmeasured": [],
+    "thresholds": {
+      "lines": 95,
+      "branches": 95,
+      "functions": 95,
+      "statements": 95
+    },
+    "thresholdsMet": true,
+    "under": []
+  },
+  "whole": {
+    "include": [
+      "src/**"
+    ],
+    "lines": {
+      "covered": 806,
+      "total": 806,
+      "pct": 100
+    },
+    "branches": {
+      "covered": 916,
+      "total": 916,
+      "pct": 100
+    },
+    "regions": null,
+    "functions": {
+      "covered": 201,
+      "total": 201,
+      "pct": 100
+    },
+    "unmeasured": []
+  },
+  "excluded": [
+    {
+      "path": "src/types.ts",
+      "reason": "type-only: interfaces and type aliases, compiles to an empty module"
+    }
+  ],
+  "ignoredLines": [],
+  "perFile": [
+    {
+      "path": "src/ads.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 63,
+      "linesTotal": 63,
+      "missedLines": ""
+    },
+    {
+      "path": "src/api.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 60,
+      "linesTotal": 60,
+      "missedLines": ""
+    },
+    {
+      "path": "src/config.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 33,
+      "linesTotal": 33,
+      "missedLines": ""
+    },
+    {
+      "path": "src/debug-log.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 5,
+      "linesTotal": 5,
+      "missedLines": ""
+    },
+    {
+      "path": "src/event-queue.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 52,
+      "linesTotal": 52,
+      "missedLines": ""
+    },
+    {
+      "path": "src/failures/codes.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 1,
+      "linesTotal": 1,
+      "missedLines": ""
+    },
+    {
+      "path": "src/failures/core.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 249,
+      "linesTotal": 249,
+      "missedLines": ""
+    },
+    {
+      "path": "src/failures/index.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 79,
+      "linesTotal": 79,
+      "missedLines": ""
+    },
+    {
+      "path": "src/growthcode.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 88,
+      "linesTotal": 88,
+      "missedLines": ""
+    },
+    {
+      "path": "src/index.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 0,
+      "linesTotal": 0,
+      "missedLines": ""
+    },
+    {
+      "path": "src/json-kind.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 9,
+      "linesTotal": 9,
+      "missedLines": ""
+    },
+    {
+      "path": "src/localized-listings.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 66,
+      "linesTotal": 66,
+      "missedLines": ""
+    },
+    {
+      "path": "src/remote-config.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 101,
+      "linesTotal": 101,
+      "missedLines": ""
+    },
+    {
+      "path": "src/types.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": false,
+      "linesCovered": 0,
+      "linesTotal": 0,
+      "missedLines": ""
+    }
+  ],
+  "tests": {
+    "exitCode": 0,
+    "passed": true
+  },
+  "runs": {
+    "gate": {
+      "exitCode": 0,
+      "signal": null,
+      "error": null
+    },
+    "whole": {
+      "exitCode": 0,
+      "signal": null,
+      "error": null
+    }
+  },
+  "notes": [
+    "regions is null: V8 coverage of TypeScript has lines, branches, functions and statements, not regions.",
+    "Counts use vitest experimentalAstAwareRemapping: lines and branches come from the source AST, so comments and type-only lines are not counted, and branches in functions that never ran still count as missed.",
+    "gate comes from `vitest run --coverage`, the run that enforces the 95% thresholds. whole and perFile come from `vitest run --coverage --mode whole`, which applies no exclusions."
+  ]
+}

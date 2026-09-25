@@ -1,0 +1,227 @@
+{
+  "platform": "react-native",
+  "generatedAt": "2026-09-25T18:29:35.522Z",
+  "tool": "vitest 3.2.7 + @vitest/coverage-v8 3.2.7 (experimentalAstAwareRemapping)",
+  "commands": [
+    "cd react-native && node_modules/.bin/vitest run --coverage",
+    "cd react-native && node_modules/.bin/vitest run --coverage --mode whole"
+  ],
+  "gate": {
+    "include": [
+      "src/**"
+    ],
+    "lines": {
+      "covered": 188,
+      "total": 188,
+      "pct": 100
+    },
+    "branches": {
+      "covered": 193,
+      "total": 193,
+      "pct": 100
+    },
+    "regions": null,
+    "functions": {
+      "covered": 57,
+      "total": 57,
+      "pct": 100
+    },
+    "unmeasured": [],
+    "thresholds": {
+      "lines": 95,
+      "branches": 95,
+      "functions": 95,
+      "statements": 95
+    },
+    "thresholdsMet": true,
+    "under": []
+  },
+  "whole": {
+    "include": [
+      "src/**"
+    ],
+    "lines": {
+      "covered": 188,
+      "total": 188,
+      "pct": 100
+    },
+    "branches": {
+      "covered": 193,
+      "total": 193,
+      "pct": 100
+    },
+    "regions": null,
+    "functions": {
+      "covered": 57,
+      "total": 57,
+      "pct": 100
+    },
+    "unmeasured": []
+  },
+  "excluded": [
+    {
+      "path": "ios/**",
+      "reason": "RN native bridge glue: needs an RN host app build"
+    },
+    {
+      "path": "android/**",
+      "reason": "RN native bridge glue: needs an RN host app build"
+    }
+  ],
+  "ignoredLines": [],
+  "perFile": [
+    {
+      "path": "src/appIdentity.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 6,
+      "linesTotal": 6,
+      "missedLines": ""
+    },
+    {
+      "path": "src/bannerSizing.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 26,
+      "linesTotal": 26,
+      "missedLines": ""
+    },
+    {
+      "path": "src/commands.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 17,
+      "linesTotal": 17,
+      "missedLines": ""
+    },
+    {
+      "path": "src/failures.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 1,
+      "linesTotal": 1,
+      "missedLines": ""
+    },
+    {
+      "path": "src/index.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 1,
+      "linesTotal": 1,
+      "missedLines": ""
+    },
+    {
+      "path": "src/jsonKind.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 9,
+      "linesTotal": 9,
+      "missedLines": ""
+    },
+    {
+      "path": "src/listingCard.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 28,
+      "linesTotal": 28,
+      "missedLines": ""
+    },
+    {
+      "path": "src/nativeConfig.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 8,
+      "linesTotal": 8,
+      "missedLines": ""
+    },
+    {
+      "path": "src/nativeViews.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 8,
+      "linesTotal": 8,
+      "missedLines": ""
+    },
+    {
+      "path": "src/SellwildBanner.tsx",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 24,
+      "linesTotal": 24,
+      "missedLines": ""
+    },
+    {
+      "path": "src/SellwildFeed.tsx",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 26,
+      "linesTotal": 26,
+      "missedLines": ""
+    },
+    {
+      "path": "src/SellwildListingCard.tsx",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 10,
+      "linesTotal": 10,
+      "missedLines": ""
+    },
+    {
+      "path": "src/useSellwildListings.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 24,
+      "linesTotal": 24,
+      "missedLines": ""
+    }
+  ],
+  "tests": {
+    "exitCode": 0,
+    "passed": true
+  },
+  "runs": {
+    "gate": {
+      "exitCode": 0,
+      "signal": null,
+      "error": null
+    },
+    "whole": {
+      "exitCode": 0,
+      "signal": null,
+      "error": null
+    }
+  },
+  "notes": [
+    "regions is null: V8 coverage of TypeScript has lines, branches, functions and statements, not regions.",
+    "Counts use vitest experimentalAstAwareRemapping: lines and branches come from the source AST, so comments and type-only lines are not counted, and branches in functions that never ran still count as missed.",
+    "gate comes from `vitest run --coverage`, the run that enforces the 95% thresholds. whole and perFile come from `vitest run --coverage --mode whole`, which applies no exclusions.",
+    "react-native is a test stub (react-native/test/stubs). Native view behavior is not measured here.",
+    "@sellwild/sdk-core is aliased to core/src in tests. Its files count in core.json, not here."
+  ]
+}

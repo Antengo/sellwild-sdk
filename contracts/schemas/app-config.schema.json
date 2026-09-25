@@ -1,0 +1,787 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/app-config.schema.json",
+  "title": "SDK app config",
+  "description": "GET https://widget.sellwild.com/app/{CODE}/{SLUG}.json, written by sellwild-widget scripts/escompile.mjs buildApp(). Forward-compatible passthrough: unknown keys are allowed and flow to the WebView. A missing file answers 403 AccessDenied XML (see samples/app-config/*.403.xml).",
+  "type": "object",
+  "required": [
+    "LAYOUT",
+    "CODE",
+    "NAME",
+    "SLUG",
+    "basename",
+    "BIDDERS",
+    "MOBILE_ZID",
+    "MOBILE_ZID_IOS",
+    "MOBILE_ZID_ANDROID",
+    "DISPLAY_ZID"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "flag": {
+      "description": "Boolean-like flag. true/false, a number (0 = off), or a string where false/0/no/off (trimmed, any case) mean off.",
+      "type": [
+        "boolean",
+        "number",
+        "string"
+      ]
+    },
+    "zoneMap": {
+      "description": "Per-zone override map keyed by zone id. The CMS writes '' when unset.",
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "boolean",
+              "number"
+            ]
+          }
+        }
+      ]
+    },
+    "strOrStrArray": {
+      "description": "One string, or a list of strings.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "size": {
+      "description": "One banner size: 'WxH' text (any case, spaces allowed) or a [width, height] pair.",
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^\\s*[0-9]+(\\.[0-9]+)?\\s*[xX]\\s*[0-9]+(\\.[0-9]+)?\\s*$"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      ]
+    },
+    "sizeList": {
+      "description": "Banner sizes: '' (unset), a single 'WxH', a JSON text of a list, or a list of sizes.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/size"
+          }
+        }
+      ]
+    },
+    "houseCreative": {
+      "description": "House-ad creative override. image and url are each one URL or a list paired by index.",
+      "type": "object",
+      "properties": {
+        "image": {
+          "description": "Image URL or list of image URLs (data: URIs allowed).",
+          "$ref": "#/$defs/strOrStrArray"
+        },
+        "url": {
+          "description": "Click URL or list of click URLs paired with image by index.",
+          "$ref": "#/$defs/strOrStrArray"
+        }
+      }
+    },
+    "houseMap": {
+      "description": "House-ad overrides keyed by zone id or 'WxH'. '' when unset.",
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/houseCreative"
+          }
+        }
+      ]
+    },
+    "localized": {
+      "description": "LOCALIZED_LISTINGS: '' (unset), JSON text of the config, or the config object.",
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "type": "string",
+          "description": "JSON text of a localized-listings-config object.",
+          "contentMediaType": "application/json"
+        },
+        {
+          "$ref": "localized-listings-config.schema.json"
+        }
+      ]
+    },
+    "webObject": {
+      "description": "Web widget object passed through to the WebView (bidder or feature settings). '' when unset.",
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "type": "object"
+        }
+      ]
+    },
+    "bidderParams": {
+      "description": "Prebid bidder params for one bidder. Values mix numbers and strings.",
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean",
+          "object",
+          "array",
+          "null"
+        ]
+      }
+    }
+  },
+  "properties": {
+    "_synthetic": {
+      "description": "Fixture marker. Present only in hand-made fixtures, never on the wire.",
+      "const": true
+    },
+    "LAYOUT": {
+      "description": "Producer layout marker. Always 'app' for SDK configs.",
+      "const": "app"
+    },
+    "DATE": {
+      "description": "CMS publish date (ISO 8601) or ''.",
+      "type": "string"
+    },
+    "NAME": {
+      "description": "Config name (the markdown file basename).",
+      "type": "string"
+    },
+    "SLUG": {
+      "description": "Config slug. The {SLUG} segment of the config URL.",
+      "type": "string"
+    },
+    "basename": {
+      "description": "Markdown file basename (same as SLUG).",
+      "type": "string"
+    },
+    "CODE": {
+      "description": "Partner code. The {CODE} segment of the config URL and attributes.code on every event.",
+      "type": "string",
+      "minLength": 1
+    },
+    "CLIENT_NAME": {
+      "description": "Human-readable partner name.",
+      "type": "string"
+    },
+    "PLATFORM": {
+      "description": "Which app platforms this config targets.",
+      "enum": [
+        "all",
+        "ios",
+        "android"
+      ]
+    },
+    "CONFIG_MODE": {
+      "description": "CMS mode ('managed').",
+      "type": "string"
+    },
+    "LISTINGS": {
+      "description": "Listings cache URL (https://cache.sellwild.com/listings-*) or '' for the default.",
+      "type": "string"
+    },
+    "LISTINGS_TAG_CACHE_COUNT": {
+      "description": "How many tag-cache listings to merge in (0 = off).",
+      "type": "integer"
+    },
+    "APP_BUNDLE_ID": {
+      "description": "Shared app bundle id / package name.",
+      "type": "string"
+    },
+    "APP_BUNDLE_ID_IOS": {
+      "description": "iOS override for APP_BUNDLE_ID (App Store numeric id or bundle id).",
+      "type": "string"
+    },
+    "APP_BUNDLE_ID_ANDROID": {
+      "description": "Android override for APP_BUNDLE_ID (Play package name).",
+      "type": "string"
+    },
+    "APP_STORE_URL": {
+      "description": "Shared store URL.",
+      "type": "string"
+    },
+    "APP_STORE_URL_IOS": {
+      "description": "iOS store URL override. app.bundle is derived from its /id<number> segment.",
+      "type": "string"
+    },
+    "APP_STORE_URL_ANDROID": {
+      "description": "Android store URL override.",
+      "type": "string"
+    },
+    "PUBLISHER_ID": {
+      "description": "OpenRTB app.publisher.id (equals the sellers.json seller id). iOS also accepts a number.",
+      "type": [
+        "string",
+        "number"
+      ]
+    },
+    "SELLER_ID": {
+      "description": "Fallback for PUBLISHER_ID when it is empty.",
+      "type": [
+        "string",
+        "number"
+      ]
+    },
+    "SCHAIN_SID": {
+      "description": "Supply-chain seller id.",
+      "type": "string"
+    },
+    "S2S_CONFIG": {
+      "description": "Prebid Server config. The CMS ships JS object-literal TEXT (not JSON) or ''. iOS/Android only read an object, so the text form falls back to the default endpoint (known drift).",
+      "type": [
+        "string",
+        "object",
+        "array"
+      ]
+    },
+    "AD_TYPE": {
+      "description": "Ad type label (for example 'PrebidOnly').",
+      "type": "string"
+    },
+    "AD_STACK": {
+      "description": "Global ad stack: both | gamOnly | prebidOnly (aliases: all, default, gam, google, gads, googleads, prebid, prebidsdk; any case). Wins over AD_STACK_BY_ZONE. '' = unset.",
+      "type": "string"
+    },
+    "AD_STACK_BY_ZONE": {
+      "description": "Per-zone ad stack, used only when AD_STACK is unset.",
+      "$ref": "#/$defs/zoneMap"
+    },
+    "AD_REFRESH_MAX": {
+      "description": "Max refreshes per slot (web).",
+      "type": "integer"
+    },
+    "AD_REFRESH_MAX_MOBILE": {
+      "description": "Max refreshes per slot on mobile.",
+      "type": "integer"
+    },
+    "AD_REFRESH_INTERVAL": {
+      "description": "Refresh interval in MILLISECONDS (30000 = 30 s).",
+      "type": "number"
+    },
+    "MAX_FAILED_AUCTIONS": {
+      "description": "Failed auctions before a slot stops refreshing.",
+      "type": "integer"
+    },
+    "ENABLE_INTERSTITIAL": {
+      "description": "Allow interstitial ads.",
+      "type": "boolean"
+    },
+    "ENABLE_FULLSCREEN_VIDEO": {
+      "description": "Allow fullscreen video takeovers.",
+      "type": "boolean"
+    },
+    "INTERSTITIALS_PER_SESSION": {
+      "description": "Interstitial cap per session.",
+      "type": "integer"
+    },
+    "VIDEO_TAKEOVERS_PER_SESSION": {
+      "description": "Video takeover cap per session.",
+      "type": "integer"
+    },
+    "HIDE_BANNER_TOP": {
+      "description": "Hide the top banner row.",
+      "type": "boolean"
+    },
+    "HIDE_BANNER_BOTTOM": {
+      "description": "Hide the bottom banner row.",
+      "type": "boolean"
+    },
+    "AD_DISABLE_DISPLAY": {
+      "description": "Disable display ads.",
+      "type": "boolean"
+    },
+    "SAFE_FRAME": {
+      "description": "Render ads in SafeFrames (web).",
+      "type": "boolean"
+    },
+    "GPP_ENABLED": {
+      "description": "Enable GPP consent handling.",
+      "type": "boolean"
+    },
+    "TCF_VERSION": {
+      "description": "TCF version (2).",
+      "type": "integer"
+    },
+    "IAB_CATS": {
+      "description": "IAB content categories. The CMS ships a comma-separated STRING ('IAB15'); only TS core splits it, iOS/Android/Flutter read only a list (known drift).",
+      "$ref": "#/$defs/strOrStrArray"
+    },
+    "BOLTIVE": {
+      "description": "Enable Boltive (web).",
+      "type": "boolean"
+    },
+    "BOLTIVE_CLIENT_ID": {
+      "description": "Boltive client id.",
+      "type": "string"
+    },
+    "LOTAME": {
+      "description": "Enable Lotame (web).",
+      "type": "boolean"
+    },
+    "AUDIGENT": {
+      "description": "Enable Audigent (web).",
+      "type": "boolean"
+    },
+    "IDENTITY_HUB": {
+      "description": "Enable PubMatic Identity Hub (web).",
+      "type": "boolean"
+    },
+    "GROWTHCODE": {
+      "description": "Web GrowthCode id, or false to disable (web widget key).",
+      "type": [
+        "string",
+        "boolean"
+      ]
+    },
+    "BH_TAG": {
+      "description": "Amazon affiliate tag for listing links, or ''.",
+      "type": "string"
+    },
+    "BANNER_ZID": {
+      "description": "Top banner zone id (scalar).",
+      "type": [
+        "string",
+        "number"
+      ]
+    },
+    "BOTTOM_BANNER_ZID": {
+      "description": "Bottom banner zone id (scalar).",
+      "type": [
+        "string",
+        "number"
+      ]
+    },
+    "MOBILE_BANNER_ZID": {
+      "description": "Mobile banner zone id (shared).",
+      "type": [
+        "string",
+        "number"
+      ]
+    },
+    "MOBILE_BANNER_ZID_IOS": {
+      "description": "iOS mobile banner zone id; wins over MOBILE_ZID_ALL_IOS and MOBILE_BANNER_ZID when not ''.",
+      "type": "string"
+    },
+    "MOBILE_BANNER_ZID_ANDROID": {
+      "description": "Android mobile banner zone id; wins over MOBILE_ZID_ALL_ANDROID and MOBILE_BANNER_ZID when not ''.",
+      "type": "string"
+    },
+    "MOBILE_ZID": {
+      "description": "Shared list of mobile feed ad zone ids (buildApp always writes a list).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "MOBILE_ZID_IOS": {
+      "description": "iOS feed zone ids; win over MOBILE_ZID_ALL_IOS and MOBILE_ZID when non-empty. Flutter and TS core ignore them (known drift).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "MOBILE_ZID_ANDROID": {
+      "description": "Android feed zone ids; win over MOBILE_ZID_ALL_ANDROID and MOBILE_ZID when non-empty. Flutter and TS core ignore them (known drift).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "MOBILE_ZID_ALL_IOS": {
+      "description": "One zone id every iOS mobile placement falls back to, or ''.",
+      "type": "string"
+    },
+    "MOBILE_ZID_ALL_ANDROID": {
+      "description": "One zone id every Android mobile placement falls back to, or ''.",
+      "type": "string"
+    },
+    "DISPLAY_ZID": {
+      "description": "Display zone ids (web).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "GAM": {
+      "description": "GAM ad unit path (gamTag).",
+      "type": "string"
+    },
+    "DISABLE_GPT": {
+      "description": "Skip loading GPT.",
+      "type": "boolean"
+    },
+    "GPID_BASE": {
+      "description": "Base GPID path for ad units.",
+      "type": "string"
+    },
+    "GPID_BASE_BY_ZONE": {
+      "description": "Per-zone GPID base.",
+      "$ref": "#/$defs/zoneMap"
+    },
+    "COL1": {
+      "description": "Feed layout tokens: L = listing, G = grid ad, D = display ad, B = banner.",
+      "type": "string",
+      "pattern": "^[LGDB]*$"
+    },
+    "TITLE": {
+      "description": "Widget title.",
+      "type": "string"
+    },
+    "LINK_TEXT": {
+      "description": "Footer link HTML.",
+      "type": "string"
+    },
+    "BUY_NOW_TEXT": {
+      "description": "Buy-now button label.",
+      "type": "string"
+    },
+    "TITLE_COLOR": {
+      "description": "Title color (CSS).",
+      "type": "string"
+    },
+    "LINK_COLOR": {
+      "description": "Link color (CSS).",
+      "type": "string"
+    },
+    "FONT_FAMILY": {
+      "description": "Font family (CSS).",
+      "type": "string"
+    },
+    "FONT_URL": {
+      "description": "Font stylesheet URL.",
+      "type": "string"
+    },
+    "FONT_COLOR": {
+      "description": "Font color (CSS).",
+      "type": "string"
+    },
+    "PRICE_COLOR": {
+      "description": "Price badge color (CSS).",
+      "type": "string"
+    },
+    "PRICE_FONT_COLOR": {
+      "description": "Price text color (CSS).",
+      "type": "string"
+    },
+    "MARGIN_BOTTOM": {
+      "description": "Card bottom margin in px.",
+      "type": "number"
+    },
+    "CARD_WIDTH": {
+      "description": "Card width (CSS, for example '300px').",
+      "type": "string"
+    },
+    "OVERLAY_TITLE": {
+      "description": "Overlay the title on the image.",
+      "type": "boolean"
+    },
+    "COLORS": {
+      "description": "Palette colors (CSS).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "CSS": {
+      "description": "Extra CSS for the WebView widget.",
+      "type": "string"
+    },
+    "WATERMARK": {
+      "description": "Show the Sellwild watermark.",
+      "type": "boolean"
+    },
+    "WATERMARK_TITLE": {
+      "description": "Watermark tooltip text.",
+      "type": "string"
+    },
+    "PARTNER_URL": {
+      "description": "Partner site URL (iOS/Android).",
+      "type": "string"
+    },
+    "BG_COLOR": {
+      "description": "Background color (iOS/Android).",
+      "type": "string"
+    },
+    "BACKGROUND": {
+      "description": "Legacy alias of BG_COLOR (iOS).",
+      "type": "string"
+    },
+    "AD_UNITS": {
+      "description": "Web ad units as JS object-literal text, or ''.",
+      "type": "string"
+    },
+    "PREBID_DEFER": {
+      "description": "Prebid defer in seconds, or ''.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "PREBID_SRC": {
+      "description": "Prebid.js bundle URL (web).",
+      "type": "string"
+    },
+    "AD_GEO_BLOCK": {
+      "description": "Geo block settings (web).",
+      "$ref": "#/$defs/webObject"
+    },
+    "AD_GEO_BLOCK_REFRESH": {
+      "description": "Geo block settings for refreshes (web).",
+      "$ref": "#/$defs/webObject"
+    },
+    "CONSENT_MANAGEMENT": {
+      "description": "Prebid consentManagement as JS object-literal text (web).",
+      "type": "string"
+    },
+    "MEMBERSHIP_TYPE": {
+      "description": "Membership type sent with listing actions (web).",
+      "type": "string"
+    },
+    "IX": {
+      "description": "Index Exchange web bidder settings.",
+      "$ref": "#/$defs/webObject"
+    },
+    "OPENX": {
+      "description": "OpenX web bidder settings.",
+      "$ref": "#/$defs/webObject"
+    },
+    "PUBMATIC": {
+      "description": "PubMatic web bidder settings.",
+      "$ref": "#/$defs/webObject"
+    },
+    "APPNEXUS": {
+      "description": "AppNexus web bidder settings.",
+      "$ref": "#/$defs/webObject"
+    },
+    "RUBICON": {
+      "description": "Rubicon web bidder settings.",
+      "$ref": "#/$defs/webObject"
+    },
+    "APSTAG": {
+      "description": "Amazon APS web settings.",
+      "$ref": "#/$defs/webObject"
+    },
+    "PUB_VENTURES": {
+      "description": "Pub Ventures waterfall settings (web).",
+      "$ref": "#/$defs/webObject"
+    },
+    "SAAMBAA": {
+      "description": "Saambaa waterfall settings (web).",
+      "$ref": "#/$defs/webObject"
+    },
+    "OPSCO": {
+      "description": "Opsco waterfall settings (web).",
+      "$ref": "#/$defs/webObject"
+    },
+    "BIDSTREAM": {
+      "description": "Bidstream waterfall settings (web).",
+      "$ref": "#/$defs/webObject"
+    },
+    "LOCALIZED_LISTINGS": {
+      "description": "Localized (per-state) secondary listings integration.",
+      "$ref": "#/$defs/localized"
+    },
+    "BANNER_SIZES": {
+      "description": "Extra banner sizes for every zone (the primary size is always first).",
+      "$ref": "#/$defs/sizeList"
+    },
+    "BANNER_SIZES_BY_ZONE": {
+      "description": "Per-zone banner sizes; wins over BANNER_SIZES. '' when unset.",
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/sizeList"
+          }
+        }
+      ]
+    },
+    "VIDEO_ENABLED": {
+      "description": "Allow video in banner auctions.",
+      "$ref": "#/$defs/flag"
+    },
+    "VIDEO_ENABLED_BY_ZONE": {
+      "description": "Per-zone VIDEO_ENABLED.",
+      "$ref": "#/$defs/zoneMap"
+    },
+    "VIDEO_SOUND_ENABLED": {
+      "description": "Allow video sound.",
+      "$ref": "#/$defs/flag"
+    },
+    "VIDEO_SOUND_ENABLED_BY_ZONE": {
+      "description": "Per-zone VIDEO_SOUND_ENABLED.",
+      "$ref": "#/$defs/zoneMap"
+    },
+    "NATIVE_ENABLED": {
+      "description": "Allow native ads.",
+      "$ref": "#/$defs/flag"
+    },
+    "NATIVE_ENABLED_BY_ZONE": {
+      "description": "Per-zone NATIVE_ENABLED.",
+      "$ref": "#/$defs/zoneMap"
+    },
+    "NATIVE_MAX_HEIGHT": {
+      "description": "Max native ad height in points/dp.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "NATIVE_MAX_HEIGHT_BY_ZONE": {
+      "description": "Per-zone NATIVE_MAX_HEIGHT.",
+      "$ref": "#/$defs/zoneMap"
+    },
+    "NATIVE_ZID": {
+      "description": "Native placement id(s), shared.",
+      "$ref": "#/$defs/strOrStrArray"
+    },
+    "NATIVE_ZID_IOS": {
+      "description": "Native placement id(s) for iOS.",
+      "$ref": "#/$defs/strOrStrArray"
+    },
+    "NATIVE_ZID_ALL_IOS": {
+      "description": "Native placement id every iOS placement falls back to.",
+      "$ref": "#/$defs/strOrStrArray"
+    },
+    "NATIVE_ZID_ANDROID": {
+      "description": "Native placement id(s) for Android.",
+      "$ref": "#/$defs/strOrStrArray"
+    },
+    "NATIVE_ZID_ALL_ANDROID": {
+      "description": "Native placement id every Android placement falls back to.",
+      "$ref": "#/$defs/strOrStrArray"
+    },
+    "MOBILE_HOUSE_AD_ENABLED": {
+      "description": "House-ad backfill on no-fill. Absent = on.",
+      "$ref": "#/$defs/flag"
+    },
+    "MOBILE_HOUSE_AD_IMAGE": {
+      "description": "Default house-ad image URL(s).",
+      "$ref": "#/$defs/strOrStrArray"
+    },
+    "MOBILE_HOUSE_AD_URL": {
+      "description": "Default house-ad click URL(s), paired with MOBILE_HOUSE_AD_IMAGE by index.",
+      "$ref": "#/$defs/strOrStrArray"
+    },
+    "MOBILE_HOUSE_AD_BY_SIZE": {
+      "description": "House-ad creatives keyed by 'WxH'.",
+      "$ref": "#/$defs/houseMap"
+    },
+    "MOBILE_HOUSE_AD_BY_ZONE": {
+      "description": "House-ad creatives keyed by zone id (wins over BY_SIZE).",
+      "$ref": "#/$defs/houseMap"
+    },
+    "MOBILE_AD_MUTE_AUTOPLAY": {
+      "description": "Mute autoplaying ad audio.",
+      "$ref": "#/$defs/flag"
+    },
+    "MOBILE_PAUSE_REFRESH_DETACHED": {
+      "description": "Pause refresh while the ad view is detached.",
+      "$ref": "#/$defs/flag"
+    },
+    "MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH": {
+      "description": "Keep the Prebid creative when the view is reattached.",
+      "$ref": "#/$defs/flag"
+    },
+    "MOBILE_LAYOUT_SELF_HEAL": {
+      "description": "Android feed layout self-heal.",
+      "$ref": "#/$defs/flag"
+    },
+    "DEBUG": {
+      "description": "SDK debug mode (enables the logFailure debug echo).",
+      "type": "boolean"
+    },
+    "PBS_DEBUG": {
+      "description": "Prebid Server debug flag.",
+      "type": "boolean"
+    },
+    "EVENTS_ENABLED": {
+      "description": "Analytics master kill switch. Absent = on. Off drops every event, including clientFailure.",
+      "$ref": "#/$defs/flag"
+    },
+    "FAILURES_ENABLED": {
+      "description": "clientFailure kill switch. Absent = on. A local failuresEnabled override wins. See FAILURES.md.",
+      "$ref": "#/$defs/flag"
+    },
+    "FAILURES_SAMPLE_RATE": {
+      "description": "clientFailure session sample rate 0..1 (default 1). A number or a decimal string; '' or anything else means 1. Values outside 0..1 are clamped by the client.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "GROWTHCODE_ENABLED": {
+      "description": "Enable the GrowthCode sync.",
+      "$ref": "#/$defs/flag"
+    },
+    "GROWTHCODE_ENABLED_BY_ZONE": {
+      "description": "Per-zone GROWTHCODE_ENABLED.",
+      "$ref": "#/$defs/zoneMap"
+    },
+    "GROWTHCODE_PARTNER_ID": {
+      "description": "GrowthCode partner id (pid).",
+      "type": "string"
+    },
+    "GROWTHCODE_ENDPOINT": {
+      "description": "GrowthCode sync endpoint, or '' for the default.",
+      "type": "string"
+    },
+    "GROWTHCODE_SYNC_URL": {
+      "description": "Publisher domain sent to GrowthCode (u/h).",
+      "type": "string"
+    },
+    "GROWTHCODE_SEND_MAID": {
+      "description": "Send the device advertising id.",
+      "$ref": "#/$defs/flag"
+    },
+    "GROWTHCODE_TTL_HOURS": {
+      "description": "Minimum hours between syncs.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "BIDDERS": {
+      "description": "Prebid Mobile bidder params keyed by bidder code (may be {}).",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/bidderParams"
+      }
+    }
+  }
+}

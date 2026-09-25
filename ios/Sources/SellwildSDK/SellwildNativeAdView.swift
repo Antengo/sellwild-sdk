@@ -37,15 +37,15 @@ public final class SellwildNativeAdView: UIView {
     private let maxHeight: CGFloat
 
     // Strong reference: the fork's NativeAd must outlive fetchDemand or its
-    // trackers/click handling are torn down. Cleared on failure.
-    private var nativeAd: NativeAd?
+    // trackers/click handling are torn down.
+    private(set) var nativeAd: NativeAd?
 
-    private let iconView = UIImageView()
-    private let titleLabel = UILabel()
-    private let sponsoredLabel = UILabel()
-    private let mediaView = UIImageView()
-    private let bodyLabel = UILabel()
-    private let ctaButton = UIButton(type: .system)
+    let iconView = UIImageView()
+    let titleLabel = UILabel()
+    let sponsoredLabel = UILabel()
+    let mediaView = UIImageView()
+    let bodyLabel = UILabel()
+    let ctaButton = UIButton(type: .system)
 
     private var imageTasks: [URLSessionDataTask] = []
 
@@ -57,9 +57,13 @@ public final class SellwildNativeAdView: UIView {
         buildLayout()
     }
 
+    // sellwild-coverage:exclude-begin(crash-guard) init(coder:) traps by design (storyboards are not supported).
     required init?(coder: NSCoder) { fatalError("Use init(config:zoneId:maxHeight:)") }
+    // sellwild-coverage:exclude-end
 
-    deinit { imageTasks.forEach { $0.cancel() } }
+    deinit {
+        for task in imageTasks { task.cancel() }
+    }
 
     // MARK: Load
 
@@ -69,44 +73,64 @@ public final class SellwildNativeAdView: UIView {
         // the mobile-mirroring precedence, falling back to this slot's zoneId.
         let configId = SellwildNative.resolveConfigId(remoteValues: config.remoteValues, zoneId: zoneId)
         let request = SellwildNative.makeRequest(configId: configId)
-        // `fetchDemand`'s completion is single-arg (`BidInfo`) in the shaded
-        // Prebid Mobile 3.x fork. The winning bid's local cache id is exposed
-        // via `bidInfo.targetingKeywords?[PrebidLocalCacheIdKey]` and inflated
+        // The winning bid's local cache id is exposed via
+        // `bidInfo.targetingKeywords?[PrebidLocalCacheIdKey]` and inflated
         // through `NativeAd.create(cacheId:)`.
-        request.fetchDemand { [weak self] bidInfo in
-            guard let self else { return }
-            guard bidInfo.resultCode == .prebidDemandFetchSuccess,
-                  let cacheId = bidInfo.targetingKeywords?[PrebidLocalCacheIdKey],
-                  let ad = NativeAd.create(cacheId: cacheId) else {
-                let err = SellwildAdError.nativeNoFill
-                #if DEBUG
-                print("[SellwildNativeAdView] no native fill — zone \(self.zoneId), result \(bidInfo.resultCode)")
-                #endif
-                self.onFailed?(err)
-                return
-            }
-            DispatchQueue.main.async { self.bind(ad) }
+        Self.environment.fetchDemand(request) { [weak self] bidInfo in
+            self?.demandFetched(bidInfo)
         }
+    }
+
+    /// The native auction answered. No bids (no fill) is not a failure
+    /// (FAILURES.md 4.3). Any other failed result (network, server, timeout,
+    /// bad config id) is `ad.prebid_auction.invalid`, as on the banner path.
+    /// A winning bid with no cache id, or one the fork cannot turn into an ad,
+    /// is `ad.native_create.invalid`. Either way the host hears `nativeNoFill`,
+    /// as before.
+    func demandFetched(_ bidInfo: BidInfo) {
+        guard bidInfo.resultCode == .prebidDemandFetchSuccess else {
+            let result = bidInfo.resultCode
+            if SellwildAdPolicy.isAuctionFailure(result.rawValue) {
+                SellwildFailures.log(code: .adPrebidAuctionInvalid, component: .native, severity: .warn,
+                                     message: "the native auction failed: \(result.name())", zoneId: zoneId)
+            } else {
+                SellwildLog.debug("[SellwildNativeAdView] no native fill — zone \(zoneId), result \(result.name())")
+            }
+            onFailed?(SellwildAdError.nativeNoFill)
+            return
+        }
+        guard let cacheId = bidInfo.targetingKeywords?[PrebidLocalCacheIdKey] else {
+            reportCreateFailure("a native bid won but carried no local cache id")
+            return
+        }
+        guard let ad = NativeAd.create(cacheId: cacheId) else {
+            reportCreateFailure("a native bid won but the native ad could not be created from the cache")
+            return
+        }
+        DispatchQueue.main.async { self.bind(ad) }
+    }
+
+    private func reportCreateFailure(_ message: String) {
+        SellwildFailures.log(code: .adNativeCreateInvalid, component: .native, message: message, zoneId: zoneId)
+        onFailed?(SellwildAdError.nativeNoFill)
     }
 
     // MARK: Bind
 
-    private func bind(_ ad: NativeAd) {
+    func bind(_ ad: NativeAd) {
         nativeAd = ad
         ad.delegate = self
 
         titleLabel.text = ad.title
         bodyLabel.text = ad.text
-        sponsoredLabel.text = ad.sponsoredBy.map { "Sponsored · \($0)" } ?? "Sponsored"
-        let cta = (ad.callToAction?.isEmpty == false) ? ad.callToAction! : "Learn more"
-        ctaButton.setTitle(cta, for: .normal)
+        sponsoredLabel.text = SellwildAdPolicy.sponsoredText(ad.sponsoredBy)
+        ctaButton.setTitle(SellwildAdPolicy.callToActionText(ad.callToAction), for: .normal)
 
         loadImage(ad.iconUrl, into: iconView)
         loadImage(ad.imageUrl, into: mediaView)
 
         // Register the whole view for impression tracking; the CTA (and title)
-        // are the clickable surfaces. NOTE (verify on build):
-        // `registerView(view:clickableViews:)` signature.
+        // are the clickable surfaces.
         ad.registerView(view: self, clickableViews: [ctaButton, titleLabel, mediaView])
 
         onLoaded?()
@@ -141,8 +165,8 @@ public final class SellwildNativeAdView: UIView {
         bodyLabel.font = .systemFont(ofSize: 13)
         bodyLabel.textColor = .label
         bodyLabel.numberOfLines = 3
-        [titleLabel, sponsoredLabel, bodyLabel].forEach {
-            $0.setContentCompressionResistancePriority(.required, for: .vertical)
+        for label in [titleLabel, sponsoredLabel, bodyLabel] {
+            label.setContentCompressionResistancePriority(.required, for: .vertical)
         }
 
         ctaButton.titleLabel?.font = .boldSystemFont(ofSize: 14)
@@ -198,24 +222,65 @@ public final class SellwildNativeAdView: UIView {
         ])
     }
 
-    private func loadImage(_ urlString: String?, into imageView: UIImageView) {
-        // http/https only (reject file://) + payload cap; native asset URLs are
-        // bidder-supplied.
-        guard let url = SellwildSafeURL.imageURL(urlString) else { return }
-        let task = URLSession.shared.dataTask(with: url) { data, _, _ in
-            guard let data, data.count <= SellwildSafeURL.maxImageBytes, let image = UIImage(data: data) else { return }
-            DispatchQueue.main.async { imageView.image = image }
+    /// Loads a native asset image. A missing asset is fine; a URL that is not
+    /// http(s), a failed download or an unusable image is `ad.native_image.network`.
+    /// Native asset URLs are bidder-supplied, so file:// is refused and the
+    /// payload is capped.
+    func loadImage(_ urlString: String?, into imageView: UIImageView) {
+        guard let urlString else { return }
+        guard let url = SellwildSafeURL.imageURL(urlString) else {
+            reportImageFailure(message: "native ad image URL is not http(s)", error: nil)
+            return
+        }
+        let task = Self.environment.imageSession.dataTask(with: url) { [weak self] data, response, error in
+            switch SellwildImageLoad.outcome(data: data, response: response, error: error) {
+            case .image(let image):
+                DispatchQueue.main.async { imageView.image = image }
+            case .cancelled:
+                break
+            case .network(let error):
+                self?.reportImageFailure(message: "native ad image failed to download", error: error)
+            case .invalid(let problem):
+                self?.reportImageFailure(message: "native ad image: \(problem.rawValue)", error: nil)
+            }
         }
         imageTasks.append(task)
         task.resume()
     }
+
+    private func reportImageFailure(message: String, error: Error?) {
+        SellwildFailures.log(code: .adNativeImageNetwork, component: .native, severity: .warn, error: error,
+                             message: message, zoneId: zoneId)
+    }
+}
+
+// MARK: - Environment
+
+extension SellwildNativeAdView {
+    /// Where native demand and asset images come from. Partners always get
+    /// `live`; tests replace `SellwildNativeAdView.environment`.
+    struct Environment {
+        /// Runs the native auction (a Prebid Server request).
+        var fetchDemand: (NativeRequest, @escaping (BidInfo) -> Void) -> Void
+        /// Downloads asset images.
+        var imageSession: URLSession
+
+        static let live = Environment(fetchDemand: fetchLiveDemand, imageSession: .shared)
+
+        // sellwild-coverage:exclude-begin(fetch-demand) NativeRequest.fetchDemand sends the Prebid Server request.
+        private static let fetchLiveDemand: (NativeRequest, @escaping (BidInfo) -> Void) -> Void = { request, completion in
+            request.fetchDemand(completionBidInfo: completion)
+        }
+        // sellwild-coverage:exclude-end
+    }
+
+    static var environment = Environment.live
 }
 
 // MARK: - NativeAdEventDelegate
 //
-// NOTE (verify on build): the delegate protocol name (`NativeAdEventDelegate`)
-// and method signatures are Prebid Mobile 3.x. They drive analytics parity with
-// the banner path; the fork's registerView still fires the real trackers.
+// They drive analytics parity with the banner path; the fork's registerView
+// still fires the real trackers.
 
 extension SellwildNativeAdView: NativeAdEventDelegate {
 
@@ -227,9 +292,8 @@ extension SellwildNativeAdView: NativeAdEventDelegate {
         onClick?()
     }
 
+    /// The ad's cached bid expired. Its lifecycle, not a failure.
     public func adDidExpire(ad: NativeAd) {
-        #if DEBUG
-        print("[SellwildNativeAdView] native ad expired — zone \(zoneId)")
-        #endif
+        SellwildLog.debug("[SellwildNativeAdView] native ad expired — zone \(zoneId)")
     }
 }

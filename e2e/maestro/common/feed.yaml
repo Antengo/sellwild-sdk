@@ -1,0 +1,27 @@
+# Feed: the native feed shows at least one listing card.
+# env: FEED_AD_ROWS "true" when the SDK feed sets sw.feed.ad on its ad rows.
+appId: ${APP_ID}
+---
+- tapOn:
+    id: "sw.tab.feed"
+- extendedWaitUntil:
+    visible:
+      id: "sw.feed.list"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: "sw.listing.card"
+    timeout: 30000
+- runFlow: no-crash.yaml
+- takeScreenshot: feed
+- runFlow:
+    when:
+      true: ${FEED_AD_ROWS == 'true'}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "sw.feed.ad"
+          direction: DOWN
+          timeout: 20000
+      - assertVisible:
+          id: "sw.feed.ad"

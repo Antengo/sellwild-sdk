@@ -30,6 +30,44 @@ import com.sellwild.prebid.NativeAdUnit
 import com.sellwild.prebid.PrebidNativeAd
 import com.sellwild.prebid.PrebidNativeAdEventListener
 import com.sellwild.prebid.ResultCode
+import com.sellwild.sdk.core.AdDecisions
+import com.sellwild.sdk.core.Format
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
+import com.sellwild.sdk.failures.SellwildFailures
+import com.sellwild.sdk.failures.SellwildLog
+
+/** A won native ad: its assets, and the fork's impression and click tracking. */
+internal interface NativeAdContent {
+    val title: String?
+    val description: String?
+    val sponsoredBy: String?
+    val callToAction: String?
+    val iconUrl: String?
+    val imageUrl: String?
+
+    /** Registers [container] and its [clickables] with the fork's impression and click trackers. */
+    fun register(container: View, clickables: List<View>, listener: PrebidNativeAdEventListener)
+}
+
+/**
+ * The real [NativeAdContent] over the fork's PrebidNativeAd. Excluded from the coverage gate
+ * (A10): only the fork's auction cache can create a PrebidNativeAd, and registerView starts
+ * its trackers, which fire over the network.
+ */
+internal class PrebidNativeContent(private val ad: PrebidNativeAd) : NativeAdContent {
+    override val title: String? get() = ad.title
+    override val description: String? get() = ad.description
+    override val sponsoredBy: String? get() = ad.sponsoredBy
+    override val callToAction: String? get() = ad.callToAction
+    override val iconUrl: String? get() = ad.iconUrl
+    override val imageUrl: String? get() = ad.imageUrl
+
+    override fun register(container: View, clickables: List<View>, listener: PrebidNativeAdEventListener) {
+        ad.registerView(container, clickables, listener)
+    }
+}
 
 class SellwildNativeAdView(
     context: Context,
@@ -46,7 +84,7 @@ class SellwildNativeAdView(
 
     // Strong reference: the fork's native ad must outlive fetchDemand or its
     // trackers / click handling are torn down.
-    private var nativeAd: PrebidNativeAd? = null
+    private var nativeAd: NativeAdContent? = null
     private var nativeAdUnit: NativeAdUnit? = null
 
     private val iconView: ImageView
@@ -61,7 +99,7 @@ class SellwildNativeAdView(
 
     init {
         val dp = resources.displayMetrics.density
-        fun px(v: Int) = (v * dp).toInt()
+        fun px(v: Int) = AdDecisions.px(v, dp)
 
         iconView = ImageView(context).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
@@ -134,42 +172,62 @@ class SellwildNativeAdView(
         // id into `BUNDLE_KEY_CACHE_ID` (Util.saveCacheId Bundle path). We
         // then hand that id to `PrebidNativeAd.create(cacheId)`.
         val adBundle = Bundle()
-        unit.fetchDemand(adBundle) { resultCode ->
-            if (resultCode != ResultCode.SUCCESS) {
-                if (config.debug) android.util.Log.d("SellwildNativeAdView", "[native] no fill — zone $zoneId, result $resultCode")
-                onFailed?.invoke("Native demand request returned no fill ($resultCode).")
-                return@fetchDemand
-            }
-            val cacheId = adBundle.getString(NativeAdUnit.BUNDLE_KEY_CACHE_ID)
-            val ad = cacheId?.let { PrebidNativeAd.create(it) }
-            if (ad == null) {
-                onFailed?.invoke("Native demand won but no PrebidNativeAd could be created.")
-                return@fetchDemand
-            }
-            mainHandler.post { bind(ad) }
+        val network = SellwildPrebidMobile.network
+        network.fetchNativeDemand(unit, adBundle) { resultCode ->
+            onDemand(resultCode, adBundle.getString(NativeAdUnit.BUNDLE_KEY_CACHE_ID), network)
         }
+    }
+
+    /**
+     * The native auction finished (on the fork's callback thread). No bids is a no-fill:
+     * onFailed only, adError covers it. Any other failed result is reported once here
+     * (ad.prebid_auction.invalid), and a win whose ad cannot be created as
+     * ad.native_create.invalid.
+     */
+    private fun onDemand(resultCode: ResultCode, cacheId: String?, network: SellwildAdNetwork) {
+        if (resultCode != ResultCode.SUCCESS) {
+            SellwildLog.debug { "[native] no fill — zone $zoneId, result $resultCode" }
+            SellwildPrebidMobile.reportAuction(resultCode, SellwildFailureComponent.NATIVE, zoneId)
+            onFailed?.invoke("Native demand request returned no fill ($resultCode).")
+            return
+        }
+        val ad = cacheId?.let { network.nativeAd(it) }
+        if (ad == null) {
+            SellwildFailures.log(
+                code = SellwildFailureCode.AD_NATIVE_CREATE_INVALID,
+                component = SellwildFailureComponent.NATIVE,
+                severity = SellwildFailureSeverity.ERROR,
+                message = if (cacheId == null) "native win without a cache id" else "native ad could not be created from the cache",
+                zoneId = zoneId,
+            )
+            onFailed?.invoke("Native demand won but no PrebidNativeAd could be created.")
+            return
+        }
+        mainHandler.post { bind(ad) }
     }
 
     // MARK: Bind
 
-    private fun bind(ad: PrebidNativeAd) {
+    private fun bind(ad: NativeAdContent) {
         nativeAd = ad
 
         titleView.text = ad.title
         bodyView.text = ad.description
-        sponsoredView.text = ad.sponsoredBy?.takeIf { it.isNotEmpty() }?.let { "Sponsored · $it" } ?: "Sponsored"
-        ctaButton.text = ad.callToAction?.takeIf { it.isNotEmpty() } ?: "Learn more"
+        sponsoredView.text = Format.sponsored(ad.sponsoredBy)
+        ctaButton.text = Format.callToAction(ad.callToAction)
 
         loadImage(ad.iconUrl, iconView)
         loadImage(ad.imageUrl, mediaView)
 
         // Register for impression / click tracking. Shaded fork uses
         // `registerView(container, clickableViews, listener)`.
-        ad.registerView(this, listOf(ctaButton, titleView, mediaView), object : PrebidNativeAdEventListener {
+        ad.register(this, listOf(ctaButton, titleView, mediaView), object : PrebidNativeAdEventListener {
             override fun onAdClicked() { onClick?.invoke() }
             override fun onAdImpression() { onImpression?.invoke() }
+
+            // Expiry before an impression is lifecycle, not a failure: trace only.
             override fun onAdExpired() {
-                if (config.debug) android.util.Log.d("SellwildNativeAdView", "[native] ad expired — zone $zoneId")
+                SellwildLog.debug { "[native] ad expired — zone $zoneId" }
             }
         })
 
@@ -183,8 +241,8 @@ class SellwildNativeAdView(
         // Delegate to the vetted loader: http/https only (SellwildSafeUrl.imageUrl
         // rejects a bidder-supplied file:// asset URL — no local-file read) +
         // MAX_IMAGE_BYTES cap (guards a decompression-bomb OOM) + disk/memory
-        // cache. Guard the late main-thread callback so a bitmap can't land on a
-        // destroyed view.
+        // cache, and it reports a failed image once. Guard the late main-thread
+        // callback so a bitmap can't land on a destroyed view.
         SellwildHouseAd.loadImage(context, url) { bmp ->
             if (!destroyed && bmp != null) target.setImageBitmap(bmp)
         }

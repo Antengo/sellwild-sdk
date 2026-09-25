@@ -1,0 +1,874 @@
+{
+  "description": "SwiftLint findings that existed when the gate started (scripts/lint/swiftlint-baseline.mjs). Per file: \"<rule>: <reason, numbers as #>\" -> a count, or for a size rule the measured sizes, largest first. A new finding, a higher count or a larger size fails. Shrink it after fixing findings: bash scripts/lint/swiftlint.sh --update.",
+  "files": {
+    "ios/Sources/SellwildSDK/Core/SellwildAdPolicy.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        124
+      ]
+    },
+    "ios/Sources/SellwildSDK/Core/SellwildListingsCore.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        123
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 1
+    },
+    "ios/Sources/SellwildSDK/Core/SellwildPrebidConfig.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        122
+      ],
+      "optional_data_string_conversion: Prefer failable `String(bytes:encoding:)` initializer when converting `Data` to `String`": 1
+    },
+    "ios/Sources/SellwildSDK/Failures/SellwildFailures.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        146,
+        129
+      ]
+    },
+    "ios/Sources/SellwildSDK/Failures/SellwildFailuresCore.swift": {
+      "cyclomatic_complexity: Function should have complexity # or less; currently complexity is #": [
+        26
+      ],
+      "file_length: File should contain # lines or less excluding comments and whitespaces: currently contains #": [
+        615
+      ],
+      "function_body_length: Function body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        73
+      ],
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        121
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 4,
+      "type_body_length: Enum body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        612
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildAPI.swift": {
+      "comma: There should be no space before and one after any comma": 1,
+      "cyclomatic_complexity: Function should have complexity # or less; currently complexity is #": [
+        11
+      ],
+      "file_length: File should contain # lines or less excluding comments and whitespaces: currently contains #": [
+        506
+      ],
+      "function_body_length: Function body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        65
+      ],
+      "identifier_name: Enum element name 'has_photo' should only contain alphanumeric and other allowed characters": 1,
+      "identifier_name: Variable name 'has_photo' should only contain alphanumeric and other allowed characters": 1,
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        134,
+        129,
+        126,
+        122,
+        122,
+        121,
+        121
+      ],
+      "opening_brace: Opening braces should be preceded by a single space and on the same line as the declaration": 2,
+      "trailing_comma: Collection literals should not have trailing commas": 1,
+      "type_body_length: Class body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        313
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildAdAudioGuard.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        160,
+        143
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildAdSizes.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        123
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildAdView.swift": {
+      "file_length: File should contain # lines or less excluding comments and whitespaces: currently contains #": [
+        642
+      ],
+      "function_parameter_count: Function should have # parameters or less: it currently has #": [
+        6,
+        6
+      ],
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        182,
+        159,
+        137,
+        137,
+        136,
+        134,
+        124,
+        123,
+        123,
+        123,
+        121
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 3,
+      "type_body_length: Class body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        457
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildConfig.swift": {
+      "implicit_optional_initialization: Optional should be implicitly initialized without nil": 2,
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        125
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildFeedView.swift": {
+      "file_length: File should contain # lines or less excluding comments and whitespaces: currently contains #": [
+        596
+      ],
+      "function_parameter_count: Function should have # parameters or less: it currently has #": [
+        6
+      ],
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        155,
+        128,
+        128,
+        126,
+        125,
+        121,
+        121
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 6
+    },
+    "ios/Sources/SellwildSDK/SellwildGeo.swift": {
+      "cyclomatic_complexity: Function should have complexity # or less; currently complexity is #": [
+        14
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildGpid.swift": {
+      "optional_data_string_conversion: Prefer failable `String(bytes:encoding:)` initializer when converting `Data` to `String`": 1
+    },
+    "ios/Sources/SellwildSDK/SellwildGrowthCode.swift": {
+      "function_parameter_count: Function should have # parameters or less: it currently has #": [
+        6
+      ],
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        131,
+        131,
+        124,
+        123
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 1,
+      "type_body_length: Enum body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        272
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildHouseAd.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        124
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildHouseAdView.swift": {
+      "trailing_comma: Collection literals should not have trailing commas": 3
+    },
+    "ios/Sources/SellwildSDK/SellwildLocalizedListings.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        125
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildNativeAdView.swift": {
+      "function_body_length: Function body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        59
+      ],
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        123
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 1
+    },
+    "ios/Sources/SellwildSDK/SellwildPrebidMobile.swift": {
+      "closure_parameter_position: Closure parameters should be on the same line as opening brace": 3,
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        195,
+        157,
+        149,
+        130,
+        122
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildRemoteConfig.swift": {
+      "cyclomatic_complexity: Function should have complexity # or less; currently complexity is #": [
+        52
+      ],
+      "function_body_length: Function body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        65
+      ],
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        127
+      ],
+      "opening_brace: Opening braces should be preceded by a single space and on the same line as the declaration": 28
+    },
+    "ios/Sources/SellwildSDK/SellwildS2SConfig.swift": {
+      "cyclomatic_complexity: Function should have complexity # or less; currently complexity is #": [
+        22
+      ],
+      "function_body_length: Function body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        76
+      ]
+    },
+    "ios/Sources/SellwildSDK/SellwildVideo.swift": {
+      "trailing_comma: Collection literals should not have trailing commas": 1
+    },
+    "ios/Tests/DocsVerifyTests/DocsVerifyTests.swift": {
+      "identifier_name: Function name 'DocsIos_b#_L#_requestTrackingAuthorization()' should start with a lowercase character": 1,
+      "identifier_name: Variable name '_DocsQuickStart_b#_L#_config' should only contain alphanumeric and other allowed characters": 1,
+      "private_over_fileprivate: Prefer `private` over `fileprivate` declarations": 1,
+      "trailing_comma: Collection literals should not have trailing commas": 1,
+      "type_name: Type name 'DocsIos_b#_L#' should only contain alphanumeric and other allowed characters": 7,
+      "type_name: Type name 'DocsIos_b#_L#_AdContentView' should only contain alphanumeric and other allowed characters": 1,
+      "type_name: Type name 'DocsIos_b#_L#_AdViewController' should only contain alphanumeric and other allowed characters": 1,
+      "type_name: Type name 'DocsIos_b#_L#_ListingsViewController' should only contain alphanumeric and other allowed characters": 1,
+      "type_name: Type name 'DocsIos_b#_L#_VC' should only contain alphanumeric and other allowed characters": 3,
+      "type_name: Type name 'DocsIos_b#_L#_View' should only contain alphanumeric and other allowed characters": 1,
+      "type_name: Type name 'DocsQuickStart_b#_L#' should only contain alphanumeric and other allowed characters": 2,
+      "type_name: Type name 'DocsQuickStart_b#_L#_ContentView' should only contain alphanumeric and other allowed characters": 1,
+      "type_name: Type name 'DocsQuickStart_b#_L#_VC' should only contain alphanumeric and other allowed characters": 1
+    },
+    "ios/Tests/SellwildSDKTests/Events/SellwildEventQueueTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        130,
+        121
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Factories/ClientFailureEventFactory.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        132
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Factories/EventFactory.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        122
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Factories/FactoryContractTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        151,
+        146,
+        145,
+        143,
+        137,
+        131,
+        129,
+        128,
+        128,
+        128,
+        127,
+        125
+      ],
+      "optional_data_string_conversion: Prefer failable `String(bytes:encoding:)` initializer when converting `Data` to `String`": 1
+    },
+    "ios/Tests/SellwildSDKTests/Factories/GrowthCodeFactory.swift": {
+      "optional_data_string_conversion: Prefer failable `String(bytes:encoding:)` initializer when converting `Data` to `String`": 1
+    },
+    "ios/Tests/SellwildSDKTests/Factories/ListingsResponseFactory.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        139,
+        138,
+        137,
+        124
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Factories/LocalizedListingsFactory.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        129,
+        129,
+        128,
+        125,
+        124
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Factories/NativeBidFactory.swift": {
+      "optional_data_string_conversion: Prefer failable `String(bytes:encoding:)` initializer when converting `Data` to `String`": 1
+    },
+    "ios/Tests/SellwildSDKTests/Failures/SellwildFailuresCoreTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        158,
+        129,
+        122,
+        122
+      ],
+      "optional_data_string_conversion: Prefer failable `String(bytes:encoding:)` initializer when converting `Data` to `String`": 1,
+      "trailing_comma: Collection literals should not have trailing commas": 2
+    },
+    "ios/Tests/SellwildSDKTests/Failures/SellwildFailuresTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        137,
+        127,
+        127,
+        126,
+        124,
+        124
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 2,
+      "type_body_length: Class body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        293
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Failures/StdoutCapture.swift": {
+      "optional_data_string_conversion: Prefer failable `String(bytes:encoding:)` initializer when converting `Data` to `String`": 1
+    },
+    "ios/Tests/SellwildSDKTests/Logic/LogicTestSupport.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        123
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildAdLogicTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        158,
+        154,
+        153,
+        144,
+        143,
+        139,
+        137,
+        133,
+        131,
+        129,
+        129,
+        126,
+        125,
+        124,
+        124
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 1
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildAdPolicyTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        142,
+        141,
+        141,
+        139,
+        135,
+        134,
+        131,
+        129,
+        128,
+        124,
+        124,
+        123,
+        121,
+        121
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildAdSizesTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        142,
+        133,
+        131,
+        130,
+        128,
+        127,
+        125,
+        123
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 1
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildAudioGuardFailureTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        148,
+        145,
+        137,
+        132,
+        129,
+        128,
+        128,
+        123
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildConfigLogicTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        149,
+        144,
+        141,
+        137,
+        136,
+        133,
+        131,
+        130
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 2
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildConformanceTests.swift": {
+      "function_body_length: Function body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        59
+      ],
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        147,
+        141,
+        129,
+        129,
+        125,
+        124,
+        123,
+        123,
+        122
+      ],
+      "optional_data_string_conversion: Prefer failable `String(bytes:encoding:)` initializer when converting `Data` to `String`": 1,
+      "trailing_comma: Collection literals should not have trailing commas": 6
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildCoreHelpersTests.swift": {
+      "trailing_comma: Collection literals should not have trailing commas": 1
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildEidsTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        132,
+        129
+      ],
+      "optional_data_string_conversion: Prefer failable `String(bytes:encoding:)` initializer when converting `Data` to `String`": 1
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildFeedLayoutTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        131,
+        123
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildGrowthCodeTests.swift": {
+      "large_tuple: Tuples should have at most # members": 1,
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        157,
+        155,
+        154,
+        144,
+        141,
+        137,
+        135,
+        135,
+        133,
+        133,
+        133,
+        132,
+        130,
+        129,
+        128,
+        127,
+        127,
+        126,
+        125,
+        125,
+        123,
+        122
+      ],
+      "optional_data_string_conversion: Prefer failable `String(bytes:encoding:)` initializer when converting `Data` to `String`": 8,
+      "trailing_comma: Collection literals should not have trailing commas": 3,
+      "type_body_length: Class body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        317
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildHouseAdImageTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        141,
+        138,
+        130,
+        127,
+        125,
+        125,
+        125,
+        125,
+        124,
+        124,
+        124,
+        124,
+        123,
+        122,
+        122,
+        121,
+        121
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildListingsCoreTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        139,
+        139,
+        137,
+        133,
+        124,
+        121
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildListingsFailureTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        156,
+        146,
+        141,
+        138,
+        136,
+        134,
+        131,
+        130,
+        130,
+        128,
+        127,
+        126,
+        126,
+        123,
+        121,
+        121
+      ],
+      "type_body_length: Class body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        264
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildLoadFailureTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        131
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 2
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildLocalizedListingsTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        171,
+        163,
+        162,
+        161,
+        161,
+        160,
+        159,
+        157,
+        156,
+        152,
+        148,
+        148,
+        147,
+        146,
+        141,
+        138,
+        138,
+        136,
+        136,
+        136,
+        136,
+        135,
+        135,
+        132,
+        129,
+        128,
+        128,
+        128,
+        127,
+        127,
+        127,
+        125,
+        123
+      ],
+      "optional_data_string_conversion: Prefer failable `String(bytes:encoding:)` initializer when converting `Data` to `String`": 1
+    },
+    "ios/Tests/SellwildSDKTests/Logic/SellwildPrebidConfigTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        137,
+        135,
+        128,
+        127,
+        125,
+        125
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/SellwildAPIClientTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        163,
+        158,
+        153,
+        146,
+        142,
+        136,
+        135,
+        133,
+        131,
+        130,
+        130,
+        128,
+        127,
+        125,
+        124,
+        124,
+        122,
+        122,
+        121
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 2,
+      "type_body_length: Class body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        315
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/SellwildAdAudioGuardTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        133,
+        133,
+        131,
+        129
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/SellwildAdStackTests.swift": {
+      "trailing_comma: Collection literals should not have trailing commas": 2
+    },
+    "ios/Tests/SellwildSDKTests/SellwildBehaviorFixTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        131,
+        130,
+        126,
+        121
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 1
+    },
+    "ios/Tests/SellwildSDKTests/SellwildConfigureTests.swift": {
+      "large_tuple: Tuples should have at most # members": 1,
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        134,
+        128,
+        124,
+        124,
+        123
+      ],
+      "static_over_final_class: Prefer `static` over `class` in a final class": 2,
+      "trailing_comma: Collection literals should not have trailing commas": 2,
+      "type_body_length: Class body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        284
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/SellwildEventRetryTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        121
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/SellwildGpidTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        127,
+        124,
+        122
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 2
+    },
+    "ios/Tests/SellwildSDKTests/SellwildHouseAdResolveTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        155,
+        140,
+        135,
+        135,
+        135,
+        130,
+        129,
+        128,
+        127,
+        126,
+        126,
+        122
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 6
+    },
+    "ios/Tests/SellwildSDKTests/SellwildHouseAdTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        149,
+        146,
+        135,
+        121
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/SellwildNativeTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        133,
+        124
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 3
+    },
+    "ios/Tests/SellwildSDKTests/SellwildRemoteConfigTests.swift": {
+      "trailing_comma: Collection literals should not have trailing commas": 4
+    },
+    "ios/Tests/SellwildSDKTests/SellwildVideoTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        138,
+        137,
+        136,
+        131,
+        128,
+        128
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 1
+    },
+    "ios/Tests/SellwildSDKTests/Support/ContractEmitter.swift": {
+      "trailing_comma: Collection literals should not have trailing commas": 1
+    },
+    "ios/Tests/SellwildSDKTests/Support/ContractOutputTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        134
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Support/NetworkBlocker.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        172,
+        138
+      ],
+      "static_over_final_class: Prefer `static` over `class` in a final class": 3,
+      "trailing_comma: Collection literals should not have trailing commas": 2
+    },
+    "ios/Tests/SellwildSDKTests/Support/StubURLProtocol.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        138,
+        132,
+        130
+      ],
+      "static_over_final_class: Prefer `static` over `class` in a final class": 2
+    },
+    "ios/Tests/SellwildSDKTests/Support/SupportSelfTests.swift": {
+      "large_tuple: Tuples should have at most # members": 4,
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        135,
+        132,
+        128,
+        128,
+        128,
+        126,
+        126,
+        126,
+        125,
+        125,
+        125,
+        125,
+        122,
+        121
+      ],
+      "orphaned_doc_comment: A doc comment should be attached to a declaration": 1,
+      "trailing_comma: Collection literals should not have trailing commas": 4
+    },
+    "ios/Tests/SellwildSDKTests/Views/SellwildAdViewTests.swift": {
+      "file_length: File should contain # lines or less excluding comments and whitespaces: currently contains #": [
+        531
+      ],
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        133,
+        126,
+        122,
+        121
+      ],
+      "type_body_length: Class body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        523
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Views/SellwildFeedViewTests.swift": {
+      "file_length: File should contain # lines or less excluding comments and whitespaces: currently contains #": [
+        466
+      ],
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        138,
+        138,
+        137,
+        135,
+        135,
+        131,
+        129,
+        128,
+        128,
+        125,
+        125,
+        125,
+        125,
+        124,
+        123,
+        123
+      ],
+      "type_body_length: Class body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        443
+      ],
+      "unused_closure_parameter: Unused parameter in a closure should be replaced with _": 1
+    },
+    "ios/Tests/SellwildSDKTests/Views/SellwildHouseAdViewTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        121
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Views/SellwildNativeAdViewTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        128
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Views/SellwildPrebidMobileTests.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        135,
+        128,
+        126,
+        125,
+        125,
+        125,
+        124,
+        124,
+        121
+      ]
+    },
+    "ios/Tests/SellwildSDKTests/Views/ViewTestSupport.swift": {
+      "function_parameter_count: Function should have # parameters or less: it currently has #": [
+        6
+      ],
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        136
+      ],
+      "static_over_final_class: Prefer `static` over `class` in a final class": 1
+    },
+    "react-native/ios/SellwildBannerViewManager.swift": {
+      "cyclomatic_complexity: Function should have complexity # or less; currently complexity is #": [
+        18
+      ],
+      "function_body_length: Function body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        65
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 1
+    },
+    "react-native/ios/SellwildFeedViewManager.swift": {
+      "cyclomatic_complexity: Function should have complexity # or less; currently complexity is #": [
+        26
+      ],
+      "function_body_length: Function body should span # lines or less excluding comments and whitespace: currently spans # lines": [
+        81
+      ],
+      "trailing_comma: Collection literals should not have trailing commas": 2
+    },
+    "react-native/ios/SellwildRNBridgeRules.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        144,
+        137
+      ]
+    },
+    "react-native/ios/SellwildRNModule.swift": {
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        123
+      ]
+    },
+    "react-native/native-checks/ios/main.swift": {
+      "force_cast: Force casts should be avoided": 1,
+      "force_try: Force tries should be avoided": 1,
+      "line_length: Line should be # characters or less; currently it has # characters": [
+        209,
+        185,
+        173,
+        169,
+        168,
+        166,
+        162,
+        161,
+        157,
+        153,
+        148,
+        147,
+        145,
+        143,
+        142,
+        140,
+        138,
+        137,
+        137,
+        132,
+        132,
+        132,
+        132,
+        131,
+        129,
+        128,
+        126,
+        124,
+        123,
+        122,
+        121,
+        121
+      ],
+      "non_optional_string_data_conversion: Prefer non-optional `Data(_:)` initializer when converting `String` to `Data`": 1,
+      "type_name: Type name 'R' should be between # and # characters long": 1
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/localized-listings-config.schema.json",
+  "title": "Localized listings config",
+  "description": "The LOCALIZED_LISTINGS object (remote) or config.localizedListings (local). Without baseUrl and urlTemplate the integration is off. Flutter has no support (known drift).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "_synthetic": {
+      "description": "Fixture marker. Present only in hand-made fixtures, never on the wire.",
+      "const": true
+    },
+    "enabled": {
+      "description": "Master switch. A present object counts as on; false turns it off.",
+      "type": "boolean"
+    },
+    "source": {
+      "description": "Label for the source, for example 'sportserver'.",
+      "type": "string"
+    },
+    "baseUrl": {
+      "description": "Cache base URL, for example https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/.",
+      "type": "string",
+      "format": "uri"
+    },
+    "urlTemplate": {
+      "description": "File name template with a {state} token, for example 'sports-img-data-sm-webp-{state}.json'.",
+      "type": "string",
+      "pattern": "\\{state\\}"
+    },
+    "frequency": {
+      "description": "Dispersion percent: 25 puts a localized listing in every 4th slot. A number or a numeric string.",
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^\\s*[0-9]+(\\.[0-9]+)?\\s*$"
+        }
+      ]
+    },
+    "forceState": {
+      "description": "Force a 2-letter state instead of geo resolution.",
+      "type": "string",
+      "pattern": "^[A-Za-z]{2}$"
+    }
+  }
+}

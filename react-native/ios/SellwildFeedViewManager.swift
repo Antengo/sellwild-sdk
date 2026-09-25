@@ -26,6 +26,11 @@ import UIKit
 @objc(SellwildFeedViewManager)
 public final class SellwildFeedViewManager: RCTViewManager {
 
+    public override init() {
+        super.init()
+        SellwildRNWrapper.install()
+    }
+
     public override static func requiresMainQueueSetup() -> Bool { true }
 
     public override func view() -> UIView! {
@@ -164,22 +169,36 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
     /// canonical CDN decoder against it so feed-specific fields (COL1,
     /// bgColor, mobileZids, listingsUrl, …) are populated identically
     /// to a native `SellwildSDK.configure(...)` call.
+    ///
+    /// JS builds this map from core's typed SellwildConfig
+    /// (react-native/src/nativeConfig.ts toNativeFeedConfig), so a field that
+    /// is absent keeps the SDK default and is not a failure. The fields a
+    /// failure was surveyed for are checked and reported together, once: a
+    /// geo or geo field of the wrong type (dropped, as before), zone ids that
+    /// are not text and an incomplete prebidServer (bridge.config.invalid);
+    /// and a remote that cannot be serialized (bridge.config.exception).
     static func configFromMap(_ map: NSDictionary) -> SellwildConfig {
         let partnerCode = (map["partnerCode"] as? String) ?? ""
         var cfg = SellwildConfig(partnerCode: partnerCode)
+        var problems: [String] = []
 
         // Apply the raw CDN payload first so explicit JS overrides
         // (e.g. appBundleId from the host app) win.
         if let remote = map["remote"] as? [String: Any] {
             cfg = SellwildSDK.apply(remote, to: cfg)
-            if let data = try? JSONSerialization.data(withJSONObject: remote, options: []) {
+            switch SellwildRNBridgeRules.remoteJSON(remote) {
+            case .success(let data):
                 cfg.remoteJSON = data
+            case .failure(let error):
+                SellwildFailures.log(code: .bridgeConfigException, component: .bridge, severity: .warn, error: error,
+                                     message: "remote could not be serialized, so the bidder passthrough is lost")
             }
         }
 
         if let v = map["slug"] as? String { cfg.slug = v }
         if let v = map["appBundleId"] as? String { cfg.appBundleId = v }
         if let v = map["appStoreUrl"] as? String { cfg.appStoreUrl = v }
+        if let problem = SellwildRNBridgeRules.configGeoProblem(map["geo"]) { problems.append(problem) }
         if let geoMap = map["geo"] as? [String: Any] { cfg.geo = SellwildGeo(bridged: geoMap) }
         if let v = map["gamTag"] as? String { cfg.gamTag = v }
         if let v = map["debug"] as? Bool { cfg.debug = v }
@@ -188,8 +207,13 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
         if let v = map["adRefreshMaxMobile"] as? Int { cfg.adRefreshMaxMobile = v }
         if let v = map["listingsUrl"] as? String { cfg.listingsUrl = v }
         if let v = map["priceColor"] as? String { cfg.priceColor = v }
-        if let v = map["bannerZid"] as? String { cfg.bannerZid = v }
-        if let v = map["bottomBannerZid"] as? String { cfg.bottomBannerZid = v }
+        // Zone ids are text. JS sends them as text (nativeZoneId); a value of
+        // another type is dropped, as before, and reported.
+        let bannerZid = SellwildRNBridgeRules.text(map["bannerZid"], key: "bannerZid")
+        if let v = bannerZid.value { cfg.bannerZid = v }
+        let bottomBannerZid = SellwildRNBridgeRules.text(map["bottomBannerZid"], key: "bottomBannerZid")
+        if let v = bottomBannerZid.value { cfg.bottomBannerZid = v }
+        problems += [bannerZid.problem, bottomBannerZid.problem].compactMap { $0 }
 
         // mobileZids / mobileBannerZid are resolved per-platform (iOS here) by
         // SellwildSDK.apply(_:to:) above, which reads the OS-suffixed CDN keys
@@ -198,8 +222,11 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
         // to resolve from — otherwise the iOS-resolved zones would be clobbered
         // by the unsuffixed values the JS core mapped (which are OS-agnostic).
         if map["remote"] == nil {
-            if let v = map["mobileBannerZid"] as? String { cfg.mobileBannerZid = v }
-            if let v = map["mobileZids"] as? [String] { cfg.mobileZids = v }
+            let mobileBannerZid = SellwildRNBridgeRules.text(map["mobileBannerZid"], key: "mobileBannerZid")
+            if let v = mobileBannerZid.value { cfg.mobileBannerZid = v }
+            let mobileZids = SellwildRNBridgeRules.textList(map["mobileZids"], key: "mobileZids")
+            if let v = mobileZids.value { cfg.mobileZids = v }
+            problems += [mobileBannerZid.problem, mobileZids.problem].compactMap { $0 }
         }
 
         // JS bridge passes ms; iOS API is seconds (TimeInterval).
@@ -207,6 +234,9 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
             cfg.adRefreshInterval = v.doubleValue / 1000.0
         }
 
+        if let problem = SellwildRNBridgeRules.prebidServerProblem(map["prebidServer"]) {
+            problems.append(problem)
+        }
         if let prebid = map["prebidServer"] as? NSDictionary,
            let accountId = prebid["accountId"] as? String,
            let endpoint = prebid["endpoint"] as? String {
@@ -247,6 +277,12 @@ final class SellwildFeedHostView: UIView, SellwildFeedViewDelegate {
                 frequency: ll["frequency"] as? Int,
                 forceState: ll["forceState"] as? String
             )
+        }
+
+        // One report for the config, however many fields it has wrong.
+        if !problems.isEmpty {
+            SellwildFailures.log(code: .bridgeConfigInvalid, component: .bridge, severity: .error,
+                                 message: problems.joined(separator: "; "))
         }
 
         return cfg

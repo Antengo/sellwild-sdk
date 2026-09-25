@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Android Lint for the sample (./gradlew lintDebug). warningsAsErrors is on.
+  Off, as in the SDK (android/config/lint/lint.xml): "a newer version is
+  available" goes red with no code change. The sample's pins follow the SDK's.
+-->
+<lint>
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+</lint>

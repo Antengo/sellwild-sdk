@@ -1,0 +1,41 @@
+{
+  "_synthetic": true,
+  "LAYOUT": "app",
+  "NAME": "fixture-app",
+  "CODE": "fixture",
+  "SLUG": "fixture-app",
+  "basename": "fixture-app",
+  "MOBILE_ZID": [
+    "fixture-mobile-300x250"
+  ],
+  "MOBILE_ZID_IOS": [],
+  "MOBILE_ZID_ANDROID": [],
+  "DISPLAY_ZID": [],
+  "BIDDERS": {},
+  "MOBILE_HOUSE_AD_ENABLED": "true",
+  "MOBILE_HOUSE_AD_IMAGE": [
+    "https://cache.sellwild.com/house/a.png",
+    "  ",
+    "https://cache.sellwild.com/house/c.png"
+  ],
+  "MOBILE_HOUSE_AD_URL": [
+    "https://sellwild.com/a",
+    "https://sellwild.com/b",
+    ""
+  ],
+  "MOBILE_HOUSE_AD_BY_SIZE": {
+    "320x50": {
+      "image": "https://cache.sellwild.com/house/320x50.png",
+      "url": "https://sellwild.com/s"
+    }
+  },
+  "MOBILE_HOUSE_AD_BY_ZONE": {
+    "43": {
+      "image": [
+        "https://cache.sellwild.com/house/z1.png",
+        "https://cache.sellwild.com/house/z2.png"
+      ],
+      "url": "https://sellwild.com/z"
+    }
+  }
+}

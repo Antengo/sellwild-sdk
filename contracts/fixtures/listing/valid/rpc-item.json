@@ -1,0 +1,24 @@
+{
+  "_synthetic": true,
+  "_note": "Synthetic. Built from the TS SellwildListing type and the SellwildAPI.swift decoder comments (L9-45); no live JSON-RPC response was sampled (POST is forbidden).",
+  "id": "5550001",
+  "status": "1",
+  "title": "Road bike",
+  "photos": [
+    {
+      "url": "https://listings-static1.sellwild.com/x.jpg",
+      "thumbUrl": "https://listings-static1.sellwild.com/x_thumb.jpg"
+    }
+  ],
+  "price": "250",
+  "shippable": "0",
+  "categoryId": "7",
+  "user": {
+    "id": "1234",
+    "trustLevel": "1",
+    "firstName": "Sam",
+    "lastName": "S",
+    "username": "sam",
+    "membershipType": "5"
+  }
+}

@@ -1,0 +1,191 @@
+{
+  "description": "Real payloads captured with read-only GETs. sha256 and bytes describe the ORIGINAL response body; when truncated is true the committed file has its base64 images cut to a 16-character stub. Refresh with CONTRACTS_LIVE=1 node scripts/refresh-samples.mjs.",
+  "samples": [
+    {
+      "file": "app-config/weatherbug_weatherbug-weatherbug.json",
+      "url": "https://widget.sellwild.com/app/weatherbug/weatherbug-weatherbug.json",
+      "method": "GET",
+      "status": 200,
+      "fetchedAt": "2026-09-23",
+      "sha256": "d8f0130fbfdbdf895abfa9846081b326ce240736efd9163d72677729356fa85d",
+      "bytes": 3312,
+      "truncated": false,
+      "refreshable": true
+    },
+    {
+      "file": "app-config/antengo_antengo-sellwild-tv.json",
+      "url": "https://widget.sellwild.com/app/antengo/antengo-sellwild-tv.json",
+      "method": "GET",
+      "status": 200,
+      "fetchedAt": "2026-09-23",
+      "sha256": "4fbe54e12fcbe34533508a69b618857686beff9667937011d94f90c5457a8f02",
+      "bytes": 782,
+      "truncated": false,
+      "refreshable": true
+    },
+    {
+      "file": "app-config/realgm_realgm-realgm.403.xml",
+      "url": "https://widget.sellwild.com/app/realgm/realgm-realgm.json",
+      "method": "GET",
+      "status": 403,
+      "fetchedAt": "2026-09-23",
+      "sha256": "cf00d48ba4c14836f712aaa4dbdbaf78340840ed4f4034ba163a1772f1fde068",
+      "bytes": 263,
+      "truncated": false,
+      "refreshable": true,
+      "note": "Missing config: S3 answers 403 AccessDenied XML, not 404."
+    },
+    {
+      "file": "app-config/weatherbug_weatherbug-main.403.xml",
+      "url": "https://widget.sellwild.com/app/weatherbug/weatherbug-main.json",
+      "method": "GET",
+      "status": 403,
+      "fetchedAt": "2026-09-23",
+      "sha256": "d65e3544d276bf0cc2acb07f73ad0f5021442441e97d5c4dfa5b03346d2113b0",
+      "bytes": 243,
+      "truncated": false,
+      "refreshable": true,
+      "note": "Missing config: S3 answers 403 AccessDenied XML, not 404."
+    },
+    {
+      "file": "app-config/weatherbug_weatherbug-weatherbug.local-build.json",
+      "url": null,
+      "method": null,
+      "status": null,
+      "fetchedAt": "2026-09-23",
+      "sha256": "cd2c9c5d3f996501373eb31bf43a4a4c24a11c5fa282dd358681ff0a1ac12a06",
+      "bytes": 3691,
+      "truncated": false,
+      "refreshable": false,
+      "source": "sellwild-widget scripts/escompile.mjs buildApp() run in memory on app/weatherbug-weatherbug.md at HEAD",
+      "note": "Producer output; equal to the CDN file key for key."
+    },
+    {
+      "file": "app-config/antengo_antengo-sellwild-tv.local-build.json",
+      "url": null,
+      "method": null,
+      "status": null,
+      "fetchedAt": "2026-09-23",
+      "sha256": "6230b6d0cd310332c50956f832a23dc258d8fdcad781796d4ca1f033eed7b428",
+      "bytes": 894,
+      "truncated": false,
+      "refreshable": false,
+      "source": "sellwild-widget scripts/escompile.mjs buildApp() run in memory on app/antengo-sellwild-tv.md at HEAD",
+      "note": "Producer output; equal to the CDN file key for key."
+    },
+    {
+      "file": "listings-response/listings-img-data-sm.json",
+      "url": "https://cache.sellwild.com/listings-img-data-sm",
+      "method": "GET",
+      "status": 200,
+      "fetchedAt": "2026-09-23",
+      "sha256": "8808a7510642727b3659811cb7e208b2f3d63704409680374a84e7cdb5474d4e",
+      "bytes": 127336,
+      "truncated": true,
+      "refreshable": true
+    },
+    {
+      "file": "listings-response/listings-img-data-sm.headers.txt",
+      "url": "https://cache.sellwild.com/listings-img-data-sm",
+      "method": "GET",
+      "status": 200,
+      "fetchedAt": "2026-09-23",
+      "sha256": "fa616ef0ea2971ade18e4f79a93aefcc617320abba63ec2979c62616647f6f8c",
+      "bytes": 552,
+      "truncated": false,
+      "refreshable": true,
+      "kind": "headers"
+    },
+    {
+      "file": "listings-response/listings-img-data-sm-avif-weatherbug.json",
+      "url": "https://cache.sellwild.com/listings-img-data-sm-avif-weatherbug",
+      "method": "GET",
+      "status": 200,
+      "fetchedAt": "2026-09-23",
+      "sha256": "8357411a7aaf9162b71749e9fc6d31b8c39209c90aaaa351e73e282d53d33160",
+      "bytes": 83527,
+      "truncated": true,
+      "refreshable": true
+    },
+    {
+      "file": "listings-response/listings-img-data-sm-avif-weatherbug.headers.txt",
+      "url": "https://cache.sellwild.com/listings-img-data-sm-avif-weatherbug",
+      "method": "GET",
+      "status": 200,
+      "fetchedAt": "2026-09-23",
+      "sha256": "2021052ddd50135c6f4cad48c5d5a4264608dc25bd566757354ee2b5f954f6da",
+      "bytes": 552,
+      "truncated": false,
+      "refreshable": true,
+      "kind": "headers"
+    },
+    {
+      "file": "listings-response/bargainhunter.json",
+      "url": "https://cache.sellwild.com/bargainhunter",
+      "method": "GET",
+      "status": 200,
+      "fetchedAt": "2026-09-23",
+      "sha256": "4ba8d68bc3877919a6df4d991042de82ab007b48098e1cfe4c29cb8e9230e0cb",
+      "bytes": 2935,
+      "truncated": false,
+      "refreshable": true
+    },
+    {
+      "file": "listings-response/listings-sm.json",
+      "url": "https://cache.sellwild.com/listings-sm",
+      "method": "GET",
+      "status": 200,
+      "fetchedAt": "2026-09-23",
+      "sha256": "e375b3596418a654f5e950ce52a5f23c935c2ea6b336b5acba5967bb26fced9c",
+      "bytes": 4072,
+      "truncated": false,
+      "refreshable": true
+    },
+    {
+      "file": "listings-response/s3-sellwild-cache-listings-sm.json",
+      "url": "https://s3.amazonaws.com/sellwild-cache/listings-sm",
+      "method": "GET",
+      "status": 200,
+      "fetchedAt": "2026-09-23",
+      "sha256": "e375b3596418a654f5e950ce52a5f23c935c2ea6b336b5acba5967bb26fced9c",
+      "bytes": 4072,
+      "truncated": false,
+      "refreshable": false,
+      "note": "Legacy web-only S3 cache (host is outside the refresh allowlist)."
+    },
+    {
+      "file": "localized-listings-response/sports-img-data-sm-webp-al.json",
+      "url": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/sports-img-data-sm-webp-al.json",
+      "method": "GET",
+      "status": 200,
+      "fetchedAt": "2026-09-23",
+      "sha256": "a3c3813d8d4ddf73af4ffdbeca27b09b478744179db29c0cd3f4fbfde6970900",
+      "bytes": 7846,
+      "truncated": false,
+      "refreshable": true
+    },
+    {
+      "file": "localized-listings-response/sports-img-data-sm-webp-ga.json",
+      "url": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/sports-img-data-sm-webp-ga.json",
+      "method": "GET",
+      "status": 200,
+      "fetchedAt": "2026-09-23",
+      "sha256": "268115ae09395d22b832f8263c34457d33f2d90da42d874fa048ed300745399a",
+      "bytes": 7080,
+      "truncated": false,
+      "refreshable": true
+    },
+    {
+      "file": "localized-listings-response/sports-img-data-sm-webp-zz.403.xml",
+      "url": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/sports-img-data-sm-webp-zz.json",
+      "method": "GET",
+      "status": 403,
+      "fetchedAt": "2026-09-23",
+      "sha256": "657ff90eb90a306032185046eff7e8e9da64dfd0e3efd1031dfcabf57be7f234",
+      "bytes": 263,
+      "truncated": false,
+      "refreshable": true,
+      "note": "Unknown state: 403 AccessDenied XML (code comments say 404)."
+    }
+  ]
+}

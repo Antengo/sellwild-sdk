@@ -1,0 +1,5240 @@
+{
+  "description": "Where each registry code came from: every phase-1 failure point (2026-09-23 survey), mapped to a registry code or excluded with a reason (defined in `exclusions`), plus `added`: codes no phase-1 point proposed, each with the date and why. scripts/add-code.mjs appends to `added`.",
+  "exclusions": {
+    "no-fill": "Ad no-fill / no-bid is not a failure. The existing adError / adNoBids / no-fill path covers it (rule 2).",
+    "transport": "Events transport code never reports itself (A7). Guard it in place instead.",
+    "kill-switch": "Intentional kill-switch drop (EVENTS_ENABLED). Not a failure.",
+    "by-design": "Expected behavior (feature off, consent, geo block, user or browser choice, graceful feature detection). Not a failure.",
+    "log-once": "Logged once by the lower layer that observes the failure (rule 2). This wrapper or caller must not log it again.",
+    "tooling": "Node build / deploy / CMS-server tooling. Not a clientFailure emitter: it has no events queue and runs in CI or Netlify. It fails through exit codes.",
+    "known-drift": "Cross-platform semantic drift that this program does not change (A9.2). Recorded in contracts/expectations/drift/<platform>.json.",
+    "defect": "Code defect to fix in place (escaping, leak, index math, cleanup, stale key). There is no runtime failure signal to log.",
+    "in-page": "Runs inside the WebView page, where the bridge itself is what failed. It cannot be reported from there.",
+    "caller-abort": "A caller-initiated abort is not a failure.",
+    "privacy": "A missing advertising id is a user or device privacy choice. Device-id state is never reported.",
+    "lifecycle": "Normal ad or view lifecycle (expiry, disposal). Not a failure.",
+    "dead-code": "Programmer-error path in dead code pending the delete decision.",
+    "security": "Security review item, not a runtime failure path.",
+    "unreachable": "The failure cannot happen on this platform: the call it guards never fails there (verified). The code stays for the platforms where it can.",
+    "removed": "The code this point was in was removed upstream (origin/main 2026-09-23: df551f7 removed the Flutter SDK, 9ff579f retired the WebView widget and banner paths). Nothing emits it any more."
+  },
+  "added": [
+    {
+      "code": "client.code.invalid",
+      "date": "2026-09-23",
+      "note": "FAILURES.md 4.1: the replacement action for a code that fails the format."
+    },
+    {
+      "code": "growthcode.sync.timeout",
+      "date": "2026-09-23",
+      "note": "Phase 2 contract: timeouts get their own reason, split from the network failure the survey proposed."
+    },
+    {
+      "code": "listings.fetch.timeout",
+      "date": "2026-09-23",
+      "note": "Phase 2 contract: timeouts get their own reason, split from the network failure the survey proposed."
+    },
+    {
+      "code": "localized.fetch.timeout",
+      "date": "2026-09-23",
+      "note": "Phase 2 contract: timeouts get their own reason, split from the network failure the survey proposed."
+    },
+    {
+      "code": "widget.webview_load.http",
+      "date": "2026-09-23",
+      "note": "Phase 3 prep: the React Native lane needs it for react-native-webview onHttpError; iOS (WKNavigationResponse status) and Android (WebViewClient.onReceivedHttpError, minSdk 23) can observe it too. Not flutter: NavigationDelegate.onHttpError needs webview_flutter 4.8.0 and the pubspec floor is ^4.4.0."
+    },
+    {
+      "code": "listings.tag_cache.http",
+      "date": "2026-09-24",
+      "note": "Phase 3 sdk-core: fetchTagCacheListings now checks res.ok; a non-2xx answer is reported once, like listings.fetch.http."
+    },
+    {
+      "code": "listings.tag_cache.parse",
+      "date": "2026-09-24",
+      "note": "Phase 3 sdk-core: fetchTagCacheListings swallowed a non-JSON 2xx body into []; it now reports it, split from listings.tag_cache.network."
+    },
+    {
+      "code": "geo.seed.exception",
+      "date": "2026-09-24",
+      "note": "Phase 3 sdk-android-logic round 1: SellwildAPIClient.fetchListings let an exception from SellwildPrebidMobile.setGeo (for example a partner geo with a NaN latitude) escape the fetch; it is now caught and reported, and the listings still load."
+    },
+    {
+      "code": "listings.tag_cache_url.invalid",
+      "date": "2026-09-24",
+      "note": "Phase 3 core gap closer: fetchTagCacheListings rejected with URIError on such keywords although it is documented to never reject; it now reports this code and gives []."
+    },
+    {
+      "code": "listings.fetch.exception",
+      "date": "2026-09-24",
+      "note": "Android phase 3 (verifier round 3): Fetch.codeFor reported every non-network throwable as listings.fetch.network."
+    },
+    {
+      "code": "localized.fetch.exception",
+      "date": "2026-09-24",
+      "note": "Android phase 3 (verifier round 3): Fetch.codeFor reported every non-network throwable as localized.fetch.network."
+    },
+    {
+      "code": "growthcode.sync.exception",
+      "date": "2026-09-24",
+      "note": "Android phase 3 (verifier round 3): the sync's catch also covers SharedPreferences reads, which were reported as growthcode.sync.network."
+    },
+    {
+      "code": "config.apply.exception",
+      "date": "2026-09-25",
+      "note": "Its only phase-1 point was in the Flutter SDK, which origin removed (df551f7); Android still reports it when SellwildSDK.apply throws on a CDN config."
+    }
+  ],
+  "points": [
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildSDK.kt",
+      "line": 58,
+      "proposedCode": "config_fetch_failed",
+      "currentHandling": "swallowed",
+      "code": "config.fetch.network"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildSDK.kt",
+      "line": 68,
+      "proposedCode": "config_fetch_http_error",
+      "currentHandling": "silent-fallback",
+      "code": "config.fetch.http"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildSDK.kt",
+      "line": 73,
+      "proposedCode": "config_parse_failed",
+      "currentHandling": "swallowed",
+      "code": "config.fetch.parse"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildSDK.kt",
+      "line": 209,
+      "proposedCode": "config_field_type_mismatch",
+      "currentHandling": "silent-fallback",
+      "code": "config.field.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt",
+      "line": 122,
+      "proposedCode": "listings_fetch_http_error",
+      "currentHandling": "thrown",
+      "code": "listings.fetch.http"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt",
+      "line": 112,
+      "proposedCode": "listings_fetch_failed",
+      "currentHandling": "thrown",
+      "code": "listings.fetch.network"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt",
+      "line": 208,
+      "proposedCode": "listings_parse_failed",
+      "currentHandling": "thrown",
+      "code": "listings.fetch.parse"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt",
+      "line": 159,
+      "proposedCode": "localized_listings_fetch_failed",
+      "currentHandling": "silent-fallback",
+      "note": "403/404 for a state without a cache is expected; log other statuses and network errors (localized.fetch.network).",
+      "code": "localized.fetch.http"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt",
+      "line": 326,
+      "proposedCode": "events_flush_failed",
+      "currentHandling": "swallowed",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt",
+      "line": 373,
+      "proposedCode": "events_flush_http_error",
+      "currentHandling": "swallowed",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt",
+      "line": 386,
+      "proposedCode": "events_disabled",
+      "currentHandling": "silent-fallback",
+      "excluded": "kill-switch"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt",
+      "line": 411,
+      "proposedCode": "remote_config_parse_failed",
+      "currentHandling": "silent-fallback",
+      "code": "config.remote_values.parse"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
+      "line": 1014,
+      "proposedCode": "gam_ad_unit_missing",
+      "currentHandling": "console-only",
+      "code": "ad.gam_unit.missing"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
+      "line": 640,
+      "proposedCode": "prebid_init_timeout",
+      "currentHandling": "silent-fallback",
+      "code": "ad.prebid_init.timeout"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
+      "line": 756,
+      "proposedCode": "prebid_init_timeout",
+      "currentHandling": "silent-fallback",
+      "code": "ad.prebid_init.timeout"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
+      "line": 744,
+      "proposedCode": "ad_missing_zone_id",
+      "currentHandling": "event",
+      "code": "ad.zone.missing"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
+      "line": 881,
+      "proposedCode": "ad_gam_load_failed",
+      "currentHandling": "event",
+      "note": "Log only LoadAdError codes other than NO_FILL (3). Keep the existing adError event (A6).",
+      "code": "ad.gam_load.exception"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
+      "line": 938,
+      "proposedCode": "ad_prebid_render_failed",
+      "currentHandling": "event",
+      "code": "ad.prebid_render.exception"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
+      "line": 803,
+      "proposedCode": "ad_native_no_fill",
+      "currentHandling": "event",
+      "excluded": "no-fill"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
+      "line": 546,
+      "proposedCode": "ad_placement_mismatch",
+      "currentHandling": "event",
+      "note": "Keep the existing placementMismatch event (A6) and also log.",
+      "code": "ad.placement.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
+      "line": 543,
+      "proposedCode": "ad_bid_inspect_failed",
+      "currentHandling": "swallowed",
+      "code": "ad.bid_inspect.exception"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
+      "line": 574,
+      "proposedCode": "house_ad_open_url_failed",
+      "currentHandling": "swallowed",
+      "code": "house.open_url.exception"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
+      "line": 248,
+      "proposedCode": "ad_view_not_setup",
+      "currentHandling": "thrown",
+      "code": "ad.setup.missing"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
+      "line": 231,
+      "proposedCode": "feed_load_before_setup",
+      "currentHandling": "event",
+      "code": "feed.setup.missing"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
+      "line": 252,
+      "proposedCode": "feed_listings_fetch_failed",
+      "currentHandling": "event",
+      "excluded": "log-once"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
+      "line": 250,
+      "proposedCode": "feed_empty",
+      "currentHandling": "event",
+      "code": "listings.result.missing"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
+      "line": 269,
+      "proposedCode": "localized_listings_skipped",
+      "currentHandling": "silent-fallback",
+      "code": "localized.config.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
+      "line": 404,
+      "proposedCode": "feed_ad_zone_missing",
+      "currentHandling": "silent-fallback",
+      "code": "feed.ad_zone.missing"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
+      "line": 553,
+      "proposedCode": "feed_url_rejected",
+      "currentHandling": "event",
+      "code": "feed.open_url.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
+      "line": 557,
+      "proposedCode": "feed_open_url_failed",
+      "currentHandling": "event",
+      "code": "feed.open_url.exception"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
+      "line": 723,
+      "proposedCode": "listing_image_load_failed",
+      "currentHandling": "swallowed",
+      "code": "feed.image.network"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
+      "line": 942,
+      "proposedCode": "config_color_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "config.color.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
+      "line": 491,
+      "proposedCode": "feed_unknown_view_type",
+      "currentHandling": "thrown",
+      "code": "feed.view_type.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildPrebidMobile.kt",
+      "line": 81,
+      "proposedCode": "gma_init_failed",
+      "currentHandling": "console-only",
+      "code": "ad.gma_init.exception"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildPrebidMobile.kt",
+      "line": 135,
+      "proposedCode": "prebid_init_failed",
+      "currentHandling": "console-only",
+      "code": "ad.prebid_init.exception"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildPrebidMobile.kt",
+      "line": 125,
+      "proposedCode": "prebid_init_status_error",
+      "currentHandling": "console-only",
+      "code": "ad.prebid_init.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildPrebidMobile.kt",
+      "line": 195,
+      "proposedCode": "prebid_auction_failed",
+      "currentHandling": "silent-fallback",
+      "note": "Log only ResultCodes other than no-bids / timeout-without-bids. No-bid stays unlogged (rule 2).",
+      "code": "ad.prebid_auction.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildPrebidMobile.kt",
+      "line": 309,
+      "proposedCode": "s2s_config_unparsed",
+      "currentHandling": "silent-fallback",
+      "excluded": "known-drift"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildGrowthCode.kt",
+      "line": 113,
+      "proposedCode": "growthcode_sync_failed",
+      "currentHandling": "swallowed",
+      "code": "growthcode.sync.network"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildGrowthCode.kt",
+      "line": 169,
+      "proposedCode": "growthcode_sync_http_error",
+      "currentHandling": "silent-fallback",
+      "code": "growthcode.sync.http"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildGrowthCode.kt",
+      "line": 171,
+      "proposedCode": "growthcode_response_parse_failed",
+      "currentHandling": "silent-fallback",
+      "code": "growthcode.sync.parse"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildGrowthCode.kt",
+      "line": 232,
+      "proposedCode": "growthcode_eid_parse_failed",
+      "currentHandling": "silent-fallback",
+      "code": "growthcode.eid.parse"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildGrowthCode.kt",
+      "line": 211,
+      "proposedCode": "growthcode_gaid_unavailable",
+      "currentHandling": "silent-fallback",
+      "excluded": "privacy"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildHouseAd.kt",
+      "line": 148,
+      "proposedCode": "house_ad_image_load_failed",
+      "currentHandling": "swallowed",
+      "code": "house.image.network"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildHouseAd.kt",
+      "line": 168,
+      "proposedCode": "image_too_large",
+      "currentHandling": "silent-fallback",
+      "code": "house.image.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildNativeAdView.kt",
+      "line": 138,
+      "proposedCode": "ad_native_no_fill",
+      "currentHandling": "event",
+      "excluded": "no-fill"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildNativeAdView.kt",
+      "line": 145,
+      "proposedCode": "ad_native_create_failed",
+      "currentHandling": "event",
+      "code": "ad.native_create.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildNativeAdView.kt",
+      "line": 171,
+      "proposedCode": "ad_native_expired",
+      "currentHandling": "console-only",
+      "excluded": "lifecycle"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdAudioGuard.kt",
+      "line": 71,
+      "proposedCode": "audio_guard_eval_failed",
+      "currentHandling": "swallowed",
+      "code": "ad.audio_guard.exception"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdStack.kt",
+      "line": 51,
+      "proposedCode": "ad_stack_unknown_value",
+      "currentHandling": "silent-fallback",
+      "code": "config.adstack.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildAdSizes.kt",
+      "line": 53,
+      "proposedCode": "banner_sizes_invalid_entry",
+      "currentHandling": "silent-fallback",
+      "code": "config.banner_sizes.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt",
+      "line": 91,
+      "proposedCode": "widget_load_before_setup",
+      "currentHandling": "thrown",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt",
+      "line": 158,
+      "proposedCode": "widget_bridge_message_invalid",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt",
+      "line": 153,
+      "proposedCode": "widget_js_error",
+      "currentHandling": "event",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt",
+      "line": 117,
+      "proposedCode": "widget_webview_load_failed",
+      "currentHandling": "none",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt",
+      "line": 192,
+      "proposedCode": "widget_html_build_invalid",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/android/src/main/kotlin/com/sellwild/sdk/SellwildWidgetView.kt",
+      "line": 280,
+      "proposedCode": "remote_config_parse_failed",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/react-native/android/src/main/java/com/sellwild/rnsdk/SellwildBannerViewManager.kt",
+      "line": 163,
+      "proposedCode": "rn_banner_invalid_props",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.props.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/react-native/android/src/main/java/com/sellwild/rnsdk/SellwildBannerViewManager.kt",
+      "line": 235,
+      "proposedCode": "rn_config_type_error",
+      "currentHandling": "thrown",
+      "code": "bridge.config.invalid"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/react-native/android/src/main/java/com/sellwild/rnsdk/SellwildFeedViewManager.kt",
+      "line": 203,
+      "proposedCode": "rn_remote_number_coerced",
+      "currentHandling": "silent-fallback",
+      "excluded": "known-drift"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/react-native/android/src/main/java/com/sellwild/rnsdk/SellwildBannerViewManager.kt",
+      "line": 211,
+      "proposedCode": "rn_event_emit_failed",
+      "currentHandling": "none",
+      "code": "bridge.event_emit.exception"
+    },
+    {
+      "unit": "sdk-android",
+      "file": "sellwild-sdk/react-native/android/src/main/java/com/sellwild/rnsdk/SellwildModule.kt",
+      "line": 70,
+      "proposedCode": "rn_eid_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.eids.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/remote-config.ts",
+      "line": 293,
+      "proposedCode": "remote_config_http_error",
+      "currentHandling": "silent-fallback",
+      "code": "config.fetch.http"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/remote-config.ts",
+      "line": 295,
+      "proposedCode": "remote_config_parse_failed",
+      "currentHandling": "swallowed",
+      "code": "config.fetch.parse"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/remote-config.ts",
+      "line": 276,
+      "proposedCode": "remote_config_timeout",
+      "currentHandling": "swallowed",
+      "code": "config.fetch.timeout"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/remote-config.ts",
+      "line": 299,
+      "proposedCode": "remote_config_fetch_failed",
+      "currentHandling": "swallowed",
+      "code": "config.fetch.network"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/remote-config.ts",
+      "line": 280,
+      "proposedCode": "remote_config_aborted",
+      "currentHandling": "none",
+      "excluded": "caller-abort"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/remote-config.ts",
+      "line": 136,
+      "proposedCode": "remote_config_invalid_shape",
+      "currentHandling": "swallowed",
+      "code": "config.parse.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/remote-config.ts",
+      "line": 173,
+      "proposedCode": "remote_config_invalid_ad_stack",
+      "currentHandling": "silent-fallback",
+      "code": "config.adstack.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/remote-config.ts",
+      "line": 180,
+      "proposedCode": "remote_config_invalid_ad_stack_by_zone",
+      "currentHandling": "silent-fallback",
+      "code": "config.adstack.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/remote-config.ts",
+      "line": 170,
+      "proposedCode": "remote_config_invalid_iab_cats",
+      "currentHandling": "silent-fallback",
+      "code": "config.field.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/remote-config.ts",
+      "line": 163,
+      "proposedCode": "remote_config_invalid_events_enabled",
+      "currentHandling": "silent-fallback",
+      "code": "config.field.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/config.ts",
+      "line": 175,
+      "proposedCode": "config_remote_fallback_defaults",
+      "currentHandling": "silent-fallback",
+      "excluded": "log-once"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 37,
+      "proposedCode": "listings_http_error",
+      "currentHandling": "none",
+      "code": "listings.fetch.http"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 37,
+      "proposedCode": "listings_parse_failed",
+      "currentHandling": "thrown",
+      "code": "listings.fetch.parse"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 47,
+      "proposedCode": "listings_fetch_failed",
+      "currentHandling": "thrown",
+      "code": "listings.fetch.network"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 40,
+      "proposedCode": "listings_invalid_shape",
+      "currentHandling": "silent-fallback",
+      "code": "listings.parse.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 29,
+      "proposedCode": "listings_fetch_aborted",
+      "currentHandling": "none",
+      "excluded": "caller-abort"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 70,
+      "proposedCode": "tag_cache_invalid_request",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 76,
+      "proposedCode": "tag_cache_invalid_shape",
+      "currentHandling": "silent-fallback",
+      "code": "listings.tag_cache.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 77,
+      "proposedCode": "tag_cache_fetch_failed",
+      "currentHandling": "swallowed",
+      "code": "listings.tag_cache.network"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 117,
+      "proposedCode": "event_uid_fallback",
+      "currentHandling": "silent-fallback",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 138,
+      "proposedCode": "events_queue_overflow",
+      "currentHandling": "silent-fallback",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 166,
+      "proposedCode": "events_http_error",
+      "currentHandling": "none",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 170,
+      "proposedCode": "events_flush_failed",
+      "currentHandling": "swallowed",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 163,
+      "proposedCode": "events_backlog_stalled",
+      "currentHandling": "none",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/api.ts",
+      "line": 159,
+      "proposedCode": "events_disabled_drop",
+      "currentHandling": "silent-fallback",
+      "excluded": "kill-switch"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/growthcode.ts",
+      "line": 150,
+      "proposedCode": "growthcode_eid_blob_parse_failed",
+      "currentHandling": "swallowed",
+      "code": "growthcode.eid.parse"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/growthcode.ts",
+      "line": 153,
+      "proposedCode": "growthcode_eid_blob_invalid_shape",
+      "currentHandling": "silent-fallback",
+      "code": "growthcode.eid.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/growthcode.ts",
+      "line": 160,
+      "proposedCode": "growthcode_eid_entry_dropped",
+      "currentHandling": "silent-fallback",
+      "code": "growthcode.eid.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/growthcode.ts",
+      "line": 222,
+      "proposedCode": "growthcode_response_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "growthcode.sync.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/growthcode.ts",
+      "line": 114,
+      "proposedCode": "growthcode_missing_partner_id",
+      "currentHandling": "none",
+      "code": "growthcode.config.missing"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/localized-listings.ts",
+      "line": 62,
+      "proposedCode": "localized_listings_config_parse_failed",
+      "currentHandling": "swallowed",
+      "code": "localized.config.parse"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/localized-listings.ts",
+      "line": 86,
+      "proposedCode": "localized_listings_config_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "localized.config.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/localized-listings.ts",
+      "line": 174,
+      "proposedCode": "localized_listings_no_state",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/localized-listings.ts",
+      "line": 153,
+      "proposedCode": "localized_listings_empty_pool",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/core/src/ads.ts",
+      "line": 83,
+      "proposedCode": "ad_size_invalid",
+      "currentHandling": "none",
+      "code": "ad.size.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/SellwildWidget.tsx",
+      "line": 94,
+      "proposedCode": "widget_message_parse_failed",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/SellwildWidget.tsx",
+      "line": 91,
+      "proposedCode": "widget_js_error",
+      "currentHandling": "event",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/SellwildWidget.tsx",
+      "line": 122,
+      "proposedCode": "widget_webview_load_failed",
+      "currentHandling": "event",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/SellwildWidget.tsx",
+      "line": 68,
+      "proposedCode": "widget_listing_click_invalid",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/htmlBuilder.ts",
+      "line": 305,
+      "proposedCode": "widget_script_load_failed",
+      "currentHandling": "none",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/htmlBuilder.ts",
+      "line": 302,
+      "proposedCode": "widget_load_unverified",
+      "currentHandling": "none",
+      "note": "Needs a real render signal plus a watchdog before the timeout can be logged.",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/htmlBuilder.ts",
+      "line": 286,
+      "proposedCode": "webview_bridge_post_failed",
+      "currentHandling": "swallowed",
+      "excluded": "in-page"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/htmlBuilder.ts",
+      "line": 107,
+      "proposedCode": "widget_html_invalid_attribute",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/htmlBuilder.ts",
+      "line": 219,
+      "proposedCode": "widget_config_key_dropped",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/htmlBuilder.ts",
+      "line": 381,
+      "proposedCode": "banner_html_ad_load_failed",
+      "currentHandling": "none",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/SellwildBanner.tsx",
+      "line": 146,
+      "proposedCode": "rn_native_banner_unavailable",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.native_view.missing"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/SellwildBanner.tsx",
+      "line": 180,
+      "proposedCode": "banner_ad_failed",
+      "currentHandling": "event",
+      "excluded": "log-once"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/SellwildBanner.tsx",
+      "line": 24,
+      "proposedCode": "banner_sizes_parse_failed",
+      "currentHandling": "silent-fallback",
+      "code": "config.banner_sizes.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/SellwildFeed.tsx",
+      "line": 142,
+      "proposedCode": "rn_native_feed_unavailable",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.native_view.missing"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/SellwildFeed.tsx",
+      "line": 224,
+      "proposedCode": "feed_error",
+      "currentHandling": "event",
+      "excluded": "log-once"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/SellwildFeed.tsx",
+      "line": 212,
+      "proposedCode": "rn_listing_tap_payload_partial",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/commands.ts",
+      "line": 27,
+      "proposedCode": "rn_native_module_unavailable",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.native_module.missing"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/useSellwildListings.ts",
+      "line": 40,
+      "proposedCode": "listings_fetch_failed",
+      "currentHandling": "event",
+      "excluded": "log-once"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/src/SellwildListingCard.tsx",
+      "line": 27,
+      "proposedCode": "listing_price_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "listings.item.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/android/src/main/java/com/sellwild/rnsdk/SellwildBannerViewManager.kt",
+      "line": 167,
+      "proposedCode": "rn_bridge_unsupported_ad_size",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.props.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/android/src/main/java/com/sellwild/rnsdk/SellwildFeedViewManager.kt",
+      "line": 227,
+      "proposedCode": "rn_bridge_config_type_mismatch",
+      "currentHandling": "thrown",
+      "code": "bridge.config.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/android/src/main/java/com/sellwild/rnsdk/SellwildBannerViewManager.kt",
+      "line": 239,
+      "proposedCode": "rn_bridge_config_type_mismatch",
+      "currentHandling": "thrown",
+      "code": "bridge.config.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/ios/SellwildFeedViewManager.swift",
+      "line": 85,
+      "proposedCode": "rn_bridge_config_update_ignored",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/ios/SellwildFeedViewManager.swift",
+      "line": 184,
+      "proposedCode": "rn_bridge_config_type_mismatch",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.config.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/ios/SellwildBannerViewManager.swift",
+      "line": 83,
+      "proposedCode": "rn_bridge_unsupported_ad_size",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.props.invalid"
+    },
+    {
+      "unit": "sdk-core-rn",
+      "file": "sellwild-sdk/react-native/ios/SellwildBannerViewManager.swift",
+      "line": 207,
+      "proposedCode": "rn_bridge_remote_serialize_failed",
+      "currentHandling": "swallowed",
+      "code": "bridge.config.exception"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 43,
+      "proposedCode": "config_url_invalid",
+      "currentHandling": "thrown",
+      "excluded": "unreachable",
+      "note": "Dart Uri.parse percent-encodes every partnerCode and slug probed and never throws here (phase 2, sdk-flutter-logfailure), so flutter is not a config.url.invalid client."
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 51,
+      "proposedCode": "config_fetch_failed",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 54,
+      "proposedCode": "config_fetch_timeout",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 55,
+      "proposedCode": "config_http_status",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 56,
+      "proposedCode": "config_parse_failed",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 56,
+      "proposedCode": "config_shape_invalid",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 59,
+      "proposedCode": "config_apply_failed",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 65,
+      "proposedCode": "config_overrides_threw",
+      "currentHandling": "thrown",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 71,
+      "proposedCode": "config_value_type_mismatch",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 128,
+      "proposedCode": "config_ad_stack_unknown",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 131,
+      "proposedCode": "config_ad_stack_by_zone_invalid",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_sdk_configure.dart",
+      "line": 144,
+      "proposedCode": "config_refresh_interval_suspicious",
+      "currentHandling": "none",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_api.dart",
+      "line": 18,
+      "proposedCode": "listings_fetch_failed",
+      "currentHandling": "thrown",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_api.dart",
+      "line": 19,
+      "proposedCode": "listings_http_status",
+      "currentHandling": "thrown",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_api.dart",
+      "line": 23,
+      "proposedCode": "listings_parse_failed",
+      "currentHandling": "thrown",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_api.dart",
+      "line": 24,
+      "proposedCode": "listings_shape_invalid",
+      "currentHandling": "thrown",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_api.dart",
+      "line": 25,
+      "proposedCode": "listings_item_dropped",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_api.dart",
+      "line": 43,
+      "proposedCode": "api_client_closed",
+      "currentHandling": "thrown",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_api.dart",
+      "line": 77,
+      "proposedCode": "events_post_failed",
+      "currentHandling": "thrown",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_api.dart",
+      "line": 77,
+      "proposedCode": "events_http_status",
+      "currentHandling": "silent-fallback",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_models.dart",
+      "line": 95,
+      "proposedCode": "listing_parse_failed",
+      "currentHandling": "thrown",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_models.dart",
+      "line": 88,
+      "proposedCode": "listing_photo_dropped",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_models.dart",
+      "line": 115,
+      "proposedCode": "listing_price_unparseable",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_listing_card.dart",
+      "line": 60,
+      "proposedCode": "listing_image_load_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_listing_card.dart",
+      "line": 100,
+      "proposedCode": "config_color_invalid",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_listing_card.dart",
+      "line": 112,
+      "proposedCode": "listing_currency_unknown",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 110,
+      "proposedCode": "widget_web_resource_error",
+      "currentHandling": "event",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 94,
+      "proposedCode": "widget_load_timeout",
+      "currentHandling": "none",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 119,
+      "proposedCode": "widget_bridge_parse_failed",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 129,
+      "proposedCode": "widget_bridge_shape_invalid",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 121,
+      "proposedCode": "widget_bridge_unknown_type",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 131,
+      "proposedCode": "widget_listing_click_empty",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 123,
+      "proposedCode": "widget_message_after_dispose",
+      "currentHandling": "swallowed",
+      "excluded": "lifecycle"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 149,
+      "proposedCode": "host_callback_threw",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 144,
+      "proposedCode": "widget_js_error",
+      "currentHandling": "event",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 275,
+      "proposedCode": "widget_script_load_failed",
+      "currentHandling": "none",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 259,
+      "proposedCode": "widget_bridge_post_failed",
+      "currentHandling": "swallowed",
+      "excluded": "in-page"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 273,
+      "proposedCode": "widget_loaded_unverified",
+      "currentHandling": "silent-fallback",
+      "note": "Needs a real render signal plus a watchdog before the timeout can be logged.",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 160,
+      "proposedCode": "widget_attribute_invalid",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 353,
+      "proposedCode": "banner_bridge_parse_failed",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 357,
+      "proposedCode": "banner_web_resource_error",
+      "currentHandling": "event",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 374,
+      "proposedCode": "banner_no_ad_config",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 402,
+      "proposedCode": "banner_gpt_load_failed",
+      "currentHandling": "none",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 407,
+      "proposedCode": "banner_gpt_slot_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 411,
+      "proposedCode": "banner_no_fill",
+      "currentHandling": "silent-fallback",
+      "excluded": "no-fill"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 420,
+      "proposedCode": "banner_zone_script_failed",
+      "currentHandling": "none",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-flutter",
+      "file": "sellwild-sdk/flutter/lib/src/sellwild_widget.dart",
+      "line": 391,
+      "proposedCode": "banner_bridge_post_failed",
+      "currentHandling": "none",
+      "excluded": "in-page"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 205,
+      "proposedCode": "listings_url_invalid",
+      "currentHandling": "thrown",
+      "code": "listings.url.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 246,
+      "proposedCode": "listings_request_encode_failed",
+      "currentHandling": "thrown",
+      "code": "listings.request.exception"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 253,
+      "proposedCode": "listings_fetch_failed",
+      "currentHandling": "thrown",
+      "code": "listings.fetch.network"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 257,
+      "proposedCode": "listings_no_data",
+      "currentHandling": "thrown",
+      "code": "listings.fetch.missing"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 265,
+      "proposedCode": "listings_http_error",
+      "currentHandling": "none",
+      "code": "listings.fetch.http"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 270,
+      "proposedCode": "listings_client_released",
+      "currentHandling": "silent-fallback",
+      "code": "listings.client.missing"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 276,
+      "proposedCode": "listings_parse_failed",
+      "currentHandling": "thrown",
+      "code": "listings.fetch.parse"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 472,
+      "proposedCode": "listings_empty_payload",
+      "currentHandling": "silent-fallback",
+      "code": "listings.parse.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 479,
+      "proposedCode": "listing_decode_failed",
+      "currentHandling": "swallowed",
+      "code": "listings.item.parse"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 308,
+      "proposedCode": "localized_listings_fetch_failed",
+      "currentHandling": "thrown",
+      "code": "localized.fetch.network"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 312,
+      "proposedCode": "localized_listings_http_error",
+      "currentHandling": "thrown",
+      "note": "403/404 for a state without a cache is expected; do not log those.",
+      "code": "localized.fetch.http"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 316,
+      "proposedCode": "localized_listings_no_data",
+      "currentHandling": "thrown",
+      "code": "localized.fetch.missing"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 324,
+      "proposedCode": "localized_listings_parse_failed",
+      "currentHandling": "thrown",
+      "code": "localized.fetch.parse"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 368,
+      "proposedCode": "events_disabled_drop",
+      "currentHandling": "silent-fallback",
+      "excluded": "kill-switch"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 372,
+      "proposedCode": "events_queue_overflow",
+      "currentHandling": "silent-fallback",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 418,
+      "proposedCode": "events_encode_failed",
+      "currentHandling": "swallowed",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 426,
+      "proposedCode": "events_flush_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "line": 425,
+      "proposedCode": "events_flush_http_error",
+      "currentHandling": "none",
+      "excluded": "transport"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildRemoteConfig.swift",
+      "line": 45,
+      "proposedCode": "remote_config_url_invalid",
+      "currentHandling": "none",
+      "code": "config.url.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildRemoteConfig.swift",
+      "line": 60,
+      "proposedCode": "remote_config_http_error",
+      "currentHandling": "silent-fallback",
+      "code": "config.fetch.http"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildRemoteConfig.swift",
+      "line": 61,
+      "proposedCode": "remote_config_invalid_shape",
+      "currentHandling": "silent-fallback",
+      "code": "config.parse.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildRemoteConfig.swift",
+      "line": 68,
+      "proposedCode": "remote_config_fetch_failed",
+      "currentHandling": "swallowed",
+      "code": "config.fetch.network"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildConfig.swift",
+      "line": 137,
+      "proposedCode": "remote_values_parse_failed",
+      "currentHandling": "silent-fallback",
+      "code": "config.remote_values.parse"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildPrebidMobile.swift",
+      "line": 120,
+      "proposedCode": "prebid_init_failed",
+      "currentHandling": "console-only",
+      "code": "ad.prebid_init.exception"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildPrebidMobile.swift",
+      "line": 130,
+      "proposedCode": "prebid_init_threw",
+      "currentHandling": "console-only",
+      "code": "ad.prebid_init.exception"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildPrebidMobile.swift",
+      "line": 219,
+      "proposedCode": "prebid_s2s_config_unparsed",
+      "currentHandling": "silent-fallback",
+      "excluded": "known-drift"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildPrebidMobile.swift",
+      "line": 83,
+      "proposedCode": "app_store_id_unparsed",
+      "currentHandling": "silent-fallback",
+      "code": "config.app_store_url.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildPrebidMobile.swift",
+      "line": 332,
+      "proposedCode": "ortb_global_config_serialize_failed",
+      "currentHandling": "swallowed",
+      "code": "ad.ortb_config.exception"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildPrebidMobile.swift",
+      "line": 196,
+      "proposedCode": "prebid_auction_failed",
+      "currentHandling": "console-only",
+      "note": "Log only ResultCodes other than no-bids. No-bid stays unlogged (rule 2).",
+      "code": "ad.prebid_auction.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 358,
+      "proposedCode": "ad_zone_id_missing_gam_fallback",
+      "currentHandling": "silent-fallback",
+      "code": "ad.zone.missing"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 369,
+      "proposedCode": "prebid_not_ready_timeout",
+      "currentHandling": "silent-fallback",
+      "code": "ad.prebid_init.timeout"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 391,
+      "proposedCode": "prebid_auction_failed",
+      "currentHandling": "console-only",
+      "note": "Log only ResultCodes other than no-bids. No-bid stays unlogged (rule 2).",
+      "code": "ad.prebid_auction.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 433,
+      "proposedCode": "prebid_only_missing_zone_id",
+      "currentHandling": "event",
+      "code": "ad.zone.missing"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 521,
+      "proposedCode": "native_missing_zone_id",
+      "currentHandling": "event",
+      "code": "ad.zone.missing"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 573,
+      "proposedCode": "native_no_fill",
+      "currentHandling": "event",
+      "excluded": "no-fill"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 619,
+      "proposedCode": "house_ad_unavailable",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 690,
+      "proposedCode": "placement_mismatch_video",
+      "currentHandling": "event",
+      "note": "Keep the existing placementMismatch event (A6) and also log.",
+      "code": "ad.placement.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 711,
+      "proposedCode": "house_ad_click_url_rejected",
+      "currentHandling": "silent-fallback",
+      "code": "house.open_url.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 756,
+      "proposedCode": "gam_ad_unit_missing",
+      "currentHandling": "console-only",
+      "code": "ad.gam_unit.missing"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 820,
+      "proposedCode": "gam_ad_load_failed",
+      "currentHandling": "event",
+      "note": "Log only GADErrorCode values other than noFill. Keep the existing adError event (A6).",
+      "code": "ad.gam_load.exception"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 843,
+      "proposedCode": "prebid_presentation_vc_missing",
+      "currentHandling": "console-only",
+      "code": "ad.presenter.missing"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 883,
+      "proposedCode": "prebid_render_failed",
+      "currentHandling": "event",
+      "code": "ad.prebid_render.exception"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdView.swift",
+      "line": 179,
+      "proposedCode": "adview_init_coder_unsupported",
+      "currentHandling": "thrown",
+      "code": "ad.view_init.unsupported"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 156,
+      "proposedCode": "feed_listings_fetch_failed",
+      "currentHandling": "event",
+      "excluded": "log-once"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 204,
+      "proposedCode": "localized_listings_url_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "localized.url.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 219,
+      "proposedCode": "localized_listings_skipped",
+      "currentHandling": "console-only",
+      "code": "localized.config.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 337,
+      "proposedCode": "feed_ad_zones_missing",
+      "currentHandling": "silent-fallback",
+      "code": "feed.ad_zone.missing"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 347,
+      "proposedCode": "feed_banner_zone_missing",
+      "currentHandling": "silent-fallback",
+      "code": "feed.ad_zone.missing"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 350,
+      "proposedCode": "feed_schedule_token_unknown",
+      "currentHandling": "silent-fallback",
+      "code": "feed.layout.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 362,
+      "proposedCode": "feed_open_url_rejected",
+      "currentHandling": "silent-fallback",
+      "code": "feed.open_url.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 467,
+      "proposedCode": "feed_cell_dequeue_mismatch",
+      "currentHandling": "thrown",
+      "code": "feed.cell.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 665,
+      "proposedCode": "feed_image_decode_failed",
+      "currentHandling": "swallowed",
+      "code": "feed.image.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 676,
+      "proposedCode": "feed_image_url_rejected",
+      "currentHandling": "silent-fallback",
+      "code": "feed.image.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 678,
+      "proposedCode": "feed_image_load_failed",
+      "currentHandling": "swallowed",
+      "code": "feed.image.network"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildFeedView.swift",
+      "line": 895,
+      "proposedCode": "feed_ad_no_fill_fallback",
+      "currentHandling": "silent-fallback",
+      "excluded": "no-fill"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildGrowthCode.swift",
+      "line": 99,
+      "proposedCode": "growthcode_config_incomplete",
+      "currentHandling": "silent-fallback",
+      "code": "growthcode.config.missing"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildGrowthCode.swift",
+      "line": 125,
+      "proposedCode": "growthcode_skipped_no_maid",
+      "currentHandling": "silent-fallback",
+      "excluded": "privacy"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildGrowthCode.swift",
+      "line": 146,
+      "proposedCode": "growthcode_endpoint_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "growthcode.url.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildGrowthCode.swift",
+      "line": 153,
+      "proposedCode": "growthcode_sync_failed",
+      "currentHandling": "swallowed",
+      "code": "growthcode.sync.network"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildGrowthCode.swift",
+      "line": 215,
+      "proposedCode": "growthcode_eid_blob_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "growthcode.eid.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildHouseAd.swift",
+      "line": 145,
+      "proposedCode": "house_ad_cache_dir_failed",
+      "currentHandling": "swallowed",
+      "code": "storage.cache_dir.exception"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildHouseAd.swift",
+      "line": 173,
+      "proposedCode": "house_ad_image_decode_failed",
+      "currentHandling": "silent-fallback",
+      "code": "house.image.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildHouseAd.swift",
+      "line": 192,
+      "proposedCode": "house_ad_image_load_failed",
+      "currentHandling": "swallowed",
+      "code": "house.image.network"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildHouseAd.swift",
+      "line": 200,
+      "proposedCode": "house_ad_cache_write_failed",
+      "currentHandling": "swallowed",
+      "code": "storage.write.exception"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildLocalizedListings.swift",
+      "line": 57,
+      "proposedCode": "localized_listings_config_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "localized.config.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildLocalizedListings.swift",
+      "line": 70,
+      "proposedCode": "localized_listings_config_incomplete",
+      "currentHandling": "silent-fallback",
+      "code": "localized.config.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildNativeAdView.swift",
+      "line": 78,
+      "proposedCode": "native_no_fill",
+      "currentHandling": "event",
+      "note": "Log only the missing-cache-id / NativeAd.create nil branches. No-fill stays on adError.",
+      "code": "ad.native_create.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildNativeAdView.swift",
+      "line": 204,
+      "proposedCode": "native_image_load_failed",
+      "currentHandling": "swallowed",
+      "code": "ad.native_image.network"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildNativeAdView.swift",
+      "line": 230,
+      "proposedCode": "native_ad_expired",
+      "currentHandling": "console-only",
+      "excluded": "lifecycle"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdSizes.swift",
+      "line": 113,
+      "proposedCode": "banner_sizes_invalid_entry",
+      "currentHandling": "silent-fallback",
+      "code": "config.banner_sizes.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildGpid.swift",
+      "line": 76,
+      "proposedCode": "gpid_imp_ext_serialize_failed",
+      "currentHandling": "silent-fallback",
+      "code": "ad.gpid.exception"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildAdAudioGuard.swift",
+      "line": 102,
+      "proposedCode": "audio_guard_eval_failed",
+      "currentHandling": "swallowed",
+      "code": "ad.audio_guard.exception"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildWidgetView.swift",
+      "line": 366,
+      "proposedCode": "widget_js_error",
+      "currentHandling": "event",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildWidgetView.swift",
+      "line": 333,
+      "proposedCode": "widget_message_invalid",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildWidgetView.swift",
+      "line": 368,
+      "proposedCode": "widget_message_unknown_type",
+      "currentHandling": "silent-fallback",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildWidgetView.swift",
+      "line": 355,
+      "proposedCode": "widget_listing_stub_failed",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildWidgetView.swift",
+      "line": 379,
+      "proposedCode": "widget_navigation_failed",
+      "currentHandling": "event",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildWidgetView.swift",
+      "line": 376,
+      "proposedCode": "widget_provisional_navigation_failed",
+      "currentHandling": "none",
+      "note": "Also implement webViewWebContentProcessDidTerminate → widget.webview_process.exception.",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/ios/Sources/SellwildSDK/SellwildWidgetView.swift",
+      "line": 194,
+      "proposedCode": "widget_attr_serialize_failed",
+      "currentHandling": "swallowed",
+      "excluded": "removed"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/react-native/ios/SellwildBannerViewManager.swift",
+      "line": 79,
+      "proposedCode": "rn_banner_props_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.props.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/react-native/ios/SellwildBannerViewManager.swift",
+      "line": 90,
+      "proposedCode": "rn_config_change_ignored",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/react-native/ios/SellwildBannerViewManager.swift",
+      "line": 206,
+      "proposedCode": "rn_remote_config_serialize_failed",
+      "currentHandling": "swallowed",
+      "code": "bridge.config.exception"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/react-native/ios/SellwildBannerViewManager.swift",
+      "line": 170,
+      "proposedCode": "rn_prebid_server_config_incomplete",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.config.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/react-native/ios/SellwildRNModule.swift",
+      "line": 31,
+      "proposedCode": "rn_eids_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.eids.invalid"
+    },
+    {
+      "unit": "sdk-ios",
+      "file": "sellwild-sdk/react-native/ios/SellwildRNModule.swift",
+      "line": 22,
+      "proposedCode": "rn_geo_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "bridge.geo.invalid"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 483,
+      "proposedCode": "ad_units_config_parse_failed",
+      "currentHandling": "console-only",
+      "code": "ad.ad_units.parse"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2482,
+      "proposedCode": "s2s_config_parse_failed",
+      "currentHandling": "console-only",
+      "code": "ad.s2s_config.parse"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2494,
+      "proposedCode": "consent_management_parse_failed",
+      "currentHandling": "console-only",
+      "code": "ad.consent_config.parse"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 483,
+      "proposedCode": "untrusted_config_eval",
+      "currentHandling": "none",
+      "excluded": "security"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 519,
+      "proposedCode": "slot_size_parse_failed",
+      "currentHandling": "silent-fallback",
+      "code": "ad.slot_size.invalid"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 565,
+      "proposedCode": "waterfall_geo_unresolved",
+      "currentHandling": "silent-fallback",
+      "excluded": "defect"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 623,
+      "proposedCode": "direct_render_failed",
+      "currentHandling": "console-only",
+      "code": "ad.direct_render.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 627,
+      "proposedCode": "direct_render_no_fill",
+      "currentHandling": "silent-fallback",
+      "excluded": "no-fill"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 1005,
+      "proposedCode": "ad_iframe_unavailable",
+      "currentHandling": "silent-fallback",
+      "code": "ad.iframe.missing"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 732,
+      "proposedCode": "boltive_script_load_failed",
+      "currentHandling": "none",
+      "code": "ad.boltive_script.network"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 778,
+      "proposedCode": "aps_bid_malformed",
+      "currentHandling": "thrown",
+      "code": "ad.aps_bid.invalid"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 211,
+      "proposedCode": "ad_slot_script_inject_failed",
+      "currentHandling": "console-only",
+      "code": "ad.slot_script.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2424,
+      "proposedCode": "ad_slot_element_missing",
+      "currentHandling": "console-only",
+      "code": "ad.slot_element.missing"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2098,
+      "proposedCode": "ad_slot_element_missing",
+      "currentHandling": "silent-fallback",
+      "code": "ad.slot_element.missing"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2411,
+      "proposedCode": "head_script_append_failed",
+      "currentHandling": "console-only",
+      "code": "ad.head_script.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2442,
+      "proposedCode": "append_scripts_failed",
+      "currentHandling": "console-only",
+      "code": "ad.append_scripts.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2371,
+      "proposedCode": "ads_geo_blocked",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 1650,
+      "proposedCode": "prebid_script_load_failed",
+      "currentHandling": "silent-fallback",
+      "code": "ad.prebid_script.network"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 1998,
+      "proposedCode": "identity_hub_userid_merge_failed",
+      "currentHandling": "none",
+      "code": "ad.identity_hub.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2041,
+      "proposedCode": "ortb2imp_refresh_count_failed",
+      "currentHandling": "swallowed",
+      "code": "ad.refresh_count.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2058,
+      "proposedCode": "opsco_strip_failed",
+      "currentHandling": "swallowed",
+      "code": "ad.opsco_strip.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2065,
+      "proposedCode": "aps_slot_build_failed",
+      "currentHandling": "none",
+      "code": "ad.aps_slots.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2147,
+      "proposedCode": "auction_stalled",
+      "currentHandling": "silent-fallback",
+      "code": "ad.auction.timeout"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 1984,
+      "proposedCode": "refresh_request_superseded",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 1838,
+      "proposedCode": "gpt_slot_id_read_failed",
+      "currentHandling": "swallowed",
+      "code": "ad.gpt_slot.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2251,
+      "proposedCode": "gpt_define_slot_script_error",
+      "currentHandling": "none",
+      "code": "ad.gpt_slot.invalid"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2736,
+      "proposedCode": "aps_init_failed",
+      "currentHandling": "console-only",
+      "code": "ad.aps_init.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2742,
+      "proposedCode": "aps_fetch_bids_timeout",
+      "currentHandling": "none",
+      "code": "ad.aps_bids.timeout"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 1439,
+      "proposedCode": "tcf_callback_failed",
+      "currentHandling": "console-only",
+      "code": "ad.consent_tcf.invalid"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 1442,
+      "proposedCode": "consent_denied_no_ads",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 1511,
+      "proposedCode": "cmp_resolution_timeout",
+      "currentHandling": "none",
+      "code": "ad.consent_cmp.timeout"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 1527,
+      "proposedCode": "cmp_script_load_failed",
+      "currentHandling": "console-only",
+      "code": "ad.consent_cmp.network"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 1425,
+      "proposedCode": "gpp_listener_failed",
+      "currentHandling": "silent-fallback",
+      "code": "ad.consent_gpp.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 316,
+      "proposedCode": "googlefc_consent_status_failed",
+      "currentHandling": "none",
+      "code": "ad.consent_status.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 1636,
+      "proposedCode": "mediafuse_script_load_failed",
+      "currentHandling": "silent-fallback",
+      "code": "ad.mediafuse_script.network"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 250,
+      "proposedCode": "identity_hem_dropped",
+      "currentHandling": "silent-fallback",
+      "code": "ad.identity_hem.missing"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2691,
+      "proposedCode": "frequency_cap_read_failed",
+      "currentHandling": "console-only",
+      "code": "storage.read.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2700,
+      "proposedCode": "frequency_cap_write_failed",
+      "currentHandling": "console-only",
+      "code": "storage.write.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 154,
+      "proposedCode": "ad_view_observer_failed",
+      "currentHandling": "swallowed",
+      "code": "ad.view_observer.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 110,
+      "proposedCode": "dom_read_failed",
+      "currentHandling": "swallowed",
+      "code": "widget.dom.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 37,
+      "proposedCode": "viewer_geo_headers_missing",
+      "currentHandling": "silent-fallback",
+      "code": "geo.headers.missing"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 2187,
+      "proposedCode": "bid_monitor_event_malformed",
+      "currentHandling": "none",
+      "code": "ad.bid_monitor.invalid"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/BidMonitor.tsx",
+      "line": 61,
+      "proposedCode": "bidder_removal_failed",
+      "currentHandling": "console-only",
+      "code": "ad.bidder_removal.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/bids.ts",
+      "line": 415,
+      "proposedCode": "bidder_params_missing",
+      "currentHandling": "silent-fallback",
+      "code": "ad.bidder_params.missing"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/bids.ts",
+      "line": 410,
+      "proposedCode": "bidder_size_unsupported",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/SafeFrame.tsx",
+      "line": 93,
+      "proposedCode": "safeframe_message_invalid",
+      "currentHandling": "swallowed",
+      "code": "ad.safeframe_message.parse"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/SafeFrame.tsx",
+      "line": 114,
+      "proposedCode": "safeframe_unknown_command",
+      "currentHandling": "console-only",
+      "code": "ad.safeframe_message.unsupported"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/SafeFrame.tsx",
+      "line": 120,
+      "proposedCode": "safeframe_expand_denied",
+      "currentHandling": "event",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/SafeFrame.tsx",
+      "line": 195,
+      "proposedCode": "safeframe_reply_dropped",
+      "currentHandling": "silent-fallback",
+      "code": "ad.safeframe_reply.missing"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/SafeAdRenderers.tsx",
+      "line": 201,
+      "proposedCode": "aps_safeframe_render_failed",
+      "currentHandling": "none",
+      "code": "ad.aps_render.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/SafeAdRenderers.tsx",
+      "line": 45,
+      "proposedCode": "safeframe_prebid_markup_missing",
+      "currentHandling": "silent-fallback",
+      "code": "ad.safeframe_markup.missing"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/SafeAdRenderers.tsx",
+      "line": 98,
+      "proposedCode": "safeframe_size_parse_failed",
+      "currentHandling": "silent-fallback",
+      "code": "ad.slot_size.invalid"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/ads/houseAd.ts",
+      "line": 388,
+      "proposedCode": "house_ad_listing_url_invalid",
+      "currentHandling": "none",
+      "excluded": "log-once"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/ads/houseAd.ts",
+      "line": 366,
+      "proposedCode": "house_ad_fill_skipped",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/ads/houseAd.ts",
+      "line": 380,
+      "proposedCode": "house_ad_listings_unavailable",
+      "currentHandling": "silent-fallback",
+      "code": "house.listings.missing"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/ads/houseAd.ts",
+      "line": 442,
+      "proposedCode": "house_ad_gpt_listener_failed",
+      "currentHandling": "console-only",
+      "code": "house.gpt_listener.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/Lotame.tsx",
+      "line": 32,
+      "proposedCode": "lotame_script_load_failed",
+      "currentHandling": "console-only",
+      "code": "ad.lotame_script.network"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/Lotame.tsx",
+      "line": 36,
+      "proposedCode": "lotame_init_failed",
+      "currentHandling": "console-only",
+      "code": "ad.lotame_init.exception"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/Lotame.tsx",
+      "line": 22,
+      "proposedCode": "lotame_sync_before_ready",
+      "currentHandling": "console-only",
+      "code": "ad.lotame_sync.missing"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/components/GamUnits/Units.tsx",
+      "line": 52,
+      "proposedCode": "gam_widget_fetch_failed",
+      "currentHandling": "event",
+      "code": "widget.admin.network"
+    },
+    {
+      "unit": "widget-adstack",
+      "file": "sellwild-widget/src/components/GamUnits/Units.tsx",
+      "line": 17,
+      "proposedCode": "gam_widget_upsert_failed",
+      "currentHandling": "event",
+      "code": "widget.admin.http"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/Events.ts",
+      "line": 42,
+      "proposedCode": "event_uid_storage_unavailable",
+      "currentHandling": "thrown",
+      "excluded": "transport"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/Events.ts",
+      "line": 46,
+      "proposedCode": "event_uid_persist_failed",
+      "currentHandling": "thrown",
+      "excluded": "transport"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/Events.ts",
+      "line": 34,
+      "proposedCode": "event_uid_generation_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "transport"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/Events.ts",
+      "line": 107,
+      "proposedCode": "event_beacon_rejected",
+      "currentHandling": "none",
+      "excluded": "transport"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/Events.ts",
+      "line": 116,
+      "proposedCode": "event_flush_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "transport"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/Events.ts",
+      "line": 109,
+      "proposedCode": "event_flush_http_error",
+      "currentHandling": "none",
+      "excluded": "transport"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/Events.ts",
+      "line": 117,
+      "proposedCode": "event_queue_overflow",
+      "currentHandling": "none",
+      "excluded": "transport"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 401,
+      "proposedCode": "customization_url_decode_failed",
+      "currentHandling": "thrown",
+      "code": "config.url_param.parse"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 546,
+      "proposedCode": "customization_attr_decode_failed",
+      "currentHandling": "thrown",
+      "code": "config.attribute.parse"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 378,
+      "proposedCode": "customization_json_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "config.field.parse"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 579,
+      "proposedCode": "customization_location_map_invalid",
+      "currentHandling": "swallowed",
+      "code": "config.location_map.invalid"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 589,
+      "proposedCode": "customization_remote_skipped",
+      "currentHandling": "console-only",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 594,
+      "proposedCode": "customization_fetch_failed",
+      "currentHandling": "console-only",
+      "code": "config.fetch.network"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 594,
+      "proposedCode": "customization_http_error",
+      "currentHandling": "console-only",
+      "code": "config.fetch.http"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 603,
+      "proposedCode": "customization_parse_failed",
+      "currentHandling": "console-only",
+      "code": "config.fetch.parse"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 597,
+      "proposedCode": "customization_remote_key_unmapped",
+      "currentHandling": "silent-fallback",
+      "excluded": "known-drift"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 598,
+      "proposedCode": "customization_remote_value_invalid",
+      "currentHandling": "none",
+      "code": "config.field.invalid"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 622,
+      "proposedCode": "listing_url_invalid",
+      "currentHandling": "thrown",
+      "code": "listings.item_url.invalid"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Customizations/index.ts",
+      "line": 656,
+      "proposedCode": "customization_controller_json_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "config.field.parse"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Listings/index.tsx",
+      "line": 95,
+      "proposedCode": "listings_fetch_failed",
+      "currentHandling": "swallowed",
+      "code": "listings.fetch.network"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Listings/index.tsx",
+      "line": 56,
+      "proposedCode": "listings_fetch_failed",
+      "currentHandling": "swallowed",
+      "code": "listings.fetch.network"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Listings/index.tsx",
+      "line": 44,
+      "proposedCode": "listings_provider_missing",
+      "currentHandling": "thrown",
+      "excluded": "dead-code"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Partners/index.tsx",
+      "line": 40,
+      "proposedCode": "partners_fetch_failed",
+      "currentHandling": "swallowed",
+      "code": "listings.partners.network"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/Grid/index.tsx",
+      "line": 19,
+      "proposedCode": "grid_measure_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "dead-code"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/likeProvider.ts",
+      "line": 28,
+      "proposedCode": "like_state_read_failed",
+      "currentHandling": "swallowed",
+      "code": "storage.read.exception"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/likeProvider.ts",
+      "line": 44,
+      "proposedCode": "like_state_write_failed",
+      "currentHandling": "thrown",
+      "code": "storage.write.exception"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/likeProvider.ts",
+      "line": 42,
+      "proposedCode": "like_video_id_missing",
+      "currentHandling": "silent-fallback",
+      "code": "video.like.missing"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/iheartPlayer.ts",
+      "line": 12,
+      "proposedCode": "iheart_player_access_failed",
+      "currentHandling": "swallowed",
+      "code": "video.iheart_player.exception"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/providers/iheartPlayer.ts",
+      "line": 63,
+      "proposedCode": "iheart_player_not_found",
+      "currentHandling": "none",
+      "code": "video.iheart_player.missing"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/dom.ts",
+      "line": 12,
+      "proposedCode": "dom_iframe_teardown_failed",
+      "currentHandling": "swallowed",
+      "code": "widget.dom.exception"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/pageMeta.ts",
+      "line": 18,
+      "proposedCode": "page_meta_query_failed",
+      "currentHandling": "swallowed",
+      "code": "widget.page_meta.exception"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/pageMeta.ts",
+      "line": 79,
+      "proposedCode": "page_meta_ldjson_parse_failed",
+      "currentHandling": "swallowed",
+      "code": "widget.page_meta.parse"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/pageMeta.ts",
+      "line": 130,
+      "proposedCode": "page_meta_scrape_failed",
+      "currentHandling": "swallowed",
+      "code": "widget.page_meta.exception"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/pageUrlTargeting.ts",
+      "line": 37,
+      "proposedCode": "page_url_segment_decode_failed",
+      "currentHandling": "silent-fallback",
+      "code": "widget.page_url.parse"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/pageUrlTargeting.ts",
+      "line": 90,
+      "proposedCode": "page_url_targeting_parse_failed",
+      "currentHandling": "swallowed",
+      "code": "widget.page_url.parse"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/localizedListings.ts",
+      "line": 69,
+      "proposedCode": "localized_listings_config_invalid",
+      "currentHandling": "swallowed",
+      "note": "Web copy of the core logic: the string is not valid JSON.",
+      "code": "localized.config.invalid"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/localizedListings.ts",
+      "line": 81,
+      "proposedCode": "localized_listings_config_incomplete",
+      "currentHandling": "silent-fallback",
+      "code": "localized.config.invalid"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/localizedListings.ts",
+      "line": 148,
+      "proposedCode": "localized_listings_empty_pool",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 26,
+      "proposedCode": "hls_library_missing",
+      "currentHandling": "thrown",
+      "code": "video.hls.missing"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 26,
+      "proposedCode": "video_sources_empty",
+      "currentHandling": "thrown",
+      "code": "video.sources.missing"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 11,
+      "proposedCode": "hls_cleanup_failed",
+      "currentHandling": "console-only",
+      "code": "video.hls_cleanup.exception"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 39,
+      "proposedCode": "hls_network_error",
+      "currentHandling": "console-only",
+      "code": "video.hls.network"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 43,
+      "proposedCode": "hls_media_error",
+      "currentHandling": "console-only",
+      "code": "video.hls_media.exception"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 47,
+      "proposedCode": "hls_fatal_error",
+      "currentHandling": "console-only",
+      "code": "video.hls.exception"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 61,
+      "proposedCode": "hls_init_failed",
+      "currentHandling": "console-only",
+      "code": "video.hls_init.exception"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 85,
+      "proposedCode": "video_source_load_failed",
+      "currentHandling": "console-only",
+      "code": "video.source.network"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/loaders.ts",
+      "line": 11,
+      "proposedCode": "script_load_failed",
+      "currentHandling": "thrown",
+      "code": "widget.script_load.network"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/observe.ts",
+      "line": 8,
+      "proposedCode": "custom_element_define_failed",
+      "currentHandling": "thrown",
+      "code": "widget.element_define.exception"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/price.ts",
+      "line": 2,
+      "proposedCode": "price_format_invalid_input",
+      "currentHandling": "thrown",
+      "code": "listings.item.invalid"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/src/utils/bidstream.ts",
+      "line": 6,
+      "proposedCode": "bidstream_origin_fallback",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/config/gitSha.js",
+      "line": 5,
+      "proposedCode": "build_git_sha_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-core",
+      "file": "sellwild-widget/config/env.js",
+      "line": 12,
+      "proposedCode": "build_node_env_missing",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1274,
+      "proposedCode": "shorts_dependency_load_failed",
+      "currentHandling": "none",
+      "code": "widget.script_load.network"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1335,
+      "proposedCode": "shorts_playlist_fetch_failed",
+      "currentHandling": "none",
+      "code": "video.playlist.network"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1335,
+      "proposedCode": "shorts_playlist_parse_failed",
+      "currentHandling": "none",
+      "code": "video.playlist.parse"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1341,
+      "proposedCode": "shorts_playlist_invalid_shape",
+      "currentHandling": "none",
+      "code": "video.playlist.invalid"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1350,
+      "proposedCode": "shorts_inline_playlist_parse_failed",
+      "currentHandling": "silent-fallback",
+      "code": "video.playlist_inline.parse"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 99,
+      "proposedCode": "shorts_tag_cache_url_invalid",
+      "currentHandling": "none",
+      "code": "video.tag_query.invalid"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1308,
+      "proposedCode": "shorts_video_invalid_shape",
+      "currentHandling": "none",
+      "code": "video.item.invalid"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 114,
+      "proposedCode": "shorts_no_playable_videos",
+      "currentHandling": "none",
+      "code": "video.playlist.missing"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 266,
+      "proposedCode": "shorts_video_invalid_shape",
+      "currentHandling": "none",
+      "code": "video.item.invalid"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 67,
+      "proposedCode": "shorts_api_called_before_ready",
+      "currentHandling": "thrown",
+      "code": "video.api.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 382,
+      "proposedCode": "shorts_dom_element_missing",
+      "currentHandling": "none",
+      "code": "widget.dom.missing"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 418,
+      "proposedCode": "shorts_scroll_target_invalid",
+      "currentHandling": "thrown",
+      "code": "widget.selector.invalid"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 428,
+      "proposedCode": "shorts_scroll_target_not_found",
+      "currentHandling": "silent-fallback",
+      "code": "widget.selector.missing"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 534,
+      "proposedCode": "shorts_share_failed",
+      "currentHandling": "swallowed",
+      "code": "widget.share.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 556,
+      "proposedCode": "shorts_tv_resume_failed",
+      "currentHandling": "console-only",
+      "code": "video.play.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 584,
+      "proposedCode": "shorts_preview_play_failed",
+      "currentHandling": "console-only",
+      "code": "video.play.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 703,
+      "proposedCode": "shorts_fullscreen_play_failed",
+      "currentHandling": "console-only",
+      "code": "video.play.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 835,
+      "proposedCode": "shorts_fullscreen_play_failed",
+      "currentHandling": "console-only",
+      "code": "video.play.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 847,
+      "proposedCode": "shorts_fullscreen_play_failed",
+      "currentHandling": "none",
+      "code": "video.play.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 795,
+      "proposedCode": "shorts_rss_open_blocked",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1061,
+      "proposedCode": "shorts_video_ad_element_undefined",
+      "currentHandling": "none",
+      "code": "video.ad_element.missing"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1110,
+      "proposedCode": "shorts_video_ad_timeout",
+      "currentHandling": "none",
+      "code": "video.ad.timeout"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1096,
+      "proposedCode": "shorts_fullscreen_ad_error",
+      "currentHandling": "event",
+      "note": "Keep the existing video adError event (A6). Do not log VAST no-ad (303) responses.",
+      "code": "video.ad.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1106,
+      "proposedCode": "shorts_fullscreen_ad_no_bids",
+      "currentHandling": "event",
+      "excluded": "no-fill"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1037,
+      "proposedCode": "shorts_instream_ad_error",
+      "currentHandling": "event",
+      "note": "Keep the existing video adError event (A6). Do not log VAST no-ad (303) responses.",
+      "code": "video.ad.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1042,
+      "proposedCode": "shorts_instream_ad_no_bids",
+      "currentHandling": "event",
+      "excluded": "no-fill"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1022,
+      "proposedCode": "shorts_instream_ad_container_missing",
+      "currentHandling": "none",
+      "code": "video.ad_container.missing"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1162,
+      "proposedCode": "shorts_carousel_index_invalid",
+      "currentHandling": "none",
+      "code": "video.index.invalid"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1196,
+      "proposedCode": "shorts_intersection_observer_unsupported",
+      "currentHandling": "none",
+      "code": "widget.intersection_observer.unsupported"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1367,
+      "proposedCode": "shorts_vertical_layout_invalid",
+      "currentHandling": "none",
+      "code": "widget.dom.missing"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1261,
+      "proposedCode": "shorts_preload_failed",
+      "currentHandling": "none",
+      "code": "video.hls.missing"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 370,
+      "proposedCode": "shorts_ads_geo_blocked",
+      "currentHandling": "event",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 127,
+      "proposedCode": "shorts_config_value_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "config.field.invalid"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/Shorts.tsx",
+      "line": 1216,
+      "proposedCode": "shorts_element_cleanup_missing",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 26,
+      "proposedCode": "hls_library_missing",
+      "currentHandling": "thrown",
+      "code": "video.hls.missing"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 3,
+      "proposedCode": "hls_no_sources",
+      "currentHandling": "thrown",
+      "code": "video.sources.missing"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 11,
+      "proposedCode": "hls_cleanup_failed",
+      "currentHandling": "console-only",
+      "code": "video.hls_cleanup.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 18,
+      "proposedCode": "hls_gc_hint_failed",
+      "currentHandling": "swallowed",
+      "excluded": "defect"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 39,
+      "proposedCode": "hls_fatal_network_error",
+      "currentHandling": "console-only",
+      "code": "video.hls.network"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 43,
+      "proposedCode": "hls_fatal_media_error",
+      "currentHandling": "console-only",
+      "code": "video.hls_media.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 47,
+      "proposedCode": "hls_fatal_unrecoverable",
+      "currentHandling": "console-only",
+      "code": "video.hls.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 61,
+      "proposedCode": "hls_init_failed",
+      "currentHandling": "console-only",
+      "code": "video.hls_init.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 85,
+      "proposedCode": "video_source_load_failed",
+      "currentHandling": "console-only",
+      "code": "video.source.network"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/utils/hls.ts",
+      "line": 89,
+      "proposedCode": "video_source_fallback_exhausted",
+      "currentHandling": "silent-fallback",
+      "code": "video.source.missing"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/providers/iheartPlayer.ts",
+      "line": 12,
+      "proposedCode": "iheart_player_frame_inaccessible",
+      "currentHandling": "swallowed",
+      "code": "video.iheart_player.exception"
+    },
+    {
+      "unit": "widget-shorts",
+      "file": "sellwild-widget/src/providers/iheartPlayer.ts",
+      "line": 63,
+      "proposedCode": "iheart_player_not_found",
+      "currentHandling": "silent-fallback",
+      "code": "video.iheart_player.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 93,
+      "proposedCode": "ad_mount_failed",
+      "currentHandling": "console-only",
+      "code": "widget.element.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 114,
+      "proposedCode": "sticky_banner_duplicate",
+      "currentHandling": "console-only",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 126,
+      "proposedCode": "house_listings_load_failed",
+      "currentHandling": "swallowed",
+      "code": "house.listings.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 147,
+      "proposedCode": "house_listings_load_failed",
+      "currentHandling": "swallowed",
+      "code": "house.listings.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 157,
+      "proposedCode": "house_listings_load_failed",
+      "currentHandling": "swallowed",
+      "code": "house.listings.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 162,
+      "proposedCode": "ad_size_invalid",
+      "currentHandling": "none",
+      "code": "ad.size.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 137,
+      "proposedCode": "flip_card_size_fallback",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 240,
+      "proposedCode": "ads_append_failed",
+      "currentHandling": "event",
+      "code": "ad.append_scripts.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 255,
+      "proposedCode": "listings_empty",
+      "currentHandling": "none",
+      "code": "listings.result.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 265,
+      "proposedCode": "remote_session_failed",
+      "currentHandling": "none",
+      "code": "widget.session.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 267,
+      "proposedCode": "listings_load_failed",
+      "currentHandling": "console-only",
+      "excluded": "log-once"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 271,
+      "proposedCode": "listings_deferred_no_interaction",
+      "currentHandling": "none",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 306,
+      "proposedCode": "remote_session_failed",
+      "currentHandling": "console-only",
+      "code": "widget.session.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 329,
+      "proposedCode": "listing_action_failed",
+      "currentHandling": "console-only",
+      "code": "widget.listing_action.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 360,
+      "proposedCode": "theme_decode_failed",
+      "currentHandling": "thrown",
+      "code": "config.theme.parse"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/partner/index.tsx",
+      "line": 386,
+      "proposedCode": "layout_token_unknown",
+      "currentHandling": "silent-fallback",
+      "code": "widget.layout.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 22,
+      "proposedCode": "widget_double_init",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 41,
+      "proposedCode": "widget_init_failed",
+      "currentHandling": "console-only",
+      "code": "widget.init.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 62,
+      "proposedCode": "customizations_load_failed",
+      "currentHandling": "console-only",
+      "excluded": "log-once"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 93,
+      "proposedCode": "element_rebuild_failed",
+      "currentHandling": "none",
+      "code": "widget.element.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 102,
+      "proposedCode": "element_add_failed",
+      "currentHandling": "event",
+      "note": "Keep the existing errorAddingElement event (A6) and also log.",
+      "code": "widget.element.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 107,
+      "proposedCode": "custom_element_define_failed",
+      "currentHandling": "thrown",
+      "code": "widget.element_define.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 121,
+      "proposedCode": "custom_elements_unsupported",
+      "currentHandling": "event",
+      "note": "Keep the existing customElementsNotSupported event (A6) and also log.",
+      "code": "widget.customelements.unsupported"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 154,
+      "proposedCode": "widget_render_failed",
+      "currentHandling": "thrown",
+      "code": "widget.element.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 156,
+      "proposedCode": "resize_observer_unavailable",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 185,
+      "proposedCode": "storage_unavailable",
+      "currentHandling": "none",
+      "code": "storage.read.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 200,
+      "proposedCode": "remote_session_failed",
+      "currentHandling": "thrown",
+      "code": "widget.session.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 201,
+      "proposedCode": "remote_session_empty",
+      "currentHandling": "silent-fallback",
+      "code": "widget.session.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 221,
+      "proposedCode": "listing_action_failed",
+      "currentHandling": "thrown",
+      "code": "widget.listing_action.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 229,
+      "proposedCode": "listings_fetch_failed",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 231,
+      "proposedCode": "listings_selector_invalid",
+      "currentHandling": "thrown",
+      "code": "widget.selector.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 236,
+      "proposedCode": "tag_cache_fetch_failed",
+      "currentHandling": "silent-fallback",
+      "code": "listings.tag_cache.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 248,
+      "proposedCode": "tag_cache_shape_invalid",
+      "currentHandling": "thrown",
+      "code": "listings.tag_cache.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 244,
+      "proposedCode": "listings_fetch_failed",
+      "currentHandling": "thrown",
+      "code": "listings.fetch.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/AdStack.tsx",
+      "line": 62,
+      "proposedCode": "listings_parse_failed",
+      "currentHandling": "thrown",
+      "code": "listings.fetch.parse"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 253,
+      "proposedCode": "listings_shape_invalid",
+      "currentHandling": "thrown",
+      "code": "listings.parse.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 278,
+      "proposedCode": "localized_listings_fetch_failed",
+      "currentHandling": "silent-fallback",
+      "note": "403/404 for a state without a cache is expected; do not log those.",
+      "code": "localized.fetch.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 275,
+      "proposedCode": "localized_listings_shape_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "localized.parse.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 303,
+      "proposedCode": "search_submit_failed",
+      "currentHandling": "none",
+      "code": "widget.search.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 322,
+      "proposedCode": "theme_decode_failed",
+      "currentHandling": "thrown",
+      "code": "config.theme.parse"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 471,
+      "proposedCode": "listing_slot_malformed",
+      "currentHandling": "silent-fallback",
+      "code": "widget.dom.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 487,
+      "proposedCode": "popup_blocked",
+      "currentHandling": "none",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Widget.tsx",
+      "line": 580,
+      "proposedCode": "theme_colors_missing",
+      "currentHandling": "none",
+      "code": "config.theme.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/WidgetV2.tsx",
+      "line": 179,
+      "proposedCode": "theme_decode_failed",
+      "currentHandling": "thrown",
+      "code": "config.theme.parse"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/WidgetV2.tsx",
+      "line": 235,
+      "proposedCode": "layout_token_unknown",
+      "currentHandling": "silent-fallback",
+      "code": "widget.layout.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/FlipCard.ts",
+      "line": 245,
+      "proposedCode": "flip_card_color_invalid",
+      "currentHandling": "thrown",
+      "code": "config.color.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/FlipCard.ts",
+      "line": 305,
+      "proposedCode": "flip_card_container_missing",
+      "currentHandling": "silent-fallback",
+      "code": "widget.dom.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/FlipCard.ts",
+      "line": 344,
+      "proposedCode": "flip_card_listings_failed",
+      "currentHandling": "swallowed",
+      "code": "widget.image.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/FlipCard.ts",
+      "line": 332,
+      "proposedCode": "flip_card_listings_empty",
+      "currentHandling": "silent-fallback",
+      "code": "listings.result.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/FlipCard.ts",
+      "line": 340,
+      "proposedCode": "listing_photo_missing",
+      "currentHandling": "none",
+      "code": "widget.image.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/FlipCard.ts",
+      "line": 382,
+      "proposedCode": "flip_card_widget_not_found",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/FlipCard.ts",
+      "line": 364,
+      "proposedCode": "popup_blocked",
+      "currentHandling": "none",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/FlipCard.ts",
+      "line": 316,
+      "proposedCode": "flip_card_timer_leak",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/WidgetAB.tsx",
+      "line": 36,
+      "proposedCode": "ab_split_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "config.ab_split.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/WidgetAB.tsx",
+      "line": 44,
+      "proposedCode": "ab_target_selector_invalid",
+      "currentHandling": "none",
+      "code": "widget.selector.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/WidgetAB.tsx",
+      "line": 45,
+      "proposedCode": "ab_target_not_found",
+      "currentHandling": "silent-fallback",
+      "code": "widget.selector.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/WidgetAB.tsx",
+      "line": 47,
+      "proposedCode": "ab_target_duplicate",
+      "currentHandling": "silent-fallback",
+      "excluded": "defect"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/WidgetAB.tsx",
+      "line": 66,
+      "proposedCode": "ab_variant_missing",
+      "currentHandling": "none",
+      "code": "config.ab_variant.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/WidgetAB.tsx",
+      "line": 82,
+      "proposedCode": "ab_widget_script_failed",
+      "currentHandling": "none",
+      "code": "widget.script_load.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/admin/index.tsx",
+      "line": 30,
+      "proposedCode": "admin_invalidate_failed",
+      "currentHandling": "console-only",
+      "code": "widget.admin.http"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/admin/index.tsx",
+      "line": 95,
+      "proposedCode": "admin_create_partner_rejected",
+      "currentHandling": "console-only",
+      "code": "widget.admin.invalid"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/admin/index.tsx",
+      "line": 101,
+      "proposedCode": "admin_create_partner_failed",
+      "currentHandling": "console-only",
+      "code": "widget.admin.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/admin/index.tsx",
+      "line": 821,
+      "proposedCode": "admin_partners_load_failed",
+      "currentHandling": "swallowed",
+      "code": "widget.admin.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/admin/index.tsx",
+      "line": 826,
+      "proposedCode": "admin_cms_unavailable",
+      "currentHandling": "thrown",
+      "code": "widget.admin.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/admin/index.tsx",
+      "line": 772,
+      "proposedCode": "admin_preview_inject_failed",
+      "currentHandling": "none",
+      "excluded": "defect"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/WidgetV3/index.tsx",
+      "line": 18,
+      "proposedCode": "custom_element_define_failed",
+      "currentHandling": "thrown",
+      "code": "widget.element_define.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/WidgetV3/provider.tsx",
+      "line": 19,
+      "proposedCode": "react_context_missing",
+      "currentHandling": "thrown",
+      "excluded": "dead-code"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Video.tsx",
+      "line": 34,
+      "proposedCode": "ima_sdk_load_failed",
+      "currentHandling": "event",
+      "code": "video.ima_script.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Video.tsx",
+      "line": 70,
+      "proposedCode": "video_ad_unit_invalid",
+      "currentHandling": "console-only",
+      "code": "video.ad_unit.parse"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Video.tsx",
+      "line": 214,
+      "proposedCode": "video_no_bids",
+      "currentHandling": "event",
+      "excluded": "no-fill"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Video.tsx",
+      "line": 132,
+      "proposedCode": "video_player_invoke_failed",
+      "currentHandling": "console-only",
+      "code": "video.player.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Video.tsx",
+      "line": 160,
+      "proposedCode": "video_prebid_unavailable",
+      "currentHandling": "none",
+      "code": "video.prebid.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/VideoIMA.tsx",
+      "line": 233,
+      "proposedCode": "ima_ad_error",
+      "currentHandling": "console-only",
+      "note": "Dead code. Keep the existing event if the file survives.",
+      "code": "video.ad.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/VideoIMA.tsx",
+      "line": 257,
+      "proposedCode": "ima_play_failed",
+      "currentHandling": "console-only",
+      "code": "video.ad.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/VideoIMA.tsx",
+      "line": 191,
+      "proposedCode": "autoplay_blocked",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Studio3d.tsx",
+      "line": 28,
+      "proposedCode": "studio_listings_parse_failed",
+      "currentHandling": "none",
+      "code": "config.attribute.parse"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Studio3d.tsx",
+      "line": 252,
+      "proposedCode": "studio_dependency_load_failed",
+      "currentHandling": "none",
+      "code": "widget.script_load.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Studio3d.tsx",
+      "line": 218,
+      "proposedCode": "studio_swap_failed",
+      "currentHandling": "none",
+      "code": "widget.dom.missing"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Lite.tsx",
+      "line": 21,
+      "proposedCode": "widget_init_failed",
+      "currentHandling": "console-only",
+      "code": "widget.init.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Lite.tsx",
+      "line": 34,
+      "proposedCode": "listings_fetch_failed",
+      "currentHandling": "none",
+      "code": "listings.fetch.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Lite.tsx",
+      "line": 142,
+      "proposedCode": "ad_script_append_failed",
+      "currentHandling": "console-only",
+      "code": "ad.append_scripts.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/App.tsx",
+      "line": 19,
+      "proposedCode": "widget_init_failed",
+      "currentHandling": "console-only",
+      "code": "widget.init.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Main.tsx",
+      "line": 15,
+      "proposedCode": "partners_load_failed",
+      "currentHandling": "none",
+      "code": "listings.partners.network"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/components/ErrorBoundary/index.tsx",
+      "line": 13,
+      "proposedCode": "react_render_failed",
+      "currentHandling": "console-only",
+      "code": "widget.render.exception"
+    },
+    {
+      "unit": "widget-surfaces",
+      "file": "sellwild-widget/src/Creator.tsx",
+      "line": 9,
+      "proposedCode": "build_module_missing",
+      "currentHandling": "none",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/escompile.mjs",
+      "line": 208,
+      "proposedCode": "widget_compile_failed",
+      "currentHandling": "swallowed",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/esbuild.mjs",
+      "line": 52,
+      "proposedCode": "widget_build_failed",
+      "currentHandling": "swallowed",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/esbuild.mjs",
+      "line": 44,
+      "proposedCode": "build_clean_failed",
+      "currentHandling": "swallowed",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/escompile.mjs",
+      "line": 138,
+      "proposedCode": "app_zid_coerced",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/escompile.mjs",
+      "line": 185,
+      "proposedCode": "ab_config_not_built",
+      "currentHandling": "none",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/utils.mjs",
+      "line": 21,
+      "proposedCode": "config_dir_unreadable",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/utils.mjs",
+      "line": 31,
+      "proposedCode": "config_markdown_parse_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/projector.mjs",
+      "line": 52,
+      "proposedCode": "pbs_overlay_parse_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/projector.mjs",
+      "line": 149,
+      "proposedCode": "pbs_stored_imps_parse_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/projector.mjs",
+      "line": 159,
+      "proposedCode": "pbs_stored_imp_entry_invalid",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/projector.mjs",
+      "line": 116,
+      "proposedCode": "pbs_banner_size_invalid",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/projector.mjs",
+      "line": 215,
+      "proposedCode": "pbs_floors_parse_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/projector.mjs",
+      "line": 62,
+      "proposedCode": "pbs_stored_request_parse_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/amp-projector.mjs",
+      "line": 28,
+      "proposedCode": "amp_sizes_parse_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/amp-projector.mjs",
+      "line": 26,
+      "proposedCode": "amp_partner_missing_code",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/amp-projector.mjs",
+      "line": 57,
+      "proposedCode": "amp_schain_sid_missing",
+      "currentHandling": "none",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/exchange-projector.mjs",
+      "line": 36,
+      "proposedCode": "exchange_demand_params_parse_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/exchange-projector.mjs",
+      "line": 159,
+      "proposedCode": "exchange_imp_not_shapeable",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/exchange-projector.mjs",
+      "line": 148,
+      "proposedCode": "exchange_partner_missing_code",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/exchange-projector.mjs",
+      "line": 136,
+      "proposedCode": "exchange_partners_empty",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/exchange-projector.mjs",
+      "line": 184,
+      "proposedCode": "exchange_partner_code_invalid",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/exchange-projector.mjs",
+      "line": 193,
+      "proposedCode": "exchange_projection_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/adapters-projector.mjs",
+      "line": 33,
+      "proposedCode": "adapters_source_invalid",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/adapters-projector.mjs",
+      "line": 120,
+      "proposedCode": "adapters_projector_entry_skipped",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/adapters-projector.mjs",
+      "line": 121,
+      "proposedCode": "adapters_projection_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs/bidders.mjs",
+      "line": 115,
+      "proposedCode": "bidder_params_empty",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-generate.mjs",
+      "line": 25,
+      "proposedCode": "adapters_projection_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-generate.mjs",
+      "line": 32,
+      "proposedCode": "pbs_generate_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-adapters-verify.mjs",
+      "line": 18,
+      "proposedCode": "adapters_manifest_missing",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-adapters-verify.mjs",
+      "line": 24,
+      "proposedCode": "adapters_manifest_stale",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-diff.mjs",
+      "line": 27,
+      "proposedCode": "pbs_diff_json_unreadable",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-diff.mjs",
+      "line": 35,
+      "proposedCode": "pbs_diff_dir_unreadable",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-diff.mjs",
+      "line": 107,
+      "proposedCode": "pbs_diff_nonempty",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-diff.mjs",
+      "line": 110,
+      "proposedCode": "pbs_diff_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-validate.mjs",
+      "line": 33,
+      "proposedCode": "pbs_validate_dir_missing",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-validate.mjs",
+      "line": 203,
+      "proposedCode": "pbs_validate_manifest_missing",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-validate.mjs",
+      "line": 212,
+      "proposedCode": "pbs_validate_file_invalid",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-validate.mjs",
+      "line": 226,
+      "proposedCode": "pbs_validate_errors",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/pbs-validate.mjs",
+      "line": 229,
+      "proposedCode": "pbs_validate_crashed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-config.mjs",
+      "line": 39,
+      "proposedCode": "pbs_upload_bucket_missing",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-config.mjs",
+      "line": 40,
+      "proposedCode": "pbs_upload_nothing_to_upload",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-config.mjs",
+      "line": 42,
+      "proposedCode": "pbs_upload_live_prefix_refused",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-config.mjs",
+      "line": 47,
+      "proposedCode": "pbs_upload_validation_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-config.mjs",
+      "line": 61,
+      "proposedCode": "aws_cli_unavailable",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-config.mjs",
+      "line": 62,
+      "proposedCode": "pbs_upload_sync_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-exchange-partners.mjs",
+      "line": 41,
+      "proposedCode": "partners_json_invalid",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-exchange-partners.mjs",
+      "line": 48,
+      "proposedCode": "partner_row_invalid",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-exchange-partners.mjs",
+      "line": 49,
+      "proposedCode": "partner_mapped_without_imps",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-exchange-partners.mjs",
+      "line": 54,
+      "proposedCode": "partner_stored_imp_missing",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-exchange-partners.mjs",
+      "line": 71,
+      "proposedCode": "partners_imps_sync_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-exchange-partners.mjs",
+      "line": 78,
+      "proposedCode": "partners_upload_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-adapters.mjs",
+      "line": 63,
+      "proposedCode": "adapters_manifest_stale",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-adapters.mjs",
+      "line": 71,
+      "proposedCode": "adapters_live_read_failed",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-adapters.mjs",
+      "line": 85,
+      "proposedCode": "adapters_upload_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-adapters.mjs",
+      "line": 106,
+      "proposedCode": "pbs_recycle_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-adapters.mjs",
+      "line": 117,
+      "proposedCode": "pbs_recycle_status_unknown",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-adapters.mjs",
+      "line": 120,
+      "proposedCode": "pbs_recycle_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-pbs-adapters.mjs",
+      "line": 121,
+      "proposedCode": "pbs_recycle_timeout",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-short-cache.mjs",
+      "line": 10,
+      "proposedCode": "short_cache_upload_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-short-cache.mjs",
+      "line": 45,
+      "proposedCode": "short_cache_artifact_missing",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/upload-short-cache.mjs",
+      "line": 24,
+      "proposedCode": "short_cache_bucket_missing",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/validate-s2s-config.mjs",
+      "line": 55,
+      "proposedCode": "s2s_manifest_missing",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/validate-s2s-config.mjs",
+      "line": 65,
+      "proposedCode": "s2s_config_dir_unreadable",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/validate-s2s-config.mjs",
+      "line": 73,
+      "proposedCode": "s2s_frontmatter_invalid",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/validate-s2s-config.mjs",
+      "line": 48,
+      "proposedCode": "s2s_config_parse_failed",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/validate-s2s-config.mjs",
+      "line": 89,
+      "proposedCode": "s2s_bidder_not_enabled",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/validate-s2s-config.mjs",
+      "line": 103,
+      "proposedCode": "s2s_validate_crashed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/cli.js",
+      "line": 102,
+      "proposedCode": "amp_render_failed",
+      "currentHandling": "swallowed",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/cli.js",
+      "line": 31,
+      "proposedCode": "amp_build_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/cli.js",
+      "line": 125,
+      "proposedCode": "amp_asset_missing",
+      "currentHandling": "swallowed",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/amp/index.js",
+      "line": 42,
+      "proposedCode": "amp_listings_fetch_failed",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/amp/index.js",
+      "line": 36,
+      "proposedCode": "amp_listings_fetch_timeout",
+      "currentHandling": "none",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/amp/index.js",
+      "line": 16,
+      "proposedCode": "amp_unknown_partner",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/amp/index.js",
+      "line": 8,
+      "proposedCode": "amp_styles_missing",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/amp/index.js",
+      "line": 138,
+      "proposedCode": "amp_deploy_sdk_missing",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/amp/index.js",
+      "line": 184,
+      "proposedCode": "amp_upload_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/amp/generate.js",
+      "line": 175,
+      "proposedCode": "amp_slot_missing_stored_request_id",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/amp/generate.js",
+      "line": 121,
+      "proposedCode": "amp_listing_missing",
+      "currentHandling": "silent-fallback",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-write.ts",
+      "line": 51,
+      "proposedCode": "auth_token_unverified",
+      "currentHandling": "none",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-read.ts",
+      "line": 100,
+      "proposedCode": "local_path_unsafe",
+      "currentHandling": "none",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/pbs-bidders.ts",
+      "line": 36,
+      "proposedCode": "pbs_bidders_timeout",
+      "currentHandling": "event",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/pbs-bidders.ts",
+      "line": 64,
+      "proposedCode": "pbs_bidders_upstream_status",
+      "currentHandling": "event",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/pbs-bidders.ts",
+      "line": 71,
+      "proposedCode": "pbs_bidders_shape_invalid",
+      "currentHandling": "event",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/pbs-bidders.ts",
+      "line": 91,
+      "proposedCode": "pbs_bidders_fetch_failed",
+      "currentHandling": "event",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-list.ts",
+      "line": 55,
+      "proposedCode": "github_token_missing",
+      "currentHandling": "event",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-list.ts",
+      "line": 167,
+      "proposedCode": "git_list_failed",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-read.ts",
+      "line": 118,
+      "proposedCode": "git_read_commit_lookup_failed",
+      "currentHandling": "swallowed",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-read.ts",
+      "line": 194,
+      "proposedCode": "git_read_merge_lookup_failed",
+      "currentHandling": "swallowed",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-read.ts",
+      "line": 219,
+      "proposedCode": "git_read_frontmatter_invalid",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-read.ts",
+      "line": 240,
+      "proposedCode": "git_read_failed",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-write.ts",
+      "line": 68,
+      "proposedCode": "git_write_body_invalid",
+      "currentHandling": "event",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-write.ts",
+      "line": 80,
+      "proposedCode": "git_write_params_missing",
+      "currentHandling": "event",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-write.ts",
+      "line": 91,
+      "proposedCode": "git_write_serialize_failed",
+      "currentHandling": "none",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-write.ts",
+      "line": 99,
+      "proposedCode": "git_write_already_exists",
+      "currentHandling": "event",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-write.ts",
+      "line": 207,
+      "proposedCode": "git_write_conflict",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-write.ts",
+      "line": 217,
+      "proposedCode": "git_write_failed",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-history.ts",
+      "line": 95,
+      "proposedCode": "git_history_params_invalid",
+      "currentHandling": "none",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-history.ts",
+      "line": 144,
+      "proposedCode": "git_history_check_runs_failed",
+      "currentHandling": "swallowed",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-history.ts",
+      "line": 289,
+      "proposedCode": "git_history_check_runs_failed",
+      "currentHandling": "swallowed",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-history.ts",
+      "line": 220,
+      "proposedCode": "git_history_git_failed",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/netlify/functions/git-history.ts",
+      "line": 356,
+      "proposedCode": "git_history_failed",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/toggle-widget-newline.js",
+      "line": 57,
+      "proposedCode": "toggle_condition_invalid",
+      "currentHandling": "none",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/toggle-widget-newline.js",
+      "line": 135,
+      "proposedCode": "toggle_condition_invalid",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/toggle-widget-newline.js",
+      "line": 173,
+      "proposedCode": "toggle_write_failed",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/update-geo-blocks.js",
+      "line": 48,
+      "proposedCode": "geo_block_frontmatter_unclosed",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/update-geo-blocks.js",
+      "line": 75,
+      "proposedCode": "geo_block_update_failed",
+      "currentHandling": "console-only",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/analyze.js",
+      "line": 3,
+      "proposedCode": "har_file_missing",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/lee.js",
+      "line": 97,
+      "proposedCode": "bulk_edit_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tooling",
+      "file": "sellwild-widget/scripts/change.js",
+      "line": 16,
+      "proposedCode": "bulk_edit_failed",
+      "currentHandling": "thrown",
+      "excluded": "tooling"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 118,
+      "proposedCode": "widget_init_failed",
+      "currentHandling": "none",
+      "code": "widget.element.exception"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1258,
+      "proposedCode": "dependency_load_failed",
+      "currentHandling": "none",
+      "code": "widget.script_load.network"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1264,
+      "proposedCode": "custom_elements_unsupported",
+      "currentHandling": "thrown",
+      "code": "widget.customelements.unsupported"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1304,
+      "proposedCode": "playlist_fetch_failed",
+      "currentHandling": "thrown",
+      "code": "video.playlist.network"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1310,
+      "proposedCode": "playlist_invalid_shape",
+      "currentHandling": "thrown",
+      "code": "video.playlist.invalid"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1318,
+      "proposedCode": "playlist_inline_parse_failed",
+      "currentHandling": "swallowed",
+      "code": "video.playlist_inline.parse"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1311,
+      "proposedCode": "playlist_video_missing_id",
+      "currentHandling": "silent-fallback",
+      "code": "video.item.invalid"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 269,
+      "proposedCode": "playlist_video_invalid",
+      "currentHandling": "thrown",
+      "code": "video.item.invalid"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 281,
+      "proposedCode": "playlist_empty",
+      "currentHandling": "silent-fallback",
+      "code": "video.playlist.missing"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 136,
+      "proposedCode": "playlist_tag_query_invalid",
+      "currentHandling": "silent-fallback",
+      "code": "video.tag_query.invalid"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 127,
+      "proposedCode": "config_decode_failed",
+      "currentHandling": "thrown",
+      "code": "config.theme.parse"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 205,
+      "proposedCode": "customization_parse_failed",
+      "currentHandling": "silent-fallback",
+      "code": "config.field.parse"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1111,
+      "proposedCode": "element_missing",
+      "currentHandling": "thrown",
+      "code": "widget.dom.missing"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 711,
+      "proposedCode": "element_missing",
+      "currentHandling": "thrown",
+      "code": "widget.dom.missing"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 70,
+      "proposedCode": "float_setup_failed",
+      "currentHandling": "thrown",
+      "code": "widget.dom.missing"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 40,
+      "proposedCode": "intersection_observer_unsupported",
+      "currentHandling": "thrown",
+      "code": "widget.intersection_observer.unsupported"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 969,
+      "proposedCode": "video_play_rejected",
+      "currentHandling": "console-only",
+      "code": "video.play.exception"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 557,
+      "proposedCode": "video_play_rejected",
+      "currentHandling": "none",
+      "code": "video.play.exception"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 804,
+      "proposedCode": "video_media_error",
+      "currentHandling": "console-only",
+      "code": "video.media.exception"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1196,
+      "proposedCode": "hls_fatal_error",
+      "currentHandling": "none",
+      "code": "video.hls.exception"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1198,
+      "proposedCode": "video_sources_missing",
+      "currentHandling": "thrown",
+      "code": "video.sources.missing"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 916,
+      "proposedCode": "video_index_out_of_range",
+      "currentHandling": "thrown",
+      "code": "video.index.invalid"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 685,
+      "proposedCode": "video_seek_failed",
+      "currentHandling": "thrown",
+      "code": "video.seek.exception"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 482,
+      "proposedCode": "share_failed",
+      "currentHandling": "swallowed",
+      "code": "widget.share.exception"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 698,
+      "proposedCode": "fullscreen_request_failed",
+      "currentHandling": "console-only",
+      "code": "widget.fullscreen.exception"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1030,
+      "proposedCode": "ad_playback_error",
+      "currentHandling": "event",
+      "note": "Keep the existing video adError event (A6). Do not log VAST no-ad (303) responses.",
+      "code": "video.ad.exception"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1035,
+      "proposedCode": "ad_no_bids",
+      "currentHandling": "event",
+      "excluded": "no-fill"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1009,
+      "proposedCode": "ad_content_src_missing",
+      "currentHandling": "silent-fallback",
+      "code": "video.ad_content.missing"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 422,
+      "proposedCode": "ads_geo_blocked",
+      "currentHandling": "event",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/WidgetTv.tsx",
+      "line": 1101,
+      "proposedCode": "search_open_blocked",
+      "currentHandling": "silent-fallback",
+      "excluded": "by-design"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/providers/likeProvider.ts",
+      "line": 44,
+      "proposedCode": "storage_unavailable",
+      "currentHandling": "swallowed",
+      "code": "storage.write.exception"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/providers/iheartPlayer.ts",
+      "line": 12,
+      "proposedCode": "iheart_player_unreachable",
+      "currentHandling": "swallowed",
+      "code": "video.iheart_player.exception"
+    },
+    {
+      "unit": "widget-tv",
+      "file": "sellwild-widget/src/Events.ts",
+      "line": 42,
+      "proposedCode": "event_queue_storage_failed",
+      "currentHandling": "thrown",
+      "excluded": "transport"
+    }
+  ]
+}

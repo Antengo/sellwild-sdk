@@ -1,0 +1,8 @@
+{
+  "_synthetic": true,
+  "partnerCode": "fixture",
+  "prebidServer": {
+    "accountId": "a",
+    "endpoint": "https://pbs.example.com/openrtb2/auction"
+  }
+}

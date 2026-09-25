@@ -21,9 +21,9 @@ final class SellwildHouseAdView: UIView {
     /// creative's click URL (image mode) or the listing's tap URL.
     var onTap: (() -> Void)?
 
-    private let imageView = UIImageView()
-    private let titleLabel = UILabel()
-    private let priceLabel = UILabel()
+    let imageView = UIImageView()
+    let titleLabel = UILabel()
+    let priceLabel = UILabel()
 
     // The image URL currently being loaded. Guards against a reused view (the
     // owning SellwildAdView is pooled in feed cells) applying a stale async
@@ -89,7 +89,9 @@ final class SellwildHouseAdView: UIView {
         isUserInteractionEnabled = true
     }
 
+    // sellwild-coverage:exclude-begin(crash-guard) init(coder:) traps by design (storyboards are not supported).
     required init?(coder: NSCoder) { fatalError("Use init(frame:)") }
+    // sellwild-coverage:exclude-end
 
     @objc private func tapped() { onTap?() }
 
@@ -110,7 +112,7 @@ final class SellwildHouseAdView: UIView {
         imageView.contentMode = .scaleAspectFill
         imageView.backgroundColor = UIColor(white: 0.93, alpha: 1)
         titleLabel.text = listing.title
-        priceLabel.text = Self.formatPrice(currency: listing.currency, price: listing.price)
+        priceLabel.text = SellwildFormat.price(currency: listing.currency, price: listing.price)
         loadImage(listing.photos?.first?.url)
     }
 
@@ -134,18 +136,5 @@ final class SellwildHouseAdView: UIView {
             guard let self, self.pendingImageURL == urlString else { return }
             self.imageView.image = image
         }
-    }
-
-    private static func formatPrice(currency: String?, price: String?) -> String {
-        guard let p = price, let value = Double(p) else { return "" }
-        let sym: String
-        switch currency?.uppercased() {
-        case "EUR": sym = "€"
-        case "GBP": sym = "£"
-        default:    sym = "$"
-        }
-        return value.truncatingRemainder(dividingBy: 1) == 0
-            ? "\(sym)\(Int(value))"
-            : String(format: "%@%.2f", sym, value)
     }
 }

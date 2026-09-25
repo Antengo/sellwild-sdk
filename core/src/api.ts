@@ -1,5 +1,22 @@
-import { SellwildConfig, SellwildListingsResponse, SellwildListing, SdkEvent } from './types'
-import { EVENTS_URL, DEFAULT_LISTINGS_URL, SDK_VERSION } from './config'
+import { SellwildConfig, SellwildListingsResponse, SellwildListing } from './types'
+import { DEFAULT_LISTINGS_URL } from './config'
+import { logFailure } from './failures'
+import { jsonKind, parseErrorName } from './json-kind'
+
+// The events queue lives in ./event-queue (it must not import logFailure).
+// Re-exported here, where it has always been exported from.
+export {
+  capQueue,
+  createEventQueue,
+  eventQueue,
+  requeueFailedBatch,
+  resolveUid,
+  stampEventAttributes,
+  takeBatch,
+  type EventQueue,
+  type EventQueueDeps,
+  type EventStamp,
+} from './event-queue'
 
 // Cached listing fetches keyed by URL
 const listingCache = new Map<string, Promise<SellwildListingsResponse>>()
@@ -20,6 +37,16 @@ export function resolveListingsUrl(config: SellwildConfig): string {
   return DEFAULT_LISTINGS_URL
 }
 
+/**
+ * Fetches the listings cache for a config. Concurrent and later calls for the
+ * same URL share one request until it fails.
+ *
+ * Failures reject, as they always have, and are reported once with
+ * logFailure: listings.fetch.network, listings.fetch.http,
+ * listings.fetch.parse and listings.parse.invalid. The HTTP status is not
+ * checked beyond that: a non-2xx JSON body still parses as an envelope. A
+ * caller abort is not a failure and is not reported.
+ */
 export async function fetchListings(
   config: SellwildConfig,
   options: FetchOptions = {}
@@ -30,20 +57,7 @@ export async function fetchListings(
     return listingCache.get(url)!
   }
 
-  const promise = fetch(url, {
-    signal: options.signal,
-    headers: options.headers,
-  })
-    .then(res => res.json())
-    .then(data => {
-      const result = data.result || data
-      const listings: SellwildListing[] = result.rs || result.listings || []
-      return {
-        listings,
-        config: result.config || {},
-        widgetCacheVersionId: result.widgetCacheVersionId || '0',
-      } as SellwildListingsResponse
-    })
+  const promise = loadListings(url, options)
     .catch(err => {
       listingCache.delete(url)
       throw err
@@ -53,9 +67,76 @@ export async function fetchListings(
   return promise
 }
 
+async function loadListings(url: string, options: FetchOptions): Promise<SellwildListingsResponse> {
+  const aborted = () => options.signal?.aborted === true
+  let res: Response
+  try {
+    res = await fetch(url, {
+      signal: options.signal,
+      headers: options.headers,
+    })
+  } catch (error) {
+    if (!aborted()) logFailure({ code: 'listings.fetch.network', component: 'listings', error, url })
+    throw error
+  }
+  // A non-2xx answer is reported here and only here, even when its body
+  // then fails to parse (S3 answers 403 with XML) or has no listings.
+  if (!res.ok) {
+    logFailure({ code: 'listings.fetch.http', component: 'listings', message: `HTTP ${res.status}`, httpStatus: res.status, url })
+  }
+
+  let data: unknown
+  try {
+    data = await res.json()
+  } catch (error) {
+    // Only the error's name is sent: its message quotes part of the body.
+    if (res.ok && !aborted()) logFailure({ code: 'listings.fetch.parse', component: 'listings', message: 'listings body is not JSON', error: parseErrorName(error), url })
+    throw error
+  }
+  if (res.ok && !hasListingsArray(data)) {
+    logFailure({ code: 'listings.parse.invalid', component: 'listings', message: 'no result.rs array', url })
+  }
+  return parseListingsResponse(data)
+}
+
+/**
+ * Unwraps a listings cache body: `result.rs`, else `result.listings`, else
+ * []. Pure. A value there that is not an array gives [] (it used to come back
+ * as `listings`, and React Native's useSellwildListings crashed mapping over
+ * it). A null body still throws a TypeError, as it always has; fetchListings
+ * rejects with it.
+ */
+export function parseListingsResponse(data: unknown): SellwildListingsResponse {
+  const body = data as { result?: unknown }
+  const result = (body.result || body) as {
+    rs?: unknown
+    listings?: unknown
+    config?: Record<string, unknown>
+    widgetCacheVersionId?: string
+  }
+  const picked = result.rs || result.listings
+  return {
+    listings: Array.isArray(picked) ? (picked as SellwildListing[]) : [],
+    config: result.config || {},
+    widgetCacheVersionId: result.widgetCacheVersionId || '0',
+  }
+}
+
+/** Whether parseListingsResponse finds a real array in `data`. Pure. */
+export function hasListingsArray(data: unknown): boolean {
+  if (data === null || typeof data !== 'object') return false
+  const result = (data as { result?: unknown }).result || data
+  if (result === null || typeof result !== 'object') return false
+  const { rs, listings } = result as { rs?: unknown; listings?: unknown }
+  return Array.isArray(rs || listings)
+}
+
 export function clearListingCache(): void {
   listingCache.clear()
 }
+
+/** The tag cache (a hard-coded API Gateway dev stage, as it always was). */
+const TAG_CACHE_URL = 'https://tbd4rmdvjk.execute-api.us-east-1.amazonaws.com/dev/listings'
 
 export interface TagCacheOptions {
   keywords: string
@@ -63,124 +144,69 @@ export interface TagCacheOptions {
   signal?: AbortSignal
 }
 
+/**
+ * The tag-cache request URL. Pure. The keywords ride the query string.
+ * Throws URIError, as encodeURIComponent does, for keywords that hold a lone
+ * UTF-16 surrogate (for example an emoji cut in half).
+ */
+export function buildTagCacheUrl(keywords: string, count: number): string {
+  return `${TAG_CACHE_URL}?keywords=${encodeURIComponent(keywords)}&count=${count}&v=1`
+}
+
+/** The first `count` listings of a tag-cache body, or null when it is not an array. Pure. */
+export function parseTagCacheResponse(data: unknown, count: number): SellwildListing[] | null {
+  return Array.isArray(data) ? (data.slice(0, count) as SellwildListing[]) : null
+}
+
+/**
+ * Fetches up to `count` listings for `keywords` from the tag cache. Never
+ * rejects: empty keywords or a zero count ask nothing and give [], and every
+ * failure gives [] too. Failures are reported once with logFailure:
+ * listings.tag_cache_url.invalid (keywords that cannot be URL-encoded),
+ * listings.tag_cache.network, .http, .parse and .invalid. A caller abort is
+ * not a failure and is not reported. Only the host of the URL is ever sent,
+ * never the keywords.
+ */
 export async function fetchTagCacheListings(
   options: TagCacheOptions
 ): Promise<SellwildListing[]> {
   const { keywords, count } = options
   if (!keywords || !count) return []
 
-  const url = `https://tbd4rmdvjk.execute-api.us-east-1.amazonaws.com/dev/listings?keywords=${encodeURIComponent(keywords)}&count=${count}&v=1`
+  let url: string
+  try {
+    url = buildTagCacheUrl(keywords, count)
+  } catch (error) {
+    // Only the error's name, and only the base URL's host: never the keywords.
+    logFailure({ code: 'listings.tag_cache_url.invalid', component: 'listings', message: 'tag cache keywords cannot be URL-encoded', error: parseErrorName(error), url: TAG_CACHE_URL })
+    return []
+  }
+  const aborted = () => options.signal?.aborted === true
 
-  return fetch(url, { signal: options.signal })
-    .then(res => res.json())
-    .then(data => Array.isArray(data) ? data.slice(0, count) : [])
-    .catch(() => [])
+  let res: Response
+  try {
+    res = await fetch(url, { signal: options.signal })
+  } catch (error) {
+    if (!aborted()) logFailure({ code: 'listings.tag_cache.network', component: 'listings', severity: 'warn', error, url })
+    return []
+  }
+  // A non-2xx answer is reported here and only here, like fetchListings.
+  if (!res.ok) {
+    logFailure({ code: 'listings.tag_cache.http', component: 'listings', message: `HTTP ${res.status}`, httpStatus: res.status, url })
+  }
+
+  let data: unknown
+  try {
+    data = await res.json()
+  } catch (error) {
+    // Only the error's name is sent: its message quotes part of the body.
+    if (res.ok && !aborted()) logFailure({ code: 'listings.tag_cache.parse', component: 'listings', message: 'tag cache body is not JSON', error: parseErrorName(error), url })
+    return []
+  }
+  const listings = parseTagCacheResponse(data, count)
+  if (listings === null) {
+    if (res.ok) logFailure({ code: 'listings.tag_cache.invalid', component: 'listings', message: `tag cache JSON is ${jsonKind(data)}`, url })
+    return []
+  }
+  return listings
 }
-
-// Event analytics queue
-class EventQueue {
-  private events: Array<SdkEvent & { uid: string; createdTime: number }> = []
-  private timer: ReturnType<typeof setTimeout> | null = null
-  private readonly url = EVENTS_URL
-  private readonly interval = 10000
-  private readonly maxBatch = 100
-  // Hard cap so a persistently-failing endpoint can't grow the queue unbounded.
-  private readonly maxQueue = 1000
-  private uid: string = ''
-  // Kill switch. Defaults on; call setEnabled(config.eventsEnabled) after
-  // configure() to honor the CMS EVENTS_ENABLED flag. When off, events are
-  // neither queued nor sent (and any pending batch is dropped on flush).
-  private enabled = true
-  // Host platform, stamped into every event's `attributes` bag for an
-  // installed-base census. Empty until the host calls setPlatform(); when unset
-  // the platform key is omitted (only sdkVersion is added).
-  private platform = ''
-
-  /** Toggle event sending. Pass `config.eventsEnabled` from a resolved config. */
-  setEnabled(enabled: boolean): void {
-    this.enabled = enabled
-  }
-
-  /**
-   * Set the host platform stamped into every event's `attributes` bag (e.g.
-   * `'web'` or `'react-native'`). Call once at host startup — the web host
-   * passes `'web'`, the RN host passes `'react-native'`.
-   */
-  setPlatform(platform: string): void {
-    this.platform = platform
-  }
-
-  getUid(): string {
-    if (this.uid) return this.uid
-    try {
-      // Not every runtime has a global `crypto` (older RN/Hermes don't), so
-      // read it off globalThis rather than assuming the DOM global.
-      const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
-      if (!c?.randomUUID) throw new Error('crypto.randomUUID unavailable')
-      this.uid = c.randomUUID()
-    } catch {
-      this.uid = Math.random().toString(36).slice(2)
-    }
-    return this.uid
-  }
-
-  push(event: SdkEvent): void {
-    if (!this.enabled) return
-    // Stamp platform + sdkVersion into the free-form `attributes` passthrough
-    // bag (queryable in BigQuery, no server change). Merge AFTER the caller's
-    // attributes so their keys win on collision — but platform/sdkVersion are
-    // SDK-reserved, so applied last here to guarantee they're present.
-    // `type` is the platform discriminator the events view reads
-    // (JSON_EXTRACT(attributes,'type') → the `type` column); `sdkVersion` is an
-    // installed-base census field. Applied last so they're guaranteed present.
-    const attributes = {
-      ...event.attributes,
-      ...(this.platform ? { type: this.platform } : {}),
-      sdkVersion: SDK_VERSION,
-    }
-    this.events.push({ ...event, attributes, uid: this.getUid(), createdTime: Date.now() })
-    if (this.events.length > this.maxQueue) {
-      this.events.splice(0, this.events.length - this.maxQueue) // drop oldest over the cap
-    }
-    this.schedule()
-  }
-
-  pushNow(event: SdkEvent): void {
-    this.push(event)
-    this.flush()
-  }
-
-  private schedule(): void {
-    if (this.timer) return
-    this.timer = setTimeout(() => this.flush(), this.interval)
-  }
-
-  flush(): void {
-    if (this.timer) {
-      clearTimeout(this.timer)
-      this.timer = null
-    }
-    if (!this.enabled) {
-      this.events.length = 0
-      return
-    }
-    const batch = this.events.splice(0, this.maxBatch)
-    if (!batch.length) return
-
-    fetch(this.url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(batch),
-    }).catch(() => {
-      // Re-queue on failure, capped, and reschedule so a transient outage
-      // recovers without waiting for the next push() — and can't grow unbounded.
-      this.events.unshift(...batch)
-      if (this.events.length > this.maxQueue) {
-        this.events.splice(0, this.events.length - this.maxQueue) // drop oldest over the cap
-      }
-      this.schedule()
-    })
-  }
-}
-
-export const eventQueue = new EventQueue()

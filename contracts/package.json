@@ -1,0 +1,20 @@
+{
+  "name": "@sellwild/contracts",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Canonical JSON Schemas, real samples, fixtures, expectations, failure codes and golden vectors shared by every Sellwild SDK platform and the web widget.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "validate": "node scripts/validate.mjs",
+    "vectors": "node scripts/generate-vectors.mjs",
+    "print-gate": "node scripts/print-gate.mjs",
+    "add-code": "node scripts/add-code.mjs",
+    "gen-codes": "node scripts/gen-codes.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "eslint": "9.39.5"
+  }
+}

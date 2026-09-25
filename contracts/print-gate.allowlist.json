@@ -1,0 +1,17 @@
+{
+  "description": "Per-file counts of banned print calls and empty catch blocks in shipped SDK source (FAILURES.md section 11). The gate fails when a count goes up or a file not listed here has a hit. Lower a count (or drop the file) in the same change that removes a hit: node scripts/print-gate.mjs --update.",
+  "exemptFromPrint": [
+    "core/src/failures/index.ts",
+    "core/src/debug-log.ts",
+    "ios/Sources/SellwildSDK/Failures/SellwildFailures.swift",
+    "ios/Sources/SellwildSDK/Failures/SellwildLog.swift",
+    "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailures.kt",
+    "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildLog.kt"
+  ],
+  "files": {
+    "react-native/src/SellwildFeed.tsx": {
+      "print": 1,
+      "emptyCatch": 0
+    }
+  }
+}

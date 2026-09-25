@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/selftest-root.schema.json",
+  "title": "Support self-test: a root schema whose $ref must resolve offline",
+  "type": "object",
+  "required": ["name", "item"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "item": { "$ref": "selftest-item.schema.json" }
+  }
+}

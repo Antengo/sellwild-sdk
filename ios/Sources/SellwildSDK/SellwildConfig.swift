@@ -130,10 +130,30 @@ public struct SellwildConfig: Codable {
     public var remoteJSON: Data?
 
     /// Convenience: the raw CDN payload as a dictionary, parsed lazily on access.
-    /// Returns nil if `remoteJSON` is unset or fails to parse.
+    /// Returns nil if `remoteJSON` is unset or fails to parse. A payload that
+    /// fails to parse is reported (`config.remote_values.parse`): every
+    /// remote flag then falls back to its default. Every ad and feed load
+    /// reads this, so each way a payload can be bad is reported once per
+    /// launch (`SellwildReportOnce`).
     public var remoteValues: [String: Any]? {
         guard let data = remoteJSON else { return nil }
-        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        let parsed: Any
+        do {
+            parsed = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            if SellwildReportOnce.first(.configRemoteValuesParse, "not JSON") {
+                SellwildFailures.log(code: .configRemoteValuesParse, component: .remoteConfig, severity: .warn, error: error)
+            }
+            return nil
+        }
+        guard let values = parsed as? [String: Any] else {
+            if SellwildReportOnce.first(.configRemoteValuesParse, "not an object") {
+                SellwildFailures.log(code: .configRemoteValuesParse, component: .remoteConfig, severity: .warn,
+                                     message: "stored remote config is not a JSON object")
+            }
+            return nil
+        }
+        return values
     }
 
     // MARK: Third-party
@@ -409,6 +429,9 @@ public enum AdSize: String, CaseIterable {
 
     public var cgSize: CGSize {
         let parts = rawValue.split(separator: "x").compactMap { Double($0) }
+        // dead: pending delete decision. Every raw value is "WxH", so this
+        // guard never fails. Swift has no coverage pragma: its else region
+        // stays counted as missed (coverage notes).
         guard parts.count == 2 else { return .zero }
         return CGSize(width: parts[0], height: parts[1])
     }

@@ -1,0 +1,14 @@
+{
+  "platform": "react-native",
+  "description": "Known cross-platform drift for react-native (A9.2: recorded, not changed, in this program). `expectations` maps each expectations file (by name) and case file to text that names every field that differs, as \"field: why\". A conformance test passes a case when react-native matches `expected`, or differs only in a field its entry names; the entry is removed in the change that fixes the drift. `other` records verified drift no expectations case pins. Only the react-native unit edits this file.",
+  "expectations": {
+    "app-config": {},
+    "listings-response": {}
+  },
+  "other": {
+    "bridge.android": "The Android bridge re-serializes `remote` with ReadableMap.toHashMap(), which turns every JSON integer into a double (48 becomes 48.0). SellwildSDK.apply then sees doubles for integer keys and numeric zone ids.",
+    "bridge.ios": "Resolved in this program; the entry stays only because contracts/test/expectations.test.mjs pins this key (the contracts owner can drop the pin and the entry together). It was: the iOS feed bridge read bannerZid/bottomBannerZid/mobileBannerZid/mobileZids with `as? String` and dropped a number with no report, while the Android feed bridge threw on one (ReadableMap.getString). Now both drop a number and report bridge.config.invalid, and JS sends zone ids as text (nativeConfig.ts nativeZoneId: core's unset 0 is left out, another number is sent as its text). So the iOS feed now uses a non-zero numeric zone id from JS that it dropped before (a behavior change), and no RN bridge drift remains here.",
+    "bridge.geoBoolean": "setGeo with a boolean lat, lon or type: the iOS bridge reads it as the number 1 or 0 (SellwildGeo(bridged:) casts `as? NSNumber`, and a boolean is an NSNumber) and reports nothing; the Android bridge drops that field and reports bridge.geo.invalid ('geo.lat is a boolean, not a number, so it was dropped'). Any other wrong-typed geo field is dropped and reported the same way on both.",
+    "bridge.wrongTypedConfigFields": "A config prop field of the wrong type other than the zone ids and prebidServer (for example gamTag as a number, adRefreshMax as text, or a geo field inside config): the iOS view managers drop that field (`as?`) and use the rest of the config, with no report; the Android view managers throw from a ReadableMap getter, report the whole config as bridge.config.invalid (fatal) and set up no ad or feed. setGeo, zone ids and prebidServer are handled the same way on both (dropped and reported)."
+  }
+}

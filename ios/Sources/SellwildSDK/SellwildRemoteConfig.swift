@@ -40,36 +40,69 @@ public enum SellwildSDK {
         timeout: TimeInterval = 5.0,
         overrides: ((inout SellwildConfig) -> Void)? = nil
     ) async -> SellwildConfig {
+        await configure(partnerCode: partnerCode, slug: slug, timeout: timeout, overrides: overrides, environment: environment)
+    }
+
+    /// What the public `configure` talks to: `live`, unless a test swaps it
+    /// for a stub session, its own events client and a recording bootstrap.
+    static var environment = ConfigureEnvironment.live
+
+    /// What `configure` talks to. Partners always get `live`; tests inject a
+    /// stub session, their own events client and a no-op bootstrap.
+    struct ConfigureEnvironment {
+        var session: URLSession
+        /// `URL(string:)`. Before iOS 17 it returns nil for some partner codes
+        /// and slugs; later versions percent-encode them instead.
+        var makeURL: (String) -> URL?
+        /// Gets the partner code and events kill switch at configure time.
+        var events: SellwildAPIClient
+        /// Runs on the main actor once the config is final. The live one
+        /// starts GMA and Prebid Mobile (`SellwildPrebidMobile.bootstrap`).
+        var bootstrap: (SellwildConfig) -> Bool
+
+        static var live: ConfigureEnvironment {
+            ConfigureEnvironment(
+                session: .shared,
+                makeURL: { URL(string: $0) },
+                events: .shared,
+                bootstrap: SellwildPrebidMobile.bootstrap(with:)
+            )
+        }
+    }
+
+    static func configure(
+        partnerCode: String,
+        slug: String,
+        timeout: TimeInterval,
+        overrides: ((inout SellwildConfig) -> Void)?,
+        environment: ConfigureEnvironment
+    ) async -> SellwildConfig {
         var config = SellwildConfig(partnerCode: partnerCode)
 
-        let url = URL(string:
-            "https://widget.sellwild.com/app/\(partnerCode)/\(slug).json"
-        )!
+        // Partner attribution first, so a failure of the fetch below carries
+        // the partner, and so does every event sent before any ad view exists.
+        SellwildFailures.setContext { $0.partnerCode = partnerCode }
+        environment.events.partnerCode = partnerCode
 
-        var request = URLRequest(url: url)
-        request.timeoutInterval = timeout
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        // Version beacon: fires on every config fetch (independent of the events
-        // kill switch) and lands in CloudFront cs(User-Agent) logs for an
-        // installed-base census.
-        request.setValue("SellwildSDK/\(sdkVersion) (ios)", forHTTPHeaderField: "User-Agent")
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse,
-               (200..<300).contains(http.statusCode),
-               let raw = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                config = apply(raw, to: config)
+        let urlString = configURLString(partnerCode: partnerCode, slug: slug)
+        if let url = environment.makeURL(urlString) {
+            let request = configRequest(url: url, timeout: timeout)
+            if let fetched = await fetchRemoteConfig(request, session: environment.session) {
+                config = apply(fetched.raw, to: config)
                 // Stash the raw payload so unmapped CDN keys (new bidders,
                 // forward-compatible settings) stay readable via remoteValues
                 // without an SDK release.
-                config.remoteJSON = data
+                config.remoteJSON = fetched.data
             }
-        } catch {
-            // Silent fallback — config retains defaults.
+        } else {
+            // Before iOS 17, URL(string:) rejects some partner codes and slugs.
+            // Keep the defaults, as for any other config failure.
+            SellwildFailures.log(code: .configUrlInvalid, component: .configure, severity: .fatal,
+                                 message: "remote config URL could not be built", url: urlString)
         }
 
         overrides?(&config)
+        applyRuntimeFlags(config, events: environment.events)
 
         // Bootstrap PrebidMobile + GMA SDK as soon as we have a config. This
         // is idempotent — only the first call performs initialization, every
@@ -79,9 +112,106 @@ public enum SellwildSDK {
         // ...on the main actor: GMA `MobileAds.start`, Prebid `initializeSDK`, and
         // `Targeting` mutations are main-thread-sensitive, but this continuation
         // can resume off-main after the URLSession await above.
-        await MainActor.run { SellwildPrebidMobile.bootstrap(with: config) }
+        let bootstrap = environment.bootstrap
+        let configured = config
+        _ = await MainActor.run { bootstrap(configured) }
 
-        return config
+        return configured
+    }
+
+    /// Where a partner's app config lives on the CDN (pure).
+    static func configURLString(partnerCode: String, slug: String) -> String {
+        "https://widget.sellwild.com/app/\(partnerCode)/\(slug).json"
+    }
+
+    /// The config GET (pure): no local cache, and the SDK version in the
+    /// User-Agent. That version beacon fires on every config fetch
+    /// (independent of the events kill switch) and lands in CloudFront
+    /// cs(User-Agent) logs for an installed-base census.
+    static func configRequest(url: URL, timeout: TimeInterval) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("SellwildSDK/\(sdkVersion) (ios)", forHTTPHeaderField: "User-Agent")
+        return request
+    }
+
+    /// GETs the remote config. Returns the payload, or nil after reporting
+    /// why not; either way `configure` keeps the defaults for what is missing
+    /// and does not report it again.
+    static func fetchRemoteConfig(
+        _ request: URLRequest,
+        session: URLSession
+    ) async -> (raw: [String: Any], data: Data)? {
+        let url = request.url?.absoluteString
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            reportFetchError(error, url: url)
+            return nil
+        }
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            // A missing config answers 403 AccessDenied XML, not 404.
+            let status = (response as? HTTPURLResponse)?.statusCode
+            SellwildFailures.log(code: .configFetchHttp, component: .remoteConfig,
+                                 message: status.map { "HTTP \($0)" } ?? "not an HTTP response",
+                                 httpStatus: status, url: url)
+            return nil
+        }
+        let json: Any
+        do {
+            json = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            SellwildFailures.log(code: .configFetchParse, component: .remoteConfig, error: error, url: url)
+            return nil
+        }
+        guard let raw = json as? [String: Any] else {
+            SellwildFailures.log(code: .configParseInvalid, component: .remoteConfig,
+                                 message: "remote config is not a JSON object", url: url)
+            return nil
+        }
+        return (raw, data)
+    }
+
+    private static func reportFetchError(_ error: Error, url: String?) {
+        switch SellwildLoadFailure.transport(error) {
+        case .cancelled:
+            // The caller cancelled the configure task: not a failure.
+            SellwildLog.debug("[SellwildSDK] remote config fetch cancelled")
+        case .timeout:
+            SellwildFailures.log(code: .configFetchTimeout, component: .remoteConfig, error: error, url: url)
+        case .network:
+            SellwildFailures.log(code: .configFetchNetwork, component: .remoteConfig, error: error, url: url)
+        }
+    }
+
+    /// Applies what the SDK needs before any ad view exists (today
+    /// `SellwildAdView` also sets the first two when it is created): partner
+    /// attribution and the events kill switch on the events client, and the
+    /// failure context and debug flag. The failure flags stay raw; the pure
+    /// core coerces them (FAILURES.md 5.3, 5.4).
+    static func applyRuntimeFlags(_ config: SellwildConfig, events: SellwildAPIClient) {
+        let remote = config.remoteValues
+        events.partnerCode = config.partnerCode
+        events.eventsEnabled = SellwildEvents.isEnabled(remoteValues: remote)
+        SellwildFailures.setContext {
+            $0.partnerCode = config.partnerCode
+            $0.debug = config.debug
+            $0.eventsEnabled = remote?["EVENTS_ENABLED"]
+            $0.failuresEnabled = remote?["FAILURES_ENABLED"]
+            $0.failuresSampleRate = remote?["FAILURES_SAMPLE_RATE"]
+        }
+        SellwildLog.isEnabled = config.debug
+    }
+
+    /// IAB_CATS as a list. It ships as an array OR a string: one value ("IAB15")
+    /// or comma-separated ("IAB15,IAB19"). Entries are trimmed and blanks
+    /// dropped. nil for any other value, which leaves the base value.
+    static func iabCats(_ value: Any?) -> [String]? {
+        let items = (value as? [String]) ?? (value as? String)?.components(separatedBy: ",")
+        return items?.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
 
     /// Maps CONSTANT_CASE CDN keys onto the corresponding `SellwildConfig`
@@ -98,7 +228,9 @@ public enum SellwildSDK {
         if let v = raw["CODE"]      as? String { c.partnerCode = v }
         if let v = raw["SLUG"]      as? String { c.slug = v }
         if let v = raw["NAME"]      as? String { c.name = v }
-        if let v = raw["LISTINGS"]  as? String { c.listingsUrl = v }
+        // '' is how the CMS writes "unset" (the real antengo config ships it):
+        // keep the partner's URL or the default cache, never an empty URL.
+        if let v = raw["LISTINGS"]  as? String, !v.isEmpty { c.listingsUrl = v }
 
         // Display
         if let v = raw["TITLE"]            as? String   { c.title = v }
@@ -165,13 +297,7 @@ public enum SellwildSDK {
         // Compliance
         if let v = raw["GPP_ENABLED"] as? Bool     { c.gppEnabled = v }
         if let v = raw["TCF_VERSION"] as? Int      { c.tcfVersion = v }
-        // IAB_CATS ships as an array OR a string — one value ("IAB15") or
-        // comma-separated ("IAB15,IAB19"). Trim entries and drop blanks.
-        let rawCats: [String]? = (raw["IAB_CATS"] as? [String])
-            ?? (raw["IAB_CATS"] as? String)?.components(separatedBy: ",")
-        if let v = rawCats {
-            c.iabCats = v.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        }
+        if let v = iabCats(raw["IAB_CATS"]) { c.iabCats = v }
 
         // Mobile ad controls
         if let v = raw["ENABLE_INTERSTITIAL"]         as? Bool { c.enableInterstitial = v }

@@ -130,6 +130,7 @@ public struct SellwildFeed: UIViewRepresentable {
 
 // MARK: - Preview
 
+// sellwild-coverage:exclude-begin(preview) Xcode previews run this; the app and the tests never do.
 @available(iOS 14, *)
 struct SellwildFeed_Previews: PreviewProvider {
     static var previews: some View {
@@ -142,5 +143,6 @@ struct SellwildFeed_Previews: PreviewProvider {
             .previewLayout(.sizeThatFits)
     }
 }
+// sellwild-coverage:exclude-end
 
 #endif

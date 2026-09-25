@@ -1,5 +1,8 @@
 import { SellwildConfig, AdStack } from './types'
 import { WIDGET_BASE_URL, SDK_VERSION } from './config'
+import { logFailure, logFailuresWithFlags, type LogFailureInput } from './failures'
+import { coerceFlag, coerceRate, parseRate } from './failures/core'
+import { jsonKind, parseErrorName } from './json-kind'
 
 /**
  * Remote config — fetches app config JSON from the CDN.
@@ -117,6 +120,10 @@ const KEY_MAP: Record<string, keyof SellwildConfig> = {
 
   // Analytics kill switch
   EVENTS_ENABLED: 'eventsEnabled',
+
+  // clientFailure kill switch and session sample rate (contracts/FAILURES.md 10)
+  FAILURES_ENABLED: 'failuresEnabled',
+  FAILURES_SAMPLE_RATE: 'failuresSampleRate',
 }
 
 // ── Transform ───��───────────────────────────────────────────────────────────
@@ -129,18 +136,77 @@ const KEY_MAP: Record<string, keyof SellwildConfig> = {
  *  - The raw payload is stashed on `remote` so unknown / forward-compatible
  *    keys (e.g. new bidders the CMS adds after the SDK ships) stay readable
  *    without an SDK release.
+ *
+ * Pure: it does not report the values it had to ignore or coerce.
+ * mapRemoteConfigWithIssues returns those too, and fetchRemoteConfig reports
+ * them.
  */
 export function mapRemoteConfig(raw: Record<string, unknown>): Partial<SellwildConfig> {
+  return mapRemoteConfigWithIssues(raw).config
+}
+
+/** A mapped remote config and the failures found while mapping it. */
+export interface RemoteConfigMapping {
+  config: Partial<SellwildConfig>
+  /**
+   * One report per CDN key whose value was ignored or coerced:
+   * config.adstack.invalid (AD_STACK, AD_STACK_BY_ZONE) and
+   * config.field.invalid (IAB_CATS, EVENTS_ENABLED, FAILURES_ENABLED,
+   * FAILURES_SAMPLE_RATE). For the caller to report under the config's own
+   * EVENTS_ENABLED, FAILURES_ENABLED and FAILURES_SAMPLE_RATE
+   * (FAILURES.md 10.1).
+   */
+  issues: LogFailureInput[]
+}
+
+/** mapRemoteConfig, plus the values it had to ignore or coerce. Pure. */
+export function mapRemoteConfigWithIssues(raw: Record<string, unknown>): RemoteConfigMapping {
   const mapped: Record<string, unknown> = { remote: raw }
+  const issues: LogFailureInput[] = []
 
   for (const [cdnKey, value] of Object.entries(raw)) {
     const configKey = KEY_MAP[cdnKey]
     if (configKey !== undefined && value !== undefined && value !== null && value !== '') {
+      const problem = configValueProblem(configKey, value)
+      if (problem) issues.push({ code: problem.code, component: 'remoteConfig', severity: 'warn', message: `${cdnKey} ${problem.text}` })
       mapped[configKey] = coerceConfigValue(configKey, value)
     }
   }
 
-  return mapped as Partial<SellwildConfig>
+  return { config: mapped as Partial<SellwildConfig>, issues }
+}
+
+type ConfigValueProblem = { code: 'config.adstack.invalid' | 'config.field.invalid'; text: string }
+
+// Why coerceConfigValue has to ignore or coerce a value, or null when it
+// reads it as sent. The text follows the CDN key in the report and never
+// holds the value itself.
+function configValueProblem(configKey: string, value: unknown): ConfigValueProblem | null {
+  const field = (text: string): ConfigValueProblem => ({ code: 'config.field.invalid', text })
+  const adstack = (text: string): ConfigValueProblem => ({ code: 'config.adstack.invalid', text })
+  switch (configKey) {
+    case 'eventsEnabled':
+    case 'failuresEnabled':
+      return ['boolean', 'number', 'string'].includes(typeof value) ? null : field(`is ${jsonKind(value)}, read as on`)
+    case 'failuresSampleRate':
+      // A number outside 0..1 is not an issue: the app-config contract allows
+      // it and says the client clamps it (FAILURES.md 5.4). Above 1 reads as
+      // 1, every session. Below 0 reads as 0, which samples out every
+      // non-fatal report, this one included, so it could never be sent.
+      return parseRate(value) === null ? field('is not a number or decimal text, read as 1') : null
+    case 'iabCats':
+      return Array.isArray(value) || typeof value === 'string' ? null : field(`is ${jsonKind(value)}, read as []`)
+    case 'adStack':
+      return parseAdStack(value) ? null : adstack(typeof value === 'string' ? 'is not a known mode, read as unset' : `is ${jsonKind(value)}, read as unset`)
+    case 'adStackByZone': {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return adstack(`is ${jsonKind(value)}, not a map, read as unset`)
+      const modes = Object.values(value as Record<string, unknown>)
+      const unknown = modes.filter((mode) => !parseAdStack(mode)).length
+      return unknown === 0 ? null : adstack(`has ${unknown} of ${modes.length} zones with an unknown mode, dropped`)
+    }
+    default:
+      return null
+  }
 }
 
 /**
@@ -151,16 +217,16 @@ export function mapRemoteConfig(raw: Record<string, unknown>): Partial<SellwildC
  * downstream code can rely on the typed contract.
  */
 function coerceConfigValue(configKey: string, value: unknown): unknown {
-  if (configKey === 'eventsEnabled') {
-    // Kill switch: enabled unless the CMS ships an explicitly falsy value.
+  if (configKey === 'eventsEnabled' || configKey === 'failuresEnabled') {
+    // Kill switches: enabled unless the CMS ships an explicitly falsy value.
     // The CMS may store booleans as real JSON booleans OR strings, so coerce
-    // both. Anything else (unexpected shape) leaves events ON.
-    if (typeof value === 'boolean') return value
-    if (typeof value === 'number') return value !== 0
-    if (typeof value === 'string') {
-      return !['false', '0', 'no', 'off'].includes(value.trim().toLowerCase())
-    }
-    return true
+    // both (contracts/FAILURES.md 5.3: false/0/no/off, ASCII trim and case).
+    // Anything else (unexpected shape) leaves them ON.
+    return coerceFlag(value, true)
+  }
+  if (configKey === 'failuresSampleRate') {
+    // A number or decimal text clamped to 0..1; anything else is 1 (FAILURES.md 5.4).
+    return coerceRate(value)
   }
   if (configKey === 'iabCats') {
     if (Array.isArray(value)) return value
@@ -244,6 +310,33 @@ export interface RemoteConfigOptions {
   timeout?: number
 }
 
+/** The CDN URL of an app config: `{baseUrl}/app/{partnerCode}/{slug}.json`. Pure. */
+export function buildRemoteConfigUrl(baseUrl: string, partnerCode: string, slug: string): string {
+  return `${baseUrl}/app/${partnerCode}/${slug}.json`
+}
+
+/**
+ * The config fetch headers: the `SellwildSDK/<version> (react-native)`
+ * User-Agent version beacon (see fetchRemoteConfig). Pure.
+ */
+export function remoteConfigHeaders(sdkVersion: string): Record<string, string> {
+  return { 'User-Agent': `SellwildSDK/${sdkVersion} (react-native)` }
+}
+
+/**
+ * Which failure a config fetch or body read that rejected reports: the
+ * timeout when it fired, nothing (null) for a caller abort, which is not a
+ * failure, else `code`. Pure.
+ */
+export function classifyFetchError<C extends 'config.fetch.network' | 'config.fetch.parse'>(
+  code: C,
+  timedOut: boolean,
+  callerAborted: boolean,
+): C | 'config.fetch.timeout' | null {
+  if (timedOut) return 'config.fetch.timeout'
+  return callerAborted ? null : code
+}
+
 /** Cache of fetched remote configs keyed by slug */
 const remoteConfigCache = new Map<string, Partial<SellwildConfig>>()
 
@@ -257,28 +350,77 @@ const remoteConfigCache = new Map<string, Partial<SellwildConfig>>()
  *
  * On failure (network error, 404, timeout) returns an empty object so the SDK
  * falls back to its static defaults — remote config is additive, never blocking.
+ * Each failure is reported once with logFailure (config.fetch.*,
+ * config.parse.invalid), and so is each CDN value that had to be ignored or
+ * coerced (config.adstack.invalid, config.field.invalid; see
+ * mapRemoteConfigWithIssues). A caller abort is not a failure and is not
+ * reported.
+ *
+ * The value reports honor the fetched config's own EVENTS_ENABLED,
+ * FAILURES_ENABLED and FAILURES_SAMPLE_RATE (FAILURES.md 10.1) as well as
+ * the failure context's: each goes out only when both allow it
+ * (logFailuresWithFlags). The failure context does not change, so fetching a
+ * config never turns reports on or off for anything else. configure() does
+ * not call this; it applies the whole config, overrides included, to the
+ * context and then reports the same issues.
  */
 export async function fetchRemoteConfig(
   partnerCode: string,
   slug: string,
   options: RemoteConfigOptions = {}
 ): Promise<Partial<SellwildConfig>> {
+  const { config, issues } = await fetchRemoteConfigWithIssues(partnerCode, slug, options)
+  logFailuresWithFlags(
+    { eventsEnabled: config.eventsEnabled, failuresEnabled: config.failuresEnabled, failuresSampleRate: config.failuresSampleRate },
+    issues,
+  )
+  return config
+}
+
+/**
+ * fetchRemoteConfig, but the CMS values it had to ignore or coerce come back
+ * as `issues` (each with the config URL) instead of being reported, so the
+ * caller can report them once the config's own kill switches are applied
+ * (FAILURES.md 10.1). A failure to load the config is still reported here:
+ * no config flags exist yet, and unset flags mean on (FAILURES.md 3.2).
+ * A cached config comes back with no issues: they went out with the fetch
+ * that loaded it.
+ */
+export async function fetchRemoteConfigWithIssues(
+  partnerCode: string,
+  slug: string,
+  options: RemoteConfigOptions = {}
+): Promise<RemoteConfigMapping> {
   const cacheKey = `${partnerCode}/${slug}`
   if (remoteConfigCache.has(cacheKey)) {
-    return remoteConfigCache.get(cacheKey)!
+    return { config: remoteConfigCache.get(cacheKey)!, issues: [] }
   }
 
-  const baseUrl = options.baseUrl || WIDGET_BASE_URL
-  const url = `${baseUrl}/app/${partnerCode}/${slug}.json`
+  const url = buildRemoteConfigUrl(options.baseUrl || WIDGET_BASE_URL, partnerCode, slug)
   const timeout = options.timeout ?? 5000
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeout)
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeout)
 
   // Combine external signal with timeout
   if (options.signal) {
     options.signal.addEventListener('abort', () => controller.abort())
   }
+
+  // A fetch or body read that rejected, reported as classifyFetchError says.
+  const failed = (failure: { code: 'config.fetch.network' | 'config.fetch.parse'; error: unknown; message?: string }): void => {
+    const code = classifyFetchError(failure.code, timedOut, options.signal?.aborted === true)
+    if (code === 'config.fetch.timeout') {
+      logFailure({ code, component: 'remoteConfig', message: `no answer in ${timeout} ms`, url })
+    } else if (code !== null) {
+      logFailure({ ...failure, code, component: 'remoteConfig', url })
+    }
+  }
+  const empty = (): RemoteConfigMapping => ({ config: {}, issues: [] })
 
   try {
     // Version beacon: a `SellwildSDK/<version> (react-native)` User-Agent fires
@@ -286,19 +428,42 @@ export async function fetchRemoteConfig(
     // CloudFront cs(User-Agent) logs for an installed-base census. RN honors the
     // custom UA; browsers ignore it (web is out of scope for app census). No
     // query params — that would fragment the CloudFront cache.
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': `SellwildSDK/${SDK_VERSION} (react-native)` },
-    })
-    if (!res.ok) return {}
+    let res: Response
+    try {
+      res = await fetch(url, {
+        signal: controller.signal,
+        headers: remoteConfigHeaders(SDK_VERSION),
+      })
+    } catch (error) {
+      // Network error, timeout or caller abort — fall back to static config
+      failed({ code: 'config.fetch.network', error })
+      return empty()
+    }
+    if (!res.ok) {
+      // A missing config answers 403 AccessDenied XML (contracts/samples).
+      logFailure({ code: 'config.fetch.http', component: 'remoteConfig', message: `HTTP ${res.status}`, httpStatus: res.status, url })
+      return empty()
+    }
 
-    const raw = await res.json() as Record<string, unknown>
-    const config = mapRemoteConfig(raw)
+    let raw: unknown
+    try {
+      raw = await res.json()
+    } catch (error) {
+      // Only the error's name is sent: its message quotes part of the body.
+      failed({ code: 'config.fetch.parse', message: 'config body is not JSON', error: parseErrorName(error) })
+      return empty()
+    }
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      logFailure({ code: 'config.parse.invalid', component: 'remoteConfig', message: `config JSON is ${jsonKind(raw)}`, url })
+      // mapRemoteConfig(null) throws, which always fell back to {}. Other
+      // values still map as they always have.
+      if (raw === null) return empty()
+    }
+    const { config, issues } = mapRemoteConfigWithIssues(raw as Record<string, unknown>)
+    // Values the CMS sent that had to be ignored or coerced, for the caller
+    // to report. Once per fetch: the mapped config is cached.
     remoteConfigCache.set(cacheKey, config)
-    return config
-  } catch {
-    // Network error or timeout — fall back to static config
-    return {}
+    return { config, issues: issues.map((issue) => ({ ...issue, url })) }
   } finally {
     clearTimeout(timer)
   }

@@ -13,19 +13,92 @@
 package com.sellwild.sdk
 
 import android.content.Context
-import android.util.Log
+import android.os.Bundle
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.admanager.AdManagerAdRequest
 import com.google.android.gms.ads.admanager.AdManagerAdView
-import org.json.JSONObject
 import com.sellwild.prebid.BannerAdUnit
 import com.sellwild.prebid.BannerParameters
+import com.sellwild.prebid.ExternalUserId
+import com.sellwild.prebid.NativeAdUnit
 import com.sellwild.prebid.OnCompleteListener
-import com.sellwild.prebid.SellwildPrebid
+import com.sellwild.prebid.PrebidNativeAd
 import com.sellwild.prebid.ResultCode
+import com.sellwild.prebid.SellwildPrebid
 import com.sellwild.prebid.Signals
 import com.sellwild.prebid.TargetingParams
-import com.sellwild.prebid.ExternalUserId
+import com.sellwild.prebid.api.data.InitializationStatus
+import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView
+import com.sellwild.sdk.core.PrebidSetup
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
+import com.sellwild.sdk.failures.SellwildFailures
+import com.sellwild.sdk.failures.SellwildLog
+import org.json.JSONObject
+
+/**
+ * The GMA and Prebid fork calls that need a device or the network. Everything around them
+ * (building ad units and requests, reading results, deciding what is a failure) is SDK code
+ * that runs in unit tests; only these calls are swapped for a fake there
+ * ([SellwildPrebidMobile.network]). [LiveAdNetwork] is the real one.
+ */
+internal interface SellwildAdNetwork {
+    /** MobileAds.initialize. */
+    fun initializeGma(context: Context)
+
+    /** SellwildPrebid.initializeSdk; [onStatus] gets how it finished. */
+    fun initializePrebid(context: Context, hostUrl: String, onStatus: (InitializationStatus?) -> Unit)
+
+    /** AdManagerAdView.loadAd: a GAM ad request. */
+    fun loadGam(view: AdManagerAdView, request: AdManagerAdRequest)
+
+    /** BannerAdUnit.fetchDemand: the .both Prebid auction, which puts its targeting on [request]. */
+    fun fetchBannerDemand(unit: BannerAdUnit, request: AdManagerAdRequest, onResult: (ResultCode) -> Unit)
+
+    /** BannerView.loadAd: a Prebid-rendered (.prebidOnly) auction and render. */
+    fun loadRendering(view: PrebidBannerView)
+
+    /** NativeAdUnit.fetchDemand: the native auction, which writes the winning cache id into [adObject]. */
+    fun fetchNativeDemand(unit: NativeAdUnit, adObject: Bundle, onResult: (ResultCode) -> Unit)
+
+    /** PrebidNativeAd.create: the won native ad for [cacheId], or null. */
+    fun nativeAd(cacheId: String): NativeAdContent?
+}
+
+/**
+ * The real [SellwildAdNetwork]: one call each into GMA or the Prebid fork. Excluded from the
+ * coverage gate (A10: third-party SDK calls that need a device or the network), so it holds
+ * nothing but those calls.
+ */
+internal object LiveAdNetwork : SellwildAdNetwork {
+    override fun initializeGma(context: Context) {
+        // Nothing waits on GMA's completion: its ad requests queue until it is up.
+        MobileAds.initialize(context) { }
+    }
+
+    override fun initializePrebid(context: Context, hostUrl: String, onStatus: (InitializationStatus?) -> Unit) {
+        SellwildPrebid.initializeSdk(context, hostUrl) { status -> onStatus(status) }
+    }
+
+    override fun loadGam(view: AdManagerAdView, request: AdManagerAdRequest) {
+        view.loadAd(request)
+    }
+
+    override fun fetchBannerDemand(unit: BannerAdUnit, request: AdManagerAdRequest, onResult: (ResultCode) -> Unit) {
+        unit.fetchDemand(request, OnCompleteListener { result -> onResult(result) })
+    }
+
+    override fun loadRendering(view: PrebidBannerView) {
+        view.loadAd()
+    }
+
+    override fun fetchNativeDemand(unit: NativeAdUnit, adObject: Bundle, onResult: (ResultCode) -> Unit) {
+        unit.fetchDemand(adObject, OnCompleteListener { result -> onResult(result) })
+    }
+
+    override fun nativeAd(cacheId: String): NativeAdContent? = PrebidNativeAd.create(cacheId)?.let(::PrebidNativeContent)
+}
 
 /**
  * Bootstrap + auction bridge for Prebid Mobile + GMA.
@@ -40,7 +113,6 @@ import com.sellwild.prebid.ExternalUserId
  */
 object SellwildPrebidMobile {
 
-    private const val TAG = "SellwildPrebidMobile"
     private const val DEFAULT_PREBID_ENDPOINT = "https://prebid.sellwild.com/openrtb2/auction"
     private const val DEFAULT_TIMEOUT_MS = 1500
 
@@ -55,6 +127,10 @@ object SellwildPrebidMobile {
     // applyGlobalOrtb() re-emits both in one combined config (setGeo updates geo).
     @Volatile private var resolvedPublisherId: String? = null
     @Volatile private var resolvedCats: List<String>? = null
+
+    /** Where the GMA and Prebid calls that need a device or the network go. Tests install a fake. */
+    @Volatile
+    internal var network: SellwildAdNetwork = LiveAdNetwork
 
     // Last per-config fields applied by bootstrap (guarded by `lock`), so a later
     // bootstrap with a different effective config can re-apply them.
@@ -84,10 +160,10 @@ object SellwildPrebidMobile {
         synchronized(lock) {
             // Parse remoteJson ONCE per bootstrap — the S2S_CONFIG and top-level
             // PUBLISHER_ID/SELLER_ID lookups share it, and each parse allocates a
-            // fresh JSONObject tree over what can be a multi-KB blob.
-            val remoteRoot = config.remoteJson?.let {
-                runCatching { JSONObject(it) }.getOrNull()
-            }
+            // fresh JSONObject tree over what can be a multi-KB blob. Text that does
+            // not parse is reported once (config.remote_values.parse) and every
+            // resolver falls back.
+            val remoteRoot = remoteObject(config.remoteJson)
             val specified = perConfigFields(config, remoteRoot)
             if (didBootstrap) {
                 // Only fields this config actually specifies overwrite; absent
@@ -102,13 +178,15 @@ object SellwildPrebidMobile {
                 }
                 return true
             }
+            config.claimFailurePartner()
+            val appContext = context.applicationContext
 
             // GMA first — Prebid hands off to GAM, GAM must be live before any
             // ad request runs. start() is idempotent on the GMA side too.
             try {
-                MobileAds.initialize(context.applicationContext) { /* no-op */ }
+                network.initializeGma(appContext)
             } catch (e: Throwable) {
-                Log.w(TAG, "MobileAds.initialize threw: ${e.message}")
+                logInit(SellwildFailureCode.AD_GMA_INIT_EXCEPTION, e)
             }
 
             val fields = specified.overlaying(
@@ -116,7 +194,7 @@ object SellwildPrebidMobile {
                     serverUrl = DEFAULT_PREBID_ENDPOINT,
                     accountId = config.partnerCode,
                     timeout = DEFAULT_TIMEOUT_MS,
-                )
+                ),
             )
             SellwildPrebid.setShareGeoLocation(true)
             if (config.debug) {
@@ -131,28 +209,47 @@ object SellwildPrebidMobile {
             // combined global ORTB emit. The host is set by initializeSdk below.
             applyPerConfigFields(fields, updateHost = false)
 
+            val hostUrl = fields.serverUrl ?: DEFAULT_PREBID_ENDPOINT
             try {
-                SellwildPrebid.initializeSdk(
-                    context.applicationContext,
-                    fields.serverUrl ?: DEFAULT_PREBID_ENDPOINT,
-                ) { status ->
-                    Log.d(TAG, "SellwildPrebid.initializeSdk status: $status")
-                    // Ready = the init completion fired at all (init finished),
-                    // NOT an exact status-token match. Matching "SUCCEEDED" was
-                    // brittle: if the shaded fork renames that enum token, the
-                    // flag would never flip true and EVERY .both auction would
-                    // silently fall back to GAM-only — total Prebid-demand loss.
-                    // A genuinely failed init self-corrects: the auction runs,
-                    // Prebid misses, and it falls back to GAM anyway.
-                    prebidReady = true
-                }
+                network.initializePrebid(appContext, hostUrl, ::onPrebidInitialized)
             } catch (e: Throwable) {
-                Log.e(TAG, "SellwildPrebid.initializeSdk threw", e)
+                logInit(SellwildFailureCode.AD_PREBID_INIT_EXCEPTION, e, url = hostUrl)
             }
 
             didBootstrap = true
             return true
         }
+    }
+
+    /**
+     * Prebid init finished. Ready = the completion fired at all, NOT an exact status match:
+     * matching "SUCCEEDED" was brittle (a renamed fork token would leave every .both auction
+     * on GAM only, total Prebid-demand loss), and a genuinely failed init self-corrects: the
+     * auction runs, misses, and GAM serves. A status other than SUCCEEDED is reported
+     * (ad.prebid_init.invalid).
+     */
+    internal fun onPrebidInitialized(status: InitializationStatus?) {
+        SellwildLog.debug { "SellwildPrebid.initializeSdk status: $status" }
+        prebidReady = true
+        PrebidSetup.initStatus(status?.name, status?.description)?.let { listOf(it).report() }
+    }
+
+    private fun logInit(code: String, error: Throwable, url: String? = null) {
+        SellwildFailures.log(
+            code = code,
+            component = SellwildFailureComponent.BANNER,
+            severity = SellwildFailureSeverity.FATAL,
+            error = error,
+            url = url,
+        )
+    }
+
+    /**
+     * Reports a Prebid auction result that is a failure other than no bids or a timeout
+     * without bids (ad.prebid_auction.invalid). No-bid stays unreported: adError covers it.
+     */
+    internal fun reportAuction(result: ResultCode, component: String, zoneId: String?) {
+        PrebidSetup.auctionResult(result.name, component, zoneId)?.let { listOf(it).report() }
     }
 
     /**
@@ -206,12 +303,14 @@ object SellwildPrebidMobile {
         ortbExtJson(bidderParams, gpid)?.let { unit.setImpOrtbConfig(it) }
 
         val request = AdManagerAdRequest.Builder().build()
-        unit.fetchDemand(request, OnCompleteListener { result ->
+        val net = network
+        net.fetchBannerDemand(unit, request) { result ->
             // Whether or not Prebid won, always trigger GAM load so GAM's own
             // demand can fill on no-bid.
-            adView.loadAd(request)
+            net.loadGam(adView, request)
+            reportAuction(result, SellwildFailureComponent.BANNER, configId)
             completion?.invoke(result)
-        })
+        }
     }
 
     /**
@@ -265,21 +364,8 @@ object SellwildPrebidMobile {
      * single object.
      */
     private fun applyGlobalOrtb() {
-        val root = JSONObject()
-        val app = JSONObject()
-        resolvedPublisherId?.takeIf { it.isNotEmpty() }?.let { pid ->
-            app.put("publisher", JSONObject().apply { put("id", pid) })
-        }
-        resolvedCats?.takeIf { it.isNotEmpty() }?.let { cats ->
-            app.put("cat", org.json.JSONArray(cats))
-        }
-        if (app.length() > 0) root.put("app", app)
-        SellwildGeoStore.current?.toOrtbGeo()?.let { geo ->
-            root.put("device", JSONObject().apply { put("geo", geo) })
-        }
-        if (root.length() > 0) {
-            TargetingParams.setGlobalOrtbConfig(root.toString())
-        }
+        PrebidSetup.globalOrtb(resolvedPublisherId, resolvedCats, SellwildGeoStore.current?.toOrtbGeo())
+            ?.let { TargetingParams.setGlobalOrtbConfig(it) }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
@@ -417,11 +503,15 @@ object SellwildPrebidMobile {
     internal fun ortbExtJson(params: Map<String, Any?>, gpid: String? = null): String? =
         SellwildGpid.impExtJson(gpid, params)
 
-    // Test-only seam to reset the bootstrap latch.
+    /** Resets the bootstrap latch, readiness, what bootstrap resolved and [network]. Tests only. */
     internal fun resetForTesting() {
         synchronized(lock) {
             didBootstrap = false
+            prebidReady = false
+            resolvedPublisherId = null
+            resolvedCats = null
             appliedFields = null
+            network = LiveAdNetwork
         }
     }
 }

@@ -87,6 +87,13 @@ class SellwildHouseAdTest {
     }
 
     @Test
+    fun `pickListing falls back to the photo listings, not every listing, when all of them are shown`() {
+        val ls = listOf(listing("a", "https://x/a.jpg"), listing("b"), listing("c", "https://x/c.jpg"))
+        // "a" and "c" are shown elsewhere; the photoless "b" is still never picked.
+        assertEquals(listOf("a", "c", "a", "c"), (0 until 4).map { SellwildHouseAd.pickListing(ls, it, setOf("a", "c"))?.id })
+    }
+
+    @Test
     fun `pickListing default excludeIds is unchanged`() {
         // No excludeIds argument at all — existing call sites/behavior untouched.
         val ls = listOf(listing("a", "https://x/a.jpg"), listing("b", "https://x/b.jpg"))

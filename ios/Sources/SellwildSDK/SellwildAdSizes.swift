@@ -24,12 +24,17 @@ enum SellwildAdSizes {
 
     /// Ordered, de-duplicated size set for a placement: `primary` first, then any
     /// remote `BANNER_SIZES` / `BANNER_SIZES_BY_ZONE` entries (per-zone overrides
-    /// global). Returns `[primary]` when nothing is configured.
+    /// global). Returns `[primary]` when nothing is configured. Remote entries
+    /// that do not parse, are not positive or do not fit an Int are dropped
+    /// and reported (`config.banner_sizes.invalid`). The ad view resolves its
+    /// sizes several times per load, so the same drop is reported once per
+    /// launch per zone.
     static func resolve(remoteValues: [String: Any]?, zoneId: String?, primary: CGSize) -> [CGSize] {
         var seen = Set<String>()
         var out: [CGSize] = []
         func add(_ s: CGSize) {
-            guard s.width > 0, s.height > 0 else { return }
+            // fitsAnInt: positive, and `Int(_:)` below cannot trap.
+            guard fitsAnInt(s.width), fitsAnInt(s.height) else { return }
             let key = "\(Int(s.width))x\(Int(s.height))"
             if seen.insert(key).inserted { out.append(s) }
         }
@@ -43,7 +48,13 @@ enum SellwildAdSizes {
         } else {
             raw = remoteValues?["BANNER_SIZES"]
         }
-        parseList(raw).forEach(add)
+        let parsed = parseSizes(raw)
+        parsed.sizes.forEach(add)
+        let message = "\(parsed.dropped) banner size entr\(parsed.dropped == 1 ? "y was" : "ies were") dropped"
+        if parsed.dropped > 0, SellwildReportOnce.first(.configBannerSizesInvalid, "\(zoneId ?? "")|\(message)") {
+            SellwildFailures.log(code: .configBannerSizesInvalid, component: .remoteConfig, severity: .warn,
+                                 message: message, zoneId: zoneId)
+        }
         return out
     }
 
@@ -94,20 +105,42 @@ enum SellwildAdSizes {
 
     // MARK: Parsing (pure)
 
-    private static func parseList(_ raw: Any?) -> [CGSize] {
+    /// The positive sizes in a remote size list, in order, and how many
+    /// entries were dropped because they do not parse, are not positive, or
+    /// are too large for an Int (the key `resolve` de-duplicates by; the
+    /// schema allows any run of digits, and "inf" is Double text).
+    /// Accepts a list, a JSON text of a list, or one "WxH" text. Absent, JSON
+    /// null and blank text ('' is the CMS's "unset") are an empty list, not a
+    /// drop. One "WxH" text is parsed as sent: each part is trimmed of spaces
+    /// only, so "300x250\n" is dropped, as it always was (drift/ios.json
+    /// `other`; Android trims line breaks too).
+    static func parseSizes(_ raw: Any?) -> (sizes: [CGSize], dropped: Int) {
+        let entries: [Any]
         switch raw {
+        case nil, is NSNull:
+            return ([], 0)
         case let arr as [Any]:
-            return arr.compactMap(parseOne)
+            entries = arr
         case let s as String:
-            // A JSON string (["300x250", ...]) or a single "300x250".
-            if let data = s.data(using: .utf8),
-               let arr = try? JSONSerialization.jsonObject(with: data) as? [Any] {
-                return arr.compactMap(parseOne)
-            }
-            return [parseOne(s)].compactMap { $0 }
+            if s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return ([], 0) }
+            entries = jsonList(s) ?? [s]
         default:
-            return []
+            return ([], 1)
         }
+        let sizes = entries.compactMap(parseOne).filter { fitsAnInt($0.width) && fitsAnInt($0.height) }
+        return (sizes, entries.count - sizes.count)
+    }
+
+    /// Positive, finite and below 2^63, so `Int(_:)` cannot trap on it.
+    private static func fitsAnInt(_ dimension: CGFloat) -> Bool {
+        dimension > 0 && dimension.isFinite && Double(dimension) < Double(Int.max)
+    }
+
+    /// `text` as a JSON list (["300x250", ...]), or nil when it is not one.
+    /// nil is not a failure here: one "WxH" text is not JSON, and text that
+    /// is neither is dropped as an entry that does not parse.
+    private static func jsonList(_ text: String) -> [Any]? {
+        (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [Any]
     }
 
     private static func parseOne(_ e: Any) -> CGSize? {
@@ -117,6 +150,9 @@ enum SellwildAdSizes {
             return CGSize(width: parts[0], height: parts[1])
         }
         if let pair = e as? [Any], pair.count == 2 {
+            // A JSON number is an NSNumber: `as? Double` reads it unless it is an
+            // integer a Double cannot hold exactly, then `as? Int`, and one too
+            // large for an Int is read through NSNumber.
             let nums = pair.compactMap { v -> Double? in
                 if let d = v as? Double { return d }
                 if let i = v as? Int { return Double(i) }

@@ -4,19 +4,16 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.net.Uri
-import android.os.Handler
-import android.os.Looper
 import android.util.AttributeSet
+import android.util.Base64
 import android.util.LruCache
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -25,6 +22,19 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.sellwild.sdk.core.AdDecisions
+import com.sellwild.sdk.core.AdFlags
+import com.sellwild.sdk.core.FeedColors
+import com.sellwild.sdk.core.FeedRow
+import com.sellwild.sdk.core.FeedSchedule
+import com.sellwild.sdk.core.FeedTheme
+import com.sellwild.sdk.core.Format
+import com.sellwild.sdk.core.HouseImages
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
+import com.sellwild.sdk.failures.SellwildFailures
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,7 +42,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import java.net.URL
 
 /**
  * All-in-one native feed surface. As of 1.4.0 this view renders a
@@ -151,7 +161,8 @@ open class SellwildFeedView @JvmOverloads constructor(
     private var lastReportedHeightDp: Int = -1
 
     private var config: SellwildConfig? = null
-    private var schedule: String = DEFAULT_SCHEDULE
+    private var schedule: String = FeedSchedule.DEFAULT
+    private var colors = FeedColors(FeedTheme.BACKGROUND, FeedTheme.TITLE, FeedTheme.POWERED_BY, FeedTheme.PRICE)
     private var listings: List<SellwildListing> = emptyList()
     // True once a fetch has succeeded (even with zero listings). Gates the
     // auto-reload on re-attach: a load cancelled by a detach (fast scroll) is
@@ -176,7 +187,9 @@ open class SellwildFeedView @JvmOverloads constructor(
 
     init {
         orientation = VERTICAL
-        layoutParams = layoutParams ?: LayoutParams(
+        // A view has no layout params while it is being constructed (a parent sets them
+        // when it adds the view), so this is the default until then.
+        layoutParams = LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT,
         )
@@ -217,25 +230,41 @@ open class SellwildFeedView @JvmOverloads constructor(
         listener?.onContentHeightChanged(this, heightDp)
     }
 
-    /** Attach a [SellwildConfig] without kicking off a fetch. */
+    /**
+     * Attach a [SellwildConfig] without kicking off a fetch. A CMS color that is not a color
+     * falls back and is reported once (config.color.invalid).
+     */
     fun setup(config: SellwildConfig) {
         this.config = config
-        this.schedule = (config.col1?.takeIf { it.isNotBlank() }
-            ?: DEFAULT_SCHEDULE).uppercase()
-        applyBackground(config)
+        config.claimFailurePartner()
+        schedule = FeedSchedule.normalize(config.col1)
+        colors = FeedTheme.resolve(config.priceColor, config.titleColor, config.linkColor, Color::parseColor)
+            .reportedOncePer(config.remoteJson)
+        setBackgroundColor(colors.background)
+        refreshLayout.setProgressBackgroundColorSchemeColor(colors.background)
         adapter.notifyDataSetChanged()
     }
 
-    /** Fetch listings and render the feed. */
+    /**
+     * Fetch listings and render the feed. A failed fetch was reported by the API client, so
+     * it only reaches [Listener.onError] here (FAILURES.md 9); a feed with no listings to show
+     * is reported (listings.result.missing).
+     */
     fun load() {
         val cfg = config ?: run {
+            SellwildFailures.log(
+                code = SellwildFailureCode.FEED_SETUP_MISSING,
+                component = SellwildFailureComponent.FEED,
+                severity = SellwildFailureSeverity.ERROR,
+                message = "load() called before setup()",
+            )
             listener?.onError("SellwildFeedView.load() called before setup()")
             return
         }
         loadJob?.cancel()
         loadJob = scope.launch {
             refreshLayout.isRefreshing = true
-            val client = SellwildAPIClient(context)
+            val client = apiClient(context)
             val result = client.fetchListings(cfg)
             result.onSuccess { response ->
                 // After the primary fetch, optionally disperse geo-based
@@ -245,7 +274,16 @@ open class SellwildFeedView @JvmOverloads constructor(
                 listings = applyLocalizedDispersion(cfg, client, response.listings)
                 refreshLayout.isRefreshing = false
                 loadSucceeded = true
-                adapter.rebuild()
+                if (listings.isEmpty()) {
+                    SellwildFailures.log(
+                        code = SellwildFailureCode.LISTINGS_RESULT_MISSING,
+                        component = SellwildFailureComponent.FEED,
+                        severity = SellwildFailureSeverity.WARN,
+                        message = "the feed got no listings",
+                        url = cfg.effectiveListingsUrl,
+                    )
+                }
+                adapter.rebuild(cfg)
                 listener?.onLoad()
                 // Reliable "listings bound" signal (count == 0 ⇒ empty/header-only).
                 listener?.onFeedReady(listings.size)
@@ -274,6 +312,7 @@ open class SellwildFeedView @JvmOverloads constructor(
         val url = SellwildLocalizedListings.buildCacheUrl(integration, state)
         return client.fetchCacheListings(url).fold(
             onSuccess = { secondary -> SellwildLocalizedListings.merge(primary, secondary, everyN) },
+            // SellwildAPIClient.fetchCacheListings already logged it (localized.*): log once.
             onFailure = { primary },
         )
     }
@@ -328,20 +367,12 @@ open class SellwildFeedView @JvmOverloads constructor(
     // ── Layout self-heal (default OFF; see [layoutSelfHeal]) ──────────────────
     private var selfHealListener: android.view.ViewTreeObserver.OnGlobalLayoutListener? = null
 
-    private fun isLayoutSelfHealEnabled(): Boolean {
-        if (layoutSelfHeal) return true
-        val obj = config?.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
-        if (!obj.has("MOBILE_LAYOUT_SELF_HEAL") || obj.isNull("MOBILE_LAYOUT_SELF_HEAL")) return false
-        return when (val v = obj.get("MOBILE_LAYOUT_SELF_HEAL")) {
-            is Boolean -> v
-            is Number -> v.toInt() != 0
-            is String -> v.lowercase() in setOf("1", "true", "yes", "on")
-            else -> false
-        }
-    }
+    private fun isLayoutSelfHealEnabled(): Boolean =
+        layoutSelfHeal || AdFlags.layoutSelfHeal(remoteObject(config?.remoteJson))
 
     private fun startLayoutSelfHealIfEnabled() {
-        if (selfHealListener != null || !isLayoutSelfHealEnabled()) return
+        if (!isLayoutSelfHealEnabled()) return
+        stopLayoutSelfHeal() // never two listeners
         val l = android.view.ViewTreeObserver.OnGlobalLayoutListener { healLayoutIfCollapsed() }
         selfHealListener = l
         viewTreeObserver.addOnGlobalLayoutListener(l)
@@ -358,11 +389,8 @@ open class SellwildFeedView @JvmOverloads constructor(
      * measure + layout to fill the parent. Converges once sized.
      */
     private fun healLayoutIfCollapsed() {
-        if (width != 0 && height != 0) return
         val p = parent as? View ?: return
-        val w = p.width
-        val h = p.height
-        if (w <= 0 || h <= 0) return
+        val (w, h) = AdDecisions.healedSize(width, height, p.width, p.height) ?: return
         measure(
             View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
             View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY),
@@ -370,115 +398,18 @@ open class SellwildFeedView @JvmOverloads constructor(
         layout(0, 0, w, h)
     }
 
-    private fun applyBackground(config: SellwildConfig) {
-        val bg = parseColor(config.priceColor, fallback = Color.parseColor("#0A1F3D"))
-        setBackgroundColor(bg)
-        refreshLayout.setProgressBackgroundColorSchemeColor(bg)
-    }
-
     // -----------------------------------------------------------------
-    // Row scheduler
+    // Row scheduler (FeedSchedule)
     // -----------------------------------------------------------------
-
-    private sealed class Row {
-        object Header : Row()
-        data class Listing(val listing: SellwildListing) : Row()
-        // Ad rows carry the resolved GPID value for their slot (base, or base#n
-        // when the same base is shared by more than one slot on this screen).
-        data class GamAd(val zoneId: String, val gpid: String? = null) : Row()
-        data class DirectAd(val zoneId: String, val gpid: String? = null) : Row()
-        data class Banner(val zoneId: String, val gpid: String? = null) : Row()
-    }
-
-    private fun buildRows(): List<Row> {
-        val cfg = config ?: return listOf(Row.Header)
-        val rows = mutableListOf<Row>(Row.Header)
-        val listingsIterator = listings.iterator()
-        val gamZones = cfg.mobileZids.toMutableList()
-        // First non-blank zone: the CDN can ship MOBILE_BANNER_ZID as "", which
-        // must not shadow the BANNER_ZID fallback.
-        val bannerZone = listOf(cfg.mobileBannerZid, cfg.bannerZid, cfg.bottomBannerZid)
-            .firstOrNull { !it.isNullOrBlank() }
-        var gamIdx = 0
-
-        // First pass: emit rows and, for each ad slot, resolve its GPID base (no
-        // suffix yet). Track the base per ad row and count how many ad slots
-        // share each base so the second pass knows whether to disambiguate.
-        val adRowIndices = mutableListOf<Int>()   // index into `rows` of each ad row
-        val adBases = mutableListOf<String?>()     // base per ad row, row order
-        val baseCounts = mutableMapOf<String, Int>()
-
-        fun addAdRow(zone: String, make: () -> Row) {
-            val base = SellwildGpid.resolveBase(cfg.remoteJson, zone)
-            if (base != null) baseCounts[base] = (baseCounts[base] ?: 0) + 1
-            adRowIndices.add(rows.size)
-            adBases.add(base)
-            rows.add(make())
-        }
-
-        for (token in schedule) {
-            when (token) {
-                'L' -> if (listingsIterator.hasNext()) {
-                    rows.add(Row.Listing(listingsIterator.next()))
-                }
-                'G' -> {
-                    val zone = pickZone(gamZones, gamIdx++)
-                    if (zone != null) addAdRow(zone) { Row.GamAd(zone) }
-                }
-                'D' -> {
-                    val zone = pickZone(gamZones, gamIdx++)
-                    if (zone != null) addAdRow(zone) { Row.DirectAd(zone) }
-                }
-                'B' -> {
-                    if (!bannerZone.isNullOrEmpty()) addAdRow(bannerZone) { Row.Banner(bannerZone) }
-                }
-                else -> { /* ignore unknown tokens for forward compat */ }
-            }
-        }
-
-        // Second pass: assign each ad slot's GPID. A base used by exactly one
-        // slot → base; a base used by k>1 slots → base#1, base#2, … in row order.
-        val seen = mutableMapOf<String, Int>()
-        for (i in adRowIndices.indices) {
-            val base = adBases[i] ?: continue
-            val gpid = if ((baseCounts[base] ?: 0) > 1) {
-                val n = (seen[base] ?: 0) + 1
-                seen[base] = n
-                "$base#$n"
-            } else {
-                base
-            }
-            val idx = adRowIndices[i]
-            rows[idx] = when (val r = rows[idx]) {
-                is Row.GamAd -> r.copy(gpid = gpid)
-                is Row.DirectAd -> r.copy(gpid = gpid)
-                is Row.Banner -> r.copy(gpid = gpid)
-                else -> r
-            }
-        }
-        return rows
-    }
-
-    private fun pickZone(zones: List<String>, idx: Int): String? {
-        if (zones.isEmpty()) return null
-        val z = zones[idx % zones.size]
-        return z.takeIf { it.isNotEmpty() }
-    }
 
     /**
-     * Pick a listing to house-backfill an ad slot with when no CMS house image
-     * is configured. Prefers listings that actually have a photo (a photoless
-     * listing renders a grey placeholder), rotating by position so adjacent ad
-     * slots don't repeat. Excludes listings already rendered as a normal
-     * [Row.Listing] row in [currentRows] so an ad-slot backfill never
-     * duplicates a listing already shown elsewhere in the feed — falls back to
-     * a duplicate only if every candidate is already shown (see
-     * [SellwildHouseAd.pickListing]). Null when there are no listings to draw
-     * from.
+     * The rows for the loaded listings. COL1 ad tokens with no zone are dropped and reported
+     * once per schedule and zones (feed.ad_zone.missing), not again on every refresh.
      */
-    private fun houseListingFor(position: Int, currentRows: List<Row>): SellwildListing? {
-        val shownIds = currentRows.mapNotNull { (it as? Row.Listing)?.listing?.id }.toSet()
-        return SellwildHouseAd.pickListing(listings, position, shownIds)
+    private fun buildRows(cfg: SellwildConfig): List<FeedRow> {
+        val bannerZone = FeedSchedule.bannerZone(cfg.mobileBannerZid, cfg.bannerZid, cfg.bottomBannerZid)
+        return FeedSchedule.build(schedule, listings, cfg.mobileZids, bannerZone) { SellwildGpid.resolveBase(cfg.remoteJson, it) }
+            .reportedOncePer("feed|$schedule|${cfg.mobileZids.joinToString(",")}|$bannerZone")
     }
 
     // -----------------------------------------------------------------
@@ -486,36 +417,46 @@ open class SellwildFeedView @JvmOverloads constructor(
     // -----------------------------------------------------------------
 
     private inner class RowAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-        private var rows: List<Row> = listOf(Row.Header)
+        private var rows: List<FeedRow> = listOf(FeedRow.Header)
+
         // Every ad row this adapter created, attached or not (RecyclerView's
         // cache / pool hold detached ones), so destroy() can reach them all.
         private val adRows = mutableSetOf<AdRowView>()
 
-        fun rebuild() {
-            rows = buildRows()
+        fun rebuild(cfg: SellwildConfig) {
+            rows = buildRows(cfg)
             notifyDataSetChanged()
         }
 
         override fun getItemCount(): Int = rows.size
 
         override fun getItemViewType(position: Int): Int = when (rows[position]) {
-            is Row.Header -> TYPE_HEADER
-            is Row.Listing -> TYPE_LISTING
-            is Row.GamAd -> TYPE_GAM
-            is Row.DirectAd -> TYPE_DIRECT
-            is Row.Banner -> TYPE_BANNER
+            is FeedRow.Header -> TYPE_HEADER
+            is FeedRow.Listing -> TYPE_LISTING
+            is FeedRow.GamAd -> TYPE_GAM
+            is FeedRow.DirectAd -> TYPE_DIRECT
+            is FeedRow.Banner -> TYPE_BANNER
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
             return when (viewType) {
                 TYPE_HEADER -> HeaderHolder(HeaderView(parent.context))
-                TYPE_LISTING -> ListingHolder(ListingCardView(parent.context))
+                TYPE_LISTING -> ListingHolder(ListingCardView(parent.context, SellwildE2EIds.LISTING_CARD))
                 TYPE_GAM, TYPE_DIRECT -> AdHolder(AdRowView(parent.context, AdSize.MREC_300x250).also { adRows += it })
                 TYPE_BANNER -> AdHolder(AdRowView(parent.context, AdSize.BANNER_320x50).also { adRows += it })
-                else -> throw IllegalArgumentException("Unknown viewType=$viewType")
+                else -> {
+                    // Unreachable by construction (getItemViewType maps every row). It used to
+                    // throw and crash the host; an empty row is reported instead.
+                    SellwildFailures.log(
+                        code = SellwildFailureCode.FEED_VIEW_TYPE_INVALID,
+                        component = SellwildFailureComponent.FEED,
+                        severity = SellwildFailureSeverity.ERROR,
+                        message = "unknown view type $viewType",
+                    )
+                    EmptyHolder(View(parent.context))
+                }
             }
         }
-
 
         fun destroyAdRows() {
             adRows.forEach { it.destroyAd() }
@@ -524,15 +465,30 @@ open class SellwildFeedView @JvmOverloads constructor(
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             val cfg = config ?: return
-            when (val row = rows[position]) {
-                is Row.Header -> (holder as HeaderHolder).view.bind(cfg, ::openUrl)
-                is Row.Listing -> (holder as ListingHolder).view.bind(cfg, row.listing, ::handleFeedListingTap)
-                // MREC can house-backfill with a full-width listing card (same as
-                // organic listings) when no CMS image is set; a 320x50 banner is
-                // too small for a card, so it gets none.
-                is Row.GamAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position, rows), ::handleFeedListingTap, ::onAdRowResize, firstAdViewedGuard)
-                is Row.DirectAd -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, houseListingFor(position, rows), ::handleFeedListingTap, ::onAdRowResize, firstAdViewedGuard)
-                is Row.Banner -> (holder as AdHolder).view.bind(cfg, row.zoneId, row.gpid, ::onAdImpression, ::onHouseAdImpression, ::onAdClick, null, ::handleFeedListingTap, ::onAdRowResize, firstAdViewedGuard)
+            bindRow(holder, rows[position], position, cfg)
+        }
+
+        private fun bindRow(holder: RecyclerView.ViewHolder, row: FeedRow, position: Int, cfg: SellwildConfig) = when (row) {
+            is FeedRow.Header -> (holder as HeaderHolder).view.bind(cfg, colors, ::openUrl)
+            is FeedRow.Listing -> (holder as ListingHolder).view.bind(row.listing, colors.price) { handleFeedListingTap(cfg, it) }
+            // MREC can house-backfill with a full-width listing card (same as
+            // organic listings) when no CMS image is set; a 320x50 banner is
+            // too small for a card, so it gets none.
+            is FeedRow.Ad -> {
+                val house = if (row is FeedRow.Banner) null else FeedSchedule.houseListing(listings, rows, position)
+                (holder as AdHolder).view.bind(
+                    config = cfg,
+                    zoneId = row.zoneId,
+                    gpid = row.gpid,
+                    priceColor = colors.price,
+                    onImpression = ::onAdImpression,
+                    onHouseImpression = ::onHouseAdImpression,
+                    onClick = ::onAdClick,
+                    houseListing = house,
+                    onListingTap = { handleFeedListingTap(cfg, it) },
+                    onRowResize = ::onAdRowResize,
+                    surfaceGuard = firstAdViewedGuard,
+                )
             }
         }
     }
@@ -540,6 +496,7 @@ open class SellwildFeedView @JvmOverloads constructor(
     private class HeaderHolder(val view: HeaderView) : RecyclerView.ViewHolder(view)
     private class ListingHolder(val view: ListingCardView) : RecyclerView.ViewHolder(view)
     private class AdHolder(val view: AdRowView) : RecyclerView.ViewHolder(view)
+    private class EmptyHolder(view: View) : RecyclerView.ViewHolder(view)
 
     private fun onAdImpression(zoneId: String) {
         listener?.onAdImpression(zoneId)
@@ -555,8 +512,7 @@ open class SellwildFeedView @JvmOverloads constructor(
 
     /** Route a listing tap (organic card OR an ad-row full-width fallback card)
      *  through the host hook, falling back to opening the listing URL. */
-    private fun handleFeedListingTap(listing: SellwildListing) {
-        val cfg = config ?: return
+    private fun handleFeedListingTap(cfg: SellwildConfig, listing: SellwildListing) {
         val handled = listener?.onListingTap(listing) ?: false
         if (!handled) openUrl(listing.tapUrl(cfg.partnerCode, cfg.bhTag))
     }
@@ -581,14 +537,29 @@ open class SellwildFeedView @JvmOverloads constructor(
         // arbitrary scheme via ACTION_VIEW.
         val uri = SellwildSafeUrl.external(url)
         if (uri == null) {
-            if (!url.isNullOrEmpty()) listener?.onError("Refused to open non-http(s) URL")
+            if (!url.isNullOrEmpty()) {
+                logOpenUrl(SellwildFailureCode.FEED_OPEN_URL_INVALID, message = "the listing or partner URL is not http(s)")
+                listener?.onError("Refused to open non-http(s) URL")
+            }
             return
         }
         try {
             CustomTabsIntent.Builder().build().launchUrl(context, uri)
         } catch (t: Throwable) {
+            logOpenUrl(SellwildFailureCode.FEED_OPEN_URL_EXCEPTION, error = t, url = url)
             listener?.onError("Failed to open URL: ${t.message}")
         }
+    }
+
+    private fun logOpenUrl(code: String, message: String? = null, error: Throwable? = null, url: String? = null) {
+        SellwildFailures.log(
+            code = code,
+            component = SellwildFailureComponent.FEED,
+            severity = SellwildFailureSeverity.WARN,
+            error = error,
+            message = message,
+            url = url,
+        )
     }
 
     // -----------------------------------------------------------------
@@ -628,12 +599,10 @@ open class SellwildFeedView @JvmOverloads constructor(
             addView(poweredByView)
         }
 
-        fun bind(config: SellwildConfig, openUrl: (String?) -> Unit) {
+        fun bind(config: SellwildConfig, colors: FeedColors, openUrl: (String?) -> Unit) {
             titleView.text = config.title ?: "Marketplace"
-            titleView.setTextColor(parseColor(config.titleColor, fallback = Color.WHITE))
-            poweredByView.setTextColor(
-                parseColor(config.linkColor, fallback = Color.parseColor("#9CA3AF"))
-            )
+            titleView.setTextColor(colors.title)
+            poweredByView.setTextColor(colors.poweredBy)
             val partnerUrl = config.partnerUrl
             titleView.setOnClickListener(
                 if (!partnerUrl.isNullOrEmpty()) View.OnClickListener { openUrl(partnerUrl) } else null
@@ -646,7 +615,8 @@ open class SellwildFeedView @JvmOverloads constructor(
     // Listing card (full-bleed photo, title, price, seller line)
     // -----------------------------------------------------------------
 
-    private class ListingCardView(context: Context) : LinearLayout(context) {
+    /** A listing card. [e2eId]: its resource-id for UI tests ([SellwildE2EIds]); none in an ad row. */
+    private class ListingCardView(context: Context, private val e2eId: String? = null) : LinearLayout(context) {
         private val photoView: ImageView
         private val titleView: TextView
         private val priceView: TextView
@@ -727,15 +697,20 @@ open class SellwildFeedView @JvmOverloads constructor(
             addView(cardContainer)
         }
 
-        fun bind(config: SellwildConfig, listing: SellwildListing, onTap: (SellwildListing) -> Unit) {
+        fun bind(listing: SellwildListing, priceColor: Int, onTap: (SellwildListing) -> Unit) {
             titleView.text = listing.title
-            priceView.text = formatPrice(listing.currency, listing.price)
-            priceView.setTextColor(parseColor(config.linkColor, fallback = Color.parseColor("#2563EB")))
-            sellerView.text = formatSeller(listing.user)
+            priceView.text = Format.price(listing.currency, listing.price)
+            priceView.setTextColor(priceColor)
+            sellerView.text = Format.seller(listing.user)
             setOnClickListener { onTap(listing) }
             isClickable = true
             isFocusable = true
             loadImage(listing.photos.firstOrNull()?.url)
+        }
+
+        override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+            super.onInitializeAccessibilityNodeInfo(info)
+            SellwildE2EIds.apply(info, e2eId)
         }
 
         private fun loadImage(url: String?) {
@@ -743,53 +718,18 @@ open class SellwildFeedView @JvmOverloads constructor(
             photoView.setImageDrawable(null)
             photoView.setBackgroundColor(Color.parseColor("#EEEEEE"))
             if (url.isNullOrEmpty()) return
-            val cached = imageCache.get(url)
+            val cached = FeedImages.cached(url)
             if (cached != null) {
                 photoView.setImageBitmap(cached)
                 return
             }
             imageJob = imageScope.launch {
-                val bmp = withContext(Dispatchers.IO) {
-                    runCatching { decodeImage(url) }.getOrNull()
-                }
+                val bmp = withContext(FeedImages.io) { FeedImages.load(url) }
                 if (bmp != null) {
-                    imageCache.put(url, bmp)
+                    FeedImages.remember(url, bmp)
                     photoView.setImageBitmap(bmp)
                 }
             }
-        }
-
-        private fun decodeImage(url: String): Bitmap? {
-            if (url.startsWith("data:")) {
-                val comma = url.indexOf(',')
-                if (comma < 0) return null
-                val payload = url.substring(comma + 1)
-                val bytes = android.util.Base64.decode(payload, android.util.Base64.DEFAULT)
-                if (bytes.size > SellwildSafeUrl.MAX_IMAGE_BYTES) return null
-                return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-            }
-            // http/https only — reject file:// (listing photo URLs are remote data).
-            val safe = SellwildSafeUrl.imageUrl(url) ?: return null
-            return safe.openStream().use { BitmapFactory.decodeStream(it) }
-        }
-
-        private fun formatPrice(currency: String?, price: String?): String {
-            val value = price?.toDoubleOrNull() ?: return ""
-            val sym = when (currency?.uppercase()) {
-                "USD", null -> "$"
-                "EUR" -> "€"
-                "GBP" -> "£"
-                else -> "$"
-            }
-            return if (value % 1.0 == 0.0) "$sym${value.toInt()}" else "$sym${"%.2f".format(value)}"
-        }
-
-        private fun formatSeller(user: SellwildUser?): String {
-            if (user == null) return "sellwild.com"
-            val first = user.firstName.takeIf { it.isNotBlank() }?.uppercase() ?: "SELLER"
-            val lastInit = user.lastName.takeIf { it.isNotBlank() }?.uppercase()?.firstOrNull()
-            val name = if (lastInit != null) "$first $lastInit." else first
-            return "$name  |  sellwild.com"
         }
     }
 
@@ -804,16 +744,17 @@ open class SellwildFeedView @JvmOverloads constructor(
         // pixel-identical, and it grows the row to its natural height.
         private val fallbackCard = ListingCardView(context)
         private var boundZoneId: String? = null
-        private var config: SellwildConfig? = null
         private var houseListing: SellwildListing? = null
         // A CMS house IMAGE renders in-slot via the ad view (MREC), so when one is
         // configured we keep the fixed slot instead of the full-width card.
         private var hasHouseImage = false
-        private var onHouseImpression: ((String) -> Unit)? = null
-        private var onListingTap: ((SellwildListing) -> Unit)? = null
+        // Set by every bind() before the row's ad view exists, so they are always set
+        // when an ad callback fires.
+        private lateinit var onHouseImpression: (String) -> Unit
+        private lateinit var onListingTap: (SellwildListing) -> Unit
         // Notifies the feed that this row's height changed so it can force the
         // recycler to re-measure and re-emit content height (embedded mode).
-        private var onRowResize: (() -> Unit)? = null
+        private lateinit var onRowResize: () -> Unit
         private val slotPad = dp(context, 8)
 
         init {
@@ -829,10 +770,18 @@ open class SellwildFeedView @JvmOverloads constructor(
             )
         }
 
+        override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+            super.onInitializeAccessibilityNodeInfo(info)
+            SellwildE2EIds.apply(info, SellwildE2EIds.FEED_AD)
+        }
+
+        private var priceColor = FeedTheme.PRICE
+
         fun bind(
             config: SellwildConfig,
             zoneId: String,
             gpid: String?,
+            priceColor: Int,
             onImpression: (String) -> Unit,
             onHouseImpression: (String) -> Unit,
             onClick: (String) -> Unit,
@@ -841,23 +790,24 @@ open class SellwildFeedView @JvmOverloads constructor(
             onRowResize: () -> Unit,
             surfaceGuard: SellwildFirstAdViewedGuard,
         ) {
-            this.config = config
             this.houseListing = houseListing
             this.onHouseImpression = onHouseImpression
             this.onListingTap = onListingTap
             this.onRowResize = onRowResize
+            this.priceColor = priceColor
             this.hasHouseImage =
                 SellwildHouseAd.resolve(config.remoteJson, zoneId, size.width, size.height) != null
 
-            if (boundZoneId == zoneId && adView != null) {
+            val current = adView
+            if (current != null && boundZoneId == zoneId) {
                 // Reused for the same zone: keep the ad view (and its refresh
                 // cadence). Keep gpidOverride current — the same zone can carry a
                 // different occurrence suffix at a different feed position (the
                 // in-flight creative's imp-ext is not rebuilt on reuse). Refresh
                 // the fallback content if it's currently showing.
-                adView?.gpidOverride = gpid
-                if (fallbackCard.visibility == VISIBLE) {
-                    houseListing?.let { fallbackCard.bind(config, it) { l -> onListingTap(l) } }
+                current.gpidOverride = gpid
+                if (fallbackCard.visibility == VISIBLE && houseListing != null) {
+                    fallbackCard.bind(houseListing, priceColor, onListingTap)
                 }
                 return
             }
@@ -866,8 +816,10 @@ open class SellwildFeedView @JvmOverloads constructor(
             // being rebound to a DIFFERENT zone, so the old view is finished —
             // without destroy() its refresh Handler keeps auctioning/impressing
             // for the old zone on a detached view (a leak + invalid traffic).
-            adView?.destroy()
-            adView?.let { removeView(it) }
+            current?.let {
+                it.destroy()
+                removeView(it)
+            }
             val ad = SellwildAdView(context).apply {
                 // Share the feed's surface guard so firstAdViewed fires once for
                 // the whole feed, not once per ad row (web parity).
@@ -889,30 +841,31 @@ open class SellwildFeedView @JvmOverloads constructor(
                     override fun onAdLoaded(adView: SellwildAdView) {
                         // Paid creative filled — show the ad slot (shrink the row
                         // back if a fallback card had grown it).
-                        showAdSlot()
+                        showAdSlot(adView)
                     }
                     override fun onAdResize(adView: SellwildAdView, width: Int, height: Int) {
                         // The creative resized the slot (multi-size shrink to the
                         // won size, outstream video, or the capped native template).
                         // Re-measure the row so the feed height tracks the actual
                         // ad height instead of the reserved bounding box.
-                        onRowResize?.invoke()
+                        this@AdRowView.onRowResize()
                     }
                     override fun onAdImpression(adView: SellwildAdView, zoneId: String) {
                         onImpression(zoneId)
                     }
                     override fun onHouseAdImpression(adView: SellwildAdView, zoneId: String) {
                         // Fired when the ad view's own house IMAGE backdrop shows.
-                        onHouseImpression(zoneId)
+                        this@AdRowView.onHouseImpression(zoneId)
                     }
                     override fun onAdClicked(adView: SellwildAdView) { onClick(zoneId) }
                     override fun onAdFailed(adView: SellwildAdView, message: String) {
                         // No-fill. A CMS house image (if any) renders in-slot via the
                         // ad view; otherwise show the full-width listing fallback.
-                        if (this@AdRowView.hasHouseImage || this@AdRowView.houseListing == null) {
-                            showAdSlot()
+                        val house = this@AdRowView.houseListing
+                        if (this@AdRowView.hasHouseImage || house == null) {
+                            showAdSlot(adView)
                         } else {
-                            showFallbackCard()
+                            showFallbackCard(adView, house, zoneId)
                         }
                     }
                 }
@@ -920,7 +873,7 @@ open class SellwildFeedView @JvmOverloads constructor(
             }
             adView = ad
             addView(ad)
-            showAdSlot()   // start on the fixed ad slot; swap to the card only on no-fill
+            showAdSlot(ad)   // start on the fixed ad slot; swap to the card only on no-fill
             ad.load()
         }
 
@@ -936,27 +889,25 @@ open class SellwildFeedView @JvmOverloads constructor(
         }
 
         /** Show the fixed MREC ad slot (paid creative or in-slot house image). */
-        private fun showAdSlot() {
+        private fun showAdSlot(ad: SellwildAdView) {
             setPadding(slotPad, slotPad, slotPad, slotPad)
             fallbackCard.visibility = GONE
-            adView?.visibility = VISIBLE
+            ad.visibility = VISIBLE
             requestLayout()
-            onRowResize?.invoke()
+            onRowResize()
         }
 
         /** Swap to the full-width listing fallback and grow the row to fit it. The
          *  card carries its own 16dp/8dp insets, so zero the slot padding to match
          *  the organic listing rows exactly. */
-        private fun showFallbackCard() {
-            val listing = houseListing ?: return showAdSlot()
-            val cfg = config ?: return showAdSlot()
+        private fun showFallbackCard(ad: SellwildAdView, listing: SellwildListing, zoneId: String) {
             setPadding(0, 0, 0, 0)
-            adView?.visibility = GONE
-            fallbackCard.bind(cfg, listing) { onListingTap?.invoke(it) }
+            ad.visibility = GONE
+            fallbackCard.bind(listing, priceColor, onListingTap)
             fallbackCard.visibility = VISIBLE
-            onHouseImpression?.invoke(boundZoneId ?: "")
+            onHouseImpression(zoneId)
             requestLayout()
-            onRowResize?.invoke()
+            onRowResize()
         }
     }
 
@@ -967,20 +918,136 @@ open class SellwildFeedView @JvmOverloads constructor(
         private const val TYPE_DIRECT = 3
         private const val TYPE_BANNER = 4
 
-        private const val DEFAULT_SCHEDULE = "LLGLLGLLG"
-
         private val imageScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-        private val imageCache = LruCache<String, Bitmap>(32)
+
+        /** Builds the listings client for each load. Tests install one that answers in-process. */
+        @Volatile
+        internal var apiClient: (Context) -> SellwildAPIClient = ::SellwildAPIClient
 
         private fun dp(context: Context, value: Int): Int = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             value.toFloat(),
             context.resources.displayMetrics,
         ).toInt()
+    }
+}
 
-        private fun parseColor(value: String?, fallback: Int): Int {
-            if (value.isNullOrEmpty()) return fallback
-            return runCatching { Color.parseColor(value) }.getOrDefault(fallback)
+/**
+ * Listing photos for the feed's cards: a memory cache, and a loader that runs off the main
+ * thread. A photo that cannot be had leaves the grey placeholder and is reported once per
+ * load: feed.image.network when the download fails, feed.image.invalid when the URL is refused
+ * (not http(s), or a data: URI without a payload), too large, or not an image. An Error from
+ * the decoder (OutOfMemoryError on a huge photo) is feed.image.invalid too: the loads run in a
+ * coroutine on the main thread, where an uncaught Error would kill the host app.
+ */
+internal object FeedImages {
+    private val memory = LruCache<String, Bitmap>(32)
+
+    private val streamDecoder: (URL) -> Bitmap? = { url -> url.openStream().use { BitmapFactory.decodeStream(it) } }
+    private val bytesDecoder: (ByteArray) -> Bitmap? = { bytes -> BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
+
+    /** Where loads run. Tests run them in place. */
+    @Volatile
+    internal var io: CoroutineDispatcher = Dispatchers.IO
+
+    /** Downloads and decodes a remote photo; null when the bytes are not an image. Tests replace it. */
+    @Volatile
+    internal var fetch: (URL) -> Bitmap? = streamDecoder
+
+    /** Decodes inline (data: URI) bytes; null when they are not an image. Tests replace it. */
+    @Volatile
+    internal var decode: (ByteArray) -> Bitmap? = bytesDecoder
+
+    fun cached(url: String): Bitmap? = memory.get(url)
+
+    fun remember(url: String, bitmap: Bitmap) {
+        memory.put(url, bitmap)
+    }
+
+    /** One photo, on [io]: a data: URI decodes inline (size-capped), an http(s) URL downloads. */
+    fun load(url: String): Bitmap? = when (val source = HouseImages.source(url)) {
+        is HouseImages.Source.Refused -> invalid(source.reason, url = source.url)
+        is HouseImages.Source.Inline -> decodeInline(source.base64)
+        is HouseImages.Source.Remote -> loadRemote(source.url, url)
+    }
+
+    private fun decodeInline(base64: String): Bitmap? {
+        val bytes = try {
+            Base64.decode(base64, Base64.DEFAULT)
+        } catch (e: IllegalArgumentException) {
+            return invalid("data URI is not base64", error = e)
         }
+        if (bytes.size > SellwildSafeUrl.MAX_IMAGE_BYTES) return invalid("image over 8 MiB")
+        val bitmap = try {
+            decode(bytes)
+        } catch (e: Throwable) {
+            // Bytes under 8 MiB can still decode to a bitmap too big for memory (OutOfMemoryError).
+            return invalid(NOT_DECODED, error = e)
+        }
+        return bitmap ?: invalid(NOT_DECODED)
+    }
+
+    private fun loadRemote(url: URL, text: String): Bitmap? {
+        val bitmap = try {
+            fetch(url)
+        } catch (e: Exception) {
+            SellwildFailures.log(
+                code = SellwildFailureCode.FEED_IMAGE_NETWORK,
+                component = SellwildFailureComponent.FEED,
+                severity = SellwildFailureSeverity.WARN,
+                error = e,
+                url = text,
+            )
+            return null
+        } catch (e: Error) {
+            // The download finished but the photo decodes to a bitmap too big for memory
+            // (OutOfMemoryError): the photo is the problem, not the network.
+            return invalid(NOT_DECODED, url = text, error = e)
+        }
+        return bitmap ?: invalid(NOT_DECODED, url = text)
+    }
+
+    private fun invalid(message: String, url: String? = null, error: Throwable? = null): Bitmap? {
+        SellwildFailures.log(
+            code = SellwildFailureCode.FEED_IMAGE_INVALID,
+            component = SellwildFailureComponent.FEED,
+            severity = SellwildFailureSeverity.WARN,
+            error = error,
+            message = message,
+            url = url,
+        )
+        return null
+    }
+
+    private const val NOT_DECODED = "image could not be decoded"
+
+    /** Restores the seams and empties the cache. Tests only. */
+    internal fun resetForTests() {
+        io = Dispatchers.IO
+        fetch = streamDecoder
+        decode = bytesDecoder
+        memory.evictAll()
+    }
+}
+
+/**
+ * Element ids on the feed's rows, so UI tests (the sample apps' Maestro flows, a partner's
+ * UI Automator or Appium tests) can find them. They are listed in contracts/e2e/ids.json;
+ * never rename one.
+ *
+ * UI Automator reads a view's id from its accessibility node (resource-id). An Android
+ * resource name cannot hold a dot, so the row sets the node's id itself, as Compose's
+ * testTagsAsResourceId does. Screen readers do not read it.
+ */
+internal object SellwildE2EIds {
+    /** Each listing row of [SellwildFeedView]. */
+    const val LISTING_CARD = "sw.listing.card"
+
+    /** Each ad row of [SellwildFeedView]. */
+    const val FEED_AD = "sw.feed.ad"
+
+    /** Reports [id] as the resource-id of [info]. A null [id] leaves the node as it is. */
+    fun apply(info: AccessibilityNodeInfo, id: String?) {
+        if (id != null) info.viewIdResourceName = id
     }
 }

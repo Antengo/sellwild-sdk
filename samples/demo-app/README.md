@@ -1,79 +1,42 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Sellwild Sample (React Native)
 
-# Getting Started
+The React Native sample app. It has the same four tabs as the iOS and Android samples, so one set of Maestro flows (`e2e/maestro/`) covers them all.
 
->**Note**: Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/environment-setup) instructions till "Creating a new application" step, before proceeding.
+## Tabs
 
-## Step 1: Start the Metro Server
+1. Feed: `SellwildFeed`, the native feed. Native listing cards with native ads between them. It opens first.
+2. Ads: `SellwildBanner` at 320x50 and 300x250 (native Prebid Mobile + GAM). The label under each slot shows its measured size. The React Native SDK has no native ad or house ad component, and the screen says so.
+3. Listings: `useSellwildListings`, drawn with `SellwildListingCard`. Refresh clears the listings cache and fetches again.
+4. Diagnostics: the SDK version (`SDK_VERSION`), partner and slug, config source (remote or fallback), the listings URL, and the failure codes the SDK sent this launch.
 
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
+## What it passes to the SDK
 
-To start Metro, run the following command from the _root_ of your React Native project:
+1. Partner code `sellwild`, slug `sellwild-sample`. The CDN has no config for that slug (403), so the source is "fallback" and `config.fetch.http` is reported once a launch. That is expected.
+2. Listings from `https://cache.sellwild.com/listings-img-data-sm-avif-fandom` (`listingsUrl`).
+3. Zones `sellwild-sample-banner` and `sellwild-sample-mrec` when the config has none.
+4. The failure codes come from a failure sink: `setFailureContext({ sink })` from `@sellwild/sdk-core`. It records each code, then sends the event on to the SDK's events queue. It sees what React Native JS and core report, not what the native SDKs report.
 
-```bash
-# using npm
-npm start
+## How it gets the SDK
 
-# OR using Yarn
-yarn start
-```
+1. JS: `metro.config.js` maps `@sellwild/react-native-sdk` to `../../react-native` and `@sellwild/sdk-core` to `../../core`. Core is read from its `dist/` (gitignored): build it first with `npm --prefix ../../core run build:dev` (tsgo). Core's `build` (tsc) is the release build.
+2. iOS: `ios/Podfile` takes the pods `SellwildSDK` and `SellwildSDK-RN` from this repo.
+3. Android: `android/settings.gradle` includes the bridge (`react-native/android`) as `:sellwild-react-native-sdk`. The SDK comes from mavenLocal as `com.sellwild:sdk:1.7.7`: publish it first with `android/gradlew -p ../../android publishReleasePublicationToMavenLocal`.
+4. `MainApplication.kt` adds `SellwildSdkPackage` by hand, since the bridge is not autolinked here.
 
-## Step 2: Start your Application
+## Commands
 
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
+Use npm (`package-lock.json`). On the agents' machine, run every native build and device through the native lock.
 
-### For Android
+1. `npm ci`: the packages.
+2. `npm run typecheck`: tsgo, with the SDK sources (`tsconfig.json` maps the packages to the repo folders).
+3. `npm run lint`: ESLint (`@react-native` config, Prettier).
+4. `npm test`: jest. It checks the tab ids and the Diagnostics screen.
+5. `bash ../../scripts/e2e/run.sh rn-ios` or `rn-android`: a Release build with the JS bundle inside, on a simulator or emulator, with the Maestro flows. `e2e/README.md` has the details.
+6. `bash ../../scripts/rn/compile-bridge-ios.sh` and `compile-bridge-android.sh`: compile only the native bridge.
+7. `npm start`, then `npm run ios` or `npm run android`: the usual Metro dev loop (Debug builds that load the JS from Metro). Not run when this sample was last checked; the e2e uses Release builds.
 
-```bash
-# using npm
-npm run android
+## Ids
 
-# OR using Yarn
-yarn android
-```
-
-### For iOS
-
-```bash
-# using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
-
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
-
-## Step 3: Modifying your App
-
-Now that you have successfully run the app, let's modify it.
-
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
-
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [Introduction to React Native](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you can't get this to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+1. Each tab and each checked element has a `testID` from `src/sampleIds.ts`. The one list is `contracts/e2e/ids.json`.
+2. A `View` around a native view (the feed, the ad slots, the widget) also sets `collapsable={false}`.
+3. The SDK feed sets `sw.listing.card` and `sw.feed.ad` on its rows itself.

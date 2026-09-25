@@ -1,8 +1,4 @@
 import UIKit
-import SafariServices
-import os.log
-
-private let feedLog = OSLog(subsystem: "com.sellwild.sdk", category: "SellwildFeed")
 
 /// All-in-one native feed surface. As of 1.4.0 this view renders a
 /// single-column scroll of native listing cards interleaved with native
@@ -17,7 +13,8 @@ private let feedLog = OSLog(subsystem: "com.sellwild.sdk", category: "SellwildFe
 ///
 /// The renderer iterates the string left-to-right, emitting one row per
 /// token, and stops when the string is exhausted. There is **no WKWebView**
-/// anywhere in this surface — every row is native.
+/// anywhere in this surface — every row is native. The schedule, GPIDs and
+/// formatting live in `SellwildFeedLayout` and `SellwildFormat`.
 ///
 /// Usage:
 /// ```swift
@@ -64,6 +61,8 @@ public extension SellwildFeedViewDelegate {
 
 public final class SellwildFeedView: UIView {
 
+    fileprivate typealias Row = SellwildFeedLayout.Row
+
     // MARK: Public
 
     public weak var delegate: SellwildFeedViewDelegate?
@@ -98,9 +97,10 @@ public final class SellwildFeedView: UIView {
     /// `rebuildRows()` so `base#n` disambiguation reflects the current screen.
     private var gpidByRowIndex: [Int: String] = [:]
 
-    private let tableView = UITableView(frame: .zero, style: .plain)
-    private let refreshControl = UIRefreshControl()
-    private let apiClient = SellwildAPIClient()
+    let tableView = UITableView(frame: .zero, style: .plain)
+    let refreshControl = UIRefreshControl()
+    fileprivate let environment: Environment
+    private let apiClient: SellwildAPIClient
     /// One `firstAdViewed` guard for the whole feed surface — shared across every
     /// ad row so `firstAdViewed` fires once per feed mount, not once per row (web
     /// parity). A new feed instance (screen mount) gets a fresh guard and fires
@@ -119,7 +119,10 @@ public final class SellwildFeedView: UIView {
 
     public init(config: SellwildConfig) {
         self.config = config
-        self.schedule = Self.normalizeSchedule(config.col1)
+        self.schedule = SellwildFeedLayout.normalizeSchedule(config.col1)
+        let environment = Self.environment
+        self.environment = environment
+        self.apiClient = environment.makeAPIClient()
         super.init(frame: .zero)
         setupTableView()
         applyTheme()
@@ -127,37 +130,38 @@ public final class SellwildFeedView: UIView {
         tableView.reloadData()
     }
 
+    // sellwild-coverage:exclude-begin(crash-guard) init(coder:) traps by design (storyboards are not supported).
     required init?(coder: NSCoder) { fatalError("Use init(config:)") }
+    // sellwild-coverage:exclude-end
 
     // MARK: Public API
 
     /// Swap the config and re-derive the schedule without kicking off a fetch.
     public func update(config: SellwildConfig) {
         self.config = config
-        self.schedule = Self.normalizeSchedule(config.col1)
+        self.schedule = SellwildFeedLayout.normalizeSchedule(config.col1)
         applyTheme()
         rebuildRows()
     }
 
-    /// Fetch listings and render the feed.
+    /// Fetch listings and render the feed. A failed fetch is reported by the
+    /// API client; the feed only passes it to the delegate (FAILURES.md 9).
     public func load() {
-        NSLog("[Sellwild] load() partner=%@ col1=%@ listingsUrl=%@",
-              config.partnerCode, config.col1 ?? "(nil)", config.effectiveListingsUrl)
+        let config = self.config
+        SellwildLog.debug("[Sellwild] feed load() partner=\(config.partnerCode) col1=\(config.col1 ?? "(nil)") listingsUrl=\(config.effectiveListingsUrl)")
         refreshControl.beginRefreshing()
         apiClient.fetchListings(config: config) { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.refreshControl.endRefreshing()
-                switch result {
-                case .success(let response):
-                    NSLog("[Sellwild] fetchListings success count=%d schedule=%@",
-                          response.listings.count, self.schedule)
-                    self.applyLocalizedDispersion(primary: response.listings)
-                case .failure(let error):
-                    NSLog("[Sellwild] fetchListings FAILED: %@", error.localizedDescription)
-                    self.delegate?.sellwildFeed(self, didFailWithError: error.localizedDescription)
-                }
-            }
+            DispatchQueue.main.async { self?.listingsFetched(result) }
+        }
+    }
+
+    private func listingsFetched(_ result: Result<SellwildListingsResponse, Error>) {
+        refreshControl.endRefreshing()
+        switch result {
+        case .success(let response):
+            applyLocalizedDispersion(primary: response.listings)
+        case .failure(let error):
+            delegate?.sellwildFeed(self, didFailWithError: error.localizedDescription)
         }
     }
 
@@ -192,7 +196,8 @@ public final class SellwildFeedView: UIView {
     /// After the primary fetch, optionally disperse geo-based secondary
     /// listings into the feed before rendering. When the integration is off,
     /// no state resolves, or the secondary fetch fails/404s, the primary feed
-    /// renders unchanged (current behavior). Runs on the main thread.
+    /// renders unchanged (current behavior). Runs on the main thread. The
+    /// localized helpers and the API client report their own failures.
     private func applyLocalizedDispersion(primary: [SellwildListing]) {
         guard let integration = SellwildLocalizedListings.resolve(config: config) else {
             finishLoad(with: primary)
@@ -206,31 +211,27 @@ public final class SellwildFeedView: UIView {
             return
         }
 
-        NSLog("[Sellwild] localized listings state=%@ everyN=%d url=%@", state, everyN, url.absoluteString)
         apiClient.fetchCacheListings(url: url) { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                switch result {
-                case .success(let secondary):
-                    let merged = SellwildLocalizedListings.merge(primary: primary, secondary: secondary, everyN: everyN)
-                    NSLog("[Sellwild] localized merge primary=%d secondary=%d merged=%d",
-                          primary.count, secondary.count, merged.count)
-                    self.finishLoad(with: merged)
-                case .failure(let error):
-                    NSLog("[Sellwild] localized fetch skipped: %@", error.localizedDescription)
-                    self.finishLoad(with: primary)
-                }
-            }
+            DispatchQueue.main.async { self?.localizedFetched(result, primary: primary, everyN: everyN) }
+        }
+    }
+
+    private func localizedFetched(_ result: Result<[SellwildListing], Error>, primary: [SellwildListing], everyN: Int) {
+        switch result {
+        case .success(let secondary):
+            finishLoad(with: SellwildLocalizedListings.merge(primary: primary, secondary: secondary, everyN: everyN))
+        case .failure:
+            finishLoad(with: primary)
         }
     }
 
     private func finishLoad(with listings: [SellwildListing]) {
         self.listings = listings
-        self.rebuildRows()
-        NSLog("[Sellwild] rebuildRows -> rowCount=%d", self.rows.count)
-        self.delegate?.sellwildFeedDidLoad(self)
+        rebuildRows()
+        SellwildLog.debug("[Sellwild] feed rows=\(rows.count) listings=\(listings.count)")
+        delegate?.sellwildFeedDidLoad(self)
         // Reliable "listings bound" signal (count == 0 ⇒ empty/header-only).
-        self.delegate?.sellwildFeed(self, didBecomeReadyWithListingCount: self.listings.count)
+        delegate?.sellwildFeed(self, didBecomeReadyWithListingCount: listings.count)
     }
 
     // MARK: Setup
@@ -264,112 +265,79 @@ public final class SellwildFeedView: UIView {
     private func applyTheme() {
         // Feed surface: prefer CDN `BG_COLOR` / `BACKGROUND`, otherwise a
         // light neutral so white listing cards aren't floating on near-black.
-        let bg = Self.parseColor(config.bgColor) ?? UIColor(white: 0.96, alpha: 1)
+        let bg = SellwildFormat.color(config.bgColor) ?? UIColor(white: 0.96, alpha: 1)
         backgroundColor = bg
         tableView.backgroundColor = bg
         // Refresh spinner: pick a contrasting tint based on background luminance.
-        refreshControl.tintColor = Self.isDark(bg) ? .white : UIColor(white: 0.4, alpha: 1)
-    }
-
-    private static func isDark(_ color: UIColor) -> Bool {
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        color.getRed(&r, green: &g, blue: &b, alpha: &a)
-        // Rec. 709 luma; under 0.5 reads as dark.
-        return (0.2126 * r + 0.7152 * g + 0.0722 * b) < 0.5
+        refreshControl.tintColor = SellwildFormat.isDark(bg) ? .white : UIColor(white: 0.4, alpha: 1)
     }
 
     // MARK: Scheduler
 
-    fileprivate enum Row {
-        case header
-        case listing(SellwildListing)
-        case gamAd(zoneId: String)
-        case directAd(zoneId: String)
-        case banner(zoneId: String)
-    }
-
     private func rebuildRows() {
-        rows = buildRows()
-        gpidByRowIndex = computeGpids(for: rows)
+        let layout = SellwildFeedLayout.build(
+            schedule: schedule,
+            listings: listings,
+            adZones: SellwildFeedLayout.adZones(config.mobileZids),
+            bannerZone: SellwildFeedLayout.bannerZone(mobile: config.mobileBannerZid, banner: config.bannerZid,
+                                                      bottom: config.bottomBannerZid)
+        )
+        reportSkipped(layout.skipped)
+        rows = layout.rows
+        let remoteValues = config.remoteValues
+        gpidByRowIndex = SellwildFeedLayout.gpids(rows: rows) { zone in
+            SellwildGpid.resolveBase(remoteValues: remoteValues, zoneId: zone)
+        }
         tableView.reloadData()
     }
 
-    /// Compute the effective GPID for every ad row on this screen, keyed by row
-    /// index. Resolves each ad slot's base from config (per its zone) in row
-    /// order, then disambiguates bases shared by more than one slot with a
-    /// 1-based `#n` suffix via `SellwildGpid.disambiguate` — so gpid/pbadslot are
-    /// unique per placement even when zones share a base. Rows whose base
-    /// resolves to nil are omitted (no gpid sent for that slot).
-    private func computeGpids(for rows: [Row]) -> [Int: String] {
-        var adRowIndices: [Int] = []
-        var bases: [String?] = []
-        for (i, row) in rows.enumerated() {
-            let zone: String
-            switch row {
-            case .gamAd(let z), .directAd(let z), .banner(let z): zone = z
-            default: continue
-            }
-            adRowIndices.append(i)
-            bases.append(SellwildGpid.resolveBase(remoteValues: config.remoteValues, zoneId: zone))
-        }
-        let values = SellwildGpid.disambiguate(bases)
-        var out: [Int: String] = [:]
-        for (slot, rowIndex) in adRowIndices.enumerated() {
-            if let v = values[slot] { out[rowIndex] = v }
-        }
-        return out
-    }
-
-    private func buildRows() -> [Row] {
-        var out: [Row] = [.header]
-        var listingsIter = listings.makeIterator()
-        let gamZones = config.mobileZids.filter { !$0.isEmpty }
-        // First non-blank zone: the CDN can ship MOBILE_BANNER_ZID as "", which
-        // must not shadow the BANNER_ZID fallback.
-        let bannerZone = [config.mobileBannerZid, config.bannerZid, config.bottomBannerZid]
-            .compactMap { $0 }
-            .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty } ?? ""
-        var gamIdx = 0
-
-        for token in schedule.uppercased() {
-            switch token {
-            case "L":
-                if let listing = listingsIter.next() {
-                    out.append(.listing(listing))
-                }
-            case "G":
-                if let zone = Self.pickZone(gamZones, idx: gamIdx) {
-                    out.append(.gamAd(zoneId: zone))
-                    gamIdx += 1
-                }
-            case "D":
-                if let zone = Self.pickZone(gamZones, idx: gamIdx) {
-                    out.append(.directAd(zoneId: zone))
-                    gamIdx += 1
-                }
-            case "B":
-                if !bannerZone.isEmpty {
-                    out.append(.banner(zoneId: bannerZone))
-                }
-            default:
-                break
+    /// COL1 tokens that did not become rows, once a launch each.
+    private func reportSkipped(_ skipped: [SellwildFeedLayout.Skip]) {
+        for skip in skipped {
+            switch skip {
+            case .noAdZone:
+                guard SellwildReportOnce.first(.feedAdZoneMissing, "ad") else { continue }
+                SellwildFailures.log(code: .feedAdZoneMissing, component: .feed, severity: .warn,
+                                     message: "COL1 asks for an ad row but no mobile ad zone is configured; the row is dropped")
+            case .noBannerZone:
+                guard SellwildReportOnce.first(.feedAdZoneMissing, "banner") else { continue }
+                SellwildFailures.log(code: .feedAdZoneMissing, component: .feed, severity: .warn,
+                                     message: "COL1 asks for a banner row but no banner zone is configured; the row is dropped")
+            case .unknownToken(let token):
+                guard SellwildReportOnce.first(.feedLayoutInvalid, String(token)) else { continue }
+                SellwildFailures.log(code: .feedLayoutInvalid, component: .feed, severity: .warn,
+                                     message: "COL1 holds the unknown token \"\(token)\"; it is ignored")
             }
         }
-        return out
     }
 
     // MARK: Helpers
 
+    /// Opens a listing or partner page in Safari over the app: http(s) only
+    /// (SFSafariViewController traps on any other scheme), from the nearest
+    /// view controller.
     fileprivate func openURL(_ urlString: String?) {
-        // http/https only — SFSafariViewController throws (crashes) on any other
-        // scheme, and these URLs come from remote listing/CMS data.
-        guard let url = SellwildSafeURL.external(urlString), let vc = nearestViewController() else { return }
-        let safari = SFSafariViewController(url: url)
-        vc.present(safari, animated: true)
+        switch SellwildFeedLayout.openTarget(urlString) {
+        case .failure(let problem):
+            SellwildFailures.log(code: .feedOpenUrlInvalid, component: .feed, severity: .warn, message: problem.rawValue)
+        case .success(let url):
+            guard let vc = nearestViewController() else {
+                SellwildFailures.log(code: .feedOpenUrlInvalid, component: .feed, severity: .warn,
+                                     message: "no view controller to present the page from")
+                return
+            }
+            environment.present(url, vc)
+        }
+    }
+
+    /// The header title opens the partner page, when one is configured.
+    fileprivate func openPartnerPage() {
+        guard let partnerUrl = config.partnerUrl else { return }
+        openURL(partnerUrl)
     }
 
     fileprivate func handleListingTap(_ listing: SellwildListing) {
-        let handled = delegate?.sellwildFeed(self, didTapListing: listing) ?? false
+        let handled = delegate?.sellwildFeed(self, didTapListing: listing) == true
         if !handled {
             openURL(listing.tapURL(partnerCode: config.partnerCode, bhTag: config.bhTag))
         }
@@ -406,20 +374,6 @@ public final class SellwildFeedView: UIView {
         return nil
     }
 
-    // MARK: Statics
-
-    private static let defaultSchedule = "LLGLLGLLG"
-
-    private static func normalizeSchedule(_ raw: String?) -> String {
-        let s = raw?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() ?? ""
-        return s.isEmpty ? defaultSchedule : s
-    }
-
-    fileprivate static func pickZone(_ zones: [String], idx: Int) -> String? {
-        guard !zones.isEmpty else { return nil }
-        return zones[idx % zones.count]
-    }
-
     /// Pick a listing to house-backfill an ad slot with when no CMS house image
     /// is configured. Prefers listings that actually have a photo (a photoless
     /// listing renders a grey placeholder), rotating by row so adjacent ad slots
@@ -429,30 +383,18 @@ public final class SellwildFeedView: UIView {
     /// candidate is already shown (see `SellwildHouseAd.pickListing`). Returns
     /// nil when there are no listings to draw from.
     private func houseListing(for row: Int) -> SellwildListing? {
-        let shownIds: Set<String> = Set(rows.compactMap { r -> String? in
-            if case .listing(let l) = r { return l.id }
-            return nil
-        })
-        return SellwildHouseAd.pickListing(from: listings, row: row, excludeIds: shownIds)
+        SellwildHouseAd.pickListing(from: listings, row: row, excludeIds: SellwildFeedLayout.shownListingIds(rows))
     }
 
-    fileprivate static func parseColor(_ hex: String?) -> UIColor? {
-        guard var s = hex?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return nil }
-        if s.hasPrefix("#") { s.removeFirst() }
-        guard s.count == 6 || s.count == 8, let v = UInt64(s, radix: 16) else { return nil }
-        let r, g, b, a: CGFloat
-        if s.count == 6 {
-            r = CGFloat((v >> 16) & 0xFF) / 255
-            g = CGFloat((v >> 8)  & 0xFF) / 255
-            b = CGFloat( v        & 0xFF) / 255
-            a = 1
-        } else {
-            r = CGFloat((v >> 24) & 0xFF) / 255
-            g = CGFloat((v >> 16) & 0xFF) / 255
-            b = CGFloat((v >> 8)  & 0xFF) / 255
-            a = CGFloat( v        & 0xFF) / 255
-        }
-        return UIColor(red: r, green: g, blue: b, alpha: a)
+    /// A dequeued cell of the registered type, else a blank cell and
+    /// `feed.cell.invalid` (it used to be a force cast that crashed the app).
+    private func dequeue<Cell: UITableViewCell>(_ type: Cell.Type, id: String, for indexPath: IndexPath,
+                                                in tableView: UITableView) -> Cell? {
+        let cell = tableView.dequeueReusableCell(withIdentifier: id, for: indexPath)
+        if let typed = cell as? Cell { return typed }
+        SellwildFailures.log(code: .feedCellInvalid, component: .feed, severity: .fatal,
+                             message: "a dequeued feed cell had an unexpected type; the row is blank")
+        return nil
     }
 }
 
@@ -465,29 +407,36 @@ extension SellwildFeedView: UITableViewDataSource, UITableViewDelegate {
     }
 
     public func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let row = rows[indexPath.row]
-        switch row {
+        switch rows[indexPath.row] {
         case .header:
-            let cell = tableView.dequeueReusableCell(withIdentifier: HeaderCell.reuseId, for: indexPath) as! HeaderCell
+            guard let cell = dequeue(HeaderCell.self, id: HeaderCell.reuseId, for: indexPath, in: tableView) else {
+                return UITableViewCell()
+            }
             cell.configure(config: config, onTitleTap: { [weak self] in
-                if let url = self?.config.partnerUrl { self?.openURL(url) }
+                self?.openPartnerPage()
             }, onPoweredByTap: { [weak self] in
                 self?.openURL("https://sellwild.com")
             })
             return cell
         case .listing(let listing):
-            let cell = tableView.dequeueReusableCell(withIdentifier: ListingCardCell.reuseId, for: indexPath) as! ListingCardCell
+            guard let cell = dequeue(ListingCardCell.self, id: ListingCardCell.reuseId, for: indexPath, in: tableView) else {
+                return UITableViewCell()
+            }
             cell.configure(config: config, listing: listing)
             return cell
         case .gamAd(let zone), .directAd(let zone):
-            let cell = tableView.dequeueReusableCell(withIdentifier: AdRowCell.reuseId, for: indexPath) as! AdRowCell
+            guard let cell = dequeue(AdRowCell.self, id: AdRowCell.reuseId, for: indexPath, in: tableView) else {
+                return UITableViewCell()
+            }
             // MREC can house-backfill with a listing when no CMS image is set.
             cell.configure(config: config, adSize: .mrec300x250, zoneId: zone, owner: self,
                            houseListing: houseListing(for: indexPath.row),
                            gpid: gpidByRowIndex[indexPath.row])
             return cell
         case .banner(let zone):
-            let cell = tableView.dequeueReusableCell(withIdentifier: AdRowCell.reuseId, for: indexPath) as! AdRowCell
+            guard let cell = dequeue(AdRowCell.self, id: AdRowCell.reuseId, for: indexPath, in: tableView) else {
+                return UITableViewCell()
+            }
             // 320x50 is too small for a listing card — CMS house image only.
             cell.configure(config: config, adSize: .banner320x50, zoneId: zone, owner: self,
                            houseListing: nil,
@@ -544,12 +493,14 @@ private final class HeaderCell: UITableViewCell {
         ])
     }
 
+    // sellwild-coverage:exclude-begin(crash-guard) init(coder:) traps by design; the feed registers this cell by class.
     required init?(coder: NSCoder) { fatalError() }
+    // sellwild-coverage:exclude-end
 
     func configure(config: SellwildConfig, onTitleTap: @escaping () -> Void, onPoweredByTap: @escaping () -> Void) {
         titleLabel.text = config.title ?? "Marketplace"
-        titleLabel.textColor = SellwildFeedView.parseColor(config.titleColor) ?? .white
-        poweredByLabel.textColor = SellwildFeedView.parseColor(config.linkColor) ?? UIColor(white: 0.7, alpha: 1)
+        titleLabel.textColor = SellwildFormat.color(config.titleColor) ?? .white
+        poweredByLabel.textColor = SellwildFormat.color(config.linkColor) ?? UIColor(white: 0.7, alpha: 1)
         self.onTitleTap = onTitleTap
         self.onPoweredByTap = onPoweredByTap
     }
@@ -575,10 +526,10 @@ final class SellwildListingCardView: UIView {
         didSet { tapRecognizer.isEnabled = onTap != nil }
     }
 
-    private let photoView = UIImageView()
-    private let titleLabel = UILabel()
-    private let priceLabel = UILabel()
-    private let sellerLabel = UILabel()
+    let photoView = UIImageView()
+    let titleLabel = UILabel()
+    let priceLabel = UILabel()
+    let sellerLabel = UILabel()
     private lazy var tapRecognizer = UITapGestureRecognizer(target: self, action: #selector(tapped))
     private var imageTask: URLSessionDataTask?
     private var currentImageURL: String?
@@ -635,15 +586,17 @@ final class SellwildListingCardView: UIView {
         tapRecognizer.isEnabled = false
     }
 
+    // sellwild-coverage:exclude-begin(crash-guard) init(coder:) traps by design; the feed builds the card in code.
     required init?(coder: NSCoder) { fatalError("Use init(frame:)") }
+    // sellwild-coverage:exclude-end
 
     @objc private func tapped() { onTap?() }
 
     func configure(config: SellwildConfig, listing: SellwildListing) {
         titleLabel.text = listing.title
-        priceLabel.text = Self.formatPrice(currency: listing.currency, price: listing.price)
-        priceLabel.textColor = SellwildFeedView.parseColor(config.linkColor) ?? UIColor(red: 0.15, green: 0.39, blue: 0.92, alpha: 1)
-        sellerLabel.text = Self.formatSeller(listing.user)
+        priceLabel.text = SellwildFormat.price(currency: listing.currency, price: listing.price)
+        priceLabel.textColor = SellwildFormat.color(config.linkColor) ?? UIColor(red: 0.15, green: 0.39, blue: 0.92, alpha: 1)
+        sellerLabel.text = SellwildFormat.seller(listing.user)
         loadImage(listing.photos?.first?.url)
     }
 
@@ -656,6 +609,10 @@ final class SellwildListingCardView: UIView {
         photoView.backgroundColor = UIColor(white: 0.93, alpha: 1)
     }
 
+    /// Loads the listing photo: memory cache, then a data: URI decoded off the
+    /// main thread (size-capped), then an http(s) download. A refused or
+    /// failed photo stays grey and is reported (`feed.image.*`); a download
+    /// cancelled by reuse is not.
     private func loadImage(_ urlString: String?) {
         currentImageURL = urlString
         guard let s = urlString, !s.isEmpty else { return }
@@ -664,65 +621,56 @@ final class SellwildListingCardView: UIView {
             return
         }
         if s.hasPrefix("data:") {
-            // data: URI — decode synchronously off-thread, size-capped.
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                guard let bytes = Self.decodeDataURI(s), bytes.count <= SellwildSafeURL.maxImageBytes,
-                      let image = UIImage(data: bytes) else { return }
-                Self.cache.setObject(image, forKey: s as NSString)
-                DispatchQueue.main.async {
-                    guard let self = self, self.currentImageURL == s else { return }
-                    self.photoView.image = image
-                }
+                let outcome = SellwildImageLoad.decoded(SellwildHouseAd.decodeDataURI(s))
+                Self.imageLoaded(outcome, key: s, reportURL: nil) { self?.show($0, for: s) }
             }
             return
         }
         // http/https only (reject file://) — listing photo URLs are remote data.
-        guard let url = SellwildSafeURL.imageURL(s) else { return }
-        let task = URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
-            guard let data = data, data.count <= SellwildSafeURL.maxImageBytes, let image = UIImage(data: data) else { return }
-            Self.cache.setObject(image, forKey: s as NSString)
-            DispatchQueue.main.async {
-                guard let self = self, self.currentImageURL == s else { return }
-                self.photoView.image = image
-            }
+        guard let url = SellwildSafeURL.imageURL(s) else {
+            SellwildFailures.log(code: .feedImageInvalid, component: .feed, severity: .warn,
+                                 message: "listing photo URL is not http(s)")
+            return
+        }
+        let task = SellwildFeedView.environment.imageSession.dataTask(with: url) { [weak self] data, response, error in
+            let outcome = SellwildImageLoad.outcome(data: data, response: response, error: error)
+            Self.imageLoaded(outcome, key: s, reportURL: s) { self?.show($0, for: s) }
         }
         imageTask = task
         task.resume()
     }
 
-    private static let cache: NSCache<NSString, UIImage> = {
+    /// Caches and shows a loaded photo, or reports why there is none.
+    private static func imageLoaded(_ outcome: SellwildImageLoad.Outcome, key: String, reportURL: String?,
+                                    show: @escaping (UIImage) -> Void) {
+        switch outcome {
+        case .image(let image):
+            cache.setObject(image, forKey: key as NSString)
+            DispatchQueue.main.async { show(image) }
+        case .cancelled:
+            break
+        case .network(let error):
+            SellwildFailures.log(code: .feedImageNetwork, component: .feed, severity: .warn, error: error,
+                                 message: "listing photo failed to download",
+                                 httpStatus: SellwildImageLoad.httpStatus(error), url: reportURL)
+        case .invalid(let problem):
+            SellwildFailures.log(code: .feedImageInvalid, component: .feed, severity: .warn,
+                                 message: "listing photo: \(problem.rawValue)")
+        }
+    }
+
+    /// Shows `image` unless the card moved on to another photo meanwhile.
+    private func show(_ image: UIImage, for url: String) {
+        guard currentImageURL == url else { return }
+        photoView.image = image
+    }
+
+    static let cache: NSCache<NSString, UIImage> = {
         let c = NSCache<NSString, UIImage>()
         c.countLimit = 64
         return c
     }()
-
-    private static func decodeDataURI(_ s: String) -> Data? {
-        guard let comma = s.firstIndex(of: ",") else { return nil }
-        let payload = String(s[s.index(after: comma)...])
-        return Data(base64Encoded: payload, options: .ignoreUnknownCharacters)
-    }
-
-    private static func formatPrice(currency: String?, price: String?) -> String {
-        guard let p = price, let value = Double(p) else { return "" }
-        let sym: String
-        switch currency?.uppercased() {
-        case "EUR": sym = "€"
-        case "GBP": sym = "£"
-        default:    sym = "$"
-        }
-        return value.truncatingRemainder(dividingBy: 1) == 0
-            ? "\(sym)\(Int(value))"
-            : String(format: "%@%.2f", sym, value)
-    }
-
-    private static func formatSeller(_ user: SellwildUser?) -> String {
-        guard let u = user else { return "sellwild.com" }
-        let firstRaw = (u.firstName ?? "").trimmingCharacters(in: .whitespaces)
-        let first = firstRaw.isEmpty ? "SELLER" : firstRaw.uppercased()
-        let lastInit = (u.lastName ?? "").first.map { String($0).uppercased() }
-        let name = lastInit.map { "\(first) \($0)." } ?? first
-        return "\(name)  |  sellwild.com"
-    }
 }
 
 // MARK: - ListingCardCell (thin wrapper hosting a SellwildListingCardView)
@@ -737,6 +685,7 @@ private final class ListingCardCell: UITableViewCell {
         selectionStyle = .none
         backgroundColor = .clear
         contentView.backgroundColor = .clear
+        accessibilityIdentifier = SellwildFeedView.listingCardAccessibilityID
 
         cardView.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(cardView)
@@ -748,7 +697,9 @@ private final class ListingCardCell: UITableViewCell {
         ])
     }
 
+    // sellwild-coverage:exclude-begin(crash-guard) init(coder:) traps by design; the feed registers this cell by class.
     required init?(coder: NSCoder) { fatalError() }
+    // sellwild-coverage:exclude-end
 
     override func prepareForReuse() {
         super.prepareForReuse()
@@ -771,6 +722,8 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
     // it's pixel-identical, and it grows the row to its natural height.
     private let fallbackCard = SellwildListingCardView()
     private var boundZoneId: String?
+    /// The zone this row reports its ad events under.
+    private var zone = ""
     private weak var owner: SellwildFeedView?
     private var config: SellwildConfig?
     private var houseListing: SellwildListing?
@@ -785,6 +738,7 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
         selectionStyle = .none
         backgroundColor = .clear
         contentView.backgroundColor = .clear
+        accessibilityIdentifier = SellwildFeedView.adRowAccessibilityID
 
         fallbackCard.translatesAutoresizingMaskIntoConstraints = false
         fallbackCard.isHidden = true
@@ -795,18 +749,23 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
             fallbackCard.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             fallbackCard.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
         ]
-        fallbackCard.onTap = { [weak self] in
-            guard let self, let listing = self.houseListing else { return }
-            self.owner?.handleListingTap(listing)
-        }
+        fallbackCard.onTap = { [weak self] in self?.fallbackTapped() }
     }
 
+    // sellwild-coverage:exclude-begin(crash-guard) init(coder:) traps by design; the feed registers this cell by class.
     required init?(coder: NSCoder) { fatalError() }
+    // sellwild-coverage:exclude-end
+
+    private func fallbackTapped() {
+        guard let listing = houseListing else { return }
+        owner?.handleListingTap(listing)
+    }
 
     func configure(config: SellwildConfig, adSize: AdSize, zoneId: String, owner: SellwildFeedView,
                    houseListing: SellwildListing?, gpid: String?) {
         self.owner = owner
         self.config = config
+        self.zone = zoneId
         self.houseListing = houseListing
         self.hasHouseImage = SellwildHouseAd.resolve(
             remoteValues: config.remoteValues, zoneId: zoneId, size: adSize.cgSize
@@ -822,7 +781,7 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
         boundZoneId = zoneId
         adView?.removeFromSuperview()
 
-        let ad = SellwildAdView(config: config, adSize: adSize, zoneId: zoneId)
+        let ad = owner.environment.makeAdView(config, adSize, zoneId)
         // Share the feed's surface guard so firstAdViewed fires once for the whole
         // feed, not once per ad row (web parity).
         ad.firstAdViewedGuard = owner.firstAdViewedGuard
@@ -863,14 +822,13 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
     }
 
     /// Swap to the full-width listing fallback and grow the row to fit it.
-    private func showFallbackCard() {
-        guard let listing = houseListing, let config = config else { showAdSlot(); return }
+    private func showFallbackCard(_ listing: SellwildListing, config: SellwildConfig) {
         NSLayoutConstraint.deactivate(adConstraints)
         adView?.isHidden = true
         fallbackCard.configure(config: config, listing: listing)
         fallbackCard.isHidden = false
         NSLayoutConstraint.activate(cardConstraints)
-        owner?.handleHouseAdImpression(boundZoneId ?? "")
+        owner?.handleHouseAdImpression(zone)
         owner?.reflowRowHeights()
     }
 
@@ -896,14 +854,15 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
     func sellwildAdView(_ adView: SellwildAdView, didFailWithError error: Error) {
         // No-fill. A CMS house image (if any) renders in-slot via the ad view, so
         // keep the fixed slot; otherwise show the full-width listing fallback.
-        if hasHouseImage || houseListing == nil {
-            showAdSlot()
+        let view = SellwildFeedLayout.noFillView(hasHouseImage: hasHouseImage, hasListing: houseListing != nil)
+        if view == .fallbackCard, let listing = houseListing, let config {
+            showFallbackCard(listing, config: config)
         } else {
-            showFallbackCard()
+            showAdSlot()
         }
     }
 
     func sellwildAdViewDidRecordClick(_ adView: SellwildAdView) {
-        if let z = boundZoneId { owner?.handleAdClick(z) }
+        owner?.handleAdClick(zone)
     }
 }

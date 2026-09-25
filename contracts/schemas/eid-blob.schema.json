@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/eid-blob.schema.json",
+  "title": "GrowthCode EID blob",
+  "description": "The parsed `eb` text of a growthcode-sync-response. Parsers keep source and uids, drop inserter/matcher, default atype to 0 and keep stype in uid.ext.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "source",
+      "uids"
+    ],
+    "additionalProperties": true,
+    "properties": {
+      "_synthetic": {
+        "description": "Fixture marker. Present only in hand-made fixtures, never on the wire.",
+        "const": true
+      },
+      "inserter": {
+        "description": "Provider that inserted the id (dropped by parsers).",
+        "type": "string"
+      },
+      "source": {
+        "description": "Id source domain, for example uidapi.com.",
+        "type": "string",
+        "minLength": 1
+      },
+      "matcher": {
+        "description": "Matcher domain (dropped by parsers).",
+        "type": "string"
+      },
+      "uids": {
+        "description": "Ids for this source.",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "additionalProperties": true,
+          "properties": {
+            "id": {
+              "description": "The id value.",
+              "type": "string",
+              "minLength": 1
+            },
+            "atype": {
+              "description": "OpenRTB agent type: a number or numeric text (default 0).",
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]+$"
+                }
+              ]
+            },
+            "stype": {
+              "description": "Id subtype; kept in ext when present.",
+              "type": "string"
+            },
+            "ext": {
+              "description": "Provider-specific extension.",
+              "type": "object"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "description": "Compiler warnings per file from a fresh compile of android/ main + unit-test sources (scripts/lint/kotlin-warnings.mjs). The gate fails when a count goes up or a file not listed here has a warning. Lower a count in the same change that removes a warning: node scripts/lint/kotlin-warnings.mjs --update.",
+  "tasks": [
+    "compileDebugKotlin",
+    "compileDebugUnitTestKotlin",
+    "compileDebugUnitTestJavaWithJavac"
+  ],
+  "total": 7,
+  "files": {
+    "android/src/main/kotlin/com/sellwild/sdk/SellwildHouseAdView.kt": 1,
+    "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailures.kt": 1,
+    "android/src/test/kotlin/com/sellwild/sdk/SellwildGeoDeviceJsonTest.kt": 1,
+    "android/src/test/kotlin/com/sellwild/sdk/docs/DocsVerifyKotlinTest.kt": 2,
+    "android/src/test/kotlin/com/sellwild/sdk/failures/FailuresCoreTest.kt": 2
+  }
+}

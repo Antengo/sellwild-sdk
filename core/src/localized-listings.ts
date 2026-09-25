@@ -4,8 +4,9 @@
 // and disperses those listings into the primary feed at a configured frequency
 // (every Nth slot). This module is the PLATFORM-NEUTRAL reference: config
 // resolution, state resolution, URL templating, and the every-Nth de-duped
-// merge. It performs no I/O. The native SDKs (iOS/Android) and the web widget
-// mirror these functions with their own fetch/geo adapters.
+// merge. It does no fetching or geo lookup of its own. The native SDKs
+// (iOS/Android) and the web widget mirror these functions with their own
+// fetch/geo adapters.
 //
 // State resolution order (highest first):
 //   1. integration.forceState  (remote/CMS force — a known-Alabama site, etc.)
@@ -16,8 +17,18 @@
 // Cache format is identical to the primary feed (`result.rs` of listings), so
 // the existing listing parser is reused verbatim; a 404 on the templated URL
 // (state we have no data for) is a normal skip.
+//
+// Failures (contracts/FAILURES.md): resolveLocalizedListingsWithIssues is pure
+// and returns what is wrong with the config next to the integration, and so
+// are the state, URL and merge helpers. resolveLocalizedListings is a thin
+// shell over it that reports each issue once with logFailure
+// (localized.config.parse, localized.config.invalid), which queues an events
+// POST. No state, an empty pool, an unset frequency and an explicit
+// `enabled: false` are not failures.
 
 import type { SellwildListing, SellwildConfig, LocalizedListingsConfig } from './types'
+import { logFailure, type LogFailureInput } from './failures'
+import { jsonKind, parseErrorName } from './json-kind'
 
 /** A fully-resolved localized-listings integration (config validated). */
 export interface LocalizedListingsIntegration {
@@ -53,44 +64,83 @@ export function normState(v: unknown): string | undefined {
   return /^[A-Z]{2}$/.test(code) ? code : (code.match(/[A-Z]{2}$/)?.[0] ?? code)
 }
 
-function safeParseObject(v: unknown): Record<string, unknown> | undefined {
-  if (v && typeof v === 'object') return v as Record<string, unknown>
-  if (typeof v === 'string') {
+// The integration config object: the local config (an object), or
+// LOCALIZED_LISTINGS (an object or its JSON text, `jsonText`). Absent, null
+// and '' (the CMS "unset") give nothing and no issue.
+function readConfigObject(v: unknown, name: string, jsonText: boolean): { raw?: Record<string, unknown>; issue?: LogFailureInput } {
+  if (v === undefined || v === null) return {}
+  let value = v
+  if (jsonText && typeof v === 'string') {
+    if (v.trim() === '') return {}
     try {
-      const p = JSON.parse(v)
-      if (p && typeof p === 'object') return p as Record<string, unknown>
-    } catch {
-      /* not JSON */
+      value = JSON.parse(v)
+    } catch (error) {
+      // Only the error's name: its message quotes the config text.
+      return { issue: { code: 'localized.config.parse', component: 'localized', severity: 'warn', message: `${name} is not JSON`, error: parseErrorName(error) } }
     }
   }
-  return undefined
+  if (value && typeof value === 'object' && !Array.isArray(value)) return { raw: value as Record<string, unknown> }
+  const text = value !== v ? `${name} JSON text is ${jsonKind(value)}` : `${name} is ${jsonKind(value)}`
+  return { issue: invalid(`${text}, not an object`) }
+}
+
+function invalid(message: string): LogFailureInput {
+  return { code: 'localized.config.invalid', component: 'localized', severity: 'warn', message }
 }
 
 /**
  * Resolve the active integration: local `config.localizedListings` wins, else
  * the remote `LOCALIZED_LISTINGS` object (may be a JSON string), else null.
- * Returns null when disabled or missing a baseUrl/urlTemplate.
+ * Returns null when disabled or missing a baseUrl/urlTemplate. A config that
+ * cannot be used is reported (see resolveLocalizedListingsWithIssues).
  */
 export function resolveLocalizedListings(
   config: Pick<SellwildConfig, 'localizedListings' | 'remote'>,
 ): LocalizedListingsIntegration | null {
-  const raw: Record<string, unknown> | undefined =
-    (config.localizedListings as Record<string, unknown> | undefined) ??
-    safeParseObject(config.remote?.['LOCALIZED_LISTINGS'])
+  const { integration, issues } = resolveLocalizedListingsWithIssues(config)
+  for (const issue of issues) logFailure(issue)
+  return integration
+}
 
-  if (!raw) return null
-  if (raw.enabled === false) return null // explicit off; absent = on (presence implies intent)
+/**
+ * resolveLocalizedListings, plus why a present config cannot be used:
+ * localized.config.parse (JSON text that does not parse) and
+ * localized.config.invalid (not an object, or no baseUrl or urlTemplate while
+ * not disabled, or a frequency that is not a number, which reads as 0: no
+ * localized listings are mixed in). Pure.
+ */
+export function resolveLocalizedListingsWithIssues(
+  config: Pick<SellwildConfig, 'localizedListings' | 'remote'>,
+): { integration: LocalizedListingsIntegration | null; issues: LogFailureInput[] } {
+  // The local config wins whenever it is set, as it always has.
+  const local = config.localizedListings as unknown
+  const name = local !== undefined && local !== null ? 'localizedListings' : 'LOCALIZED_LISTINGS'
+  const { raw, issue } =
+    name === 'localizedListings'
+      ? readConfigObject(local, name, false)
+      : readConfigObject(config.remote?.['LOCALIZED_LISTINGS'], name, true)
+
+  if (!raw) return { integration: null, issues: issue ? [issue] : [] }
+  if (raw.enabled === false) return { integration: null, issues: [] } // explicit off; absent = on (presence implies intent)
 
   const baseUrl = nonEmpty(raw.baseUrl)
   const urlTemplate = nonEmpty(raw.urlTemplate)
-  if (!baseUrl || !urlTemplate) return null
+  if (!baseUrl || !urlTemplate) {
+    const missing = [baseUrl ? '' : 'baseUrl', urlTemplate ? '' : 'urlTemplate'].filter(Boolean).join(' or ')
+    return { integration: null, issues: [invalid(`${name} has no ${missing}, so it is off`)] }
+  }
 
+  // Absent or null is an unset frequency (0), and so is '' (Number('') is 0).
+  const frequency = numeric(raw.frequency)
   return {
-    source: nonEmpty(raw.source),
-    baseUrl,
-    urlTemplate,
-    frequency: numeric(raw.frequency) ?? 0,
-    forceState: normState(raw.forceState),
+    integration: {
+      source: nonEmpty(raw.source),
+      baseUrl,
+      urlTemplate,
+      frequency: frequency ?? 0,
+      forceState: normState(raw.forceState),
+    },
+    issues: frequency === undefined && raw.frequency != null ? [invalid(`${name} frequency is ${jsonKind(raw.frequency)}, not a number, read as 0`)] : [],
   }
 }
 

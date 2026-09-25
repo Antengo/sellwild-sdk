@@ -111,6 +111,8 @@ public struct SellwildListing: Codable, Identifiable {
         return "https://sellwild.com/product/\(id)?p=\(encoded)&utm_source=\(encoded)"
     }
 
+    // `try?` in the two helpers below is not a swallowed failure: a type
+    // mismatch is expected, and the next accepted type is tried.
     private static func decodeFlexibleString(
         _ c: KeyedDecodingContainer<CodingKeys>, key: CodingKeys
     ) throws -> String? {
@@ -156,17 +158,30 @@ public final class SellwildAPIClient {
     private let session: URLSession
     private let listingCache = NSCache<NSString, ListingsCacheEntry>()
 
-    /// Analytics kill switch. Defaults on; `SellwildAdView` sets this from the
-    /// resolved remote config (EVENTS_ENABLED) so events can be stopped via CMS
-    /// without an app release. When off, `sendEvent` is a no-op.
-    public var eventsEnabled: Bool = true
+    /// Analytics kill switch. Defaults on; `SellwildSDK.configure` and
+    /// `SellwildAdView` set this from the resolved remote config (EVENTS_ENABLED)
+    /// so events can be stopped via CMS without an app release. When off,
+    /// `sendEvent` is a no-op.
+    public var eventsEnabled: Bool {
+        get { withEventSettings { _eventsEnabled } }
+        set { withEventSettings { _eventsEnabled = newValue } }
+    }
 
     /// Partner attribution. Set from the resolved config (CODE / partnerCode) so
     /// every event carries `attributes.code` — the events pipeline keys the
     /// partner off that field. When absent, the server stamps the partner as
     /// "Invalid", so this must be populated before any emit. Applied in
     /// `stampEvent` so it rides every batched event.
-    public var partnerCode: String?
+    public var partnerCode: String? {
+        get { withEventSettings { _partnerCode } }
+        set { withEventSettings { _partnerCode = newValue } }
+    }
+
+    // `configure` writes the two settings above off the main thread,
+    // `SellwildAdView` on it, and `sendEvent` reads them on the caller's thread.
+    private let eventSettingsLock = NSLock()
+    private var _eventsEnabled = true
+    private var _partnerCode: String?
 
     // MARK: Event batching
     // Analytics events are coalesced into array POSTs to /events/queue instead of
@@ -175,19 +190,37 @@ public final class SellwildAPIClient {
     // (batch 100, 10s flush, 1000 cap). The FIRST event of the process is sent
     // immediately so session-start/attribution isn't delayed; the rest batch.
     private let eventsURL = URL(string: "https://events.sellwild.com/events/queue")!
-    private let eventQueue = DispatchQueue(label: "com.sellwild.sdk.eventqueue")
+    /// Runs all events queue work, in order: the buffer, the flush timer and
+    /// every read of `eventTransport`.
+    let eventQueue = DispatchQueue(label: "com.sellwild.sdk.eventqueue")
     private let maxEventBatch = 100
     private let maxEventQueue = 1000
     private let eventFlushInterval: TimeInterval = 10
     private var eventBuffer: [SellwildEvent] = []
-    private var eventFlushTimer: DispatchSourceTimer?
+    private var cancelEventFlush: (() -> Void)?
     private var hasFlushedFirstEvent = false
     private var lifecycleObservers: [NSObjectProtocol] = []
+    /// Sends each batch. The SDK sets it only in `init`. A test process
+    /// replaces the one of `shared` (on `eventQueue`) with a stub, since code
+    /// on a live environment queues events there.
+    var eventTransport: SellwildEventTransport
+    /// Time for the events queue: the batch timer, and each clientFailure's
+    /// `createdTime` (`SellwildFailures` reads it).
+    let eventClock: SellwildEventClock
 
     public static let shared = SellwildAPIClient()
 
-    public init(session: URLSession = .shared) {
+    public convenience init(session: URLSession = .shared) {
+        self.init(session: session, eventTransport: .session(session), eventClock: .system)
+    }
+
+    /// Tests inject a transport that captures batches and a clock they
+    /// advance by hand.
+    init(session: URLSession, eventTransport: SellwildEventTransport, eventClock: SellwildEventClock) {
         self.session = session
+        self.load = { request, completion in session.dataTask(with: request, completionHandler: completion).resume() }
+        self.eventTransport = eventTransport
+        self.eventClock = eventClock
         registerLifecycleFlush()
     }
 
@@ -197,17 +230,31 @@ public final class SellwildAPIClient {
 
     // MARK: Fetch Listings
 
+    /// Writes the JSON-RPC envelope for the legacy listings endpoint. A seam
+    /// for tests: the default cannot fail on the envelope it is given.
+    var encodeListingsEnvelope: ([String: Any]) throws -> Data = { try JSONSerialization.data(withJSONObject: $0) }
+
+    /// Runs one listings or localized-cache request on `session`. A seam for
+    /// tests, which also hand back answers URLSession never gives (no body
+    /// and no error).
+    var load: (URLRequest, @escaping (Data?, URLResponse?, Error?) -> Void) -> Void
+
+    /// Fetches the partner's listings feed. Each failure is reported here,
+    /// once (FAILURES.md 9), and then passed to `completion`; callers do not
+    /// report it again.
     public func fetchListings(
         config: SellwildConfig,
         completion: @escaping (Result<SellwildListingsResponse, Error>) -> Void
     ) {
         let listingsUrlString = config.effectiveListingsUrl
         guard let url = URL(string: listingsUrlString) else {
+            SellwildFailures.log(code: .listingsUrlInvalid, component: .listings,
+                                 message: "listings URL is not a valid URL", url: listingsUrlString)
             completion(.failure(SellwildError.invalidURL(listingsUrlString)))
             return
         }
 
-        let cacheKey = url.absoluteString + "|" + config.partnerCode as NSString
+        let cacheKey = SellwildListingsCore.cacheKey(url: url, partnerCode: config.partnerCode) as NSString
         if let cached = listingCache.object(forKey: cacheKey) {
             completion(.success(cached.response))
             return
@@ -226,36 +273,29 @@ public final class SellwildAPIClient {
         //
         // We pick by host: anything pointed at `cache.sellwild.com` is treated
         // as a static cache URL; everything else falls back to the RPC POST.
-        var request = URLRequest(url: url)
-        let isStaticCache = (url.host ?? "").contains("cache.sellwild.com")
-
-        if isStaticCache {
-            request.httpMethod = "GET"
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-        } else {
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            let envelope: [String: Any] = [
-                "jsonrpc": "2.0",
-                "method": "getFeaturedListingsForPartnerWidget",
-                "params": [config.partnerCode, "regular"],
-                "id": 1,
-            ]
-            do {
-                request.httpBody = try JSONSerialization.data(withJSONObject: envelope)
-            } catch {
-                completion(.failure(error))
-                return
-            }
+        let request: URLRequest
+        do {
+            request = try SellwildListingsCore.request(url: url, partnerCode: config.partnerCode, encode: encodeListingsEnvelope)
+        } catch {
+            SellwildFailures.log(code: .listingsRequestException, component: .listings, error: error, url: url.absoluteString)
+            completion(.failure(error))
+            return
         }
 
-        let task = session.dataTask(with: request) { [weak self] data, response, error in
+        let urlString = url.absoluteString
+        load(request) { [weak self] data, response, error in
+            let finish = { (result: Result<SellwildListingsResponse, Error>) in
+                DispatchQueue.main.async { completion(result) }
+            }
             if let error = error {
-                DispatchQueue.main.async { completion(.failure(error)) }
+                Self.reportTransportError(error, component: .listings, url: urlString)
+                finish(.failure(error))
                 return
             }
             guard let data = data else {
-                DispatchQueue.main.async { completion(.failure(SellwildError.noData)) }
+                SellwildFailures.log(code: .listingsFetchMissing, component: .listings,
+                                     message: "listings response has no body", url: urlString)
+                finish(.failure(SellwildError.noData))
                 return
             }
             // Seed the geo state from CloudFront's viewer-country-region header
@@ -265,19 +305,34 @@ public final class SellwildAPIClient {
             if let http = response as? HTTPURLResponse {
                 Self.seedGeoFromCloudFrontIfEmpty(from: http)
             }
-            do {
-                let parsed = try self?.parseListingsResponse(data: data)
-                    ?? SellwildListingsResponse(listings: [], config: [:], widgetCacheVersionId: nil)
-
-                let entry = ListingsCacheEntry(response: parsed)
-                self?.listingCache.setObject(entry, forKey: cacheKey)
-
-                DispatchQueue.main.async { completion(.success(parsed)) }
-            } catch {
-                DispatchQueue.main.async { completion(.failure(error)) }
+            if let status = SellwildLoadFailure.httpFailureStatus(response) {
+                SellwildFailures.log(code: .listingsFetchHttp, component: .listings,
+                                     message: "HTTP \(status)", httpStatus: status, url: urlString)
+                finish(.failure(SellwildError.invalidResponse))
+                return
+            }
+            guard let self = self else {
+                // The client went away mid-request: nothing can cache or use
+                // the answer, so an empty feed is delivered, as before.
+                SellwildFailures.log(code: .listingsClientMissing, component: .listings, severity: .warn,
+                                     message: "listings client released while a request was in flight", url: urlString)
+                finish(.success(SellwildListingsCore.empty))
+                return
+            }
+            switch SellwildListingsCore.parse(data) {
+            case .failure(.notJSON(let parseError)):
+                SellwildFailures.log(code: .listingsFetchParse, component: .listings, error: parseError, url: urlString)
+                finish(.failure(parseError))
+            case .failure(.notAnObject):
+                SellwildFailures.log(code: .listingsParseInvalid, component: .listings,
+                                     message: "listings JSON is not an object", url: urlString)
+                finish(.failure(SellwildError.invalidResponse))
+            case .success(let parsed):
+                Self.reportParseProblems(parsed, component: .listings, url: urlString)
+                self.listingCache.setObject(ListingsCacheEntry(response: parsed.response), forKey: cacheKey)
+                finish(.success(parsed.response))
             }
         }
-        task.resume()
     }
 
     @available(iOS 15, macOS 12, *)
@@ -295,7 +350,8 @@ public final class SellwildAPIClient {
     /// parser. The payload shape is identical to the primary feed
     /// (`result.rs`), so the same decoder applies. A non-200 (e.g. a 404 for a
     /// state with no data) resolves to `.failure` — the caller treats that as a
-    /// skip and renders the primary feed unchanged.
+    /// skip and renders the primary feed unchanged. Failures are reported
+    /// here, once; a 403 or 404 (a state with no cache) is not a failure.
     public func fetchCacheListings(
         url: URL,
         completion: @escaping (Result<[SellwildListing], Error>) -> Void
@@ -304,28 +360,85 @@ public final class SellwildAPIClient {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let task = session.dataTask(with: request) { [weak self] data, response, error in
+        let urlString = url.absoluteString
+        load(request) { [weak self] data, response, error in
+            let finish = { (result: Result<[SellwildListing], Error>) in
+                DispatchQueue.main.async { completion(result) }
+            }
             if let error = error {
-                DispatchQueue.main.async { completion(.failure(error)) }
+                Self.reportTransportError(error, component: .localized, url: urlString)
+                finish(.failure(error))
                 return
             }
-            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                DispatchQueue.main.async { completion(.failure(SellwildError.invalidResponse)) }
+            if let status = SellwildLoadFailure.httpFailureStatus(response) {
+                if Self.isMissingStateCache(status: status) {
+                    SellwildLog.debug("[SellwildAPIClient] no localized cache for this state (HTTP \(status))")
+                } else {
+                    SellwildFailures.log(code: .localizedFetchHttp, component: .localized,
+                                         message: "HTTP \(status)", httpStatus: status, url: urlString)
+                }
+                finish(.failure(SellwildError.invalidResponse))
                 return
             }
             guard let data = data else {
-                DispatchQueue.main.async { completion(.failure(SellwildError.noData)) }
+                SellwildFailures.log(code: .localizedFetchMissing, component: .localized,
+                                     message: "localized cache response has no body", url: urlString)
+                finish(.failure(SellwildError.noData))
                 return
             }
-            do {
-                let parsed = try self?.parseListingsResponse(data: data)
-                    ?? SellwildListingsResponse(listings: [], config: [:], widgetCacheVersionId: nil)
-                DispatchQueue.main.async { completion(.success(parsed.listings)) }
-            } catch {
-                DispatchQueue.main.async { completion(.failure(error)) }
+            guard self != nil else {
+                SellwildFailures.log(code: .listingsClientMissing, component: .localized, severity: .warn,
+                                     message: "listings client released while a request was in flight", url: urlString)
+                finish(.success([]))
+                return
+            }
+            switch SellwildListingsCore.parse(data) {
+            case .failure(.notJSON(let parseError)):
+                SellwildFailures.log(code: .localizedFetchParse, component: .localized, error: parseError, url: urlString)
+                finish(.failure(parseError))
+            case .failure(.notAnObject):
+                SellwildFailures.log(code: .listingsParseInvalid, component: .localized,
+                                     message: "localized cache JSON is not an object", url: urlString)
+                finish(.failure(SellwildError.invalidResponse))
+            case .success(let parsed):
+                Self.reportParseProblems(parsed, component: .localized, url: urlString)
+                finish(.success(parsed.response.listings))
             }
         }
-        task.resume()
+    }
+
+    /// A per-state cache that does not exist answers 403 (S3 AccessDenied) or
+    /// 404. That is a normal skip, not a failure.
+    static func isMissingStateCache(status: Int) -> Bool {
+        status == 403 || status == 404
+    }
+
+    /// Reports a transport error of a listings or localized fetch. A
+    /// cancelled load is the caller's choice, not a failure.
+    private static func reportTransportError(_ error: Error, component: SellwildFailureComponent, url: String) {
+        let localized = component == .localized
+        switch SellwildLoadFailure.transport(error) {
+        case .cancelled:
+            SellwildLog.debug("[SellwildAPIClient] \(component.rawValue) fetch cancelled")
+        case .timeout:
+            SellwildFailures.log(code: localized ? .localizedFetchTimeout : .listingsFetchTimeout,
+                                 component: component, error: error, url: url)
+        case .network:
+            SellwildFailures.log(code: localized ? .localizedFetchNetwork : .listingsFetchNetwork,
+                                 component: component, error: error, url: url)
+        }
+    }
+
+    /// Reports what was wrong inside a body that parsed: no `result.rs` list,
+    /// and items that could not be decoded (one report per body).
+    private static func reportParseProblems(_ parsed: SellwildListingsCore.Parsed, component: SellwildFailureComponent, url: String) {
+        if let problem = parsed.rsProblem {
+            SellwildFailures.log(code: .listingsParseInvalid, component: component, message: problem, url: url)
+        }
+        if parsed.dropped > 0 {
+            SellwildFailures.log(code: .listingsItemParse, component: component, error: parsed.firstDropError,
+                                 message: "\(parsed.dropped) listing(s) could not be decoded and were dropped", url: url)
+        }
     }
 
     /// Seed `SellwildGeoStore` region + country from the CloudFront viewer
@@ -388,6 +501,12 @@ public final class SellwildAPIClient {
         eventQueue.async { self.flushEventsLocked() }
     }
 
+    /// Returns once the queue work submitted before this call has run. Tests
+    /// use it instead of sleeping.
+    func waitForEventQueue() {
+        eventQueue.sync {}
+    }
+
     /// Stamp platform + sdkVersion into the free-form `attributes` bag for an
     /// installed-base census (queryable in BigQuery, no server change). Caller
     /// keys are preserved; the SDK-reserved keys are applied last.
@@ -400,30 +519,48 @@ public final class SellwildAPIClient {
         attributes["type"] = "ios"
         attributes["sdkVersion"] = SellwildSDK.sdkVersion
         // Partner attribution: the events pipeline keys the partner off
-        // attributes.code; without it every event lands as "Invalid".
-        if let code = partnerCode, !code.isEmpty {
+        // attributes.code; without it every event lands as "Invalid". A
+        // clientFailure keeps the code logFailure set (bounded, or "unknown"),
+        // so its wire form matches the contract (FAILURES.md 6.3).
+        let keepsCode = stamped.event == "clientFailure" && attributes["code"] != nil
+        if let code = partnerCode, !code.isEmpty, !keepsCode {
             attributes["code"] = code
         }
         stamped.attributes = attributes
         return stamped
     }
 
-    // Must run on `eventQueue`.
+    private func withEventSettings<T>(_ body: () -> T) -> T {
+        eventSettingsLock.lock()
+        defer { eventSettingsLock.unlock() }
+        return body()
+    }
+
+    // Must run on `eventQueue`. Transport: never calls SellwildFailures.log,
+    // which would feed an outage back into this queue (FAILURES.md 8.4).
     private func flushEventsLocked() {
-        eventFlushTimer?.cancel()
-        eventFlushTimer = nil
+        cancelEventFlush?()
+        cancelEventFlush = nil
         guard !eventBuffer.isEmpty else { return }
         let batch = Array(eventBuffer.prefix(maxEventBatch))
         eventBuffer.removeFirst(batch.count)
-        guard let body = try? JSONEncoder().encode(batch) else { return }
+        let body: Data
+        do {
+            body = try JSONEncoder().encode(batch)
+        } catch {
+            // Unreachable in practice: a SellwildEvent holds only text and an
+            // Int64. Transport never reports itself (FAILURES.md 8.4, A7), so
+            // this is a debug trace, not a clientFailure.
+            SellwildLog.debug("[SellwildAPIClient] events batch could not be encoded and was dropped: \(error)")
+            return
+        }
 
         var request = URLRequest(url: eventsURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
 
-        session.dataTask(with: request) { [weak self] _, response, error in
-            let status = (response as? HTTPURLResponse)?.statusCode
+        eventTransport.send(request) { [weak self] status, error in
             guard let self = self,
                   Self.shouldRetryEventBatch(statusCode: status, error: error) else { return }
             // Re-queue on failure (capped) and reschedule so a transient outage
@@ -435,17 +572,15 @@ public final class SellwildAPIClient {
                 }
                 self.scheduleEventFlushLocked()
             }
-        }.resume()
+        }
     }
 
     // Must run on `eventQueue`.
     private func scheduleEventFlushLocked() {
-        guard eventFlushTimer == nil else { return }
-        let timer = DispatchSource.makeTimerSource(queue: eventQueue)
-        timer.schedule(deadline: .now() + eventFlushInterval)
-        timer.setEventHandler { [weak self] in self?.flushEventsLocked() }
-        eventFlushTimer = timer
-        timer.resume()
+        guard cancelEventFlush == nil else { return }
+        cancelEventFlush = eventClock.schedule(eventFlushInterval, eventQueue) { [weak self] in
+            self?.flushEventsLocked()
+        }
     }
 
     /// Whether a failed event POST should be re-queued: any network error, or
@@ -474,31 +609,6 @@ public final class SellwildAPIClient {
         #endif
     }
 
-    // MARK: Private
-
-    private func parseListingsResponse(data: Data) throws -> SellwildListingsResponse {
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw SellwildError.invalidResponse
-        }
-
-        let result = (json["result"] as? [String: Any]) ?? json
-        let rs = result["rs"] as? [[String: Any]] ?? []
-        let config = result["config"] as? [String: Any] ?? [:]
-        let versionId = result["widgetCacheVersionId"] as? String
-
-        let decoder = JSONDecoder()
-        let listings: [SellwildListing] = try rs.compactMap { dict in
-            let itemData = try JSONSerialization.data(withJSONObject: dict)
-            return try? decoder.decode(SellwildListing.self, from: itemData)
-        }
-
-        return SellwildListingsResponse(
-            listings: listings,
-            config: config,
-            widgetCacheVersionId: versionId
-        )
-    }
-
     public func clearCache() {
         listingCache.removeAllObjects()
     }
@@ -521,13 +631,55 @@ public struct SellwildEvent: Codable {
     public let createdTime: Int64
 
     public init(event: String, action: String? = nil, label: String? = nil, attributes: [String: String]? = nil) {
+        self.init(event: event, action: action, label: label, attributes: attributes,
+                  uid: SellwildSession.shared.uid, createdTime: Int64(Date().timeIntervalSince1970 * 1000))
+    }
+
+    init(event: String, action: String?, label: String?, attributes: [String: String]?, uid: String, createdTime: Int64) {
         self.event = event
         self.action = action
         self.label = label
         self.attributes = attributes
-        self.uid = SellwildSession.shared.uid
-        self.createdTime = Int64(Date().timeIntervalSince1970 * 1000)
+        self.uid = uid
+        self.createdTime = createdTime
     }
+}
+
+// MARK: - Event transport and clock
+
+/// Sends one events batch (a POST to /events/queue) and reports the HTTP
+/// status (nil without a response) and the transport error, or nil. Like the
+/// rest of the queue it never reports its own failures.
+struct SellwildEventTransport {
+    var send: (_ request: URLRequest, _ completion: @escaping (_ statusCode: Int?, _ error: Error?) -> Void) -> Void
+
+    static func session(_ session: URLSession) -> SellwildEventTransport {
+        SellwildEventTransport { request, completion in
+            session.dataTask(with: request) { _, response, error in
+                completion((response as? HTTPURLResponse)?.statusCode, error)
+            }.resume()
+        }
+    }
+}
+
+/// The events queue's time source.
+struct SellwildEventClock {
+    /// Epoch milliseconds.
+    var now: () -> Int64
+    /// Runs `work` on `queue` after `delay` seconds. The returned closure
+    /// cancels it.
+    var schedule: (_ delay: TimeInterval, _ queue: DispatchQueue, _ work: @escaping () -> Void) -> () -> Void
+
+    static let system = SellwildEventClock(
+        now: { Int64(Date().timeIntervalSince1970 * 1000) },
+        schedule: { delay, queue, work in
+            let timer = DispatchSource.makeTimerSource(queue: queue)
+            timer.schedule(deadline: .now() + delay)
+            timer.setEventHandler(handler: work)
+            timer.resume()
+            return { timer.cancel() }
+        }
+    )
 }
 
 // MARK: - Analytics kill switch
@@ -536,14 +688,11 @@ public struct SellwildEvent: Codable {
 /// unless the CMS explicitly disables them (EVENTS_ENABLED = false / "false" /
 /// 0). An absent key leaves events ON so analytics are never silently dropped.
 public enum SellwildEvents {
+    /// `EVENTS_ENABLED` with the contract's flag coercion (FAILURES.md 5.3):
+    /// booleans as is, numbers `!= 0`, text off for `false`/`0`/`no`/`off`
+    /// after ASCII trim and ASCII lower case, anything else (or absent) on.
     public static func isEnabled(remoteValues: [String: Any]?) -> Bool {
-        guard let raw = remoteValues?["EVENTS_ENABLED"] else { return true }
-        switch raw {
-        case let b as Bool: return b
-        case let n as NSNumber: return n.boolValue
-        case let s as String: return !["false", "0", "no", "off"].contains(s.trimmingCharacters(in: .whitespaces).lowercased())
-        default: return true
-        }
+        SellwildFailuresCore.coerceFlag(remoteValues?["EVENTS_ENABLED"])
     }
 }
 

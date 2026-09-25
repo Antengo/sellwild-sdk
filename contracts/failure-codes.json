@@ -1,0 +1,2671 @@
+[
+  {
+    "code": "ad.ad_units.parse",
+    "area": "ad",
+    "operation": "ad_units",
+    "reason": "parse",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The AD_UNITS config (JS literal, URL-overridable) could not be evaluated, so no ad units were built."
+  },
+  {
+    "code": "ad.append_scripts.exception",
+    "area": "ad",
+    "operation": "append_scripts",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Appending the ad stack scripts to the page threw or rejected."
+  },
+  {
+    "code": "ad.aps_bid.invalid",
+    "area": "ad",
+    "operation": "aps_bid",
+    "reason": "invalid",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "An Amazon APS bid arrived without a usable size, so it could not be rendered."
+  },
+  {
+    "code": "ad.aps_bids.timeout",
+    "area": "ad",
+    "operation": "aps_bids",
+    "reason": "timeout",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "apstag.fetchBids never called back (apstag.js blocked or stubbed)."
+  },
+  {
+    "code": "ad.aps_init.exception",
+    "area": "ad",
+    "operation": "aps_init",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "apstag.init threw."
+  },
+  {
+    "code": "ad.aps_render.exception",
+    "area": "ad",
+    "operation": "aps_render",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Rendering an APS creative inside a SafeFrame threw."
+  },
+  {
+    "code": "ad.aps_slots.exception",
+    "area": "ad",
+    "operation": "aps_slots",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Building the APS slot list threw after requestBids, so APS never bid."
+  },
+  {
+    "code": "ad.auction.timeout",
+    "area": "ad",
+    "operation": "auction",
+    "reason": "timeout",
+    "component": "banner",
+    "severity": "fatal",
+    "clients": [
+      "widget"
+    ],
+    "description": "A refresh or lazy auction never finished because a bidder callback never fired; the slot stays empty."
+  },
+  {
+    "code": "ad.audio_guard.exception",
+    "area": "ad",
+    "operation": "audio_guard",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The WebView mute shim (evaluateJavaScript) failed, so ad audio may not be muted."
+  },
+  {
+    "code": "ad.bid_inspect.exception",
+    "area": "ad",
+    "operation": "bid_inspect",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "android"
+    ],
+    "description": "Reading the winning bid (isVideo) threw, so video mute enforcement was skipped."
+  },
+  {
+    "code": "ad.bid_monitor.invalid",
+    "area": "ad",
+    "operation": "bid_monitor",
+    "reason": "invalid",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The Prebid auctionEnd event had no noBids/bidsReceived arrays, so the bid monitor threw."
+  },
+  {
+    "code": "ad.bidder_params.missing",
+    "area": "ad",
+    "operation": "bidder_params",
+    "reason": "missing",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A configured bidder has an empty required param, so its bid is dropped."
+  },
+  {
+    "code": "ad.bidder_removal.exception",
+    "area": "ad",
+    "operation": "bidder_removal",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Removing a bidder from the ad units failed (Prebid APIs missing)."
+  },
+  {
+    "code": "ad.boltive_script.network",
+    "area": "ad",
+    "operation": "boltive_script",
+    "reason": "network",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The Boltive script failed to load (blocked), so its protection is off."
+  },
+  {
+    "code": "ad.consent_cmp.network",
+    "area": "ad",
+    "operation": "consent_cmp",
+    "reason": "network",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The Funding Choices CMP script failed to load; ads fail open."
+  },
+  {
+    "code": "ad.consent_cmp.timeout",
+    "area": "ad",
+    "operation": "consent_cmp",
+    "reason": "timeout",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The CMP loaded but never signaled ready, so ads never initialize."
+  },
+  {
+    "code": "ad.consent_config.parse",
+    "area": "ad",
+    "operation": "consent_config",
+    "reason": "parse",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The CONSENT_MANAGEMENT config could not be decoded or evaluated."
+  },
+  {
+    "code": "ad.consent_gpp.exception",
+    "area": "ad",
+    "operation": "consent_gpp",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The GPP listener reported a failure."
+  },
+  {
+    "code": "ad.consent_status.exception",
+    "area": "ad",
+    "operation": "consent_status",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "googlefc.getConsentStatus() threw inside the consent callback."
+  },
+  {
+    "code": "ad.consent_tcf.invalid",
+    "area": "ad",
+    "operation": "consent_tcf",
+    "reason": "invalid",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The TCF callback returned no success or no data, so ads are not initialized."
+  },
+  {
+    "code": "ad.direct_render.exception",
+    "area": "ad",
+    "operation": "direct_render",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Rendering a direct (non-GAM) ad threw; a house ad is used instead."
+  },
+  {
+    "code": "ad.gam_load.exception",
+    "area": "ad",
+    "operation": "gam_load",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "GAM failed to load an ad for a reason other than no-fill (network, invalid request, internal). No-fill stays on adError."
+  },
+  {
+    "code": "ad.gam_unit.missing",
+    "area": "ad",
+    "operation": "gam_unit",
+    "reason": "missing",
+    "component": "banner",
+    "severity": "fatal",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "No GAM ad unit is configured (gamTag and GAM both empty), so Google's test ad unit is used."
+  },
+  {
+    "code": "ad.gma_init.exception",
+    "area": "ad",
+    "operation": "gma_init",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "fatal",
+    "clients": [
+      "android"
+    ],
+    "description": "Google Mobile Ads initialization threw."
+  },
+  {
+    "code": "ad.gpid.exception",
+    "area": "ad",
+    "operation": "gpid",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "Serializing imp.ext (gpid plus bidder params) failed, so no gpid is sent."
+  },
+  {
+    "code": "ad.gpt_slot.exception",
+    "area": "ad",
+    "operation": "gpt_slot",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Reading a GPT slot (getSlotElementId) threw."
+  },
+  {
+    "code": "ad.gpt_slot.invalid",
+    "area": "ad",
+    "operation": "gpt_slot",
+    "reason": "invalid",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "googletag.defineSlot failed or returned null (bad GAM path), so nothing renders."
+  },
+  {
+    "code": "ad.head_script.exception",
+    "area": "ad",
+    "operation": "head_script",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Appending an ad script to the document head threw."
+  },
+  {
+    "code": "ad.identity_hem.missing",
+    "area": "ad",
+    "operation": "identity_hem",
+    "reason": "missing",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The hashed-email identity was dropped because Prebid was not ready to take it."
+  },
+  {
+    "code": "ad.identity_hub.exception",
+    "area": "ad",
+    "operation": "identity_hub",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Merging Identity Hub user ids into the Prebid config threw."
+  },
+  {
+    "code": "ad.iframe.missing",
+    "area": "ad",
+    "operation": "iframe",
+    "reason": "missing",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The ad iframe had no contentWindow, so nothing was written into it."
+  },
+  {
+    "code": "ad.lotame_init.exception",
+    "area": "ad",
+    "operation": "lotame_init",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The Lotame bootstrap threw."
+  },
+  {
+    "code": "ad.lotame_script.network",
+    "area": "ad",
+    "operation": "lotame_script",
+    "reason": "network",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The Lotame sync script failed to load."
+  },
+  {
+    "code": "ad.lotame_sync.missing",
+    "area": "ad",
+    "operation": "lotame_sync",
+    "reason": "missing",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A Lotame sync was requested before the Lotame client loaded."
+  },
+  {
+    "code": "ad.mediafuse_script.network",
+    "area": "ad",
+    "operation": "mediafuse_script",
+    "reason": "network",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The MediaFuse script failed to load; GPT starts without it."
+  },
+  {
+    "code": "ad.native_create.invalid",
+    "area": "ad",
+    "operation": "native_create",
+    "reason": "invalid",
+    "component": "native",
+    "severity": "error",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "A native bid won but the cache id was missing or the native ad could not be created. No-fill stays on adError."
+  },
+  {
+    "code": "ad.native_image.network",
+    "area": "ad",
+    "operation": "native_image",
+    "reason": "network",
+    "component": "native",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "A native ad image was rejected or failed to download."
+  },
+  {
+    "code": "ad.opsco_strip.exception",
+    "area": "ad",
+    "operation": "opsco_strip",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Removing the opsco bidder after the first auction threw."
+  },
+  {
+    "code": "ad.ortb_config.exception",
+    "area": "ad",
+    "operation": "ortb_config",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "Serializing the global ORTB config failed, so app.publisher, device.geo and devicetype are missing."
+  },
+  {
+    "code": "ad.placement.invalid",
+    "area": "ad",
+    "operation": "placement",
+    "reason": "invalid",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "A video creative won a banner-only zone (the existing placementMismatch event is also sent)."
+  },
+  {
+    "code": "ad.prebid_auction.invalid",
+    "area": "ad",
+    "operation": "prebid_auction",
+    "reason": "invalid",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The Prebid auction returned an error result code other than no-bids (for example an invalid config id)."
+  },
+  {
+    "code": "ad.prebid_init.exception",
+    "area": "ad",
+    "operation": "prebid_init",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "fatal",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "Prebid Mobile initialization threw or completed with an error, so every auction waits and may run without Prebid."
+  },
+  {
+    "code": "ad.prebid_init.invalid",
+    "area": "ad",
+    "operation": "prebid_init",
+    "reason": "invalid",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "android"
+    ],
+    "description": "Prebid Mobile initialization finished with a non-success status."
+  },
+  {
+    "code": "ad.prebid_init.timeout",
+    "area": "ad",
+    "operation": "prebid_init",
+    "reason": "timeout",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "Prebid was not ready after the cold-start wait, so the ad loaded without header bidding."
+  },
+  {
+    "code": "ad.prebid_render.exception",
+    "area": "ad",
+    "operation": "prebid_render",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The Prebid rendering banner failed to load an ad for a reason other than no-fill."
+  },
+  {
+    "code": "ad.prebid_script.network",
+    "area": "ad",
+    "operation": "prebid_script",
+    "reason": "network",
+    "component": "banner",
+    "severity": "fatal",
+    "clients": [
+      "widget"
+    ],
+    "description": "prebid.js or gpt.js failed to load, so the ad stack cannot run."
+  },
+  {
+    "code": "ad.presenter.missing",
+    "area": "ad",
+    "operation": "presenter",
+    "reason": "missing",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "No view controller was available to present the Prebid rendering banner."
+  },
+  {
+    "code": "ad.refresh_count.exception",
+    "area": "ad",
+    "operation": "refresh_count",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Updating the ortb2Imp refresh count threw."
+  },
+  {
+    "code": "ad.s2s_config.parse",
+    "area": "ad",
+    "operation": "s2s_config",
+    "reason": "parse",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The S2S_CONFIG value could not be decoded or evaluated."
+  },
+  {
+    "code": "ad.safeframe_markup.missing",
+    "area": "ad",
+    "operation": "safeframe_markup",
+    "reason": "missing",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The SafeFrame renderer had no ad markup (adUrl or cached bid), so the frame is blank."
+  },
+  {
+    "code": "ad.safeframe_message.parse",
+    "area": "ad",
+    "operation": "safeframe_message",
+    "reason": "parse",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A SafeFrame message was not valid JSON."
+  },
+  {
+    "code": "ad.safeframe_message.unsupported",
+    "area": "ad",
+    "operation": "safeframe_message",
+    "reason": "unsupported",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A SafeFrame message carried an unknown command."
+  },
+  {
+    "code": "ad.safeframe_reply.missing",
+    "area": "ad",
+    "operation": "safeframe_reply",
+    "reason": "missing",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A SafeFrame reply was dropped because the iframe had no contentWindow."
+  },
+  {
+    "code": "ad.setup.missing",
+    "area": "ad",
+    "operation": "setup",
+    "reason": "missing",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "android"
+    ],
+    "description": "The ad view was loaded or resumed before setup()."
+  },
+  {
+    "code": "ad.size.invalid",
+    "area": "ad",
+    "operation": "size",
+    "reason": "invalid",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native",
+      "widget"
+    ],
+    "description": "The requested ad size is missing or not numeric, which gives a 0x0 or NaN slot."
+  },
+  {
+    "code": "ad.slot_element.missing",
+    "area": "ad",
+    "operation": "slot_element",
+    "reason": "missing",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The ad slot element was not in the page when its scripts ran."
+  },
+  {
+    "code": "ad.slot_script.exception",
+    "area": "ad",
+    "operation": "slot_script",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Injecting the inline slot script threw."
+  },
+  {
+    "code": "ad.slot_size.invalid",
+    "area": "ad",
+    "operation": "slot_size",
+    "reason": "invalid",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A slot size could not be parsed from its id or size string, so a default size was used."
+  },
+  {
+    "code": "ad.view_init.unsupported",
+    "area": "ad",
+    "operation": "view_init",
+    "reason": "unsupported",
+    "component": "banner",
+    "severity": "fatal",
+    "clients": [
+      "ios"
+    ],
+    "description": "The ad view was created from a storyboard (init(coder:)), which is not supported."
+  },
+  {
+    "code": "ad.view_observer.exception",
+    "area": "ad",
+    "operation": "view_observer",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The in-view observer failed to observe or disconnect."
+  },
+  {
+    "code": "ad.zone.missing",
+    "area": "ad",
+    "operation": "zone",
+    "reason": "missing",
+    "component": "banner",
+    "severity": "error",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "An ad placement needs a zone id and none was given, so the auction is skipped."
+  },
+  {
+    "code": "bridge.config.exception",
+    "area": "bridge",
+    "operation": "config",
+    "reason": "exception",
+    "component": "bridge",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "Serializing the remote config across the React Native bridge failed, so bidder passthrough is lost."
+  },
+  {
+    "code": "bridge.config.invalid",
+    "area": "bridge",
+    "operation": "config",
+    "reason": "invalid",
+    "component": "bridge",
+    "severity": "fatal",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "A config value from JS has the wrong type or is incomplete for the native bridge."
+  },
+  {
+    "code": "bridge.eids.invalid",
+    "area": "bridge",
+    "operation": "eids",
+    "reason": "invalid",
+    "component": "bridge",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "setExternalUserIds got an entry without source, uids or id; it was skipped."
+  },
+  {
+    "code": "bridge.event_emit.exception",
+    "area": "bridge",
+    "operation": "event_emit",
+    "reason": "exception",
+    "component": "bridge",
+    "severity": "warn",
+    "clients": [
+      "android"
+    ],
+    "description": "Emitting an event to JS failed because the React instance is gone."
+  },
+  {
+    "code": "bridge.geo.invalid",
+    "area": "bridge",
+    "operation": "geo",
+    "reason": "invalid",
+    "component": "bridge",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "setGeo got a payload it could not read: one that is not an object (geo was cleared) or a field of the wrong type (that field was dropped)."
+  },
+  {
+    "code": "bridge.native_module.missing",
+    "area": "bridge",
+    "operation": "native_module",
+    "reason": "missing",
+    "component": "bridge",
+    "severity": "warn",
+    "clients": [
+      "react-native"
+    ],
+    "description": "The SellwildRNModule native module is not registered, so native commands are no-ops."
+  },
+  {
+    "code": "bridge.native_view.missing",
+    "area": "bridge",
+    "operation": "native_view",
+    "reason": "missing",
+    "component": "bridge",
+    "severity": "error",
+    "clients": [
+      "react-native"
+    ],
+    "description": "A native view manager (banner or feed) is not registered, so the React Native view renders nothing."
+  },
+  {
+    "code": "bridge.props.invalid",
+    "area": "bridge",
+    "operation": "props",
+    "reason": "invalid",
+    "component": "bridge",
+    "severity": "error",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "A native view got missing props or an unsupported size label, so no ad was set up."
+  },
+  {
+    "code": "client.code.invalid",
+    "area": "client",
+    "operation": "code",
+    "reason": "invalid",
+    "component": "unknown",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "Replacement action when a call site passes a code that fails the registry format. The label keeps the caller component. Never pass it directly."
+  },
+  {
+    "code": "config.ab_split.invalid",
+    "area": "config",
+    "operation": "ab_split",
+    "reason": "invalid",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The A/B split value is not a number, so variant B always wins."
+  },
+  {
+    "code": "config.ab_variant.missing",
+    "area": "config",
+    "operation": "ab_variant",
+    "reason": "missing",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "No A/B variant is configured, so an empty bundle name is loaded."
+  },
+  {
+    "code": "config.adstack.invalid",
+    "area": "config",
+    "operation": "adstack",
+    "reason": "invalid",
+    "component": "remoteConfig",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native",
+      "android"
+    ],
+    "description": "AD_STACK or an AD_STACK_BY_ZONE entry is not a known mode (or not a map); the default is used."
+  },
+  {
+    "code": "config.app_store_url.invalid",
+    "area": "config",
+    "operation": "app_store_url",
+    "reason": "invalid",
+    "component": "configure",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "APP_STORE_URL has no /id<number> segment, so app.bundle keeps the reverse-DNS default."
+  },
+  {
+    "code": "config.apply.exception",
+    "area": "config",
+    "operation": "apply",
+    "reason": "exception",
+    "component": "configure",
+    "severity": "error",
+    "clients": [
+      "android"
+    ],
+    "description": "Applying the fetched config threw; defaults are kept."
+  },
+  {
+    "code": "config.attribute.parse",
+    "area": "config",
+    "operation": "attribute",
+    "reason": "parse",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "An element attribute value could not be decoded or parsed (malformed %-encoding or JSON)."
+  },
+  {
+    "code": "config.banner_sizes.invalid",
+    "area": "config",
+    "operation": "banner_sizes",
+    "reason": "invalid",
+    "component": "remoteConfig",
+    "severity": "warn",
+    "clients": [
+      "react-native",
+      "ios",
+      "android"
+    ],
+    "description": "A BANNER_SIZES entry could not be parsed or has non-positive dimensions; it was dropped."
+  },
+  {
+    "code": "config.color.invalid",
+    "area": "config",
+    "operation": "color",
+    "reason": "invalid",
+    "component": "remoteConfig",
+    "severity": "error",
+    "clients": [
+      "android",
+      "widget"
+    ],
+    "description": "A configured color string is not a valid color; the fallback color is used."
+  },
+  {
+    "code": "config.fetch.http",
+    "area": "config",
+    "operation": "fetch",
+    "reason": "http",
+    "component": "remoteConfig",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "The remote config request returned a non-2xx status (a missing file returns 403 AccessDenied XML)."
+  },
+  {
+    "code": "config.fetch.network",
+    "area": "config",
+    "operation": "fetch",
+    "reason": "network",
+    "component": "remoteConfig",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "The remote config request failed at the network level (DNS, offline, TLS, reset)."
+  },
+  {
+    "code": "config.fetch.parse",
+    "area": "config",
+    "operation": "fetch",
+    "reason": "parse",
+    "component": "remoteConfig",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "The remote config body is not valid JSON."
+  },
+  {
+    "code": "config.fetch.timeout",
+    "area": "config",
+    "operation": "fetch",
+    "reason": "timeout",
+    "component": "remoteConfig",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "The remote config request did not answer within the client timeout."
+  },
+  {
+    "code": "config.field.invalid",
+    "area": "config",
+    "operation": "field",
+    "reason": "invalid",
+    "component": "remoteConfig",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native",
+      "android",
+      "widget"
+    ],
+    "description": "A config field has an unexpected type or value and was ignored or coerced."
+  },
+  {
+    "code": "config.field.parse",
+    "area": "config",
+    "operation": "field",
+    "reason": "parse",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A config field that holds JSON text could not be parsed; the default is used."
+  },
+  {
+    "code": "config.location_map.invalid",
+    "area": "config",
+    "operation": "location_map",
+    "reason": "invalid",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "LOCATION_MAP is not valid JSON, is badly %-encoded, or does not contain the slug."
+  },
+  {
+    "code": "config.parse.invalid",
+    "area": "config",
+    "operation": "parse",
+    "reason": "invalid",
+    "component": "remoteConfig",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "ios"
+    ],
+    "description": "The remote config JSON is valid but not an object (array, string or null)."
+  },
+  {
+    "code": "config.remote_values.parse",
+    "area": "config",
+    "operation": "remote_values",
+    "reason": "parse",
+    "component": "remoteConfig",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The stored remote config JSON could not be parsed, so every remote flag falls back to its default."
+  },
+  {
+    "code": "config.theme.missing",
+    "area": "config",
+    "operation": "theme",
+    "reason": "missing",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A required theme value (colors) is empty, so 'undefined' reaches the CSS."
+  },
+  {
+    "code": "config.theme.parse",
+    "area": "config",
+    "operation": "theme",
+    "reason": "parse",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Decoding a theme or build-time config string threw (malformed %-sequence)."
+  },
+  {
+    "code": "config.url.invalid",
+    "area": "config",
+    "operation": "url",
+    "reason": "invalid",
+    "component": "configure",
+    "severity": "fatal",
+    "clients": [
+      "ios"
+    ],
+    "description": "The remote config URL could not be built from partnerCode and slug."
+  },
+  {
+    "code": "config.url_param.parse",
+    "area": "config",
+    "operation": "url_param",
+    "reason": "parse",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Decoding a page URL parameter threw (malformed %-sequence)."
+  },
+  {
+    "code": "feed.ad_zone.missing",
+    "area": "feed",
+    "operation": "ad_zone",
+    "reason": "missing",
+    "component": "feed",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The COL1 layout asks for an ad or banner row but no zone is configured, so the row is dropped."
+  },
+  {
+    "code": "feed.cell.invalid",
+    "area": "feed",
+    "operation": "cell",
+    "reason": "invalid",
+    "component": "feed",
+    "severity": "fatal",
+    "clients": [
+      "ios"
+    ],
+    "description": "A dequeued feed cell had an unexpected type."
+  },
+  {
+    "code": "feed.image.invalid",
+    "area": "feed",
+    "operation": "image",
+    "reason": "invalid",
+    "component": "feed",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "A listing photo URL was rejected (scheme), too large, or could not be decoded."
+  },
+  {
+    "code": "feed.image.network",
+    "area": "feed",
+    "operation": "image",
+    "reason": "network",
+    "component": "feed",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "A listing photo failed to download."
+  },
+  {
+    "code": "feed.layout.invalid",
+    "area": "feed",
+    "operation": "layout",
+    "reason": "invalid",
+    "component": "feed",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "The COL1 layout contains an unknown token; it was ignored."
+  },
+  {
+    "code": "feed.open_url.exception",
+    "area": "feed",
+    "operation": "open_url",
+    "reason": "exception",
+    "component": "feed",
+    "severity": "warn",
+    "clients": [
+      "android"
+    ],
+    "description": "Opening a listing or partner URL threw (no browser, no presenter)."
+  },
+  {
+    "code": "feed.open_url.invalid",
+    "area": "feed",
+    "operation": "open_url",
+    "reason": "invalid",
+    "component": "feed",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "A listing or partner URL was refused because it is not http(s)."
+  },
+  {
+    "code": "feed.setup.missing",
+    "area": "feed",
+    "operation": "setup",
+    "reason": "missing",
+    "component": "feed",
+    "severity": "error",
+    "clients": [
+      "android"
+    ],
+    "description": "The feed was loaded before setup()."
+  },
+  {
+    "code": "feed.view_type.invalid",
+    "area": "feed",
+    "operation": "view_type",
+    "reason": "invalid",
+    "component": "feed",
+    "severity": "error",
+    "clients": [
+      "android"
+    ],
+    "description": "The feed adapter got an unknown view type."
+  },
+  {
+    "code": "geo.headers.missing",
+    "area": "geo",
+    "operation": "headers",
+    "reason": "missing",
+    "component": "geo",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The listings response had no CloudFront viewer geo headers, so geo, GDPR and CCPA decisions run without location."
+  },
+  {
+    "code": "geo.seed.exception",
+    "area": "geo",
+    "operation": "seed",
+    "reason": "exception",
+    "component": "geo",
+    "severity": "warn",
+    "clients": [
+      "android"
+    ],
+    "description": "Applying the geo seeded from the listings response's CloudFront viewer headers threw, so auctions may not carry it as device.geo."
+  },
+  {
+    "code": "growthcode.config.missing",
+    "area": "growthcode",
+    "operation": "config",
+    "reason": "missing",
+    "component": "growthcode",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android"
+    ],
+    "description": "GrowthCode is enabled but the partner id or sync URL is missing, so the sync cannot run."
+  },
+  {
+    "code": "growthcode.eid.invalid",
+    "area": "growthcode",
+    "operation": "eid",
+    "reason": "invalid",
+    "component": "growthcode",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android"
+    ],
+    "description": "The GrowthCode eid blob is not an array, or entries lack source/uids/id; they were dropped."
+  },
+  {
+    "code": "growthcode.eid.parse",
+    "area": "growthcode",
+    "operation": "eid",
+    "reason": "parse",
+    "component": "growthcode",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native",
+      "android"
+    ],
+    "description": "The GrowthCode eid blob (eb) is not valid JSON."
+  },
+  {
+    "code": "growthcode.sync.exception",
+    "area": "growthcode",
+    "operation": "sync",
+    "reason": "exception",
+    "component": "growthcode",
+    "severity": "warn",
+    "clients": [
+      "android"
+    ],
+    "description": "The GrowthCode sync threw something other than a network, timeout or parse error, for example a stored value of the wrong type."
+  },
+  {
+    "code": "growthcode.sync.http",
+    "area": "growthcode",
+    "operation": "sync",
+    "reason": "http",
+    "component": "growthcode",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The GrowthCode sync returned a non-2xx status; the throttle is not saved, so it retries next launch."
+  },
+  {
+    "code": "growthcode.sync.invalid",
+    "area": "growthcode",
+    "operation": "sync",
+    "reason": "invalid",
+    "component": "growthcode",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native"
+    ],
+    "description": "The GrowthCode sync response is valid JSON but not an object."
+  },
+  {
+    "code": "growthcode.sync.network",
+    "area": "growthcode",
+    "operation": "sync",
+    "reason": "network",
+    "component": "growthcode",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The GrowthCode sync request failed at the network level."
+  },
+  {
+    "code": "growthcode.sync.parse",
+    "area": "growthcode",
+    "operation": "sync",
+    "reason": "parse",
+    "component": "growthcode",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The GrowthCode sync response is not valid JSON."
+  },
+  {
+    "code": "growthcode.sync.timeout",
+    "area": "growthcode",
+    "operation": "sync",
+    "reason": "timeout",
+    "component": "growthcode",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "GrowthCode sync POST timed out. The throttle is not persisted, so it retries next launch."
+  },
+  {
+    "code": "growthcode.url.invalid",
+    "area": "growthcode",
+    "operation": "url",
+    "reason": "invalid",
+    "component": "growthcode",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The GrowthCode endpoint URL could not be built."
+  },
+  {
+    "code": "house.gpt_listener.exception",
+    "area": "house",
+    "operation": "gpt_listener",
+    "reason": "exception",
+    "component": "house",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Registering the GPT slotRenderEnded listener for house ads failed."
+  },
+  {
+    "code": "house.image.invalid",
+    "area": "house",
+    "operation": "image",
+    "reason": "invalid",
+    "component": "house",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "A house ad image was rejected (scheme), too large, or could not be decoded."
+  },
+  {
+    "code": "house.image.network",
+    "area": "house",
+    "operation": "image",
+    "reason": "network",
+    "component": "house",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "A house ad image failed to download."
+  },
+  {
+    "code": "house.listings.missing",
+    "area": "house",
+    "operation": "listings",
+    "reason": "missing",
+    "component": "house",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "House-ad slots waited for listings that never arrived."
+  },
+  {
+    "code": "house.listings.network",
+    "area": "house",
+    "operation": "listings",
+    "reason": "network",
+    "component": "house",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Loading listings for house-ad backfill failed."
+  },
+  {
+    "code": "house.open_url.exception",
+    "area": "house",
+    "operation": "open_url",
+    "reason": "exception",
+    "component": "house",
+    "severity": "warn",
+    "clients": [
+      "android"
+    ],
+    "description": "Opening a house ad click URL threw."
+  },
+  {
+    "code": "house.open_url.invalid",
+    "area": "house",
+    "operation": "open_url",
+    "reason": "invalid",
+    "component": "house",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "A house ad click URL was refused because it is not http(s)."
+  },
+  {
+    "code": "listings.client.missing",
+    "area": "listings",
+    "operation": "client",
+    "reason": "missing",
+    "component": "listings",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "The listings client was released or disposed while a request was in flight."
+  },
+  {
+    "code": "listings.fetch.exception",
+    "area": "listings",
+    "operation": "fetch",
+    "reason": "exception",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "android"
+    ],
+    "description": "The listings fetch threw something other than a network, timeout or parse error, so the feed has no listings."
+  },
+  {
+    "code": "listings.fetch.http",
+    "area": "listings",
+    "operation": "fetch",
+    "reason": "http",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "The listings GET returned a non-2xx status."
+  },
+  {
+    "code": "listings.fetch.missing",
+    "area": "listings",
+    "operation": "fetch",
+    "reason": "missing",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "ios"
+    ],
+    "description": "The listings request finished without a body."
+  },
+  {
+    "code": "listings.fetch.network",
+    "area": "listings",
+    "operation": "fetch",
+    "reason": "network",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "The listings GET failed at the network level (DNS, offline, TLS, reset)."
+  },
+  {
+    "code": "listings.fetch.parse",
+    "area": "listings",
+    "operation": "fetch",
+    "reason": "parse",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "The listings body is not valid JSON (for example an HTML error page)."
+  },
+  {
+    "code": "listings.fetch.timeout",
+    "area": "listings",
+    "operation": "fetch",
+    "reason": "timeout",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "Listings GET did not answer within the client timeout."
+  },
+  {
+    "code": "listings.item.invalid",
+    "area": "listings",
+    "operation": "item",
+    "reason": "invalid",
+    "component": "listings",
+    "severity": "warn",
+    "clients": [
+      "react-native",
+      "widget"
+    ],
+    "description": "A listing item or one of its fields (photo, price, currency) has an unexpected shape; it was dropped or hidden."
+  },
+  {
+    "code": "listings.item.parse",
+    "area": "listings",
+    "operation": "item",
+    "reason": "parse",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "ios"
+    ],
+    "description": "Decoding a listing item threw (strict casts on real payloads)."
+  },
+  {
+    "code": "listings.item_url.invalid",
+    "area": "listings",
+    "operation": "item_url",
+    "reason": "invalid",
+    "component": "listings",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A listing URL could not be parsed when building the click URL."
+  },
+  {
+    "code": "listings.parse.invalid",
+    "area": "listings",
+    "operation": "parse",
+    "reason": "invalid",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "widget"
+    ],
+    "description": "The listings JSON is valid but has no result.rs array."
+  },
+  {
+    "code": "listings.partners.network",
+    "area": "listings",
+    "operation": "partners",
+    "reason": "network",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Loading the legacy partners list failed."
+  },
+  {
+    "code": "listings.request.exception",
+    "area": "listings",
+    "operation": "request",
+    "reason": "exception",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "ios"
+    ],
+    "description": "Encoding the JSON-RPC listings request failed."
+  },
+  {
+    "code": "listings.result.missing",
+    "area": "listings",
+    "operation": "result",
+    "reason": "missing",
+    "component": "listings",
+    "severity": "warn",
+    "clients": [
+      "android",
+      "widget"
+    ],
+    "description": "The listings response had zero items, so listing slots stay empty."
+  },
+  {
+    "code": "listings.tag_cache.http",
+    "area": "listings",
+    "operation": "tag_cache",
+    "reason": "http",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native"
+    ],
+    "description": "The tag-cache listings request returned a non-2xx status."
+  },
+  {
+    "code": "listings.tag_cache.invalid",
+    "area": "listings",
+    "operation": "tag_cache",
+    "reason": "invalid",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native",
+      "widget"
+    ],
+    "description": "The tag-cache listings response is not an array."
+  },
+  {
+    "code": "listings.tag_cache.network",
+    "area": "listings",
+    "operation": "tag_cache",
+    "reason": "network",
+    "component": "listings",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native",
+      "widget"
+    ],
+    "description": "The tag-cache listings request failed."
+  },
+  {
+    "code": "listings.tag_cache.parse",
+    "area": "listings",
+    "operation": "tag_cache",
+    "reason": "parse",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native"
+    ],
+    "description": "The tag-cache listings body is not valid JSON."
+  },
+  {
+    "code": "listings.tag_cache_url.invalid",
+    "area": "listings",
+    "operation": "tag_cache_url",
+    "reason": "invalid",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "core",
+      "react-native"
+    ],
+    "description": "The tag-cache request URL could not be built because the keywords are not well-formed UTF-16 text (a lone surrogate cannot be URL-encoded)."
+  },
+  {
+    "code": "listings.url.invalid",
+    "area": "listings",
+    "operation": "url",
+    "reason": "invalid",
+    "component": "listings",
+    "severity": "error",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The listings URL is not a valid URL."
+  },
+  {
+    "code": "localized.config.invalid",
+    "area": "localized",
+    "operation": "config",
+    "reason": "invalid",
+    "component": "localized",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "LOCALIZED_LISTINGS is set but not an object, or lacks baseUrl/urlTemplate; the feature is off."
+  },
+  {
+    "code": "localized.config.parse",
+    "area": "localized",
+    "operation": "config",
+    "reason": "parse",
+    "component": "localized",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native"
+    ],
+    "description": "LOCALIZED_LISTINGS holds JSON text that could not be parsed; the feature is off."
+  },
+  {
+    "code": "localized.fetch.exception",
+    "area": "localized",
+    "operation": "fetch",
+    "reason": "exception",
+    "component": "localized",
+    "severity": "warn",
+    "clients": [
+      "android"
+    ],
+    "description": "The localized (per-state) cache fetch threw something other than a network, timeout or parse error; the primary feed renders alone."
+  },
+  {
+    "code": "localized.fetch.http",
+    "area": "localized",
+    "operation": "fetch",
+    "reason": "http",
+    "component": "localized",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "The localized cache returned a non-2xx status other than the expected 403/404 for a state without a cache."
+  },
+  {
+    "code": "localized.fetch.missing",
+    "area": "localized",
+    "operation": "fetch",
+    "reason": "missing",
+    "component": "localized",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "The localized cache request finished without a body."
+  },
+  {
+    "code": "localized.fetch.network",
+    "area": "localized",
+    "operation": "fetch",
+    "reason": "network",
+    "component": "localized",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "The localized (per-state) cache request failed at the network level."
+  },
+  {
+    "code": "localized.fetch.parse",
+    "area": "localized",
+    "operation": "fetch",
+    "reason": "parse",
+    "component": "localized",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "The localized cache body is not valid JSON."
+  },
+  {
+    "code": "localized.fetch.timeout",
+    "area": "localized",
+    "operation": "fetch",
+    "reason": "timeout",
+    "component": "localized",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "Localized (per-state) listings cache GET timed out. The primary feed renders alone."
+  },
+  {
+    "code": "localized.parse.invalid",
+    "area": "localized",
+    "operation": "parse",
+    "reason": "invalid",
+    "component": "localized",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The localized cache JSON has no result.rs array."
+  },
+  {
+    "code": "localized.url.invalid",
+    "area": "localized",
+    "operation": "url",
+    "reason": "invalid",
+    "component": "localized",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The localized cache URL could not be built from baseUrl and urlTemplate."
+  },
+  {
+    "code": "storage.cache_dir.exception",
+    "area": "storage",
+    "operation": "cache_dir",
+    "reason": "exception",
+    "component": "storage",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "Creating the on-disk cache directory failed."
+  },
+  {
+    "code": "storage.read.exception",
+    "area": "storage",
+    "operation": "read",
+    "reason": "exception",
+    "component": "storage",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Reading or parsing a stored value (localStorage, prefs) failed."
+  },
+  {
+    "code": "storage.write.exception",
+    "area": "storage",
+    "operation": "write",
+    "reason": "exception",
+    "component": "storage",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android",
+      "widget"
+    ],
+    "description": "Writing a stored value (localStorage, disk cache) failed."
+  },
+  {
+    "code": "video.ad.exception",
+    "area": "video",
+    "operation": "ad",
+    "reason": "exception",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The video ad player (IMA) reported an ad error other than no-ad. The existing adError event is also sent."
+  },
+  {
+    "code": "video.ad.timeout",
+    "area": "video",
+    "operation": "ad",
+    "reason": "timeout",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The fullscreen video ad never reached a terminal callback, so content never resumed."
+  },
+  {
+    "code": "video.ad_container.missing",
+    "area": "video",
+    "operation": "ad_container",
+    "reason": "missing",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The video ad container element was missing when the ad started."
+  },
+  {
+    "code": "video.ad_content.missing",
+    "area": "video",
+    "operation": "ad_content",
+    "reason": "missing",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The current video has no sources, so the ad request used a fallback content URL."
+  },
+  {
+    "code": "video.ad_element.missing",
+    "area": "video",
+    "operation": "ad_element",
+    "reason": "missing",
+    "component": "video",
+    "severity": "fatal",
+    "clients": [
+      "widget"
+    ],
+    "description": "The sellwild-video custom element is not registered in this bundle, so video ads cannot run."
+  },
+  {
+    "code": "video.ad_unit.parse",
+    "area": "video",
+    "operation": "ad_unit",
+    "reason": "parse",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The video ad-unit or bids JSON could not be parsed."
+  },
+  {
+    "code": "video.api.exception",
+    "area": "video",
+    "operation": "api",
+    "reason": "exception",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A public player method was called before the player was ready."
+  },
+  {
+    "code": "video.hls.exception",
+    "area": "video",
+    "operation": "hls",
+    "reason": "exception",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "hls.js raised an unrecoverable fatal error; playback falls back to the native source."
+  },
+  {
+    "code": "video.hls.missing",
+    "area": "video",
+    "operation": "hls",
+    "reason": "missing",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "hls.js is not loaded when HLS playback is needed."
+  },
+  {
+    "code": "video.hls.network",
+    "area": "video",
+    "operation": "hls",
+    "reason": "network",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "hls.js raised a fatal network error."
+  },
+  {
+    "code": "video.hls_cleanup.exception",
+    "area": "video",
+    "operation": "hls_cleanup",
+    "reason": "exception",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Stopping or destroying hls.js threw during cleanup."
+  },
+  {
+    "code": "video.hls_init.exception",
+    "area": "video",
+    "operation": "hls_init",
+    "reason": "exception",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Creating or attaching hls.js threw; playback falls back to the native source."
+  },
+  {
+    "code": "video.hls_media.exception",
+    "area": "video",
+    "operation": "hls_media",
+    "reason": "exception",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "hls.js raised a fatal media error."
+  },
+  {
+    "code": "video.iheart_player.exception",
+    "area": "video",
+    "operation": "iheart_player",
+    "reason": "exception",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Accessing the iHeart player frame threw (cross-origin or missing)."
+  },
+  {
+    "code": "video.iheart_player.missing",
+    "area": "video",
+    "operation": "iheart_player",
+    "reason": "missing",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The iHeart player was not found when the widget looked for it."
+  },
+  {
+    "code": "video.ima_script.network",
+    "area": "video",
+    "operation": "ima_script",
+    "reason": "network",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The Google IMA SDK failed to load."
+  },
+  {
+    "code": "video.index.invalid",
+    "area": "video",
+    "operation": "index",
+    "reason": "invalid",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The current video index went out of range."
+  },
+  {
+    "code": "video.item.invalid",
+    "area": "video",
+    "operation": "item",
+    "reason": "invalid",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "A playlist video lacks required fields (id, user, listings, tags)."
+  },
+  {
+    "code": "video.like.missing",
+    "area": "video",
+    "operation": "like",
+    "reason": "missing",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The current video has no id, so the like toggle did nothing."
+  },
+  {
+    "code": "video.media.exception",
+    "area": "video",
+    "operation": "media",
+    "reason": "exception",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The video element raised a media error."
+  },
+  {
+    "code": "video.play.exception",
+    "area": "video",
+    "operation": "play",
+    "reason": "exception",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "video.play() was rejected (for example autoplay NotAllowedError)."
+  },
+  {
+    "code": "video.player.exception",
+    "area": "video",
+    "operation": "player",
+    "reason": "exception",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Starting the video player threw."
+  },
+  {
+    "code": "video.playlist.invalid",
+    "area": "video",
+    "operation": "playlist",
+    "reason": "invalid",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The playlist JSON is not an array."
+  },
+  {
+    "code": "video.playlist.missing",
+    "area": "video",
+    "operation": "playlist",
+    "reason": "missing",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "No playable videos remained after filtering, so the player has nothing to show."
+  },
+  {
+    "code": "video.playlist.network",
+    "area": "video",
+    "operation": "playlist",
+    "reason": "network",
+    "component": "video",
+    "severity": "fatal",
+    "clients": [
+      "widget"
+    ],
+    "description": "The playlist request failed at the network level."
+  },
+  {
+    "code": "video.playlist.parse",
+    "area": "video",
+    "operation": "playlist",
+    "reason": "parse",
+    "component": "video",
+    "severity": "fatal",
+    "clients": [
+      "widget"
+    ],
+    "description": "The playlist response is non-2xx or not valid JSON."
+  },
+  {
+    "code": "video.playlist_inline.parse",
+    "area": "video",
+    "operation": "playlist_inline",
+    "reason": "parse",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The inline playlist (attribute or URL parameter) is not valid JSON."
+  },
+  {
+    "code": "video.prebid.missing",
+    "area": "video",
+    "operation": "prebid",
+    "reason": "missing",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Prebid never became available for the video ad request."
+  },
+  {
+    "code": "video.seek.exception",
+    "area": "video",
+    "operation": "seek",
+    "reason": "exception",
+    "component": "video",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Seeking before the media metadata loaded threw."
+  },
+  {
+    "code": "video.source.missing",
+    "area": "video",
+    "operation": "source",
+    "reason": "missing",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Every video source failed and no alternative is left."
+  },
+  {
+    "code": "video.source.network",
+    "area": "video",
+    "operation": "source",
+    "reason": "network",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "A video source failed to load; the next source is tried."
+  },
+  {
+    "code": "video.sources.missing",
+    "area": "video",
+    "operation": "sources",
+    "reason": "missing",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "A video has an empty sources list."
+  },
+  {
+    "code": "video.tag_query.invalid",
+    "area": "video",
+    "operation": "tag_query",
+    "reason": "invalid",
+    "component": "video",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The tag-cache query built from page keywords is malformed."
+  },
+  {
+    "code": "widget.admin.http",
+    "area": "widget",
+    "operation": "admin",
+    "reason": "http",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "An admin API call returned a non-2xx status."
+  },
+  {
+    "code": "widget.admin.invalid",
+    "area": "widget",
+    "operation": "admin",
+    "reason": "invalid",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "An admin API call returned an unexpected result."
+  },
+  {
+    "code": "widget.admin.missing",
+    "area": "widget",
+    "operation": "admin",
+    "reason": "missing",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The admin page is missing a required dependency (window.CMS)."
+  },
+  {
+    "code": "widget.admin.network",
+    "area": "widget",
+    "operation": "admin",
+    "reason": "network",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "An admin API call failed at the network level."
+  },
+  {
+    "code": "widget.customelements.unsupported",
+    "area": "widget",
+    "operation": "customelements",
+    "reason": "unsupported",
+    "component": "widget",
+    "severity": "fatal",
+    "clients": [
+      "widget"
+    ],
+    "description": "The browser has no customElements, so the widget cannot mount (the existing customElementsNotSupported event is also sent)."
+  },
+  {
+    "code": "widget.dom.exception",
+    "area": "widget",
+    "operation": "dom",
+    "reason": "exception",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A DOM read or teardown call threw."
+  },
+  {
+    "code": "widget.dom.missing",
+    "area": "widget",
+    "operation": "dom",
+    "reason": "missing",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "An element the widget template expects is missing."
+  },
+  {
+    "code": "widget.element.exception",
+    "area": "widget",
+    "operation": "element",
+    "reason": "exception",
+    "component": "widget",
+    "severity": "fatal",
+    "clients": [
+      "widget"
+    ],
+    "description": "Mounting, rendering or rebuilding a widget element threw (the existing errorAddingElement event is also sent where it exists)."
+  },
+  {
+    "code": "widget.element_define.exception",
+    "area": "widget",
+    "operation": "element_define",
+    "reason": "exception",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "customElements.define threw (the tag was already defined by another bundle)."
+  },
+  {
+    "code": "widget.fullscreen.exception",
+    "area": "widget",
+    "operation": "fullscreen",
+    "reason": "exception",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "requestFullscreen was rejected."
+  },
+  {
+    "code": "widget.image.missing",
+    "area": "widget",
+    "operation": "image",
+    "reason": "missing",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A listing photo URL is missing, so the image source is undefined."
+  },
+  {
+    "code": "widget.image.network",
+    "area": "widget",
+    "operation": "image",
+    "reason": "network",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Listing images for the widget failed to load."
+  },
+  {
+    "code": "widget.init.exception",
+    "area": "widget",
+    "operation": "init",
+    "reason": "exception",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "Widget bootstrap threw (missing MutationObserver, first render error)."
+  },
+  {
+    "code": "widget.intersection_observer.unsupported",
+    "area": "widget",
+    "operation": "intersection_observer",
+    "reason": "unsupported",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "IntersectionObserver is not available, so a feature that requires it threw."
+  },
+  {
+    "code": "widget.layout.invalid",
+    "area": "widget",
+    "operation": "layout",
+    "reason": "invalid",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The widget layout contains an unknown token; it renders nothing."
+  },
+  {
+    "code": "widget.listing_action.network",
+    "area": "widget",
+    "operation": "listing_action",
+    "reason": "network",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The listingAction RPC failed."
+  },
+  {
+    "code": "widget.page_meta.exception",
+    "area": "widget",
+    "operation": "page_meta",
+    "reason": "exception",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "Reading page metadata threw; partial metadata is used."
+  },
+  {
+    "code": "widget.page_meta.parse",
+    "area": "widget",
+    "operation": "page_meta",
+    "reason": "parse",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A JSON-LD block on the host page is not valid JSON."
+  },
+  {
+    "code": "widget.page_url.parse",
+    "area": "widget",
+    "operation": "page_url",
+    "reason": "parse",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The page URL or a path segment could not be decoded for targeting."
+  },
+  {
+    "code": "widget.render.exception",
+    "area": "widget",
+    "operation": "render",
+    "reason": "exception",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "A React render error was caught by the error boundary."
+  },
+  {
+    "code": "widget.script_load.network",
+    "area": "widget",
+    "operation": "script_load",
+    "reason": "network",
+    "component": "widget",
+    "severity": "fatal",
+    "clients": [
+      "widget"
+    ],
+    "description": "A script the widget needs (partner.js, hls.js, a variant bundle) failed to load."
+  },
+  {
+    "code": "widget.search.exception",
+    "area": "widget",
+    "operation": "search",
+    "reason": "exception",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The search submit handler threw."
+  },
+  {
+    "code": "widget.selector.invalid",
+    "area": "widget",
+    "operation": "selector",
+    "reason": "invalid",
+    "component": "widget",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "A configured CSS selector is invalid, so querySelector threw."
+  },
+  {
+    "code": "widget.selector.missing",
+    "area": "widget",
+    "operation": "selector",
+    "reason": "missing",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "A configured CSS selector matched nothing."
+  },
+  {
+    "code": "widget.session.invalid",
+    "area": "widget",
+    "operation": "session",
+    "reason": "invalid",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The session RPC response had no result.rs.userId."
+  },
+  {
+    "code": "widget.session.network",
+    "area": "widget",
+    "operation": "session",
+    "reason": "network",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "The session RPC (createRemoteSession) failed."
+  },
+  {
+    "code": "widget.share.exception",
+    "area": "widget",
+    "operation": "share",
+    "reason": "exception",
+    "component": "widget",
+    "severity": "warn",
+    "clients": [
+      "widget"
+    ],
+    "description": "navigator.share threw or was rejected."
+  },
+  {
+    "code": "widget.webview_load.http",
+    "area": "widget",
+    "operation": "webview_load",
+    "reason": "http",
+    "component": "webview",
+    "severity": "error",
+    "clients": [
+      "widget"
+    ],
+    "description": "The widget WebView got an HTTP error status (4xx or 5xx) for its page or a main-frame resource."
+  }
+]
