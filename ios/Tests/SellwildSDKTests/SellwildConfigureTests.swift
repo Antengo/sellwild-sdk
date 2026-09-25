@@ -50,6 +50,7 @@ final class SellwildConfigureTests: XCTestCase {
             bootstrap: { [self] config in
                 bootstrappedOnMain.append(Thread.isMainThread)
                 bootstrapped.append(config)
+                return true
             }
         )
         return await SellwildSDK.configure(partnerCode: partnerCode, slug: slug, timeout: 3,
@@ -62,6 +63,8 @@ final class SellwildConfigureTests: XCTestCase {
 
     private var onlyFailure: SellwildFailuresCore.Event? {
         XCTAssertEqual(capture.events.count, 1, "a failure is logged once")
+        // The dedupe gate folds a repeat call into one event; count the calls too.
+        XCTAssertEqual(capture.calls, 1, "one log call")
         return capture.events.first
     }
 
@@ -204,6 +207,27 @@ final class SellwildConfigureTests: XCTestCase {
         XCTAssertEqual(capture.flushes, 1)
     }
 
+    /// Only 2xx is a config. A 3xx the session hands back (304 Not
+    /// Modified, a redirect with no Location) or a 5xx is reported with its
+    /// status, even when its body is a valid config, and the defaults stay.
+    func testEveryStatusOutside2xxIsAnHTTPFailure() async throws {
+        let body = try Factory.data(AppConfigFactory.make())
+        for status in [304, 399, 500] {
+            StubURLProtocol.handler = { _ in .init(status: status, body: body) }
+            SellwildFailures.resetForTests()
+            capture = FailureCapture()
+            capture.install()
+            bootstrapped = []
+            let config = await configure()
+
+            assertDefaultsKept(config)
+            let event = try XCTUnwrap(onlyFailure, "\(status)")
+            XCTAssertEqual(event.action, "config.fetch.http", "\(status)")
+            XCTAssertEqual(event.attributes["httpStatus"], "\(status)")
+            XCTAssertEqual(event.attributes["msg"], "HTTP \(status)")
+        }
+    }
+
     func testBodyThatIsNotJSONReportsParse() async throws {
         StubURLProtocol.handler = { _ in .init(status: 200, body: Data("{\"CODE\":".utf8)) }
         let config = await configure()
@@ -253,6 +277,7 @@ final class SellwildConfigureTests: XCTestCase {
         _ = await configure(overrides: { $0.debug = true })
 
         XCTAssertTrue(capture.events.isEmpty, "a caller abort is not a failure")
+        XCTAssertEqual(capture.calls, 0)
         XCTAssertEqual(lines, [], "the debug flag is applied after the fetch")
 
         SellwildLog.isEnabled = true

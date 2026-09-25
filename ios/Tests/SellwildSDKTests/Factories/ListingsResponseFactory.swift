@@ -14,12 +14,12 @@ enum ListingsResponseFactory {
     }
 
     static func sample(_ name: String, listings: [[String: Any]]? = nil, result overrides: [String: Any] = [:]) throws -> [String: Any] {
-        replacing(try Factory.object("samples/\(schema)/\(name).json"), listings: listings, overrides: overrides)
+        try replacing(try Factory.object("samples/\(schema)/\(name).json"), listings: listings, overrides: overrides)
     }
 
     /// A fixture from `fixtures/listings-response/valid` (e.g. "rpc-envelope").
     static func variant(_ name: String, listings: [[String: Any]]? = nil, result overrides: [String: Any] = [:]) throws -> [String: Any] {
-        replacing(try Factory.object("fixtures/\(schema)/valid/\(name).json"), listings: listings, overrides: overrides)
+        try replacing(try Factory.object("fixtures/\(schema)/valid/\(name).json"), listings: listings, overrides: overrides)
     }
 
     static func variantNames() throws -> [String] { try Factory.fixtureVariants(schema) }
@@ -29,11 +29,13 @@ enum ListingsResponseFactory {
         try Factory.data(make(listings: listings, result: overrides))
     }
 
-    private static func replacing(_ payload: [String: Any], listings: [[String: Any]]?, overrides: [String: Any]) -> [String: Any] {
+    /// A payload built with listings or overrides is emitted for the
+    /// validator (`Factory.used`).
+    private static func replacing(_ payload: [String: Any], listings: [[String: Any]]?, overrides: [String: Any]) throws -> [String: Any] {
         guard listings != nil || !overrides.isEmpty else { return payload }
         var result = payload["result"] as? [String: Any] ?? [:]
         if let listings = listings { result["rs"] = listings }
         result = Factory.merge(result, overrides)
-        return Factory.merge(payload, ["result": result])
+        return try Factory.used(Factory.merge(payload, ["result": result]), schema: schema)
     }
 }

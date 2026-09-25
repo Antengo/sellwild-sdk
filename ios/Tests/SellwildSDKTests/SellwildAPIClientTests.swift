@@ -12,9 +12,15 @@ final class SellwildAPIClientTests: XCTestCase {
 
     private var session: URLSession!
     private var client: SellwildAPIClient!
+    /// The failure paths below report; `SellwildListingsFailureTests` checks
+    /// each report. Here they are only captured, never sent.
+    private var capture: FailureCapture!
 
     override func setUp() {
         super.setUp()
+        SellwildFailures.resetForTests()
+        capture = FailureCapture()
+        capture.install()
         session = StubURLProtocol.makeSession()
         client = SellwildAPIClient(session: session)
     }
@@ -23,6 +29,8 @@ final class SellwildAPIClientTests: XCTestCase {
         session.finishTasksAndInvalidate()
         client = nil
         SellwildGeoStore.current = nil
+        SellwildFailures.resetForTests()
+        capture = nil
         super.tearDown()
     }
 
@@ -56,11 +64,13 @@ final class SellwildAPIClientTests: XCTestCase {
     // MARK: Listing model
 
     func testListingDecodesFlexibleShapes() throws {
-        let listing = try ListingFactory.decoded(ListingFactory.make([
-            "id": 105140231, "status": 1, "categoryId": 7.5, "price": 19315, "strikePrice": "20000",
-            "shippable": 1, "dataSourceId": 31, "distance": 2.5, "text": "t", "url": "https://x.invalid/a",
-            "currency": "USD", "has_photo": true, "createdDate": "2026-09-01",
-        ]))
+        let listing = try ListingFactory.decoded(Factory.offSchema(because: "categoryId must be text or a whole number; the decoder reads 7.5 as text") {
+            try ListingFactory.make([
+                "id": 105140231, "status": 1, "categoryId": 7.5, "price": 19315, "strikePrice": "20000",
+                "shippable": 1, "dataSourceId": 31, "distance": 2.5, "text": "t", "url": "https://x.invalid/a",
+                "currency": "USD", "has_photo": true, "createdDate": "2026-09-01",
+            ])
+        })
         XCTAssertEqual(listing.id, "105140231")
         XCTAssertEqual(listing.status, "1")
         XCTAssertEqual(listing.categoryId, "7.5")
@@ -78,12 +88,16 @@ final class SellwildAPIClientTests: XCTestCase {
         XCTAssertEqual(try ListingFactory.decoded(ListingFactory.make(["shippable": "0"])).shippable, false)
         XCTAssertEqual(try ListingFactory.decoded(ListingFactory.make(["shippable": 0])).shippable, false)
         XCTAssertNil(try ListingFactory.decoded(ListingFactory.make(["shippable": Factory.remove])).shippable)
-        XCTAssertNil(try ListingFactory.decoded(ListingFactory.make(["shippable": ["x"]])).shippable)
+        XCTAssertNil(try ListingFactory.decoded(Factory.offSchema(because: "shippable must be a flag, not a list") {
+            try ListingFactory.make(["shippable": ["x"]])
+        }).shippable)
 
-        let bare = try ListingFactory.decoded(ListingFactory.make([
-            "id": Factory.remove, "status": Factory.remove, "title": Factory.remove, "photos": Factory.remove,
-            "price": ["not": "a price"],
-        ]))
+        let bare = try ListingFactory.decoded(Factory.offSchema(because: "id, title and photos are required and price must be a number or text") {
+            try ListingFactory.make([
+                "id": Factory.remove, "status": Factory.remove, "title": Factory.remove, "photos": Factory.remove,
+                "price": ["not": "a price"],
+            ])
+        })
         XCTAssertEqual(bare.id, "")
         XCTAssertEqual(bare.status, "")
         XCTAssertEqual(bare.title, "")
@@ -167,7 +181,8 @@ final class SellwildAPIClientTests: XCTestCase {
     }
 
     func testResultWithoutListingsIsEmpty() throws {
-        StubURLProtocol.handler = { _ in try .json(ListingsResponseFactory.variant("empty-rs", result: ["rs": Factory.remove])) }
+        let body = try Factory.offSchema(because: "result.rs is required") { try ListingsResponseFactory.variant("empty-rs", result: ["rs": Factory.remove]) }
+        StubURLProtocol.handler = { _ in try .json(body) }
         let response = try fetch(config(listingsUrl: "https://cache.sellwild.com/none")).get()
         XCTAssertTrue(response.listings.isEmpty)
     }
@@ -223,7 +238,7 @@ final class SellwildAPIClientTests: XCTestCase {
 
     func testUndecodableItemsAreDroppedAndBareRootIsAccepted() throws {
         let good = try ListingFactory.make()
-        let bad = try ListingFactory.variant("rpc-item", ["user": ["id": 1234]])
+        let bad = try Factory.offSchema(because: "user.id must be text: the item the SDK drops") { try ListingFactory.variant("rpc-item", ["user": ["id": 1234]]) }
         StubURLProtocol.handler = { _ in try .json(["rs": [good, bad]]) }
         let response = try fetch(config(listingsUrl: "https://cache.sellwild.com/mixed")).get()
         XCTAssertEqual(response.listings.map(\.id), ["105140231"])
@@ -278,7 +293,8 @@ final class SellwildAPIClientTests: XCTestCase {
         XCTAssertEqual(StubURLProtocol.requests.first?.httpMethod, "GET")
         XCTAssertEqual(StubURLProtocol.requests.first?.value(forHTTPHeaderField: "Accept"), "application/json")
 
-        StubURLProtocol.handler = { _ in .init(status: 403, body: Data("<Error/>".utf8)) }
+        let denied = try Fixtures.data("samples/localized-listings-response/sports-img-data-sm-webp-zz.403.xml")
+        StubURLProtocol.handler = { _ in .init(status: 403, body: denied) }
         XCTAssertThrowsError(try fetchCache(url).get()) { error in
             XCTAssertEqual(error.localizedDescription, SellwildError.invalidResponse.localizedDescription)
         }
@@ -311,34 +327,45 @@ final class SellwildAPIClientTests: XCTestCase {
 
     // MARK: Kill switch, session, errors
 
-    func testEventsKillSwitchParsing() {
-        XCTAssertTrue(SellwildEvents.isEnabled(remoteValues: nil))
-        XCTAssertTrue(SellwildEvents.isEnabled(remoteValues: [:]))
-        XCTAssertFalse(SellwildEvents.isEnabled(remoteValues: ["EVENTS_ENABLED": false]))
-        XCTAssertTrue(SellwildEvents.isEnabled(remoteValues: ["EVENTS_ENABLED": true]))
-        XCTAssertFalse(SellwildEvents.isEnabled(remoteValues: ["EVENTS_ENABLED": NSNumber(value: 0)]))
-        XCTAssertTrue(SellwildEvents.isEnabled(remoteValues: ["EVENTS_ENABLED": NSNumber(value: 2)]))
-        for off in ["false", " OFF ", "no", "0"] {
-            XCTAssertFalse(SellwildEvents.isEnabled(remoteValues: ["EVENTS_ENABLED": off]), off)
+    func testEventsKillSwitchParsing() throws {
+        func enabled(_ value: Any) throws -> Bool {
+            SellwildEvents.isEnabled(remoteValues: try AppConfigFactory.remote(["EVENTS_ENABLED": value]))
         }
-        XCTAssertTrue(SellwildEvents.isEnabled(remoteValues: ["EVENTS_ENABLED": "yes"]))
-        XCTAssertTrue(SellwildEvents.isEnabled(remoteValues: ["EVENTS_ENABLED": ["x": 1]]))
+        XCTAssertTrue(SellwildEvents.isEnabled(remoteValues: nil))
+        XCTAssertTrue(SellwildEvents.isEnabled(remoteValues: try AppConfigFactory.remote()))
+        XCTAssertFalse(try enabled(false))
+        XCTAssertTrue(try enabled(true))
+        XCTAssertFalse(try enabled(0))
+        XCTAssertTrue(try enabled(2))
+        for off in ["false", " OFF ", "no", "0"] {
+            XCTAssertFalse(try enabled(off), off)
+        }
+        XCTAssertTrue(try enabled("yes"))
+        let objectFlag = Factory.stripMarkers(try Fixtures.dict("fixtures/app-config/invalid/events-enabled-object.json"))
+        XCTAssertTrue(SellwildEvents.isEnabled(remoteValues: objectFlag), "an object (outside the schema) is the default")
     }
 
-    /// The existing EVENTS_ENABLED parser against the contract's coerceFlag
-    /// table (FAILURES.md 5.3). Known drift, not changed in this program: it
-    /// trims Unicode spaces but not \n, \r, \v or \f, where the contract trims
-    /// ASCII whitespace only, so " off\n" keeps events on here while the
-    /// failure core reads it as off.
+    /// The EVENTS_ENABLED parser against the contract's coerceFlag table
+    /// (FAILURES.md 5.3): ASCII trim and ASCII lower case, so " off\n" is off
+    /// and U+00A0 is not trimmed.
     func testEventsKillSwitchAgreesWithTheContractTable() throws {
         let units = try XCTUnwrap(try Fixtures.dict("golden/log-failure.vectors.json")["units"] as? [String: Any])
         let table = try XCTUnwrap(units["coerceFlag"] as? [[String: Any]])
         for row in table {
-            let values: [String: Any]? = row["input"].map { $0 is NSNull ? [:] : ["EVENTS_ENABLED": $0] }
+            // JSON null is an absent key; the rest go through the factory.
+            let values: [String: Any]? = try row["input"].map { input in
+                if input is NSNull { return try AppConfigFactory.remote() }
+                // The table also feeds coerceFlag a list and an object, which the
+                // app-config schema does not allow for EVENTS_ENABLED.
+                guard input is [Any] || input is [String: Any] else { return try AppConfigFactory.remote(["EVENTS_ENABLED": input]) }
+                return try Factory.offSchema(because: "EVENTS_ENABLED must be a flag; the coerceFlag table also tries a list and an object") {
+                    try AppConfigFactory.remote(["EVENTS_ENABLED": input])
+                }
+            }
             XCTAssertEqual(SellwildEvents.isEnabled(remoteValues: values), row["expected"] as? Bool, "\(row["input"] ?? "nil")")
         }
-        XCTAssertTrue(SellwildEvents.isEnabled(remoteValues: ["EVENTS_ENABLED": " off\n"]), "the known drift")
-        XCTAssertFalse(SellwildFailuresCore.coerceFlag(" off\n"))
+        XCTAssertFalse(SellwildEvents.isEnabled(remoteValues: try AppConfigFactory.remote(["EVENTS_ENABLED": " off\n"])))
+        XCTAssertTrue(SellwildEvents.isEnabled(remoteValues: try AppConfigFactory.remote(["EVENTS_ENABLED": "\u{00A0}off"])))
     }
 
     func testSessionUidIsCreatedOnceAndStored() {

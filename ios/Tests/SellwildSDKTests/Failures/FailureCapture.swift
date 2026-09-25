@@ -7,6 +7,7 @@ import Foundation
 ///     capture.install()           // SellwildFailures.setDependencies(capture.dependencies)
 ///     SellwildFailures.log(...)
 ///     capture.events              // what would have been queued
+///     capture.calls               // every log call, dropped ones included
 ///
 /// Call `SellwildFailures.resetForTests()` in tearDown.
 final class FailureCapture {
@@ -18,6 +19,7 @@ final class FailureCapture {
     private var pushed: [SellwildFailuresCore.Event] = []
     private var flushCount = 0
     private var lines: [String] = []
+    private var callCount = 0
 
     /// Thrown by push (or flush) when set.
     var pushError: Error?
@@ -29,11 +31,18 @@ final class FailureCapture {
     var events: [SellwildFailuresCore.Event] { locked { pushed } }
     var flushes: Int { locked { flushCount } }
     var echoes: [String] { locked { lines } }
+    /// How many times `SellwildFailures.log` ran with this capture installed,
+    /// including calls the pure core dropped (deduped, capped, sampled out or
+    /// disabled). `log` reads the uid once per call, so this counts those reads.
+    var calls: Int { locked { callCount } }
 
     var dependencies: SellwildFailures.Dependencies {
         SellwildFailures.Dependencies(
             now: { [self] in self.locked { self.clock } },
-            uid: { FailureCapture.uid },
+            uid: { [self] in
+                self.locked { self.callCount += 1 }
+                return FailureCapture.uid
+            },
             push: { [self] event in
                 self.onPush?(event)
                 if let error = self.pushError { throw error }

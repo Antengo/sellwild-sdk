@@ -10,16 +10,16 @@ final class SellwildAdAudioGuardTests: XCTestCase {
 
     // MARK: isEnabled
 
-    func testEnabledByDefault() {
+    func testEnabledByDefault() throws {
         XCTAssertTrue(SellwildAdAudioGuard.isEnabled(remoteValues: nil))
-        XCTAssertTrue(SellwildAdAudioGuard.isEnabled(remoteValues: ["CODE": "weatherbug"]))
+        XCTAssertTrue(SellwildAdAudioGuard.isEnabled(remoteValues: try AppConfigFactory.remote(["CODE": "weatherbug"])))
     }
 
-    func testDisableViaRemoteFlag() {
-        XCTAssertFalse(SellwildAdAudioGuard.isEnabled(remoteValues: ["MOBILE_AD_MUTE_AUTOPLAY": false]))
-        XCTAssertFalse(SellwildAdAudioGuard.isEnabled(remoteValues: ["MOBILE_AD_MUTE_AUTOPLAY": "off"]))
-        XCTAssertFalse(SellwildAdAudioGuard.isEnabled(remoteValues: ["MOBILE_AD_MUTE_AUTOPLAY": 0]))
-        XCTAssertTrue(SellwildAdAudioGuard.isEnabled(remoteValues: ["MOBILE_AD_MUTE_AUTOPLAY": true]))
+    func testDisableViaRemoteFlag() throws {
+        XCTAssertFalse(SellwildAdAudioGuard.isEnabled(remoteValues: try AppConfigFactory.remote(["MOBILE_AD_MUTE_AUTOPLAY": false])))
+        XCTAssertFalse(SellwildAdAudioGuard.isEnabled(remoteValues: try AppConfigFactory.remote(["MOBILE_AD_MUTE_AUTOPLAY": "off"])))
+        XCTAssertFalse(SellwildAdAudioGuard.isEnabled(remoteValues: try AppConfigFactory.remote(["MOBILE_AD_MUTE_AUTOPLAY": 0])))
+        XCTAssertTrue(SellwildAdAudioGuard.isEnabled(remoteValues: try AppConfigFactory.remote(["MOBILE_AD_MUTE_AUTOPLAY": true])))
     }
 
     // MARK: webViews(in:)

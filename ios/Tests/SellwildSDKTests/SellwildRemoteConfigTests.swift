@@ -3,14 +3,14 @@ import XCTest
 
 final class SellwildRemoteConfigTests: XCTestCase {
 
-    func testApplyPopulatesIdentityFields() {
+    func testApplyPopulatesIdentityFields() throws {
         let base = SellwildConfig(partnerCode: "weatherbug")
-        let raw: [String: Any] = [
+        let raw = try AppConfigFactory.remote([
             "CODE": "weatherbug",
             "SLUG": "weatherbug-main",
             "NAME": "WeatherBug",
             "LISTINGS": "https://cache.sellwild.com/listings-img-data-sm",
-        ]
+        ])
         let merged = SellwildSDK.apply(raw, to: base)
         XCTAssertEqual(merged.partnerCode, "weatherbug")
         XCTAssertEqual(merged.slug, "weatherbug-main")
@@ -21,16 +21,16 @@ final class SellwildRemoteConfigTests: XCTestCase {
         )
     }
 
-    func testApplyPopulatesAdZonesAndRefresh() {
+    func testApplyPopulatesAdZonesAndRefresh() throws {
         let base = SellwildConfig(partnerCode: "weatherbug")
-        let raw: [String: Any] = [
+        let raw = try AppConfigFactory.remote([
             "MOBILE_ZID": ["12345", "67890"],
             // AD_REFRESH_INTERVAL is milliseconds (matches web + CMS); iOS stores
             // it as seconds, so 30000 ms → 30.0 s.
             "AD_REFRESH_INTERVAL": 30000.0,
             "ENABLE_INTERSTITIAL": true,
             "INTERSTITIALS_PER_SESSION": 2,
-        ]
+        ])
         let merged = SellwildSDK.apply(raw, to: base)
         XCTAssertEqual(merged.mobileZids, ["12345", "67890"])
         XCTAssertEqual(merged.adRefreshInterval, 30.0)
@@ -38,20 +38,20 @@ final class SellwildRemoteConfigTests: XCTestCase {
         XCTAssertEqual(merged.interstitialsPerSession, 2)
     }
 
-    func testApplyPopulatesAppIdentity() {
+    func testApplyPopulatesAppIdentity() throws {
         let base = SellwildConfig(partnerCode: "weatherbug")
-        let raw: [String: Any] = [
+        let raw = try AppConfigFactory.remote([
             "APP_BUNDLE_ID": "com.aws.android",
             "APP_STORE_URL": "https://apps.apple.com/app/id123",
-        ]
+        ])
         let merged = SellwildSDK.apply(raw, to: base)
         XCTAssertEqual(merged.appBundleId, "com.aws.android")
         XCTAssertEqual(merged.appStoreUrl, "https://apps.apple.com/app/id123")
     }
 
-    func testApplyIgnoresUnknownKeys() {
+    func testApplyIgnoresUnknownKeys() throws {
         let base = SellwildConfig(partnerCode: "weatherbug")
-        let raw: [String: Any] = ["FUTURE_FEATURE_FLAG": true]
+        let raw = try AppConfigFactory.remote(["CODE": "weatherbug", "FUTURE_FEATURE_FLAG": true])
         let merged = SellwildSDK.apply(raw, to: base)
         XCTAssertEqual(merged.partnerCode, "weatherbug")
     }
@@ -86,14 +86,14 @@ final class SellwildRemoteConfigTests: XCTestCase {
     /// can forward them to the widget.
     func testRemoteJSONExposesUnmappedKeys() throws {
         var config = SellwildConfig(partnerCode: "weatherbug")
-        let payload: [String: Any] = [
+        let payload = try AppConfigFactory.remote([
             "CODE": "weatherbug",
             "MEDIANET": ["cid": "8CU123ABC"],
             "AMX": ["tagId": "amx-tag-1"],
             "SOVRN": ["tagid": 12345],
             "ONETAG": ["pubId": "abc"],
             "YIELDMO": ["placementId": "ym-1"],
-        ]
+        ])
         config.remoteJSON = try JSONSerialization.data(withJSONObject: payload)
 
         let values = try XCTUnwrap(config.remoteValues)

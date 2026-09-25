@@ -8,6 +8,13 @@ import Foundation
 /// `FactoryContractTests` emits every factory's default, every variant and
 /// every sample to `contracts/out/ios`, and `scripts/coverage/ios.sh` checks
 /// them against the schemas.
+///
+/// Every payload a factory builds with overrides is also emitted, as
+/// `<schema>.used-<hash>.json`, so the validator checks exactly what the
+/// tests feed the SDK, not a copied list. A test that breaks a payload on
+/// purpose (a robustness or failure-path input) builds it inside
+/// `Factory.offSchema(because:)`, which says why and keeps it out of that
+/// check.
 enum Factory {
 
     enum Failure: Error, CustomStringConvertible, Equatable {
@@ -76,6 +83,60 @@ enum Factory {
 
     static func data(_ object: Any) throws -> Data {
         try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+    }
+
+    // MARK: Payloads the tests use
+
+    private static let lock = NSLock()
+    private static var offSchemaReasons: [String] = []
+
+    /// Runs `body`, whose factory payloads break their schema on purpose:
+    /// `reason` says how. They are written to `<out>/.ios-off-schema/`
+    /// (the validator skips dot folders), not to `<out>/ios`.
+    ///
+    ///     let raw = try Factory.offSchema(because: "GPID_BASE must be text") {
+    ///         try AppConfigFactory.remote(["GPID_BASE": 12345])
+    ///     }
+    static func offSchema<T>(because reason: String, _ body: () throws -> T) rethrows -> T {
+        precondition(!reason.trimmingCharacters(in: .whitespaces).isEmpty, "say why the payload is off-schema")
+        lock.lock()
+        offSchemaReasons.append(reason)
+        lock.unlock()
+        defer {
+            lock.lock()
+            offSchemaReasons.removeLast()
+            lock.unlock()
+        }
+        return try body()
+    }
+
+    /// Emits `payload`, which a factory built with overrides, and returns it.
+    /// Inside `offSchema(because:)` it goes to the off-schema folder instead.
+    @discardableResult
+    static func used<T>(_ payload: T, schema: String) throws -> T {
+        let bytes = try data(payload)
+        let variant = "used-\(fnv1a(bytes))"
+        lock.lock()
+        let offSchema = !offSchemaReasons.isEmpty
+        lock.unlock()
+        if offSchema {
+            let directory = ContractEmitter.outputDirectory().deletingLastPathComponent()
+                .appendingPathComponent(".ios-off-schema", isDirectory: true)
+            try ContractEmitter.emit(payload, schema: schema, variant: variant, directory: directory)
+        } else {
+            try ContractEmitter.emit(payload, schema: schema, variant: variant)
+        }
+        return payload
+    }
+
+    /// FNV-1a 64 of `bytes`, as 16 hex digits: a stable name per payload.
+    private static func fnv1a(_ bytes: Data) -> String {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in bytes {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x0000_0100_0000_01b3
+        }
+        return String(format: "%016llx", hash)
     }
 
     private static func jsonFiles(in directory: String) throws -> [String] {

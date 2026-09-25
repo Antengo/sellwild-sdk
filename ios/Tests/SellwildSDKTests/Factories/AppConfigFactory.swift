@@ -18,12 +18,17 @@ enum AppConfigFactory {
 
     /// A captured config from `samples/app-config`.
     static func sample(_ name: String, _ overrides: [String: Any] = [:]) throws -> [String: Any] {
-        Factory.merge(try Factory.object("samples/\(schema)/\(name).json"), overrides)
+        try built(Factory.merge(try Factory.object("samples/\(schema)/\(name).json"), overrides), overrides)
     }
 
     /// A hand-made edge case from `fixtures/app-config/valid` (e.g. "minimal").
     static func variant(_ name: String, _ overrides: [String: Any] = [:]) throws -> [String: Any] {
-        Factory.merge(try Factory.object("fixtures/\(schema)/valid/\(name).json"), overrides)
+        try built(Factory.merge(try Factory.object("fixtures/\(schema)/valid/\(name).json"), overrides), overrides)
+    }
+
+    /// A payload built with overrides is emitted for the validator (`Factory.used`).
+    private static func built(_ payload: [String: Any], _ overrides: [String: Any]) throws -> [String: Any] {
+        overrides.isEmpty ? payload : try Factory.used(payload, schema: schema)
     }
 
     static func variantNames() throws -> [String] { try Factory.fixtureVariants(schema) }

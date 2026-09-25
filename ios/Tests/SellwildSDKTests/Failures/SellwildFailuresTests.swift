@@ -84,6 +84,54 @@ final class SellwildFailuresTests: XCTestCase {
 
     // MARK: Context
 
+    // MARK: Input cap (FAILURES.md 3.3 item 4)
+
+    private struct DescribedError: LocalizedError {
+        let errorDescription: String?
+    }
+
+    func testMessageAndErrorMessageAreCutTo1000UnitsBeforeTheCore() throws {
+        // 998 digits sanitize to "<n>", so whatever follows them would be sent.
+        let long = String(repeating: "1", count: 998) + "ABCDEFG"
+
+        SellwildFailures.log(code: .listingsFetchHttp, component: .listings,
+                             error: DescribedError(errorDescription: long), message: long)
+
+        let event = try XCTUnwrap(capture.events.first)
+        XCTAssertEqual(event.attributes["msg"], "<n>AB")
+        XCTAssertEqual(event.attributes["errName"], "DescribedError")
+    }
+
+    func testTheCutIsExactAndASplitSurrogatePairBecomesTheReplacementCharacter() {
+        SellwildFailures.log(code: .listingsFetchHttp, component: .listings,
+                             message: String(repeating: "1", count: 996) + "WXYZ")
+        SellwildFailures.log(code: .listingsFetchHttp, component: .listings,
+                             message: String(repeating: "1", count: 997) + "WXYZ")
+        // The cut falls inside the emoji's surrogate pair: TS, Kotlin and Dart
+        // keep a lone high surrogate that cleanText turns into U+FFFD.
+        SellwildFailures.log(code: .listingsFetchHttp, component: .listings,
+                             message: String(repeating: "1", count: 999) + "\u{1F600}tail")
+
+        XCTAssertEqual(capture.events.map { $0.attributes["msg"] }, ["<n>WXYZ", "<n>WXY", "<n>\u{FFFD}"])
+    }
+
+    func testCapInputKeepsTheFirst1000UnitsAndNeverHalfAScalar() throws {
+        XCTAssertNil(SellwildFailures.capInput(nil))
+        XCTAssertEqual(SellwildFailures.capInput("short"), "short")
+        let exact = String(repeating: "a", count: 1000)
+        XCTAssertEqual(SellwildFailures.capInput(exact), exact)
+        XCTAssertEqual(SellwildFailures.capInput(exact + "b"), exact)
+
+        let split = try XCTUnwrap(SellwildFailures.capInput(String(repeating: "a", count: 999) + "\u{1F600}"))
+        XCTAssertEqual(split.utf16.count, 1000)
+        XCTAssertEqual(split.unicodeScalars.last, "\u{FFFD}")
+
+        let whole = try XCTUnwrap(SellwildFailures.capInput(String(repeating: "a", count: 998) + "\u{1F600}z"))
+        XCTAssertEqual(whole.utf16.count, 1000)
+        XCTAssertEqual(whole.unicodeScalars.last, "\u{1F600}")
+        XCTAssertEqual(SellwildFailures.capInput("abcdef", max: 3), "abc")
+    }
+
     func testContextDefaultsAreUnsetAndOn() {
         let context = SellwildFailures.context
         XCTAssertNil(context.partnerCode)

@@ -173,8 +173,8 @@ public enum SellwildFailures {
 
         let input = SellwildFailuresCore.Input(
             code: code.rawValue, component: component.rawValue, severity: severity.rawValue,
-            errName: error.map(errorName), errMessage: error?.localizedDescription, message: message,
-            stack: nil, httpStatus: httpStatus, url: url, zoneId: zoneId
+            errName: error.map(errorName), errMessage: capInput(error?.localizedDescription),
+            message: capInput(message), stack: nil, httpStatus: httpStatus, url: url, zoneId: zoneId
         )
         let (context, deps) = locked { (current, dependencies) }
         do {
@@ -198,6 +198,33 @@ public enum SellwildFailures {
                 deps.echo("[Sellwild] failure internal \(errorName(caught)) \(SellwildFailuresCore.sanitizeMessage(caught.localizedDescription))")
             }
         }
+    }
+
+    /// Input cap (FAILURES.md 3.3 item 4): the most UTF-16 units of message
+    /// and error message handed to the pure core. Its sanitizer patterns
+    /// backtrack superlinearly on long runs of letters and digits, and `log`
+    /// must never block. Only 200 code points are ever sent, so the cut
+    /// changes nothing but pathological input.
+    static let messageInputMax = 1000
+
+    /// The first `max` UTF-16 units of `text`. When the cut splits a surrogate
+    /// pair, the text ends in U+FFFD: that is what cleanText makes of the lone
+    /// high surrogate TS, Kotlin and Dart keep, and a Swift string cannot hold
+    /// one. So every platform hands the core the same text.
+    static func capInput(_ text: String?, max: Int = messageInputMax) -> String? {
+        guard let text, text.utf16.count > max else { return text }
+        var units = 0
+        var kept = String.UnicodeScalarView()
+        for scalar in text.unicodeScalars {
+            let width = scalar.utf16.count
+            guard units + width <= max else {
+                if units < max { kept.append("\u{FFFD}") }
+                break
+            }
+            kept.append(scalar)
+            units += width
+        }
+        return String(kept)
     }
 
     /// The `errName` of an error (FAILURES.md 3.3): the Swift type name, or

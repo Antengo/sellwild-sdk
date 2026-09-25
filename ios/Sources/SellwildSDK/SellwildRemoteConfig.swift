@@ -40,8 +40,12 @@ public enum SellwildSDK {
         timeout: TimeInterval = 5.0,
         overrides: ((inout SellwildConfig) -> Void)? = nil
     ) async -> SellwildConfig {
-        await configure(partnerCode: partnerCode, slug: slug, timeout: timeout, overrides: overrides, environment: .live)
+        await configure(partnerCode: partnerCode, slug: slug, timeout: timeout, overrides: overrides, environment: environment)
     }
+
+    /// What the public `configure` talks to: `live`, unless a test swaps it
+    /// for a stub session, its own events client and a recording bootstrap.
+    static var environment = ConfigureEnvironment.live
 
     /// What `configure` talks to. Partners always get `live`; tests inject a
     /// stub session, their own events client and a no-op bootstrap.
@@ -52,15 +56,16 @@ public enum SellwildSDK {
         var makeURL: (String) -> URL?
         /// Gets the partner code and events kill switch at configure time.
         var events: SellwildAPIClient
-        /// Runs on the main actor once the config is final.
-        var bootstrap: (SellwildConfig) -> Void
+        /// Runs on the main actor once the config is final. The live one
+        /// starts GMA and Prebid Mobile (`SellwildPrebidMobile.bootstrap`).
+        var bootstrap: (SellwildConfig) -> Bool
 
         static var live: ConfigureEnvironment {
             ConfigureEnvironment(
                 session: .shared,
                 makeURL: { URL(string: $0) },
                 events: .shared,
-                bootstrap: { _ = SellwildPrebidMobile.bootstrap(with: $0) }
+                bootstrap: SellwildPrebidMobile.bootstrap(with:)
             )
         }
     }
@@ -79,16 +84,9 @@ public enum SellwildSDK {
         SellwildFailures.setContext { $0.partnerCode = partnerCode }
         environment.events.partnerCode = partnerCode
 
-        let urlString = "https://widget.sellwild.com/app/\(partnerCode)/\(slug).json"
+        let urlString = configURLString(partnerCode: partnerCode, slug: slug)
         if let url = environment.makeURL(urlString) {
-            var request = URLRequest(url: url)
-            request.timeoutInterval = timeout
-            request.cachePolicy = .reloadIgnoringLocalCacheData
-            // Version beacon: fires on every config fetch (independent of the events
-            // kill switch) and lands in CloudFront cs(User-Agent) logs for an
-            // installed-base census.
-            request.setValue("SellwildSDK/\(sdkVersion) (ios)", forHTTPHeaderField: "User-Agent")
-
+            let request = configRequest(url: url, timeout: timeout)
             if let fetched = await fetchRemoteConfig(request, session: environment.session) {
                 config = apply(fetched.raw, to: config)
                 // Stash the raw payload so unmapped CDN keys (new bidders,
@@ -116,9 +114,26 @@ public enum SellwildSDK {
         // can resume off-main after the URLSession await above.
         let bootstrap = environment.bootstrap
         let configured = config
-        await MainActor.run { bootstrap(configured) }
+        _ = await MainActor.run { bootstrap(configured) }
 
         return configured
+    }
+
+    /// Where a partner's app config lives on the CDN (pure).
+    static func configURLString(partnerCode: String, slug: String) -> String {
+        "https://widget.sellwild.com/app/\(partnerCode)/\(slug).json"
+    }
+
+    /// The config GET (pure): no local cache, and the SDK version in the
+    /// User-Agent. That version beacon fires on every config fetch
+    /// (independent of the events kill switch) and lands in CloudFront
+    /// cs(User-Agent) logs for an installed-base census.
+    static func configRequest(url: URL, timeout: TimeInterval) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("SellwildSDK/\(sdkVersion) (ios)", forHTTPHeaderField: "User-Agent")
+        return request
     }
 
     /// GETs the remote config. Returns the payload, or nil after reporting
@@ -161,13 +176,13 @@ public enum SellwildSDK {
     }
 
     private static func reportFetchError(_ error: Error, url: String?) {
-        switch (error as? URLError)?.code {
-        case .cancelled?:
+        switch SellwildLoadFailure.transport(error) {
+        case .cancelled:
             // The caller cancelled the configure task: not a failure.
             SellwildLog.debug("[SellwildSDK] remote config fetch cancelled")
-        case .timedOut?:
+        case .timeout:
             SellwildFailures.log(code: .configFetchTimeout, component: .remoteConfig, error: error, url: url)
-        default:
+        case .network:
             SellwildFailures.log(code: .configFetchNetwork, component: .remoteConfig, error: error, url: url)
         }
     }
@@ -205,7 +220,9 @@ public enum SellwildSDK {
         if let v = raw["CODE"]      as? String { c.partnerCode = v }
         if let v = raw["SLUG"]      as? String { c.slug = v }
         if let v = raw["NAME"]      as? String { c.name = v }
-        if let v = raw["LISTINGS"]  as? String { c.listingsUrl = v }
+        // '' is how the CMS writes "unset" (the real antengo config ships it):
+        // keep the partner's URL or the default cache, never an empty URL.
+        if let v = raw["LISTINGS"]  as? String, !v.isEmpty { c.listingsUrl = v }
 
         // Display
         if let v = raw["TITLE"]            as? String   { c.title = v }

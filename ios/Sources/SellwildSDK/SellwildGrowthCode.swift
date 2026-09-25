@@ -90,89 +90,193 @@ public enum SellwildGrowthCode {
         )
     }
 
+    // MARK: Environment
+
+    /// What the sync talks to. Partners always get `live`; tests swap
+    /// `environment` for a recording transport, a fixed clock, their own
+    /// defaults suite and a chosen advertising id.
+    struct Environment {
+        /// Sends the sync POST.
+        var send: (URLRequest, @escaping (Data?, URLResponse?, Error?) -> Void) -> Void
+        /// Now, in epoch milliseconds.
+        var nowMs: () -> Double
+        /// Where the gcid, the eid blob and the last sync time are kept.
+        var defaults: UserDefaults
+        /// The device IDFA and its type, or nil when there is no usable one.
+        var advertisingId: () -> (String, String)?
+
+        static var live: Environment {
+            Environment(
+                send: sender(.shared),
+                nowMs: { Date().timeIntervalSince1970 * 1000 },
+                defaults: .standard,
+                advertisingId: SellwildGrowthCode.liveAdvertisingId
+            )
+        }
+
+        /// A transport that runs each request as a data task on `session`.
+        static func sender(_ session: URLSession) -> (URLRequest, @escaping (Data?, URLResponse?, Error?) -> Void) -> Void {
+            { request, completion in session.dataTask(with: request, completionHandler: completion).resume() }
+        }
+    }
+
+    static var environment = Environment.live
+
     /// Entry point — call from an ad load. Idempotent per launch. Injects any
     /// cached eids immediately, then (subject to the throttle) refreshes them
     /// from GrowthCode in the background. No-op unless enabled with a partner id
-    /// and sync url.
+    /// and sync url; enabled without them is reported (`growthcode.config.missing`)
+    /// once per launch. That report does not use up the sync: a config that
+    /// gains the settings later in the launch still syncs, as before.
     static func resolveIfNeeded(config: SellwildConfig, zoneId: String?) {
         let settings = resolve(config: config, zoneId: zoneId)
-        guard settings.enabled,
-              let pid = settings.partnerId, !pid.isEmpty,
-              let syncUrl = settings.syncUrl, !syncUrl.isEmpty else { return }
+        guard settings.enabled else { return }
+        guard let pid = nonEmpty(settings.partnerId), let syncUrl = nonEmpty(settings.syncUrl) else {
+            if SellwildReportOnce.first(.growthcodeConfigMissing) {
+                SellwildFailures.log(code: .growthcodeConfigMissing, component: .growthcode, severity: .warn,
+                                     message: "GrowthCode is enabled but its partner id or sync URL is missing")
+            }
+            return
+        }
 
         lock.lock()
         if didAttempt { lock.unlock(); return }
         didAttempt = true
         lock.unlock()
 
+        let env = environment
         // 1. Replay cached eids right away so the auction has GrowthCode signal
         //    even inside the throttle window (we only PAY for the network call
         //    every ttlHours; the eids stay live in between).
-        if let cached = nonEmpty(defaults.string(forKey: ebKey(pid))) {
+        if let cached = nonEmpty(env.defaults.string(forKey: ebKey(pid))) {
             let eids = parseEidBlob(cached)
             if !eids.isEmpty { SellwildEidRegistry.setGrowthCode(eids) }
         }
 
         // 2. Decide whether to make the (billed) network call.
-        let gcid = nonEmpty(defaults.string(forKey: gcidKey(pid)))
-        let lastSync = defaults.object(forKey: syncedAtKey(pid)) as? Double
-        guard shouldSync(gcid: gcid, lastSyncMs: lastSync, ttlHours: settings.ttlHours) else { return }
+        let gcid = nonEmpty(env.defaults.string(forKey: gcidKey(pid)))
+        let lastSync = env.defaults.object(forKey: syncedAtKey(pid)) as? Double
+        guard shouldSync(gcid: gcid, lastSyncMs: lastSync, ttlHours: settings.ttlHours, nowMs: env.nowMs()) else { return }
 
         // 3. Advertising id, honouring the MAID policy. A nil id means no usable
         //    IDFA (ATT not authorized). When sending is off, skip the whole call
-        //    for such devices so we don't pay for a signal-less request.
-        let maid = advertisingId()
+        //    for such devices so we don't pay for a signal-less request. A
+        //    missing id is the user's privacy choice, never a failure.
+        let maid = env.advertisingId()
         if maid == nil && !settings.sendMaid { return }
 
-        performSync(settings: settings, pid: pid, syncUrl: syncUrl, gcid: gcid, maid: maid)
+        performSync(env: env, endpoint: settings.endpoint, pid: pid, syncUrl: syncUrl, gcid: gcid, maid: maid)
     }
 
     /// Sync only when there's no stored GCID or the TTL window has elapsed.
-    static func shouldSync(gcid: String?, lastSyncMs: Double?, ttlHours: Double) -> Bool {
+    static func shouldSync(gcid: String?, lastSyncMs: Double?, ttlHours: Double, nowMs: Double) -> Bool {
         if gcid == nil { return true }
         guard let last = lastSyncMs else { return true }
-        return Date().timeIntervalSince1970 * 1000 - last >= ttlHours * 3_600_000
+        return nowMs - last >= ttlHours * 3_600_000
     }
 
     // MARK: Network
 
-    private static func performSync(settings: Settings, pid: String, syncUrl: String, gcid: String?, maid: (String, String)?) {
-        var comps = URLComponents(string: settings.endpoint)
-        // pid + u ride the query string (per the GrowthCode contract).
-        var items = comps?.queryItems ?? []
-        items.append(URLQueryItem(name: "pid", value: pid))
-        items.append(URLQueryItem(name: "u", value: syncUrl))
-        comps?.queryItems = items
-        guard let url = comps?.url else { return }
+    private static func performSync(env: Environment, endpoint: String, pid: String, syncUrl: String,
+                                    gcid: String?, maid: (String, String)?) {
+        guard let request = syncRequest(endpoint: endpoint, pid: pid, syncUrl: syncUrl, gcid: gcid, maid: maid) else {
+            SellwildFailures.log(code: .growthcodeUrlInvalid, component: .growthcode, severity: .warn,
+                                 message: "GrowthCode endpoint URL could not be built")
+            return
+        }
+        env.send(request) { data, response, error in
+            let json: [String: Any]
+            switch syncOutcome(data: data, response: response, error: error) {
+            case .failure(let failure):
+                report(failure, url: endpoint)
+                return
+            case .success(let body):
+                json = body
+            }
+
+            // Persist the throttle timestamp regardless, so a fill-less response
+            // still holds off the next billed call for the TTL window.
+            env.defaults.set(env.nowMs(), forKey: syncedAtKey(pid))
+
+            if let newGcid = nonEmpty(json["gc_id"]) {
+                env.defaults.set(newGcid, forKey: gcidKey(pid))
+            }
+            if let eb = nonEmpty(json["eb"]) {
+                env.defaults.set(eb, forKey: ebKey(pid))
+                let eids = parseEidBlob(eb)
+                if !eids.isEmpty { SellwildEidRegistry.setGrowthCode(eids) }
+            }
+        }
+    }
+
+    /// The sync POST (pure): `pid` and `u` ride the query string (per the
+    /// GrowthCode contract), the rest is a form body. nil when `endpoint` is
+    /// not a URL.
+    static func syncRequest(endpoint: String, pid: String, syncUrl: String,
+                            gcid: String?, maid: (String, String)?) -> URLRequest? {
+        let url = URLComponents(string: endpoint).flatMap { components -> URL? in
+            var components = components
+            components.queryItems = (components.queryItems ?? []) + [
+                URLQueryItem(name: "pid", value: pid),
+                URLQueryItem(name: "u", value: syncUrl),
+            ]
+            return components.url
+        }
+        guard let url else { return nil }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = formBody(gcid: gcid, host: syncHost(syncUrl), maid: maid).data(using: .utf8)
+        request.httpBody = Data(formBody(gcid: gcid, host: syncHost(syncUrl), maid: maid).utf8)
+        return request
+    }
 
-        URLSession.shared.dataTask(with: request) { data, response, _ in
-            guard let data,
-                  let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-                  let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return }
+    /// Why a sync answer cannot be used. The throttle is not saved, so the
+    /// sync runs again next launch.
+    enum SyncFailure: Error {
+        case transport(Error)
+        case http(Int)
+        case parse(Error?, String)
+    }
 
-            // Persist the throttle timestamp regardless, so a fill-less response
-            // still holds off the next billed call for the TTL window.
-            defaults.set(Date().timeIntervalSince1970 * 1000, forKey: syncedAtKey(pid))
-
-            if let newGcid = nonEmpty(json["gc_id"]) {
-                defaults.set(newGcid, forKey: gcidKey(pid))
+    /// A finished sync request as its JSON object, or why not (pure).
+    static func syncOutcome(data: Data?, response: URLResponse?, error: Error?) -> Result<[String: Any], SyncFailure> {
+        if let error { return .failure(.transport(error)) }
+        if let status = SellwildLoadFailure.httpFailureStatus(response) { return .failure(.http(status)) }
+        guard let data, !data.isEmpty else { return .failure(.parse(nil, "GrowthCode sync response has no body")) }
+        do {
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return .failure(.parse(nil, "GrowthCode sync response is not a JSON object"))
             }
-            if let eb = nonEmpty(json["eb"]) {
-                defaults.set(eb, forKey: ebKey(pid))
-                let eids = parseEidBlob(eb)
-                if !eids.isEmpty { SellwildEidRegistry.setGrowthCode(eids) }
+            return .success(json)
+        } catch {
+            return .failure(.parse(error, "GrowthCode sync response is not valid JSON"))
+        }
+    }
+
+    private static func report(_ failure: SyncFailure, url: String) {
+        switch failure {
+        case .transport(let error):
+            switch SellwildLoadFailure.transport(error) {
+            case .cancelled:
+                SellwildLog.debug("[SellwildGrowthCode] sync cancelled")
+            case .timeout:
+                SellwildFailures.log(code: .growthcodeSyncTimeout, component: .growthcode, severity: .warn, error: error, url: url)
+            case .network:
+                SellwildFailures.log(code: .growthcodeSyncNetwork, component: .growthcode, severity: .warn, error: error, url: url)
             }
-        }.resume()
+        case .http(let status):
+            SellwildFailures.log(code: .growthcodeSyncHttp, component: .growthcode, severity: .warn,
+                                 message: "HTTP \(status)", httpStatus: status, url: url)
+        case .parse(let error, let message):
+            SellwildFailures.log(code: .growthcodeSyncParse, component: .growthcode, severity: .warn,
+                                 error: error, message: message, url: url)
+        }
     }
 
     /// Form body: gcid (omitted on first sync), h (host), maid + maid_type
     /// (only when a real device id is available).
-    private static func formBody(gcid: String?, host: String?, maid: (String, String)?) -> String {
+    static func formBody(gcid: String?, host: String?, maid: (String, String)?) -> String {
         var parts: [String] = []
         func add(_ k: String, _ v: String?) {
             guard let v, !v.isEmpty,
@@ -194,14 +298,18 @@ public enum SellwildGrowthCode {
     /// The device IDFA when the host app already holds ATT authorization, else
     /// nil. We never prompt: without authorization iOS returns the zeroed id,
     /// which we map to nil ("no device id").
-    private static func advertisingId() -> (String, String)? {
+    static func liveAdvertisingId() -> (String, String)? {
         #if canImport(AdSupport)
-        let idfa = ASIdentifierManager.shared().advertisingIdentifier.uuidString
-        if idfa.lowercased() != "00000000-0000-0000-0000-000000000000" {
-            return (idfa, "IDFA")
-        }
-        #endif
+        return maid(fromIDFA: ASIdentifierManager.shared().advertisingIdentifier.uuidString)
+        #else
         return nil
+        #endif
+    }
+
+    /// `(idfa, "IDFA")`, or nil for the zeroed id iOS hands out without ATT
+    /// authorization.
+    static func maid(fromIDFA idfa: String) -> (String, String)? {
+        idfa.lowercased() == "00000000-0000-0000-0000-000000000000" ? nil : (idfa, "IDFA")
     }
 
     // MARK: Parsing
@@ -209,19 +317,45 @@ public enum SellwildGrowthCode {
     /// Parse the GrowthCode `eb` (a JSON string of
     /// `[{ source, uids: [{ id, atype?, stype? }] }]`) into `[SellwildEid]`.
     /// Provider-only `inserter`/`matcher` are dropped; a uid `stype` (with no
-    /// atype) is preserved in `ext`. Never throws — returns [] on bad input.
+    /// atype) is preserved in `ext`. Never throws — returns [] on bad input,
+    /// and reports a blob that is not a list, or entries it had to drop
+    /// (`growthcode.eid.invalid`).
     static func parseEidBlob(_ eb: String) -> [SellwildEid] {
-        guard let data = eb.data(using: .utf8),
-              let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else { return [] }
+        let parsed = eidBlob(eb)
+        if let problem = parsed.problem {
+            SellwildFailures.log(code: .growthcodeEidInvalid, component: .growthcode, severity: .warn, message: problem)
+        }
+        return parsed.eids
+    }
+
+    /// `parseEidBlob` without the report (pure): the eids, and what was wrong.
+    static func eidBlob(_ eb: String) -> (eids: [SellwildEid], problem: String?) {
+        let entries: [[String: Any]]
+        do {
+            guard let list = try JSONSerialization.jsonObject(with: Data(eb.utf8)) as? [[String: Any]] else {
+                return ([], "eid blob is not a list of objects")
+            }
+            entries = list
+        } catch {
+            return ([], "eid blob is not valid JSON")
+        }
 
         var eids: [SellwildEid] = []
-        for entry in arr {
+        var dropped = 0
+        for entry in entries {
             guard let source = nonEmpty(entry["source"]),
-                  let rawUids = entry["uids"] as? [[String: Any]] else { continue }
+                  let rawUids = entry["uids"] as? [[String: Any]], !rawUids.isEmpty else {
+                dropped += 1
+                continue
+            }
             var uids: [SellwildEidUID] = []
             for u in rawUids {
-                guard let id = nonEmpty(u["id"]) else { continue }
-                let atype = Int(numeric(u["atype"]) ?? 0)
+                guard let id = nonEmpty(u["id"]) else {
+                    dropped += 1
+                    continue
+                }
+                // clampedInt: `Int(_:)` traps on "inf", "nan" and text longer than Int allows.
+                let atype = numeric(u["atype"]).flatMap(SellwildNumber.clampedInt) ?? 0
                 if let stype = nonEmpty(u["stype"]) {
                     uids.append(SellwildEidUID(id: id, atype: atype, ext: ["stype": stype]))
                 } else {
@@ -230,12 +364,11 @@ public enum SellwildGrowthCode {
             }
             if !uids.isEmpty { eids.append(SellwildEid(source: source, uids: uids)) }
         }
-        return eids
+        return (eids, dropped > 0 ? "\(dropped) eid entries or uids without a source, uids or id were dropped" : nil)
     }
 
     // MARK: Persistence (UserDefaults, per partner id)
 
-    private static var defaults: UserDefaults { .standard }
     private static func gcidKey(_ pid: String) -> String { "_sw_gc_id.\(pid)" }
     private static func syncedAtKey(_ pid: String) -> String { "_sw_gc_synced_at.\(pid)" }
     private static func ebKey(_ pid: String) -> String { "_sw_gc_eb.\(pid)" }
@@ -256,6 +389,9 @@ public enum SellwildGrowthCode {
         }
     }
 
+    /// A number, or numeric text. A JSON number is an NSNumber: `as Double`
+    /// reads it unless it is an integer a Double cannot hold exactly, then
+    /// `as Int`, and one too large for an Int is read through NSNumber.
     private static func numeric(_ value: Any?) -> Double? {
         switch value {
         case let d as Double: return d

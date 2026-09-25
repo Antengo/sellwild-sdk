@@ -7,7 +7,8 @@
 // This file is the single point of contact between the SDK and the Prebid
 // Mobile SDK. It reads its parameters off `SellwildConfig.prebidServer` /
 // `config.remoteValues["S2S_CONFIG"]` so partners do not have to wire Prebid
-// by hand.
+// by hand. The decisions live in `SellwildPrebidConfig` (pure); the calls that
+// start the SDKs or reach the network go through `calls`, which tests swap.
 
 import Foundation
 import UIKit
@@ -39,6 +40,74 @@ public enum SellwildPrebidMobile {
         return initialized
     }
 
+    // MARK: - Third-party calls
+
+    /// The calls into GMA and Prebid that start their SDKs or reach the
+    /// network. Partners always get `live`; tests swap `calls` for fakes.
+    struct Calls {
+        /// Starts GMA, then Prebid Mobile against `serverURL`. Reports the
+        /// outcome through `initCompleted(error:)` / `initThrew(_:)`.
+        var startSDKs: (_ serverURL: String) -> Void
+        /// Runs the Prebid auction (a Prebid Server request).
+        var fetchBannerDemand: (BannerAdUnit, AdManagerRequest, @escaping (ResultCode) -> Void) -> Void
+        /// Sends the GAM ad request.
+        var loadGAM: (AdManagerBannerView, AdManagerRequest) -> Void
+        /// Sends the Prebid rendering request.
+        var loadPrebid: (PrebidBannerView) -> Void
+
+        static let live = Calls(startSDKs: liveStartSDKs, fetchBannerDemand: liveFetchBannerDemand,
+                                loadGAM: SellwildLiveAdNetwork.sendGAMRequest,
+                                loadPrebid: SellwildLiveAdNetwork.sendPrebidRequest)
+    }
+
+    static var calls = Calls.live
+
+    // sellwild-coverage:exclude-begin(third-party-init) MobileAds.start and SellwildPrebid.initializeSDK need the app's GMA application id and the network; the outcome handlers below are tested.
+    private static let liveStartSDKs: (String) -> Void = { serverURL in
+        // GMA first — Prebid hands off to GAM, GAM must be live before any
+        // ad request runs.
+        MobileAds.shared.start(completionHandler: nil)
+        do {
+            // Prebid 3.x signature: serverURL is required, GMA version is
+            // checked for compatibility.
+            let v = MobileAds.shared.versionNumber
+            let gmaVersion = "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
+            try SellwildPrebid.initializeSDK(serverURL: serverURL, gadMobileAdsVersion: gmaVersion) { status, error in
+                initCompleted(status: "\(status)", error: error)
+            }
+        } catch {
+            initThrew(error)
+        }
+    }
+    // sellwild-coverage:exclude-end
+
+    // sellwild-coverage:exclude-begin(fetch-demand) BannerAdUnit.fetchDemand sends the Prebid Server request.
+    private static let liveFetchBannerDemand: (BannerAdUnit, AdManagerRequest, @escaping (ResultCode) -> Void) -> Void = {
+        unit, request, completion in
+        unit.fetchDemand(adObject: request, completion: completion)
+    }
+    // sellwild-coverage:exclude-end
+
+    /// Prebid init finished. Ready means it completed without an error; the
+    /// status is not matched against the fork's enum names, which are brittle.
+    static func initCompleted(status: String, error: Error?) {
+        if let error {
+            SellwildFailures.log(code: .adPrebidInitException, component: .banner, severity: .fatal, error: error,
+                                 message: "Prebid Mobile init completed with an error")
+            return
+        }
+        SellwildLog.debug("[SellwildPrebidMobile] SellwildPrebid SDK init status: \(status)")
+        lock.lock(); initialized = true; lock.unlock()
+    }
+
+    /// Prebid init threw before it started.
+    static func initThrew(_ error: Error) {
+        SellwildFailures.log(code: .adPrebidInitException, component: .banner, severity: .fatal, error: error,
+                             message: "Prebid Mobile init threw")
+    }
+
+    // MARK: - Bootstrap
+
     /// Initialize PrebidMobile + GMA SDK from a `SellwildConfig`.
     ///
     /// Idempotent: safe to call from every `SellwildSDK.configure(...)` result
@@ -49,16 +118,22 @@ public enum SellwildPrebidMobile {
         lock.lock()
         defer { lock.unlock() }
         if didBootstrap { return true }
+        let server = apply(config)
+        calls.startSDKs(server.url)
+        didBootstrap = true
+        return true
+    }
 
-        // GMA first — Prebid hands off to GAM, GAM must be live before any
-        // ad request runs.
-        MobileAds.shared.start(completionHandler: nil)
-
-        // Resolve Prebid Server URL + account id. Typed config wins; fall back
-        // to raw CDN passthrough; final fallback is Sellwild's hosted Prebid
-        // Server so the SDK still does *something* on partial CMS config.
-        let resolved = resolvePrebidServer(from: config)
-        SellwildPrebid.shared.prebidServerAccountId = resolved.accountId
+    /// Everything bootstrap sets before the SDKs start: the Prebid settings,
+    /// the app identity and the global ORTB config. Local; no network.
+    @discardableResult
+    static func apply(_ config: SellwildConfig) -> SellwildPrebidConfig.Server {
+        // Typed config wins; then the raw CDN passthrough; then Sellwild's
+        // hosted Prebid Server, so the SDK still does something on partial
+        // CMS config.
+        let server = SellwildPrebidConfig.server(typed: config.prebidServer, remoteValues: config.remoteValues,
+                                                 partnerCode: config.partnerCode)
+        SellwildPrebid.shared.prebidServerAccountId = server.accountId
         SellwildPrebid.shared.timeoutMillis = config.prebidServer?.timeout ?? 1500
         SellwildPrebid.shared.shareGeoLocation = true
         if config.debug {
@@ -68,20 +143,16 @@ public enum SellwildPrebidMobile {
         // so the PBS response carries the full debug block. Separate from log level.
         SellwildPrebid.shared.pbsDebug = config.pbsDebug
 
-        // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
-        // OpenRTB app identity. In Prebid Mobile, Targeting.itunesID maps to
-        // app.bundle; Targeting.sourceapp maps to app.NAME (not the bundle).
-        // On iOS app.bundle must be the NUMERIC App Store ID — buyers key on it
-        // (app-ads.txt / DSP allow-lists); reverse-DNS breaks matching. Derive
-        // the numeric id from the store URL's `/idNNNNN` segment and set it via
-        // itunesID. If we can't parse one, leave app.bundle to Prebid's default
-        // (reverse-DNS Bundle id) and let the edge Lambda backstop it.
-        //
-        // NOTE: we deliberately no longer assign the bundle id to `sourceapp` —
-        // that was polluting app.name with the reverse-DNS bundle. app.name is
-        // left to Prebid's auto-detected display name.
+        // OpenRTB app identity. Targeting.itunesID maps to app.bundle, which on
+        // iOS must be the NUMERIC App Store id (buyers key on it; reverse-DNS
+        // breaks matching). It comes from the store URL's `/idNNN` segment;
+        // without one, app.bundle keeps Prebid's reverse-DNS default and the
+        // edge Lambda backstops it. `sourceapp` (app.name) is left to Prebid.
         if let numericId = appStoreId(from: config.appStoreUrl) {
             Targeting.shared.itunesID = numericId
+        } else if let store = config.appStoreUrl, !store.isEmpty {
+            SellwildFailures.log(code: .configAppStoreUrlInvalid, component: .configure, severity: .warn,
+                                 message: "APP_STORE_URL has no /id<number> segment, so app.bundle keeps the reverse-DNS default")
         }
         // storeURL is independent of the bundle id — set it whenever configured
         // so a valid appStoreUrl is never dropped just because appBundleId is nil.
@@ -89,50 +160,17 @@ public enum SellwildPrebidMobile {
             Targeting.shared.storeURL = store
         }
 
-        // app.publisher.id must equal the sellers.json seller id (== schain sid)
-        // for supply-chain coherence. No Targeting property maps to
-        // app.publisher.id, so inject it via the global ORTB config. Sourced
-        // from the CDN S2S_CONFIG blob (publisherId / sellerId).
-        // Capture the resolved publisher id + any declared geo, then emit ONE
-        // combined global ORTB config (app.publisher.id + device.geo).
-        // setGlobalORTBConfig is last-write-wins, so both must live in a single
-        // object; a later setGeo(_:) re-emits it with updated geo.
-        // resolvedPublisherId is protected by `lock` — we're already inside it
-        // for the duration of bootstrap. applyGlobalORTB() takes a snapshot
-        // under the same lock, so a concurrent setGeo() can't race the emit.
-        resolvedPublisherId = resolvePublisherId(from: config)
-        // IAB content categories (IAB_CATS) → ORTB app.cat, so DSPs get content
-        // taxonomy / brand-safety context on the bid request. Content signal, not
-        // consent — safe to always attach when the CMS provides it.
+        // app.publisher.id must equal the sellers.json seller id (== schain
+        // sid); IAB_CATS become app.cat. Both, with device.geo and
+        // device.devicetype, go out as ONE global ORTB config (last write
+        // wins); a later setGeo(_:) re-emits it with the new geo.
+        lock.lock()
+        resolvedPublisherId = SellwildPrebidConfig.publisherId(remoteValues: config.remoteValues)
         resolvedCats = config.iabCats.isEmpty ? nil : config.iabCats
+        lock.unlock()
         if SellwildGeoStore.current == nil { SellwildGeoStore.current = config.geo }
         applyGlobalORTB()
-
-        do {
-            // Prebid 3.x signature: serverURL is required, GMA version is
-            // checked for compatibility.
-            let v = MobileAds.shared.versionNumber
-            let gmaVersion = "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
-            try SellwildPrebid.initializeSDK(
-                serverURL: resolved.url,
-                gadMobileAdsVersion: gmaVersion
-            ) { status, error in
-                if let error {
-                    log("SellwildPrebid SDK init error: \(error.localizedDescription)")
-                } else {
-                    log("SellwildPrebid SDK init status: \(status)")
-                    // Ready = completed without error. Deliberately not matched
-                    // against a status enum token (brittle against the shaded
-                    // fork's naming); a clean completion means auctions can run.
-                    lock.lock(); initialized = true; lock.unlock()
-                }
-            }
-        } catch {
-            log("SellwildPrebid SDK init threw: \(error.localizedDescription)")
-        }
-
-        didBootstrap = true
-        return true
+        return server
     }
 
     // MARK: - Banner auction
@@ -188,60 +226,26 @@ public enum SellwildPrebidMobile {
         // there are bidder params OR a gpid to send (gpid alone still needs an
         // imp.ext, which the old bidder-params-only guard would have dropped).
         if !bidderParams.isEmpty || gpid != nil,
-           let ortbExt = ortbExtJSON(for: bidderParams, gpid: gpid) {
+           let ortbExt = SellwildGpid.impExtJSON(gpid: gpid, bidderParams: bidderParams) {
             unit.setImpORTBConfig(ortbExt)
         }
 
         let request = AdManagerRequest()
-        unit.fetchDemand(adObject: request) { result in
+        let current = calls
+        current.fetchBannerDemand(unit, request) { result in
+            // No-bids is not a failure (FAILURES.md 4.3); another error result is.
+            if SellwildAdPolicy.isAuctionFailure(result.rawValue) {
+                SellwildFailures.log(code: .adPrebidAuctionInvalid, component: .banner, severity: .warn,
+                                     message: "the Prebid auction failed: \(result.name())", zoneId: configId)
+            }
             // Whether or not Prebid won, we always load the GAM request so
             // GAM's own demand can fill on no-bid.
-            bannerView.load(request)
+            current.loadGAM(bannerView, request)
             completion(result)
         }
     }
 
     // MARK: - Helpers
-
-    private struct PrebidServerResolution {
-        let url: String
-        let accountId: String
-    }
-
-    private static func resolvePrebidServer(
-        from config: SellwildConfig
-    ) -> PrebidServerResolution {
-        // 1. Typed config (set by SDK code or partner override).
-        if let p = config.prebidServer {
-            return PrebidServerResolution(url: p.endpoint, accountId: p.accountId)
-        }
-        // 2. Raw CDN passthrough.
-        if let s2s = config.remoteValues?["S2S_CONFIG"] as? [String: Any] {
-            let url = (s2s["endpoint"] as? String)
-                ?? (s2s["url"] as? String)
-                ?? defaultPrebidEndpoint
-            let acct = (s2s["accountId"] as? String)
-                ?? (s2s["account"] as? String)
-                ?? config.partnerCode
-            return PrebidServerResolution(url: url, accountId: acct)
-        }
-        // 3. Sellwild-hosted default.
-        return PrebidServerResolution(
-            url: defaultPrebidEndpoint,
-            accountId: config.partnerCode
-        )
-    }
-
-    private static let defaultPrebidEndpoint =
-        "https://prebid.sellwild.com/openrtb2/auction"
-
-    /// Wrap CDN bidder params (+ optional GPID) as `imp.ext` JSON. Prebid Server
-    /// merges this with its own stored impression configuration. Delegates to
-    /// `SellwildGpid.impExtJSON` so gpid + pbadslot are constructed at the single
-    /// point shared with the `.prebidOnly` path.
-    private static func ortbExtJSON(for params: [String: Any], gpid: String?) -> String? {
-        SellwildGpid.impExtJSON(gpid: gpid, bidderParams: params)
-    }
 
     /// Extract the numeric Apple App Store ID from a store URL, e.g.
     /// `https://apps.apple.com/us/app/weatherbug/id281940292` -> `"281940292"`.
@@ -257,24 +261,6 @@ public enum SellwildPrebidMobile {
               )
         else { return nil }
         return String(storeURL[range].dropFirst(3))  // drop "/id"
-    }
-
-    /// Pull the OpenRTB app.publisher.id (== sellers.json seller id / schain sid)
-    /// from the raw CDN payload's top-level `PUBLISHER_ID` (fallback `SELLER_ID`),
-    /// accepting either a string or a JSON number.
-    ///
-    /// Reads the top-level key directly rather than the old `S2S_CONFIG` dict
-    /// cast: S2S_CONFIG ships as a raw String (a JS object-literal), so the
-    /// `[String: Any]` cast always failed and the publisher id was never set.
-    /// Returns nil when absent/empty, preserving today's behavior (no
-    /// app.publisher.id emitted) for partners without the key.
-    private static func resolvePublisherId(from config: SellwildConfig) -> String? {
-        guard let raw = config.remoteValues else { return nil }
-        switch raw["PUBLISHER_ID"] ?? raw["SELLER_ID"] {
-        case let s as String where !s.isEmpty: return s
-        case let n as NSNumber: return n.stringValue
-        default: return nil
-        }
     }
 
     /// Publisher id resolved at bootstrap, retained so `applyGlobalORTB()` can
@@ -295,45 +281,31 @@ public enum SellwildPrebidMobile {
         }
     }
 
-    /// Emit one combined global ORTB config carrying `app.publisher.id` and
-    /// `device.geo`. `setGlobalORTBConfig` is last-write-wins, so both live in a
-    /// single object rather than two competing calls.
+    /// Emit one combined global ORTB config (see `SellwildPrebidConfig.globalORTB`).
     ///
     /// Thread-safe: takes a snapshot of `resolvedPublisherId` and the current
     /// geo under `lock`, then serializes and hands the string to Prebid outside
     /// the lock. Callers may invoke this from any thread; `bootstrap()` and
     /// `setGeo()` are already the only writers.
-    private static func applyGlobalORTB() {
+    static func applyGlobalORTB(serialize: (Any) throws -> Data = SellwildPrebidConfig.serializeJSON) {
         lock.lock()
         let pid = resolvedPublisherId
         let cats = resolvedCats
         let geoDict = SellwildGeoStore.current?.ortbGeoDict
         lock.unlock()
 
-        var app: [String: Any] = [:]
-        if let pid, !pid.isEmpty {
-            app["publisher"] = ["id": pid]
+        let root = SellwildPrebidConfig.globalORTB(publisherId: pid, cats: cats, geo: geoDict,
+                                                   deviceType: deviceType(for: UIDevice.current.userInterfaceIdiom))
+        switch SellwildPrebidConfig.json(root, serialize: serialize) {
+        case .success(let json):
+            Targeting.shared.setGlobalORTBConfig(json)
+        case .failure(.notJSON):
+            SellwildFailures.log(code: .adOrtbConfigException, component: .banner, severity: .warn,
+                                 message: "the global ORTB config holds a value JSON cannot carry, so app.publisher, device.geo and devicetype are not sent")
+        case .failure(.serialization(let error)):
+            SellwildFailures.log(code: .adOrtbConfigException, component: .banner, severity: .warn, error: error,
+                                 message: "the global ORTB config could not be serialized, so app.publisher, device.geo and devicetype are not sent")
         }
-        if let cats, !cats.isEmpty {
-            app["cat"] = cats
-        }
-        // device.devicetype (IAB OpenRTB enum) is emitted on EVERY request so
-        // DSPs and source-side analytics can bucket by device class. The iOS
-        // Prebid fork does not populate it (Android does end-to-end), so inject
-        // it here via the same global-ORTB merge path that already carries
-        // device.geo — buyers receive device.os/make/model the same way.
-        var device: [String: Any] = ["devicetype": deviceType(for: UIDevice.current.userInterfaceIdiom)]
-        if let geoDict, !geoDict.isEmpty {
-            device["geo"] = geoDict
-        }
-        var root: [String: Any] = [:]
-        if !app.isEmpty { root["app"] = app }
-        if !device.isEmpty { root["device"] = device }
-        guard !root.isEmpty,
-              JSONSerialization.isValidJSONObject(root),
-              let data = try? JSONSerialization.data(withJSONObject: root),
-              let json = String(data: data, encoding: .utf8) else { return }
-        Targeting.shared.setGlobalORTBConfig(json)
     }
 
     /// Set or update partner-supplied geo at runtime, emitted as OpenRTB
@@ -350,10 +322,14 @@ public enum SellwildPrebidMobile {
         applyGlobalORTB()
     }
 
-    @inline(__always)
-    private static func log(_ message: @autoclosure () -> String) {
-        #if DEBUG
-        print("[SellwildPrebidMobile] \(message())")
-        #endif
+    /// Back to before the first bootstrap, with the live calls. Tests only.
+    static func resetForTesting() {
+        lock.lock()
+        didBootstrap = false
+        initialized = false
+        resolvedPublisherId = nil
+        resolvedCats = nil
+        calls = .live
+        lock.unlock()
     }
 }

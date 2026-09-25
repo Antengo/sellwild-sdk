@@ -15,7 +15,7 @@ enum EidBlobFactory {
         var entries = try Factory.array("fixtures/\(schema)/valid/\(name).json")
         guard let first = entries.first else { throw Factory.Failure.emptyArray(name) }
         entries[0] = Factory.merge(first, overrides)
-        return entries
+        return overrides.isEmpty ? entries : try Factory.used(entries, schema: schema)
     }
 
     /// One source with one uid.
