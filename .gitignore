@@ -69,3 +69,7 @@ flutter/coverage/
 *.profdata
 .coverage-tmp/
 .nyc_output/
+
+# Local suite timing log (tools/timed.mjs)
+.timings/
+.mutation-journal/

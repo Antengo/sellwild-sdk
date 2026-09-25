@@ -22,6 +22,8 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Suite timing: .timings/suites.jsonl (tools/timings-report.mjs summarizes it).
+source "$ROOT/tools/timing.sh"; timing_begin ios.sh
 TMP="$ROOT/.coverage-tmp"
 RESULT="$TMP/ios.xcresult"
 DERIVED="${SELLWILD_IOS_DERIVED_DATA:-$TMP/ios-dd}"
@@ -96,6 +98,7 @@ report_leftovers() {
   cat "$LEFTOVERS" >&2
 }
 
+timing_phase simulator
 cd "$ROOT" || exit 1
 
 test_cmd=(command xcodebuild test -scheme SellwildSDK
@@ -104,6 +107,7 @@ test_cmd=(command xcodebuild test -scheme SellwildSDK
 echo "ios.sh: building and testing (log: $(rel "$LOG"))"
 "${test_cmd[@]}" >"$LOG" 2>&1
 test_status=$?
+timing_phase xcodebuild-build-test
 
 if [ -d "$RESULT" ] && xcrun xcresulttool get test-results summary --path "$RESULT" >"$RESULTS_JSON" 2>>"$LOG"; then
   node -e '
@@ -139,14 +143,17 @@ fi
 
 xcrun xccov view --report --json "$RESULT" >"$XCCOV_JSON" || exit 1
 xcrun xccov view --archive --json "$RESULT" >"$ARCHIVE_JSON" || exit 1
-xcrun llvm-cov export -summary-only -instr-profile "$PROFDATA" "$TEST_BIN" -sources "$SOURCES" >"$LLVM_JSON" || exit 1
+# Full export (not -summary-only): ios-summary.mjs counts regions and functions
+# from the function records so it can leave out the A10 range comments.
+xcrun llvm-cov export -instr-profile "$PROFDATA" "$TEST_BIN" -sources "$SOURCES" >"$LLVM_JSON" || exit 1
 
+timing_phase coverage-export
 commands=(
   "bash scripts/coverage/ios.sh"
   "command xcodebuild test -scheme SellwildSDK -destination 'platform=iOS Simulator,id=$SIM_ID' -enableCodeCoverage YES -derivedDataPath $(rel "$DERIVED") -resultBundlePath $(rel "$RESULT")"
   "xcrun xccov view --report --json $(rel "$RESULT")"
   "xcrun xccov view --archive --json $(rel "$RESULT")"
-  "xcrun llvm-cov export -summary-only -instr-profile $(rel "$PROFDATA") $(rel "$TEST_BIN") -sources $(rel "$SOURCES")"
+  "xcrun llvm-cov export -instr-profile $(rel "$PROFDATA") $(rel "$TEST_BIN") -sources $(rel "$SOURCES")"
 )
 
 contracts_status="skipped: contracts/scripts/validate.mjs not found"
@@ -164,6 +171,7 @@ summary_args=(
   --root "$ROOT" --out "$SUMMARY" --tests-exit "$test_status" --contracts "$contracts_status"
   --network "$network_status"
 )
+timing_phase validate
 commands+=("node scripts/coverage/ios-summary.mjs")
 for c in "${commands[@]}"; do summary_args+=(--command "$c"); done
 if [ "${COVERAGE_ENFORCE:-0}" = "1" ]; then summary_args+=(--enforce); fi
@@ -180,4 +188,5 @@ if [ "$network_status" != "none" ]; then
   echo "ios.sh: FAILED: NetworkBlocker leftovers ($network_status)." >&2
   status=1
 fi
+timing_phase summary
 exit "$status"

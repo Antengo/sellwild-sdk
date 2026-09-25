@@ -39,7 +39,12 @@ const SOURCE_ROOT = `${MODULE}/src/main/kotlin/com/sellwild/sdk`;
 // mostly pure. It also classified RnGeo.kt and RnPrebidServer.kt mostly pure,
 // but they sit in react-native/android, which no JVM test builds (OUTSIDE_MODULE
 // names them). failures/ holds logFailure (A2); core/ holds pure code extracted
-// from the View, WebView, GMA and Prebid glue.
+// from the View, WebView, GMA and Prebid glue. Phase 3 (unit sdk-android-logic)
+// added the logic shells it covers: configure, the listings and events client,
+// GrowthCode, house-ad images and the audio guard. Phase 3 (unit
+// sdk-android-views) added the view shells, tested under Robolectric with a fake
+// ad network: the ad, native, house-ad, feed and widget views, the Compose feed
+// wrapper and the Prebid Mobile bridge (minus the classes in EXCLUDED_CLASSES).
 const GATE_INCLUDE = [
   `${SOURCE_ROOT}/SellwildConfig.kt`,
   `${SOURCE_ROOT}/SellwildLocalizedListings.kt`,
@@ -50,6 +55,18 @@ const GATE_INCLUDE = [
   `${SOURCE_ROOT}/SellwildGeo.kt`,
   `${SOURCE_ROOT}/SellwildSafeUrl.kt`,
   `${SOURCE_ROOT}/SellwildVideo.kt`,
+  `${SOURCE_ROOT}/SellwildSDK.kt`,
+  `${SOURCE_ROOT}/SellwildAPI.kt`,
+  `${SOURCE_ROOT}/SellwildGrowthCode.kt`,
+  `${SOURCE_ROOT}/SellwildHouseAd.kt`,
+  `${SOURCE_ROOT}/SellwildAdAudioGuard.kt`,
+  `${SOURCE_ROOT}/SellwildAdView.kt`,
+  `${SOURCE_ROOT}/SellwildPrebidMobile.kt`,
+  `${SOURCE_ROOT}/SellwildNativeAdView.kt`,
+  `${SOURCE_ROOT}/SellwildHouseAdView.kt`,
+  `${SOURCE_ROOT}/SellwildFeedView.kt`,
+  `${SOURCE_ROOT}/SellwildFeed.kt`,
+  `${SOURCE_ROOT}/SellwildWidgetView.kt`,
   `${SOURCE_ROOT}/failures/**`,
   `${SOURCE_ROOT}/core/**`,
 ];
@@ -62,6 +79,23 @@ const EXCLUDED = [
   {
     path: `${MODULE}/build/generated/**`,
     reason: 'AGP-generated classes (R, BuildConfig, Manifest, data binding). Kover drops them before writing the XML (androidGeneratedClasses() in android/build.gradle.kts). This library compiles none into its own classes today.',
+  },
+];
+
+// A10 exclusions of single classes inside a gated file: the concrete adapters onto
+// third-party SDK calls that need a device or the network. Each class (and its
+// nested and synthetic classes, `<name>$...`) is taken out of that file's gate
+// numbers; `whole` still counts it. Each entry: { path, classes: [JVM names], reason }.
+const EXCLUDED_CLASSES = [
+  {
+    path: `${SOURCE_ROOT}/SellwildPrebidMobile.kt`,
+    classes: ['com/sellwild/sdk/LiveAdNetwork'],
+    reason: 'A10 third-party SDK calls that need a device or the network: the real SellwildAdNetwork, one call each into MobileAds.initialize, SellwildPrebid.initializeSdk, AdManagerAdView.loadAd, BannerAdUnit.fetchDemand, BannerView.loadAd, NativeAdUnit.fetchDemand and PrebidNativeAd.create. Everything around those calls (bootstrap, runBannerAuction, applyEids, the auction and init results) stays in the gate and runs against a fake network.',
+  },
+  {
+    path: `${SOURCE_ROOT}/SellwildNativeAdView.kt`,
+    classes: ['com/sellwild/sdk/PrebidNativeContent'],
+    reason: 'A10 third-party SDK calls that need a device or the network: the real NativeAdContent over the fork\'s PrebidNativeAd, which only the fork\'s auction cache can create (no public constructor) and whose registerView starts impression and click trackers that fire over the network. The native view binds and registers against a fake in tests.',
   },
 ];
 
@@ -124,7 +158,7 @@ function attributes(text) {
 // Kover's XML is flat and regular (report > package > class > method, and
 // package > sourcefile > line), so a tag scanner with a parent stack is enough.
 function parseKoverXml(text) {
-  const report = { counters: {}, files: new Map(), classMethods: new Map() };
+  const report = { counters: {}, files: new Map(), classMethods: new Map(), classes: [] };
   const stack = [];
   let pkg = null;
   for (const m of text.matchAll(/<(\/?)([A-Za-z]+)((?:\s+[\w:-]+="[^"]*")*)\s*(\/?)>/g)) {
@@ -154,12 +188,18 @@ function parseKoverXml(text) {
         const prev = report.classMethods.get(parent.key) ?? { missed: 0, covered: 0 };
         report.classMethods.set(parent.key, { missed: prev.missed + counter.missed, covered: prev.covered + counter.covered });
       }
+      if (parent.tag === 'class') parent.counters[attrs.type] = counter;
     }
     if (!selfClosing) {
       const key = tag === 'sourcefile' ? `${pkg}/${attrs.name}`
         : tag === 'class' ? `${pkg}/${attrs.sourcefilename ?? ''}`
           : null;
-      stack.push({ tag, key });
+      const frame = { tag, key };
+      if (tag === 'class') {
+        frame.counters = {};
+        report.classes.push({ name: attrs.name, key, counters: frame.counters });
+      }
+      stack.push(frame);
     }
   }
   return report;
@@ -227,18 +267,54 @@ function fileTotals(file, methods) {
   return { lines: of(file.counters.LINE), branches: of(file.counters.BRANCH), functions: of(methods) };
 }
 
-function aggregate(entries, key) {
-  const covered = entries.reduce((sum, e) => sum + e.totals[key].covered, 0);
-  const total = entries.reduce((sum, e) => sum + e.totals[key].total, 0);
+// A class counts as excluded when it is one of `names` or nested in one ("<name>$...").
+const classMatches = (name, names) => names.some((n) => name === n || name.startsWith(`${n}$`));
+
+// [totals] minus the counters of [classes]. A sourcefile's counters are the sums of its
+// classes' counters in Kover's report (checked below), so the difference is exact.
+function subtractClasses(totals, classes) {
+  const minus = (metric, type) => {
+    const c = classes.reduce(
+      (acc, cls) => ({ covered: acc.covered + (cls.counters[type]?.covered ?? 0), missed: acc.missed + (cls.counters[type]?.missed ?? 0) }),
+      { covered: 0, missed: 0 },
+    );
+    return counts(metric.covered - c.covered, metric.total - c.covered - c.missed);
+  };
+  return { lines: minus(totals.lines, 'LINE'), branches: minus(totals.branches, 'BRANCH'), functions: minus(totals.functions, 'METHOD') };
+}
+
+// The source lines of the class `simpleName` declared in [text]: from its declaration to
+// the brace that closes it. Used only to leave excluded lines out of the gate's missed-line
+// list; the numbers come from the report's counters.
+function classLineRange(text, simpleName) {
+  const lines = text.split('\n');
+  const start = lines.findIndex((l) => new RegExp(`^\\s*(?:(?:internal|private|public)\\s+)?(?:object|class)\\s+${simpleName}\\b`).test(l));
+  if (start < 0) return null;
+  let depth = 0;
+  let opened = false;
+  for (let i = start; i < lines.length; i++) {
+    for (const ch of lines[i].replace(/"(?:[^"\\]|\\.)*"/g, '""')) {
+      if (ch === '{') { depth++; opened = true; }
+      if (ch === '}') depth--;
+    }
+    if (opened && depth === 0) return [start + 1, i + 1];
+  }
+  return null;
+}
+
+function aggregate(entries, key, which) {
+  const covered = entries.reduce((sum, e) => sum + e[which][key].covered, 0);
+  const total = entries.reduce((sum, e) => sum + e[which][key].total, 0);
   return counts(covered, total);
 }
 
-function summarize(entries) {
+// `which` is 'totals' (whole files) or 'gateTotals' (minus EXCLUDED_CLASSES).
+function summarize(entries, which = 'totals') {
   return {
-    lines: aggregate(entries, 'lines'),
-    branches: aggregate(entries, 'branches'),
+    lines: aggregate(entries, 'lines', which),
+    branches: aggregate(entries, 'branches', which),
     regions: null,
-    functions: aggregate(entries, 'functions'),
+    functions: aggregate(entries, 'functions', which),
   };
 }
 
@@ -276,16 +352,43 @@ function main() {
         : `report file ${file.key} matches several sources: ${matches.join(', ')}`);
     }
     const rel = matches[0] ?? `${SOURCE_DIRS[0]}/${file.key}`;
+    const totals = fileTotals(file, report.classMethods.get(file.key));
+    const classRule = EXCLUDED_CLASSES.find((e) => e.path === rel);
+    const excludedClasses = classRule
+      ? report.classes.filter((c) => c.key === file.key && classMatches(c.name, classRule.classes))
+      : [];
+    if (classRule && excludedClasses.length === 0) problems.push(`EXCLUDED_CLASSES ${classRule.classes.join(', ')} not found in ${rel}`);
+    const excludedRanges = classRule && matches[0]
+      ? classRule.classes.map((c) => classLineRange(fs.readFileSync(path.join(root, rel), 'utf8'), c.split('/').pop())).filter(Boolean)
+      : [];
+    const outsideExcluded = (nr) => !excludedRanges.some(([a, b]) => nr >= a && nr <= b);
     entries.push({
       path: rel,
-      totals: fileTotals(file, report.classMethods.get(file.key)),
-      missed: file.lines.filter((l) => l.mi > 0 && l.ci === 0).map((l) => l.nr).sort((a, b) => a - b),
-      missedBranch: file.lines.filter((l) => l.mb > 0).map((l) => l.nr).sort((a, b) => a - b),
+      totals,
+      gateTotals: subtractClasses(totals, excludedClasses),
+      excludedClasses: excludedClasses.map((c) => c.name).sort(),
+      missed: file.lines.filter((l) => l.mi > 0 && l.ci === 0).map((l) => l.nr).filter(outsideExcluded).sort((a, b) => a - b),
+      missedBranch: file.lines.filter((l) => l.mb > 0).map((l) => l.nr).filter(outsideExcluded).sort((a, b) => a - b),
       inGate: matchesAny(rel, GATE_INCLUDE) && !isExcluded(rel),
       inWhole: matchesAny(rel, WHOLE_INCLUDE) && !isExcluded(rel),
     });
   }
   entries.sort((a, b) => a.path.localeCompare(b.path));
+
+  // EXCLUDED_CLASSES subtracts class counters from their file's, which is exact only while a
+  // file's LINE and BRANCH counters are the sums of its classes' (true of Kover 0.9.1).
+  for (const file of report.files.values()) {
+    for (const type of ['LINE', 'BRANCH']) {
+      const own = file.counters[type] ?? { covered: 0, missed: 0 };
+      const sum = report.classes.filter((c) => c.key === file.key).reduce(
+        (acc, c) => ({ covered: acc.covered + (c.counters[type]?.covered ?? 0), missed: acc.missed + (c.counters[type]?.missed ?? 0) }),
+        { covered: 0, missed: 0 },
+      );
+      if (own.covered !== sum.covered || own.missed !== sum.missed) {
+        problems.push(`${file.key} ${type} ${own.covered}/${own.covered + own.missed} is not the sum of its classes (${sum.covered}/${sum.covered + sum.missed})`);
+      }
+    }
+  }
 
   const measured = new Set(entries.map((e) => e.path));
   const unmeasured = sourceFiles.filter((file) => !measured.has(file) && !isExcluded(file));
@@ -306,23 +409,33 @@ function main() {
     generatedAt: new Date().toISOString(),
     tool: 'kover 0.9.1 (IntelliJ coverage agent, JaCoCo-format XML) over testDebugUnitTest',
     commands: args.commands,
-    gate: { include: GATE_INCLUDE, ...summarize(entries.filter((e) => e.inGate)), unmeasured: gateUnmeasured },
+    gate: { include: GATE_INCLUDE, ...summarize(entries.filter((e) => e.inGate), 'gateTotals'), unmeasured: gateUnmeasured },
     whole: { include: WHOLE_INCLUDE, ...whole, unmeasured },
-    excluded: EXCLUDED,
+    excluded: [...EXCLUDED, ...EXCLUDED_CLASSES],
     outsideModule: OUTSIDE_MODULE,
     perFile: [
+      // A file with excluded classes reports its gated part here, and the whole file in
+      // `wholeFile`; missed lines leave the excluded classes out.
       ...entries.map((e) => ({
         path: e.path,
-        lines: e.totals.lines.pct,
-        branches: e.totals.branches.pct,
-        functions: e.totals.functions.pct,
+        lines: e.gateTotals.lines.pct,
+        branches: e.gateTotals.branches.pct,
+        functions: e.gateTotals.functions.pct,
         inGate: e.inGate,
-        linesCovered: e.totals.lines.covered,
-        linesTotal: e.totals.lines.total,
-        branchesCovered: e.totals.branches.covered,
-        branchesTotal: e.totals.branches.total,
+        linesCovered: e.gateTotals.lines.covered,
+        linesTotal: e.gateTotals.lines.total,
+        branchesCovered: e.gateTotals.branches.covered,
+        branchesTotal: e.gateTotals.branches.total,
+        functionsCovered: e.gateTotals.functions.covered,
+        functionsTotal: e.gateTotals.functions.total,
         missedLines: compressLines(e.missed),
         missedBranchLines: compressLines(e.missedBranch),
+        ...(e.excludedClasses.length > 0
+          ? {
+            excludedClasses: e.excludedClasses,
+            wholeFile: { lines: e.totals.lines, branches: e.totals.branches, functions: e.totals.functions },
+          }
+          : {}),
       })),
       ...unmeasured.map((file) => ({
         path: file,

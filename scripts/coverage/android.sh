@@ -17,6 +17,8 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Suite timing: .timings/suites.jsonl (tools/timings-report.mjs summarizes it).
+source "$ROOT/tools/timing.sh"; timing_begin android.sh
 MODULE="$ROOT/android"
 XML="$MODULE/build/reports/kover/reportDebug.xml"
 RESULTS="$MODULE/build/test-results/testDebugUnitTest"
@@ -59,6 +61,7 @@ rm -rf "$CONTRACT_OUT"
 
 ./gradlew testDebugUnitTest koverXmlReportDebug koverHtmlReportDebug
 gradle_status=$?
+timing_phase gradle-test-kover
 
 if [ "$gradle_status" -ne 0 ] || [ ! -s "$XML" ]; then
   echo "android.sh: Gradle exit $gradle_status; no coverage summary written (reports: $MODULE/build/reports/tests/testDebugUnitTest)." >&2
@@ -84,6 +87,7 @@ summary_args=(
   --xml "$XML" --root "$ROOT" --out "$SUMMARY" --results "$RESULTS"
   --tests-exit "$gradle_status" --contracts "$contracts_status"
 )
+timing_phase validate
 commands+=("node scripts/coverage/android-summary.mjs")
 for c in "${commands[@]}"; do summary_args+=(--command "$c"); done
 if [ "${COVERAGE_ENFORCE:-0}" = "1" ]; then summary_args+=(--enforce); fi
@@ -95,4 +99,5 @@ if [ "$contracts_status" = "failed" ]; then
   echo "android.sh: contract output FAILED validation (node contracts/scripts/validate.mjs --out android)." >&2
   exit 1
 fi
+timing_phase summary
 exit "$summary_status"

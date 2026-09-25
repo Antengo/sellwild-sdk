@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # Flutter SDK coverage: runs flutter_test with line and branch coverage,
 # validates the contract payloads the tests emitted (when the contracts
-# validator exists), and writes coverage-summary/flutter.json (A10).
+# validator exists), and writes coverage-summary/flutter.json (A10). The gate
+# is all of lib/ minus the A10 exclusions listed in flutter-summary.mjs.
+# flutter test collects no function coverage; flutter-summary.mjs derives it
+# from the source and the line hits, as package:coverage would.
 #
 # Usage: bash scripts/coverage/flutter.sh
 #   FLUTTER=/path/to/flutter   flutter binary (default: flutter on PATH)
-#   COVERAGE_ENFORCE=1         also fail when the gate is under 95%
+#   FLUTTER_TEST_JOBS=n        test files run at once (default 2, to keep
+#                              the load on a shared machine low)
+#   COVERAGE_ENFORCE=1         also fail when the gate is under 95% lines,
+#                              branches or functions
 #   SELLWILD_CONTRACT_OUT=dir  contract output root; tests write dir/flutter
 #                              (factory output) and dir/flutter-harness (the
 #                              support self-test's round-trip)
@@ -15,14 +21,21 @@
 # emitContract, or anything was emitted there; from then on its "no emitted
 # files" check applies. Before that the summary records it as skipped.
 #
+# The summary script's own tests (flutter-summary.test.mjs: the lcov parser,
+# the function scanner, the ignore checks) run before it; when they fail, the
+# run fails.
+#
 # Exit status: the flutter test status if tests failed, else 1 if contract
-# validation failed, else the summary's status (non-zero only on a summary
-# error, or on a missed gate with COVERAGE_ENFORCE=1). When no summary can be
-# written, coverage-summary/flutter.json is removed rather than left stale.
+# validation or the summary script's tests failed, else the summary's status
+# (non-zero only on a summary error, or on a missed gate with
+# COVERAGE_ENFORCE=1). When no summary can be written,
+# coverage-summary/flutter.json is removed rather than left stale.
 
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Suite timing: .timings/suites.jsonl (tools/timings-report.mjs summarizes it).
+source "$ROOT/tools/timing.sh"; timing_begin flutter.sh
 PKG="$ROOT/flutter"
 LCOV="$PKG/coverage/lcov.info"
 SUMMARY="$ROOT/coverage-summary/flutter.json"
@@ -56,9 +69,11 @@ cd "$PKG" || exit 1
 # emitters write nothing else, and SELLWILD_CONTRACT_OUT may point anywhere.
 rm -f "$LCOV" "$CONTRACT_OUT"/*.json "$HARNESS_OUT"/*.json
 
-test_cmd=("$FLUTTER" test --coverage --branch-coverage)
+jobs="${FLUTTER_TEST_JOBS:-2}"
+test_cmd=("$FLUTTER" test --coverage --branch-coverage --concurrency="$jobs")
 "${test_cmd[@]}"
 test_status=$?
+timing_phase flutter-test-coverage
 
 if [ ! -s "$LCOV" ]; then
   echo "flutter.sh: $LCOV was not written (flutter test exit $test_status)." >&2
@@ -66,7 +81,7 @@ if [ ! -s "$LCOV" ]; then
 fi
 
 # Recorded repo-relative so the committed summary does not carry local paths.
-commands=("cd flutter && flutter test --coverage --branch-coverage")
+commands=("cd flutter && flutter test --coverage --branch-coverage --concurrency=$jobs")
 contracts_status="skipped: contracts/scripts/validate.mjs not found"
 harness_status="$contracts_status"
 if [ -f "$VALIDATOR" ]; then
@@ -91,6 +106,10 @@ if [ -f "$VALIDATOR" ]; then
   fi
 fi
 
+commands+=("node --test scripts/coverage/flutter-summary.test.mjs")
+node --test "$ROOT/scripts/coverage/flutter-summary.test.mjs"
+summary_test_status=$?
+
 summary_args=(
   --lcov "$LCOV" --pkg "$PKG" --out "$SUMMARY"
   --tests-exit "$test_status" --contracts "$contracts_status"
@@ -107,4 +126,5 @@ if [ "$test_status" -ne 0 ]; then exit "$test_status"; fi
 if [ "$contracts_status" = "failed" ] || [ "$harness_status" = "failed" ]; then
   exit 1
 fi
+if [ "$summary_test_status" -ne 0 ]; then exit 1; fi
 exit "$summary_status"
