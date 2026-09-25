@@ -149,6 +149,18 @@ export function resolveUid(randomUUID: () => string, random: () => number): stri
   }
 }
 
+/**
+ * The default randomUUID: crypto.randomUUID read off globalThis on each call.
+ * Not every runtime has a global `crypto` (older RN/Hermes don't), so this
+ * does not assume the DOM global. It throws when randomUUID is missing, and
+ * resolveUid falls back to random().
+ */
+export function globalRandomUUID(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
+  if (!c?.randomUUID) throw new Error('crypto.randomUUID unavailable')
+  return c.randomUUID()
+}
+
 /** What push() stamps into every event. Empty text leaves that key out. */
 export interface EventStamp {
   partnerCode: string
@@ -186,7 +198,7 @@ export function createEventQueue(deps: Partial<EventQueueDeps> = {}): EventQueue
     now: deps.now ?? (() => Date.now()),
     setTimeout: deps.setTimeout ?? ((callback, ms) => setTimeout(callback, ms)),
     clearTimeout: deps.clearTimeout ?? ((handle) => clearTimeout(handle as ReturnType<typeof setTimeout>)),
-    randomUUID: deps.randomUUID ?? (() => crypto.randomUUID()),
+    randomUUID: deps.randomUUID ?? globalRandomUUID,
     random: deps.random ?? (() => Math.random()),
     url: deps.url,
   })
