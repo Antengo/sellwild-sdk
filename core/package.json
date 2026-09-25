@@ -8,8 +8,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
-    "build:watch": "tsc --watch",
+    "build": "tsgo -p .",
+    "build:watch": "tsgo -p . --watch",
     "typecheck": "tsgo --noEmit -p . && tsgo --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
