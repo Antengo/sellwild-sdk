@@ -190,7 +190,9 @@ public final class SellwildAPIClient {
     // (batch 100, 10s flush, 1000 cap). The FIRST event of the process is sent
     // immediately so session-start/attribution isn't delayed; the rest batch.
     private let eventsURL = URL(string: "https://events.sellwild.com/events/queue")!
-    private let eventQueue = DispatchQueue(label: "com.sellwild.sdk.eventqueue")
+    /// Runs all events queue work, in order: the buffer, the flush timer and
+    /// every read of `eventTransport`.
+    let eventQueue = DispatchQueue(label: "com.sellwild.sdk.eventqueue")
     private let maxEventBatch = 100
     private let maxEventQueue = 1000
     private let eventFlushInterval: TimeInterval = 10
@@ -198,7 +200,10 @@ public final class SellwildAPIClient {
     private var cancelEventFlush: (() -> Void)?
     private var hasFlushedFirstEvent = false
     private var lifecycleObservers: [NSObjectProtocol] = []
-    private let eventTransport: SellwildEventTransport
+    /// Sends each batch. The SDK sets it only in `init`. A test process
+    /// replaces the one of `shared` (on `eventQueue`) with a stub, since code
+    /// on a live environment queues events there.
+    var eventTransport: SellwildEventTransport
     /// Time for the events queue: the batch timer, and each clientFailure's
     /// `createdTime` (`SellwildFailures` reads it).
     let eventClock: SellwildEventClock

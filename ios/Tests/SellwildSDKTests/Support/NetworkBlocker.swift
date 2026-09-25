@@ -22,11 +22,20 @@ import XCTest
 ///
 /// When a request is blamed: the unclaimed check is a teardown block, and
 /// XCTest runs teardown blocks before `tearDown()`. A request that starts
-/// after the check (from `tearDown()`, or from an async flush such as the
-/// SDK's 10 s event timer) fails the NEXT test instead. Its message still
-/// names the test it started during. A request that starts after the last
-/// test's check cannot fail any test, so it is written to `leftoversFile()`
-/// and `scripts/coverage/ios.sh` fails the run.
+/// after the check (from `tearDown()`, or from async work the test left
+/// running) fails the NEXT test instead. Its message still names the test it
+/// started during. A request that starts after the last test's check cannot
+/// fail any test, so it is written to `leftoversFile()` and
+/// `scripts/coverage/ios.sh` fails the run.
+///
+/// Two leaks this timing used to turn into random failures are closed where
+/// they start, for the whole process:
+/// - The SDK's shared events queue sends to a stub (`SharedEventsQueue`),
+///   emptied before every test. It posted over `URLSession.shared` and
+///   retried a blocked batch every 10 s.
+/// - When a test ends, the tasks still open on its stub sessions are
+///   cancelled (`StubURLProtocol.cancelRunningTasks()`), before the check,
+///   so they cannot reach the next test's stub handler.
 final class NetworkBlocker: URLProtocol {
 
     struct BlockedRequest: Equatable {
@@ -75,6 +84,7 @@ final class NetworkBlocker: URLProtocol {
 
         URLProtocol.registerClass(NetworkBlocker.self)
         patchSessionConfigurations()
+        SharedEventsQueue.install()
         XCTestObservationCenter.shared.addTestObserver(Observation())
     }
 
@@ -216,6 +226,10 @@ final class NetworkBlocker: URLProtocol {
     /// request unclaimed. The check runs as a teardown block because XCTest
     /// cannot take a failure once `testCaseDidFinish` has been called. See
     /// "When a request is blamed" above for what that timing misses.
+    ///
+    /// Each test also starts with no stub handler, no captured stub requests
+    /// and an empty shared events queue, and its stub tasks still open when
+    /// it ends are cancelled.
     private final class Observation: NSObject, XCTestObservation {
         func testBundleWillStart(_ testBundle: Bundle) {
             NetworkBlocker.locked { NetworkBlocker.bundleStartSeen = true }
@@ -224,7 +238,11 @@ final class NetworkBlocker: URLProtocol {
         func testCaseWillStart(_ testCase: XCTestCase) {
             NetworkBlocker.locked { NetworkBlocker.currentTest = testCase.name }
             StubURLProtocol.reset()
+            SharedEventsQueue.drain()
+            // Registered first, so it runs after the test's own teardown
+            // blocks, and before its tearDown().
             testCase.addTeardownBlock {
+                StubURLProtocol.cancelRunningTasks()
                 if let message = NetworkBlocker.claimUnclaimedFailureMessage() {
                     XCTFail(message)
                 }
