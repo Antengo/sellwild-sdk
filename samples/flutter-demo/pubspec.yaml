@@ -1,0 +1,27 @@
+name: sellwild_sample
+description: "Sellwild Sample: the Flutter sample app for the Sellwild SDK."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The SDK in this repo, so the sample always builds against the SDK as
+  # checked out.
+  sellwild_sdk:
+    path: ../../flutter
+  # Opens a tapped listing in the browser.
+  url_launcher: ^6.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # The same lint set as the SDK (flutter/pubspec.yaml pins it exactly).
+  flutter_lints: 3.0.2
+  http: ^1.1.0
+
+flutter:
+  uses-material-design: true
