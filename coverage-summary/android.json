@@ -1,6 +1,6 @@
 {
   "platform": "android",
-  "generatedAt": "2026-09-25T00:59:57.652Z",
+  "generatedAt": "2026-09-25T03:58:56.375Z",
   "tool": "kover 0.9.1 (IntelliJ coverage agent, JaCoCo-format XML) over testDebugUnitTest",
   "commands": [
     "bash scripts/coverage/android.sh",
@@ -40,14 +40,14 @@
       "pct": 100
     },
     "branches": {
-      "covered": 2404,
-      "total": 2408,
+      "covered": 2402,
+      "total": 2406,
       "pct": 99.83
     },
     "regions": null,
     "functions": {
-      "covered": 708,
-      "total": 708,
+      "covered": 709,
+      "total": 709,
       "pct": 100
     },
     "unmeasured": []
@@ -62,14 +62,14 @@
       "pct": 99.58
     },
     "branches": {
-      "covered": 2404,
-      "total": 2410,
+      "covered": 2402,
+      "total": 2408,
       "pct": 99.75
     },
     "regions": null,
     "functions": {
-      "covered": 708,
-      "total": 723,
+      "covered": 709,
+      "total": 724,
       "pct": 97.93
     },
     "unmeasured": []
@@ -171,8 +171,8 @@
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 36,
-      "linesTotal": 36,
+      "linesCovered": 37,
+      "linesTotal": 37,
       "branchesCovered": 38,
       "branchesTotal": 38,
       "functionsCovered": 8,
@@ -366,12 +366,12 @@
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 43,
-      "linesTotal": 43,
-      "branchesCovered": 58,
-      "branchesTotal": 58,
-      "functionsCovered": 10,
-      "functionsTotal": 10,
+      "linesCovered": 42,
+      "linesTotal": 42,
+      "branchesCovered": 56,
+      "branchesTotal": 56,
+      "functionsCovered": 11,
+      "functionsTotal": 11,
       "missedLines": "",
       "missedBranchLines": ""
     },
@@ -704,7 +704,7 @@
   "tests": {
     "exitCode": 0,
     "passed": true,
-    "tests": 1010,
+    "tests": 1011,
     "failures": 0,
     "errors": 0,
     "skipped": 0,
