@@ -18,13 +18,22 @@ analyzer:
 linter:
   rules:
     # House failure rules (contracts/FAILURES.md sections 1-2).
-    # 1. avoid_print only covers dart:core print. debugPrint and "every catch
-    #    calls logFailure" cannot be expressed as analyzer rules without a
-    #    custom plugin; contracts/scripts/print-gate.mjs covers debugPrint.
+    #
+    # flutter analyze passes three house-rule breaks that the print gate
+    # (contracts/scripts/print-gate.mjs, the gate's print-gate step) fails,
+    # so the print gate is the check for them:
+    #   a. `catch (_) {}`: empty_catches lets a catch named _ be empty;
+    #   b. a catch body that holds only a comment: empty_catches lets it
+    #      through, the house rule counts it as empty (FAILURES.md 1.3);
+    #   c. debugPrint in lib/: avoid_print covers dart:core print only.
+    # Neither tool sees a print called through an import prefix
+    # (`import 'dart:core' as core; core.print(...)`), nor checks that every
+    # catch calls logFailure: code review and the coverage tests carry that.
+    #
+    # 1. avoid_print. The A2 debug logger (lib/src/failures/sellwild_log.dart)
+    #    turns it off for itself with a reason, as the print gate exempts it.
     - avoid_print
-    # 2. A catch body that is empty (comments only counts as empty in the
-    #    house rule; the analyzer lets a comment through, the print gate
-    #    does not).
+    # 2. An empty catch body (see a and b above).
     - empty_catches
     # 3. Silent swallows: a future nobody awaits, an async function nobody
     #    can await, a finally that hides the exception.

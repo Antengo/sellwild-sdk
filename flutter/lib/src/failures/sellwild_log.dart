@@ -6,6 +6,11 @@
 // Trace output only. A failure is never handled by printing it here: it goes
 // to SellwildFailures.log, whose debug echo is the one failure line printed
 // through [SellwildLog.debug].
+//
+// avoid_print is off in this file only: it is an A2 module (PRINT_EXEMPT in
+// contracts/scripts/print-gate.mjs), so the house rule lets it print
+// (FAILURES.md 2), and the lint should agree with the print gate.
+// ignore_for_file: avoid_print
 
 import 'package:flutter/foundation.dart';
 
