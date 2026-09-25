@@ -5,6 +5,7 @@ import {
   capQueue,
   createEventQueue,
   eventQueue,
+  globalRandomUUID,
   requeueFailedBatch,
   resolveUid,
   stampEventAttributes,
@@ -271,6 +272,12 @@ describe('createEventQueue defaults', () => {
     expect(createEventQueue().getUid()).toBe((0.25).toString(36).slice(2))
   })
 
+  it('falls back to Math.random when crypto has no randomUUID (older RN)', () => {
+    vi.stubGlobal('crypto', {})
+    vi.spyOn(Math, 'random').mockReturnValue(0.75)
+    expect(createEventQueue().getUid()).toBe((0.75).toString(36).slice(2))
+  })
+
   it('is what the package exports as eventQueue', async () => {
     const api = await import('../src/api')
     expect(api.eventQueue).toBe(eventQueue)
@@ -369,5 +376,34 @@ describe('resolveUid', () => {
     expect(resolveUid(() => 'uuid-1', random)).toBe('uuid-1')
     expect(random).not.toHaveBeenCalled()
     expect(resolveUid(() => { throw new TypeError('crypto.randomUUID is not a function') }, () => 0.123456789)).toBe((0.123456789).toString(36).slice(2))
+  })
+})
+
+// origin/main 37d432b (#82): getUid() reads crypto off globalThis with a
+// guard, so no global `crypto` is assumed. It moved here with the queue.
+describe('globalRandomUUID', () => {
+  it('calls randomUUID on the crypto found on globalThis, on each call', () => {
+    const fake = { randomUUID: vi.fn(function (this: unknown) { return this === fake ? 'global-uuid' : 'unbound' }) }
+    vi.stubGlobal('crypto', fake)
+    expect(globalRandomUUID()).toBe('global-uuid')
+    vi.stubGlobal('crypto', { randomUUID: () => 'swapped-uuid' })
+    expect(globalRandomUUID()).toBe('swapped-uuid')
+    expect(fake.randomUUID).toHaveBeenCalledOnce()
+  })
+
+  it('works with the real Web Crypto (Node has it on globalThis)', () => {
+    expect(globalRandomUUID()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+  })
+
+  it('throws when there is no global crypto, or it has no randomUUID', () => {
+    vi.stubGlobal('crypto', undefined)
+    expect(() => globalRandomUUID()).toThrow('crypto.randomUUID unavailable')
+    vi.stubGlobal('crypto', {})
+    expect(() => globalRandomUUID()).toThrow('crypto.randomUUID unavailable')
+  })
+
+  it('is the default createEventQueue uses', () => {
+    vi.stubGlobal('crypto', { randomUUID: () => 'default-dep-uuid' })
+    expect(createEventQueue().getUid()).toBe('default-dep-uuid')
   })
 })
