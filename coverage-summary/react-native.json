@@ -1,6 +1,6 @@
 {
   "platform": "react-native",
-  "generatedAt": "2026-09-24T05:32:02.679Z",
+  "generatedAt": "2026-09-25T00:59:16.797Z",
   "tool": "vitest 3.2.7 + @vitest/coverage-v8 3.2.7 (experimentalAstAwareRemapping)",
   "commands": [
     "cd /Users/lawrence/Programming/Web/Antengo/sellwild-sdk/react-native && node_modules/.bin/vitest run --coverage",
@@ -11,20 +11,20 @@
       "src/**"
     ],
     "lines": {
-      "covered": 208,
-      "total": 244,
-      "pct": 85.24
+      "covered": 347,
+      "total": 347,
+      "pct": 100
     },
     "branches": {
-      "covered": 114,
-      "total": 203,
-      "pct": 56.15
+      "covered": 312,
+      "total": 312,
+      "pct": 100
     },
     "regions": null,
     "functions": {
-      "covered": 36,
-      "total": 54,
-      "pct": 66.66
+      "covered": 89,
+      "total": 89,
+      "pct": 100
     },
     "unmeasured": [],
     "thresholds": {
@@ -33,37 +33,45 @@
       "functions": 95,
       "statements": 95
     },
-    "thresholdsMet": false,
-    "under": [
-      "lines",
-      "branches",
-      "functions",
-      "statements"
-    ]
+    "thresholdsMet": true,
+    "under": []
   },
   "whole": {
     "include": [
       "src/**"
     ],
     "lines": {
-      "covered": 208,
-      "total": 244,
-      "pct": 85.24
+      "covered": 352,
+      "total": 353,
+      "pct": 99.71
     },
     "branches": {
-      "covered": 114,
-      "total": 203,
-      "pct": 56.15
+      "covered": 315,
+      "total": 318,
+      "pct": 99.05
     },
     "regions": null,
     "functions": {
-      "covered": 36,
-      "total": 54,
-      "pct": 66.66
+      "covered": 91,
+      "total": 92,
+      "pct": 98.91
     },
     "unmeasured": []
   },
-  "excluded": [],
+  "excluded": [
+    {
+      "path": "src/bannerHtml.ts",
+      "reason": "dead: pending delete decision"
+    },
+    {
+      "path": "ios/**",
+      "reason": "RN native bridge glue: needs an RN host app build"
+    },
+    {
+      "path": "android/**",
+      "reason": "RN native bridge glue: needs an RN host app build"
+    }
+  ],
   "ignoredLines": [],
   "perFile": [
     {
@@ -77,14 +85,34 @@
       "missedLines": ""
     },
     {
-      "path": "src/commands.ts",
-      "lines": 75,
+      "path": "src/bannerHtml.ts",
+      "lines": 83.33,
       "branches": 50,
       "functions": 66.66,
+      "inGate": false,
+      "linesCovered": 5,
+      "linesTotal": 6,
+      "missedLines": "51"
+    },
+    {
+      "path": "src/bannerSizing.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
       "inGate": true,
-      "linesCovered": 3,
-      "linesTotal": 4,
-      "missedLines": "38"
+      "linesCovered": 26,
+      "linesTotal": 26,
+      "missedLines": ""
+    },
+    {
+      "path": "src/commands.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 17,
+      "linesTotal": 17,
+      "missedLines": ""
     },
     {
       "path": "src/failures.ts",
@@ -98,13 +126,13 @@
     },
     {
       "path": "src/htmlBuilder.ts",
-      "lines": 91,
-      "branches": 71.23,
-      "functions": 85.71,
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
       "inGate": true,
-      "linesCovered": 91,
-      "linesTotal": 100,
-      "missedLines": "40,45-46,56,105,235-237,357"
+      "linesCovered": 99,
+      "linesTotal": 99,
+      "missedLines": ""
     },
     {
       "path": "src/index.ts",
@@ -117,47 +145,17 @@
       "missedLines": ""
     },
     {
-      "path": "src/nativeConfig.ts",
+      "path": "src/jsonKind.ts",
       "lines": 100,
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 2,
-      "linesTotal": 2,
+      "linesCovered": 9,
+      "linesTotal": 9,
       "missedLines": ""
     },
     {
-      "path": "src/SellwildBanner.tsx",
-      "lines": 81.81,
-      "branches": 54.34,
-      "functions": 64.28,
-      "inGate": true,
-      "linesCovered": 36,
-      "linesTotal": 44,
-      "missedLines": "32-34,176-178,184-185"
-    },
-    {
-      "path": "src/SellwildFeed.tsx",
-      "lines": 57.69,
-      "branches": 28.57,
-      "functions": 30,
-      "inGate": true,
-      "linesCovered": 15,
-      "linesTotal": 26,
-      "missedLines": "51,146,201,204-205,207,209,212,215,218,221"
-    },
-    {
-      "path": "src/SellwildListingCard.tsx",
-      "lines": 12.5,
-      "branches": 0,
-      "functions": 0,
-      "inGate": true,
-      "linesCovered": 1,
-      "linesTotal": 8,
-      "missedLines": "26-27,30,33-34,38,41"
-    },
-    {
-      "path": "src/SellwildWidget.tsx",
+      "path": "src/listingCard.ts",
       "lines": 100,
       "branches": 100,
       "functions": 100,
@@ -167,13 +165,83 @@
       "missedLines": ""
     },
     {
-      "path": "src/useSellwildListings.ts",
+      "path": "src/nativeConfig.ts",
       "lines": 100,
-      "branches": 50,
-      "functions": 75,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 8,
+      "linesTotal": 8,
+      "missedLines": ""
+    },
+    {
+      "path": "src/nativeViews.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 8,
+      "linesTotal": 8,
+      "missedLines": ""
+    },
+    {
+      "path": "src/SellwildBanner.tsx",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
       "inGate": true,
       "linesCovered": 24,
       "linesTotal": 24,
+      "missedLines": ""
+    },
+    {
+      "path": "src/SellwildFeed.tsx",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 22,
+      "linesTotal": 22,
+      "missedLines": ""
+    },
+    {
+      "path": "src/SellwildListingCard.tsx",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 10,
+      "linesTotal": 10,
+      "missedLines": ""
+    },
+    {
+      "path": "src/SellwildWidget.tsx",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 34,
+      "linesTotal": 34,
+      "missedLines": ""
+    },
+    {
+      "path": "src/useSellwildListings.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 24,
+      "linesTotal": 24,
+      "missedLines": ""
+    },
+    {
+      "path": "src/widgetBridge.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 30,
+      "linesTotal": 30,
       "missedLines": ""
     }
   ],
@@ -183,7 +251,7 @@
   },
   "runs": {
     "gate": {
-      "exitCode": 1,
+      "exitCode": 0,
       "signal": null,
       "error": null
     },

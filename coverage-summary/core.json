@@ -1,6 +1,6 @@
 {
   "platform": "core",
-  "generatedAt": "2026-09-24T05:31:52.590Z",
+  "generatedAt": "2026-09-25T00:59:08.377Z",
   "tool": "vitest 3.2.7 + @vitest/coverage-v8 3.2.7 (experimentalAstAwareRemapping)",
   "commands": [
     "cd /Users/lawrence/Programming/Web/Antengo/sellwild-sdk/core && node_modules/.bin/vitest run --coverage",
@@ -11,20 +11,20 @@
       "src/**"
     ],
     "lines": {
-      "covered": 581,
-      "total": 688,
-      "pct": 84.44
+      "covered": 804,
+      "total": 804,
+      "pct": 100
     },
     "branches": {
-      "covered": 619,
-      "total": 789,
-      "pct": 78.45
+      "covered": 914,
+      "total": 914,
+      "pct": 100
     },
     "regions": null,
     "functions": {
-      "covered": 137,
-      "total": 165,
-      "pct": 83.03
+      "covered": 201,
+      "total": 201,
+      "pct": 100
     },
     "unmeasured": [],
     "thresholds": {
@@ -33,33 +33,28 @@
       "functions": 95,
       "statements": 95
     },
-    "thresholdsMet": false,
-    "under": [
-      "lines",
-      "branches",
-      "functions",
-      "statements"
-    ]
+    "thresholdsMet": true,
+    "under": []
   },
   "whole": {
     "include": [
       "src/**"
     ],
     "lines": {
-      "covered": 581,
-      "total": 688,
-      "pct": 84.44
+      "covered": 804,
+      "total": 804,
+      "pct": 100
     },
     "branches": {
-      "covered": 619,
-      "total": 789,
-      "pct": 78.45
+      "covered": 914,
+      "total": 914,
+      "pct": 100
     },
     "regions": null,
     "functions": {
-      "covered": 137,
-      "total": 165,
-      "pct": 83.03
+      "covered": 201,
+      "total": 201,
+      "pct": 100
     },
     "unmeasured": []
   },
@@ -73,13 +68,13 @@
   "perFile": [
     {
       "path": "src/ads.ts",
-      "lines": 5.66,
-      "branches": 0,
-      "functions": 0,
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
       "inGate": true,
-      "linesCovered": 3,
-      "linesTotal": 53,
-      "missedLines": "13-16,26,30,35,37-38,45-46,53-55,62-63,70,83-84,92-93,95-96,102-103,112-113,122-123,131-132,142,153-156,161,163,165-166,168-169,171-172,174-175,178,183-184,186"
+      "linesCovered": 63,
+      "linesTotal": 63,
+      "missedLines": ""
     },
     {
       "path": "src/api.ts",
@@ -87,8 +82,8 @@
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 42,
-      "linesTotal": 42,
+      "linesCovered": 60,
+      "linesTotal": 60,
       "missedLines": ""
     },
     {
@@ -97,8 +92,8 @@
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 27,
-      "linesTotal": 27,
+      "linesCovered": 33,
+      "linesTotal": 33,
       "missedLines": ""
     },
     {
@@ -117,8 +112,8 @@
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 49,
-      "linesTotal": 49,
+      "linesCovered": 50,
+      "linesTotal": 50,
       "missedLines": ""
     },
     {
@@ -134,11 +129,11 @@
     {
       "path": "src/failures/core.ts",
       "lines": 100,
-      "branches": 99.7,
+      "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 248,
-      "linesTotal": 248,
+      "linesCovered": 249,
+      "linesTotal": 249,
       "missedLines": ""
     },
     {
@@ -147,19 +142,19 @@
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 65,
-      "linesTotal": 65,
+      "linesCovered": 79,
+      "linesTotal": 79,
       "missedLines": ""
     },
     {
       "path": "src/growthcode.ts",
-      "lines": 47.69,
-      "branches": 37.2,
-      "functions": 30.76,
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
       "inGate": true,
-      "linesCovered": 31,
-      "linesTotal": 65,
-      "missedLines": "56-59,86-87,90-95,97,100,102,106,112,133-135,151,187-188,193-194,208-210,212-217"
+      "linesCovered": 88,
+      "linesTotal": 88,
+      "missedLines": ""
     },
     {
       "path": "src/index.ts",
@@ -172,14 +167,24 @@
       "missedLines": ""
     },
     {
-      "path": "src/localized-listings.ts",
-      "lines": 56.6,
-      "branches": 61.11,
-      "functions": 53.84,
+      "path": "src/json-kind.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
       "inGate": true,
-      "linesCovered": 30,
-      "linesTotal": 53,
-      "missedLines": "43,102,126-129,131,147-150,153,155-160,162,165,173-175"
+      "linesCovered": 9,
+      "linesTotal": 9,
+      "missedLines": ""
+    },
+    {
+      "path": "src/localized-listings.ts",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 66,
+      "linesTotal": 66,
+      "missedLines": ""
     },
     {
       "path": "src/remote-config.ts",
@@ -187,8 +192,8 @@
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 80,
-      "linesTotal": 80,
+      "linesCovered": 101,
+      "linesTotal": 101,
       "missedLines": ""
     },
     {
@@ -208,7 +213,7 @@
   },
   "runs": {
     "gate": {
-      "exitCode": 1,
+      "exitCode": 0,
       "signal": null,
       "error": null
     },
