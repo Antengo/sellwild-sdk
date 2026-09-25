@@ -1,0 +1,25 @@
+# Listings: the listings API fills the list; Refresh clears the cache and
+# loads again (the status line counts loads).
+appId: ${APP_ID}
+---
+- tapOn:
+    id: "sw.tab.listings"
+- extendedWaitUntil:
+    visible:
+      id: "sw.listings.status"
+      text: "[1-9][0-9]* listings, load 1"
+    timeout: 30000
+- assertVisible:
+    id: "sw.listing.card"
+- runFlow: no-crash.yaml
+- takeScreenshot: listings
+- tapOn:
+    id: "sw.listings.refresh"
+- extendedWaitUntil:
+    visible:
+      id: "sw.listings.status"
+      text: "[1-9][0-9]* listings, load 2"
+    timeout: 30000
+- assertVisible:
+    id: "sw.listing.card"
+- runFlow: no-crash.yaml

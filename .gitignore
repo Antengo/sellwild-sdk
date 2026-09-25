@@ -76,3 +76,7 @@ flutter/coverage/
 
 # Pinned lint binaries (scripts/lint/install-swiftlint.sh)
 tools/bin/
+
+# Sample app e2e output and build caches (scripts/e2e/run.sh)
+e2e/artifacts/
+e2e/.cache/

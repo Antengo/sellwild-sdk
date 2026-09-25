@@ -1,0 +1,12 @@
+# No crash or error dialog shows, and the app is still up (its tab bar is on
+# screen). On iOS a crash drops to the home screen, so the tab bar check is
+# what catches it.
+appId: ${APP_ID}
+---
+- assertNotVisible: ".*keeps stopping.*"       # Android crash dialog
+- assertNotVisible: ".*isn't responding.*"     # Android ANR dialog
+- assertNotVisible: ".*has stopped.*"          # older Android crash dialog
+- assertNotVisible: "Render Error"             # React Native red box
+- assertNotVisible: ".*Unhandled Exception.*"  # Flutter error screen
+- assertVisible:
+    id: "sw.tab.feed"
