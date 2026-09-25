@@ -1,0 +1,43 @@
+{
+  "$comment": "The one list of stable element ids for the sample apps' e2e flows (e2e/maestro). Add ids; never rename or remove one. See README.md next to this file.",
+  "app": {
+    "name": "Sellwild Sample",
+    "tabs": ["Feed", "Ads", "Listings", "Diagnostics", "Legacy"]
+  },
+  "ids": {
+    "sw.tab.feed": { "screen": "tabs", "setBy": "app", "description": "The Feed tab button." },
+    "sw.tab.ads": { "screen": "tabs", "setBy": "app", "description": "The Ads tab button." },
+    "sw.tab.listings": { "screen": "tabs", "setBy": "app", "description": "The Listings tab button." },
+    "sw.tab.diagnostics": { "screen": "tabs", "setBy": "app", "description": "The Diagnostics tab button." },
+    "sw.tab.legacy": { "screen": "tabs", "setBy": "app", "description": "The Legacy tab button." },
+
+    "sw.feed.list": { "screen": "feed", "setBy": "app", "description": "The app's container around the platform's native feed component." },
+    "sw.feed.status": { "screen": "feed", "setBy": "app", "description": "One line of feed status (loading, loaded, error)." },
+    "sw.feed.ad": { "screen": "feed", "setBy": "sdk", "description": "One ad row inside the SDK feed.", "sdk": { "ios": "ios/Sources/SellwildSDK/SellwildFeedView.swift" } },
+    "sw.listing.card": { "screen": "feed, listings", "setBy": "app, sdk", "description": "One listing card. The app sets it on its own cards (Listings). The SDK feed sets it on each listing row (Feed).", "sdk": { "ios": "ios/Sources/SellwildSDK/SellwildFeedView.swift" } },
+
+    "sw.ad.banner": { "screen": "ads", "setBy": "app", "description": "The 320x50 native banner slot." },
+    "sw.ad.banner.size": { "screen": "ads", "setBy": "app", "description": "The banner slot's measured size in points or dp.", "text": "320x50" },
+    "sw.ad.mrec": { "screen": "ads", "setBy": "app", "description": "The 300x250 MREC slot." },
+    "sw.ad.mrec.size": { "screen": "ads", "setBy": "app", "description": "The MREC slot's measured size.", "text": "300x250" },
+    "sw.ad.native": { "screen": "ads", "setBy": "app", "description": "The native ad slot." },
+    "sw.ad.native.size": { "screen": "ads", "setBy": "app", "description": "The native slot's measured size.", "text": "300x250" },
+    "sw.ad.house": { "screen": "ads", "setBy": "app", "description": "The house ad slot, where the platform has a public house ad.", "missingOn": { "ios": "No public house ad view. House backfill runs inside SellwildAdView on a no-fill." } },
+    "sw.ad.house.size": { "screen": "ads", "setBy": "app", "description": "The house ad slot's measured size.", "missingOn": { "ios": "See sw.ad.house." } },
+
+    "sw.listings.list": { "screen": "listings", "setBy": "app", "description": "The app's list of listing cards." },
+    "sw.listings.refresh": { "screen": "listings", "setBy": "app", "description": "Refresh: clears the listings cache and fetches again." },
+    "sw.listings.status": { "screen": "listings", "setBy": "app", "description": "Load status. After a good load: '<count> listings, load <n>', where n counts loads this launch.", "text": "<count> listings, load <n>" },
+
+    "sw.diag.sdk_version": { "screen": "diagnostics", "setBy": "app", "description": "The SDK version." },
+    "sw.diag.partner": { "screen": "diagnostics", "setBy": "app", "description": "Partner code and slug.", "text": "sellwild / sellwild-sample" },
+    "sw.diag.config_source": { "screen": "diagnostics", "setBy": "app", "description": "Where the config came from.", "text": "remote | fallback" },
+    "sw.diag.listings_url": { "screen": "diagnostics", "setBy": "app", "description": "The listings URL in effect." },
+    "sw.diag.failures": { "screen": "diagnostics", "setBy": "app", "description": "Failure codes seen this launch, or 'not available on this platform' where the SDK has no public failure sink.", "text": "<codes> | not available on this platform" },
+    "sw.diag.failure_context": { "screen": "diagnostics", "setBy": "app", "description": "The public failure context (partner, reporting on or off, sample rate, client), where the platform has one." },
+
+    "sw.legacy.title": { "screen": "legacy", "setBy": "app", "description": "The screen title.", "text": "Legacy WebView widget (deprecated)" },
+    "sw.legacy.status": { "screen": "legacy", "setBy": "app", "description": "One line of widget status (loading, loaded, error)." },
+    "sw.legacy.webview": { "screen": "legacy", "setBy": "app", "description": "The container of the deprecated WebView widget. Flows assert the container only." }
+  }
+}

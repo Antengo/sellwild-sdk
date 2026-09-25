@@ -22,6 +22,7 @@ npm run validate     # node scripts/validate.mjs: table of every check, exit 1 o
 | `fixtures/<schema>/valid/`, `fixtures/<schema>/invalid/` | Hand-made variants (`"_synthetic": true`): minimal and edge cases. `invalid/_expected-errors.json` names the error each invalid fixture must produce. |
 | `expectations/` | The typed result each platform must produce from each app-config and listings input. `expectations/drift/<platform>.json` records where each platform differs today; each platform edits only its own file. |
 | `print-gate.allowlist.json`, `scripts/print-gate.mjs` | Ratchet on print calls and empty catch blocks in SDK source. |
+| `e2e/ids.json` | The one list of element ids for the sample apps' Maestro flows (`e2e/maestro/`). `test/e2e-ids.test.mjs` fails when a flow, sample or SDK uses an unlisted `sw.*` id. See `e2e/README.md`. |
 | `scripts/refresh-samples.mjs` | Re-captures the samples. GET only, allowlisted hosts only, needs `CONTRACTS_LIVE=1`. Never part of the test suite. |
 
 ## How each platform uses it
