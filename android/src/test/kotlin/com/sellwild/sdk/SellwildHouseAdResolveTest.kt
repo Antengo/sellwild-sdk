@@ -1,123 +1,135 @@
 package com.sellwild.sdk
 
-import org.junit.Assert.*
+import com.sellwild.sdk.SellwildHouseAd.Creative
+import com.sellwild.sdk.factories.AppConfigFactory
+import com.sellwild.sdk.factories.jsonArrayOf
+import com.sellwild.sdk.failures.FailuresRule
+import com.sellwild.sdk.failures.FakeFailureSink
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailures
+import com.sellwild.sdk.support.FixtureLoader
+import org.json.JSONObject
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import kotlin.random.Random
 
 /**
- * Unit tests for [SellwildHouseAd.resolve] image resolution — the new support
- * for `MOBILE_HOUSE_AD_IMAGE` (and the `image` field of a by-zone / by-size
- * object) being either a single URL string OR an array of URL strings, with a
- * random non-empty pick per call (per no-fill). Parity with iOS
- * SellwildHouseAdResolveTests.
+ * [SellwildHouseAd] creative resolution: `MOBILE_HOUSE_AD_IMAGE` (and the `image` of a
+ * by-zone / by-size object) is one URL or a list, the random pick is injected, and click URLs
+ * pair by index or are shared. Parity with iOS SellwildHouseAdResolveTests.
  */
 class SellwildHouseAdResolveTest {
 
+    @get:Rule
+    val failures = FailuresRule()
+
+    private val sink = FakeFailureSink()
+
+    @Before
+    fun attachSink() {
+        SellwildFailures.bind(sink)
+    }
+
+    private fun obj(vararg entries: Pair<String, Any?>): JSONObject = AppConfigFactory.checked(mapOf(*entries))
+
+    private fun candidates(obj: JSONObject, zone: String? = null): List<Creative> = SellwildHouseAd.candidates(obj, zone, 300, 250)
+
+    private fun images(vararg urls: String) = jsonArrayOf(*urls)
+
     @Test
-    fun `single image string unchanged`() {
-        val c = SellwildHouseAd.resolve(
-            """{"MOBILE_HOUSE_AD_IMAGE":"https://x/a.png","MOBILE_HOUSE_AD_URL":"https://x/click"}""",
-            null, 300, 250,
+    fun `a single image and click`() {
+        val json = FixtureLoader.text("fixtures/app-config/valid/house-image-string.json")
+
+        assertEquals(
+            Creative("https://cache.sellwild.com/house/fixture-300x250.png", "https://sellwild.com/?p=fixture"),
+            SellwildHouseAd.resolve(json, null, 300, 250),
         )
-        assertEquals("https://x/a.png", c?.imageUrl)
-        assertEquals("https://x/click", c?.clickUrl)
     }
 
     @Test
-    fun `image array always picks from the set and rotates`() {
-        val set = setOf("https://x/a.png", "https://x/b.png", "https://x/c.png")
-        val json = """{"MOBILE_HOUSE_AD_IMAGE":["https://x/a.png","https://x/b.png","https://x/c.png"]}"""
-        val seen = mutableSetOf<String>()
-        repeat(80) {
-            val c = SellwildHouseAd.resolve(json, null, 300, 250)
-            assertNotNull(c)
-            assertTrue(set.contains(c!!.imageUrl))
-            seen.add(c.imageUrl)
+    fun `an image list is every candidate, and the injected random picks one`() {
+        val config = obj("MOBILE_HOUSE_AD_IMAGE" to images("https://x/a.png", "https://x/b.png", "https://x/c.png"))
+        val all = candidates(config)
+
+        assertEquals(listOf("https://x/a.png", "https://x/b.png", "https://x/c.png"), all.map { it.imageUrl })
+        for (seed in 0 until 10) {
+            assertEquals(all[Random(seed).nextInt(3)], SellwildHouseAd.resolve(config.toString(), null, 300, 250, Random(seed)))
         }
-        assertTrue("expected rotation across draws", seen.size > 1)
+        assertTrue(SellwildHouseAd.resolve(config.toString(), null, 300, 250) in all)
     }
 
     @Test
-    fun `image array skips blank entries`() {
-        val c = SellwildHouseAd.resolve(
-            """{"MOBILE_HOUSE_AD_IMAGE":["","   ","https://x/only.png"]}""", null, 300, 250,
+    fun `blank images are skipped, and the click pairs by original index`() {
+        val config = obj(
+            "MOBILE_HOUSE_AD_IMAGE" to images("", "   ", "https://x/c.png", "https://x/d.png"),
+            "MOBILE_HOUSE_AD_URL" to images("https://x/u0", "https://x/u1", "https://x/u2"),
         )
-        assertEquals("https://x/only.png", c?.imageUrl)
+
+        assertEquals(listOf(Creative("https://x/c.png", "https://x/u2"), Creative("https://x/d.png", null)), candidates(config))
     }
 
     @Test
-    fun `empty image array resolves null`() {
-        val c = SellwildHouseAd.resolve("""{"MOBILE_HOUSE_AD_IMAGE":[]}""", null, 300, 250)
-        assertNull(c)
+    fun `one click URL is shared by every image`() {
+        val config = obj("MOBILE_HOUSE_AD_IMAGE" to images("https://x/a.png", "https://x/b.png"), "MOBILE_HOUSE_AD_URL" to "https://x/shared")
+
+        assertEquals(listOf("https://x/shared", "https://x/shared"), candidates(config).map { it.clickUrl })
     }
 
     @Test
-    fun `by-size object image array`() {
-        val json =
-            """{"MOBILE_HOUSE_AD_BY_SIZE":{"300x250":{"image":["https://x/m1.png","https://x/m2.png"],"url":"https://x/c"}}}"""
-        val c = SellwildHouseAd.resolve(json, null, 300, 250)
-        assertNotNull(c)
-        assertTrue(setOf("https://x/m1.png", "https://x/m2.png").contains(c!!.imageUrl))
-        assertEquals("https://x/c", c.clickUrl)
-    }
-
-    @Test
-    fun `disabled still wins over array`() {
-        val c = SellwildHouseAd.resolve(
-            """{"MOBILE_HOUSE_AD_ENABLED":false,"MOBILE_HOUSE_AD_IMAGE":["https://x/a.png"]}""",
-            null, 300, 250,
+    fun `no image, an empty list or another type resolves nothing`() {
+        assertNull(SellwildHouseAd.resolve(null, "43", 300, 250))
+        assertNull(SellwildHouseAd.resolve(obj().toString(), "43", 300, 250))
+        assertEquals(emptyList<Creative>(), candidates(obj("MOBILE_HOUSE_AD_IMAGE" to images())))
+        assertEquals(emptyList<Creative>(), candidates(obj("MOBILE_HOUSE_AD_IMAGE" to "  ")))
+        assertEquals(emptyList<Creative>(), candidates(AppConfigFactory.offSchema(mapOf("MOBILE_HOUSE_AD_IMAGE" to 7))))
+        assertEquals(
+            "a click of another type is no click",
+            listOf(Creative("https://x/a.png", null)),
+            candidates(AppConfigFactory.offSchema(mapOf("MOBILE_HOUSE_AD_IMAGE" to "https://x/a.png", "MOBILE_HOUSE_AD_URL" to 7))),
         )
-        assertNull(c)
+        assertEquals(emptyList<String>(), sink.pushed.map { it.action })
     }
 
-    // URL pairing
-
     @Test
-    fun `image and url arrays pair by index`() {
-        val json =
-            """{"MOBILE_HOUSE_AD_IMAGE":["https://x/a.png","https://x/b.png","https://x/c.png"],"MOBILE_HOUSE_AD_URL":["https://x/ua","https://x/ub","https://x/uc"]}"""
-        val paired = mapOf(
-            "https://x/a.png" to "https://x/ua",
-            "https://x/b.png" to "https://x/ub",
-            "https://x/c.png" to "https://x/uc",
+    fun `by-zone wins, then by-size, then the app-wide image, each only when it has an image`() {
+        val json = FixtureLoader.jsonObject("fixtures/app-config/valid/house-image-arrays.json")
+        val byZone = JSONObject().put("43", JSONObject().put("image", "https://x/zone.png")).put("44", JSONObject().put("url", "https://x/no-image"))
+        val bySize = JSONObject().put("300x250", JSONObject().put("image", images("https://x/m1.png")).put("url", "https://x/c"))
+        val config = obj("MOBILE_HOUSE_AD_IMAGE" to "https://x/app.png", "MOBILE_HOUSE_AD_BY_ZONE" to byZone, "MOBILE_HOUSE_AD_BY_SIZE" to bySize)
+
+        assertEquals(
+            listOf("https://cache.sellwild.com/house/z1.png", "https://cache.sellwild.com/house/z2.png"),
+            candidates(json, "43").map { it.imageUrl },
         )
-        repeat(80) {
-            val c = SellwildHouseAd.resolve(json, null, 300, 250)
-            assertNotNull(c)
-            assertEquals("click URL must pair with its image", paired[c!!.imageUrl], c.clickUrl)
-        }
+        assertEquals(listOf(Creative("https://x/zone.png", null)), candidates(config, "43"))
+        assertEquals(listOf(Creative("https://x/m1.png", "https://x/c")), candidates(config, "44"))
+        assertEquals(listOf(Creative("https://x/m1.png", "https://x/c")), candidates(config, null))
+        assertEquals(listOf("https://x/app.png"), SellwildHouseAd.candidates(config, "44", 320, 50).map { it.imageUrl })
     }
 
     @Test
-    fun `image array with single shared url`() {
-        val json = """{"MOBILE_HOUSE_AD_IMAGE":["https://x/a.png","https://x/b.png"],"MOBILE_HOUSE_AD_URL":"https://x/shared"}"""
-        repeat(20) {
-            assertEquals("https://x/shared", SellwildHouseAd.resolve(json, null, 300, 250)?.clickUrl)
-        }
+    fun `the master switch turns backfill off`() {
+        val off = FixtureLoader.text("fixtures/app-config/valid/house-disabled-string.json")
+
+        assertFalse(SellwildHouseAd.isEnabled(off))
+        assertNull(SellwildHouseAd.resolve(off, null, 300, 250))
+        assertFalse(SellwildHouseAd.isEnabled(obj("MOBILE_HOUSE_AD_ENABLED" to 0).toString()))
+        assertTrue(SellwildHouseAd.isEnabled(null))
+        assertTrue(SellwildHouseAd.isEnabled(obj("MOBILE_HOUSE_AD_ENABLED" to "yes").toString()))
     }
 
     @Test
-    fun `shorter url array leaves unpaired click null`() {
-        val json =
-            """{"MOBILE_HOUSE_AD_IMAGE":["https://x/a.png","https://x/b.png","https://x/c.png"],"MOBILE_HOUSE_AD_URL":["https://x/only0"]}"""
-        repeat(80) {
-            val c = SellwildHouseAd.resolve(json, null, 300, 250)
-            if (c?.imageUrl == "https://x/a.png") assertEquals("https://x/only0", c.clickUrl) else assertNull(c?.clickUrl)
-        }
-    }
+    fun `config that does not parse leaves backfill on with no creative, and is reported`() {
+        val bad = FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml")
 
-    @Test
-    fun `blank images keep url pairing by original index`() {
-        val json =
-            """{"MOBILE_HOUSE_AD_IMAGE":["","https://x/b.png","https://x/c.png"],"MOBILE_HOUSE_AD_URL":["https://x/u0","https://x/u1","https://x/u2"]}"""
-        repeat(80) {
-            val c = SellwildHouseAd.resolve(json, null, 300, 250)
-            assertNotNull(c)
-            if (c!!.imageUrl == "https://x/b.png") {
-                assertEquals("https://x/u1", c.clickUrl)
-            } else {
-                assertEquals("https://x/c.png", c.imageUrl)
-                assertEquals("https://x/u2", c.clickUrl)
-            }
-        }
+        assertTrue(SellwildHouseAd.isEnabled(bad))
+        assertNull(SellwildHouseAd.resolve(bad, "43", 300, 250))
+
+        assertEquals(listOf(SellwildFailureCode.CONFIG_REMOTE_VALUES_PARSE), sink.pushed.map { it.action })
     }
 }

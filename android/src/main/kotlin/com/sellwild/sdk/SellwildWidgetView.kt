@@ -2,18 +2,29 @@ package com.sellwild.sdk
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.http.SslError
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.AttributeSet
 import android.webkit.JavascriptInterface
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
-import android.os.Handler
-import android.os.Looper
-import org.json.JSONArray
-import org.json.JSONObject
+import com.sellwild.sdk.core.BridgeMessage
+import com.sellwild.sdk.core.WidgetBridge
+import com.sellwild.sdk.core.WidgetPage
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
+import com.sellwild.sdk.failures.SellwildFailures
 
 /**
  * Full Sellwild marketplace widget rendered via WebView.
@@ -48,19 +59,17 @@ import org.json.JSONObject
  */
 object SellwildWebViewCompat {
     fun configureForMultiProcess(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val processName = context.packageName.let { pkg ->
-                // getProcessName() is available from API 28
-                android.app.Application.getProcessName() ?: pkg
-            }
-            val packageName = context.packageName
-            if (processName != packageName) {
-                WebView.setDataDirectorySuffix(processName.replace(packageName, "").trimStart(':'))
-            }
-        }
+        // getProcessName() exists from API 28, and WidgetPage asks for it only there.
+        WidgetPage.dataDirectorySuffix(Build.VERSION.SDK_INT, context.packageName) { android.app.Application.getProcessName() }
+            ?.let { WebView.setDataDirectorySuffix(it) }
     }
 }
 
+/**
+ * The WebView marketplace widget. Deprecated in favor of the native surfaces (SellwildFeedView,
+ * SellwildAdView): it gets failure reporting and nothing new. The page it loads is built by
+ * [WidgetPage]; the messages the page posts are decoded by [WidgetBridge].
+ */
 class SellwildWidgetView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -77,28 +86,51 @@ class SellwildWidgetView @JvmOverloads constructor(
     private lateinit var config: SellwildConfig
     var listener: Listener? = null
 
-    private val webView: WebView by lazy { createWebView() }
+    // Created on first use; dropped when its render process is gone, so the next
+    // setup() or load() starts a new one.
+    private var web: WebView? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    /**
+     * Attaches [config]. It is also the widget-only app's first Context, so logFailure is
+     * attached here and failures held since configure() go out.
+     */
     fun setup(config: SellwildConfig) {
         this.config = config
-        if (childCount == 0) {
-            addView(webView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        }
+        config.claimFailurePartner()
+        SellwildFailures.attach(context)
+        if (childCount == 0) addView(webView(), fullSize())
     }
 
     fun load() {
-        check(::config.isInitialized) { "Call setup() before load()" }
-        val html = buildWidgetHTML()
-        val baseUrl = "https://widget.sellwild.com"
-        webView.loadDataWithBaseURL(baseUrl, html, "text/html", "UTF-8", null)
+        if (!::config.isInitialized) {
+            // This used to throw (check()) and crash the host.
+            log(SellwildFailureCode.WIDGET_SETUP_MISSING, SellwildFailureSeverity.ERROR, message = "load() called before setup()")
+            listener?.onError(this, "Call setup() before load()")
+            return
+        }
+        val html = WidgetPage.html(config, remoteObject(config.remoteJson))
+        // A WebView whose render process died was dropped: start a new one in its place.
+        val wv = web ?: webView().also { addView(it, fullSize()) }
+        wv.loadDataWithBaseURL(WidgetPage.BASE_URL, html, "text/html", "UTF-8", null)
     }
 
-    fun pause() = webView.onPause()
-    fun resume() = webView.onResume()
-    fun destroy() {
-        webView.destroy()
+    fun pause() {
+        web?.onPause()
     }
+
+    fun resume() {
+        web?.onResume()
+    }
+
+    fun destroy() {
+        web?.destroy()
+    }
+
+    /** The WebView, created on first use. */
+    private fun webView(): WebView = web ?: createWebView().also { web = it }
+
+    private fun fullSize() = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun createWebView(): WebView {
@@ -114,293 +146,118 @@ class SellwildWidgetView @JvmOverloads constructor(
             useWideViewPort = true
             loadWithOverviewMode = true
         }
-        wv.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                // Widget sends WIDGET_LOADED via JS bridge
-            }
-        }
+        // The widget sends WIDGET_LOADED through the JS bridge; the client only reports
+        // what blanks the widget.
+        wv.webViewClient = WidgetClient()
         wv.webChromeClient = WebChromeClient()
         wv.addJavascriptInterface(WidgetJSBridge(), "SellwildWidgetBridge")
         wv.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         return wv
     }
 
+    /** Reports the load failures that leave the widget blank (the page or partner.js). */
+    private inner class WidgetClient : WebViewClient() {
+        override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+            val url = request.url.toString()
+            if (!WidgetPage.isWidgetResource(url, request.isForMainFrame)) return
+            log(
+                SellwildFailureCode.WIDGET_WEBVIEW_LOAD_NETWORK,
+                SellwildFailureSeverity.ERROR,
+                message = "WebView error ${error.errorCode}: ${error.description}",
+                url = url,
+            )
+        }
+
+        override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: WebResourceResponse) {
+            val url = request.url.toString()
+            if (!WidgetPage.isWidgetResource(url, request.isForMainFrame)) return
+            log(
+                SellwildFailureCode.WIDGET_WEBVIEW_LOAD_HTTP,
+                SellwildFailureSeverity.ERROR,
+                message = "HTTP ${errorResponse.statusCode}",
+                httpStatus = errorResponse.statusCode,
+                url = url,
+            )
+        }
+
+        /**
+         * A certificate error. On the widget bundle (partner.js) it blanks the widget, so it is
+         * reported; other subresources are not. Either way the load is cancelled, as the default
+         * does: the widget never proceeds past a bad certificate.
+         */
+        override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
+            if (WidgetPage.isWidgetResource(error.url, isMainFrame = false)) {
+                log(
+                    SellwildFailureCode.WIDGET_WEBVIEW_LOAD_NETWORK,
+                    SellwildFailureSeverity.ERROR,
+                    message = "SSL error ${error.primaryError}",
+                    url = error.url,
+                )
+            }
+            super.onReceivedSslError(view, handler, error)
+        }
+
+        /**
+         * The WebView's render process crashed or was killed. Unhandled (the default returns
+         * false) the system kills the app. The widget reports it, drops the dead WebView so the
+         * next setup() or load() starts a new one, tells the listener, and keeps the app alive.
+         */
+        override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+            log(
+                SellwildFailureCode.WIDGET_WEBVIEW_PROCESS_EXCEPTION,
+                SellwildFailureSeverity.ERROR,
+                message = if (detail.didCrash()) "WebView render process crashed" else "WebView render process was killed",
+            )
+            web = null
+            removeView(view)
+            view.destroy()
+            listener?.onError(this@SellwildWidgetView, "Widget WebView render process gone")
+            return true
+        }
+    }
+
     private inner class WidgetJSBridge {
         @JavascriptInterface
         fun postMessage(json: String) {
-            mainHandler.post {
-                try {
-                    val obj = JSONObject(json)
-                    when (obj.optString("type")) {
-                        "WIDGET_LOADED" ->
-                            listener?.onWidgetLoaded(this@SellwildWidgetView)
-                        "LISTING_CLICK" -> {
-                            // The web widget sends window.open(url) on listing tap.
-                            // A full listing object is not available at the WebView boundary.
-                            val listing = obj.optJSONObject("listing")?.let { parseListing(it) }
-                                ?: SellwildListing(
-                                    id = "",
-                                    status = "active",
-                                    title = "",
-                                    url = obj.optString("url").ifEmpty { null },
-                                )
-                            listener?.onListingTapped(listing)
-                        }
-                        "AD_IMPRESSION" -> {
-                            val zoneId = obj.optString("zoneId")
-                            listener?.onAdImpression(this@SellwildWidgetView, zoneId)
-                        }
-                        "ERROR" -> {
-                            val msg = obj.optString("message")
-                            listener?.onError(this@SellwildWidgetView, msg)
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
+            mainHandler.post { handleMessage(json) }
         }
     }
 
-    private fun parseListing(json: JSONObject): SellwildListing {
-        val photosArray = json.optJSONArray("photos")
-        val photos = if (photosArray != null) {
-            (0 until photosArray.length()).map { i ->
-                val p = photosArray.getJSONObject(i)
-                SellwildPhoto(
-                    url = p.optString("url"),
-                    thumbUrl = p.optString("thumbUrl"),
-                )
-            }
-        } else emptyList()
-
-        return SellwildListing(
-            id = json.optString("id"),
-            status = json.optString("status"),
-            title = json.optString("title"),
-            url = json.optString("url").ifEmpty { null },
-            price = json.optString("price").ifEmpty { null },
-            currency = json.optString("currency").ifEmpty { null },
-            photos = photos,
-        )
-    }
-
-    // Serialize config as element attributes.
-    // The widget reads config via withCustomizationsFromElement() — attribute names in any case.
-    // Complex objects (bidder configs) are JSON-encoded; parseValue() in the widget JSON.parses them.
-    private fun configAttributes(): String {
-        val parts = mutableListOf<String>()
-
-        fun add(name: String, value: String?) { if (!value.isNullOrEmpty()) parts.add("$name=\"$value\"") }
-        fun addBool(name: String, value: Boolean) { if (value) parts.add("$name=\"true\"") }
-        fun addInt(name: String, value: Int) { if (value != 0) parts.add("$name=\"$value\"") }
-        // Serialize a data class to a JSON attribute by building the JSONObject field-by-field.
-        // Do NOT use value.toString() — Kotlin data class toString() is not valid JSON.
-        fun addJsonObj(name: String, json: JSONObject?) {
-            if (json == null) return
-            val escaped = json.toString().replace("\"", "&quot;")
-            parts.add("$name=\"$escaped\"")
-        }
-
-        add("partner-code", config.partnerCode)
-        add("listings", config.effectiveListingsUrl)
-        // Disable remote customization fetch — see RN htmlBuilder.ts for details.
-        parts.add("customize=\"false\"")
-        // Ad system selection — REQUIRED. See RN htmlBuilder.ts for details.
-        add("ad-type", config.adType ?: "PrebidOnly")
-        add("gam-tag", config.gamTag)
-        add("gpt-proxy-url", config.gptProxyUrl)
-        addBool("disable-gpt", config.disableGpt)
-        add("banner-zid", config.bannerZid)
-        add("bottom-banner-zid", config.bottomBannerZid)
-        add("mobile-banner-zid", config.mobileBannerZid)
-        // Filter empties — widget parser does not strip empty strings post-split.
-        config.mobileZids.filter { it.isNotEmpty() }.takeIf { it.isNotEmpty() }
-            ?.let { add("mobile-zid", it.joinToString(",")) }
-        addBool("hide-banner-top", config.hideBannerTop)
-        addBool("hide-banner-bottom", config.hideBannerBottom)
-        addInt("ad-refresh-max", config.adRefreshMax)
-        addInt("ad-refresh-max-mobile", config.adRefreshMaxMobile)
-        if (config.adRefreshIntervalMs > 0) parts.add("ad-refresh-interval=\"${config.adRefreshIntervalMs}\"")
-        addBool("boltive", config.boltive)
-        if (config.boltiveClientId.isNotEmpty()) add("boltive-client-id", config.boltiveClientId)
-        addBool("lotame", config.lotame)
-        add("title", config.title)
-        add("link-text", config.linkText)
-        addInt("font-size", config.fontSize)
-        add("font-color", config.fontColor)
-        add("price-color", config.priceColor)
-        add("price-font-color", config.priceFontColor)
-        if (config.colors.isNotEmpty()) add("colors", config.colors.joinToString(","))
-        addBool("debug", config.debug)
-
-        // Ad network bidder configs — serialized as JSON-encoded attributes.
-        // The widget's parseValue() will JSON.parse these on the JS side.
-        addJsonObj("ix", config.ix?.let { ix ->
-            JSONObject().apply {
-                put("siteIdM", ix.siteIdM)
-                put("siteIdD", ix.siteIdD)
-                if (ix.disabled) put("disabled", true)
-            }
-        })
-        addJsonObj("openx", config.openx?.let { ox ->
-            JSONObject().apply {
-                put("delDomain", ox.delDomain)
-                put("unitM", ox.unitM)
-                put("unitD", ox.unitD)
-                if (ox.disabled) put("disabled", true)
-            }
-        })
-        addJsonObj("pubmatic", config.pubmatic?.let { pm ->
-            JSONObject().apply {
-                put("pubIdM", pm.pubIdM)
-                put("adSlotM", pm.adSlotM)
-                put("adSlotD", pm.adSlotD)
-                if (pm.disabled) put("disabled", true)
-            }
-        })
-        addJsonObj("appnexus", config.appnexus?.let { an ->
-            JSONObject().apply {
-                put("placementIdM", an.placementIdM)
-                put("placementIdD", an.placementIdD)
-                if (an.disabled) put("disabled", true)
-            }
-        })
-
-        // Mobile ad controls
-        addBool("enable-interstitial", config.enableInterstitial)
-        addBool("enable-fullscreen-video", config.enableFullscreenVideo)
-        addInt("interstitials-per-session", config.interstitialsPerSession)
-        addInt("video-takeovers-per-session", config.videoTakeoversPerSession)
-
-        // Passthrough: forward every key from the raw remote-config JSON to the
-        // widget. The widget's attribute parser is case-insensitive, so we can
-        // emit CONSTANT_CASE keys verbatim. The widget's parseValue() handles
-        // strings, JSON, numbers, and booleans. This is what makes new bidders
-        // / remote settings work without an SDK release.
-        config.remoteJson?.let { body ->
-            runCatching {
-                val raw = JSONObject(body)
-                val emitted = parts.map { it.substringBefore("=") }.toMutableSet()
-                // Skip keys already emitted by the typed serializer above
-                // (case-insensitive match against typed attribute names).
-                val keys = raw.keys()
-                while (keys.hasNext()) {
-                    val key = keys.next()
-                    val attr = key.lowercase().replace("_", "-")
-                    if (emitted.contains(attr)) continue
-                    val value = raw.get(key)
-                    val str = when (value) {
-                        is JSONObject, is JSONArray -> value.toString()
-                        else -> value.toString()
-                    }
-                    val escaped = str.replace("\"", "&quot;")
-                    parts.add("$attr=\"$escaped\"")
-                    emitted.add(attr)
-                }
-            }
-        }
-
-        return parts.joinToString("\n    ")
-    }
-
-    // Build a Prebid.js pre-configuration <script> block.
-    // Runs before prebid.js loads (via pbjs.que). Addresses two WebView issues:
-    //  1. ortb2.app — declares in-app inventory so DSPs bid on app traffic, not web.
-    //  2. userSync — disables iframe syncs (no 3rd-party cookies in WebView).
-    private fun prebidPreConfigScript(): String {
-        val fields = mutableListOf("\"publisher\": {\"id\": \"${config.partnerCode}\"}")
-        config.appBundleId?.let { fields.add("\"bundle\": \"$it\"") }
-        config.appStoreUrl?.let { fields.add("\"storeurl\": \"$it\"") }
-        val ortb2App = "{${fields.joinToString(", ")}}"
-
-        val s2sConfigBlock = config.prebidServer?.let { ps ->
-            val bidderList = ps.bidders.joinToString(", ") { "\"$it\"" }
-            val syncLine = ps.syncEndpoint?.let { url ->
-                ", \"syncEndpoint\": {\"p1Consent\": \"$url\", \"noP1Consent\": \"$url\"}"
-            } ?: ""
-            """,
-                // Route all bidder calls through Prebid Server (S2S mode).
-                s2sConfig: {
-                  "accountId": "${ps.accountId}",
-                  "bidders": [$bidderList],
-                  "timeout": ${ps.timeout},
-                  "adapter": "prebidServer",
-                  "endpoint": {"p1Consent": "${ps.endpoint}", "noP1Consent": "${ps.endpoint}"}$syncLine
-                }"""
-        } ?: ""
-
-        val debugFlag = if (config.debug) ", \"debug\": true" else ""
-        return """
-          <script>
-            window.pbjs = window.pbjs || {};
-            window.pbjs.que = window.pbjs.que || [];
-            window.pbjs.que.push(function() {
-              window.pbjs.setConfig({
-                ortb2: { app: $ortb2App },
-                userSync: {
-                  filterSettings: { iframe: { bidders: '*', filter: 'exclude' } },
-                  syncDelay: 5000
-                }$s2sConfigBlock$debugFlag
-              });
-            });
-          </script>
-        """.trimIndent()
-    }
-
-    private fun buildWidgetHTML(): String {
-        // Default: generic bundle that reads all config from element attributes.
-        // Override by setting widgetJsUrl for a publisher-specific pre-compiled bundle.
-        // partner.js loads its own Prebid build internally — do not inject a
-        // separate prebid <script> tag (causes double-load and breaks header bidding).
-        val widgetSrc = "https://widget.sellwild.com/partner.js"
-        val attrs = configAttributes()
-
-        val prebidPreConfig = prebidPreConfigScript()
-
-        return """<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; background: transparent; overflow-x: hidden; }
-  </style>
-  $prebidPreConfig
-</head>
-<body>
-  <sellwild-widget
-    $attrs
-  ></sellwild-widget>
-
-  <script>
-    (function() {
-      function send(type, payload) {
+    /**
+     * One message from the page, on the main thread. A message that cannot be used is
+     * reported (bridge.message.*); a host listener that throws is reported
+     * (widget.host_callback.exception) and does not reach the WebView.
+     */
+    private fun handleMessage(json: String) {
+        val message = WidgetBridge.decode(json).reported() ?: return
         try {
-          SellwildWidgetBridge.postMessage(JSON.stringify(Object.assign({ type: type }, payload || {})));
-        } catch(e) {}
-      }
-      // partner/index.tsx calls window.open() on listing tap — intercept ALL
-      // calls. Listings link to external sites (eBay, Amazon, dealer sites, etc.)
-      // so we can't filter by domain. The widget only uses window.open for listings.
-      var _open = window.open;
-      window.open = function(url) {
-        if (url) {
-          send('LISTING_CLICK', { url: url });
-          return null;
+            dispatch(message)
+        } catch (e: Exception) {
+            log(SellwildFailureCode.WIDGET_HOST_CALLBACK_EXCEPTION, SellwildFailureSeverity.WARN, error = e)
         }
-        return _open.apply(window, arguments);
-      };
-      document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(function() { send('WIDGET_LOADED'); }, 600);
-      });
-      window.addEventListener('error', function(e) {
-        send('ERROR', { message: e.message || 'Widget load error' });
-      });
-    })();
-  </script>
+    }
 
-  <script async src="$widgetSrc"></script>
-</body>
-</html>"""
+    /** Hands [message] to the host listener. */
+    private fun dispatch(message: BridgeMessage) = when (message) {
+        BridgeMessage.Loaded -> listener?.onWidgetLoaded(this)
+        is BridgeMessage.ListingClick -> listener?.onListingTapped(message.listing)
+        is BridgeMessage.AdImpression -> listener?.onAdImpression(this, message.zoneId)
+        is BridgeMessage.Error -> {
+            // The page's own window error: the widget is broken, whatever the listener does.
+            log(SellwildFailureCode.BRIDGE_SCRIPT_EXCEPTION, SellwildFailureSeverity.ERROR, message = message.message)
+            listener?.onError(this, message.message)
+        }
+    }
+
+    private fun log(code: String, severity: String, message: String? = null, error: Throwable? = null, httpStatus: Int? = null, url: String? = null) {
+        SellwildFailures.log(
+            code = code,
+            component = SellwildFailureComponent.WEBVIEW,
+            severity = severity,
+            error = error,
+            message = message,
+            httpStatus = httpStatus,
+            url = url,
+        )
     }
 }

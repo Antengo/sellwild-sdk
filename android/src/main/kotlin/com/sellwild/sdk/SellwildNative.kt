@@ -19,7 +19,7 @@
 
 package com.sellwild.sdk
 
-import org.json.JSONObject
+import com.sellwild.sdk.core.RemoteValues
 import com.sellwild.prebid.NativeAdUnit
 import com.sellwild.prebid.NativeTitleAsset
 import com.sellwild.prebid.NativeImageAsset
@@ -34,14 +34,9 @@ internal object SellwildNative {
      * the per-zone map decides. Mirrors [SellwildVideo.isEnabled].
      */
     fun isEnabled(remoteJson: String?, zoneId: String?): Boolean {
-        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
-        if (truthy(obj.optAny("NATIVE_ENABLED"))) return true
-        if (zoneId != null) {
-            obj.optJSONObject("NATIVE_ENABLED_BY_ZONE")?.let { byZone ->
-                if (byZone.has(zoneId) && !byZone.isNull(zoneId)) return truthy(byZone.get(zoneId))
-            }
-        }
-        return false
+        val obj = remoteObject(remoteJson) ?: return false
+        if (RemoteValues.isOn(RemoteValues.optAny(obj, "NATIVE_ENABLED"))) return true
+        return RemoteValues.isOn(RemoteValues.byZone(obj, "NATIVE_ENABLED_BY_ZONE", zoneId))
     }
 
     /**
@@ -52,14 +47,10 @@ internal object SellwildNative {
      * render-side backstop for bidders that return taller media than requested.
      */
     fun maxHeight(remoteJson: String?, zoneId: String?, fallback: Int): Int {
-        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return fallback
-        if (zoneId != null) {
-            obj.optJSONObject("NATIVE_MAX_HEIGHT_BY_ZONE")?.let { byZone ->
-                if (byZone.has(zoneId) && !byZone.isNull(zoneId)) numeric(byZone.get(zoneId))?.let { return it }
-            }
-        }
-        numeric(obj.optAny("NATIVE_MAX_HEIGHT"))?.let { return it }
-        return fallback
+        val obj = remoteObject(remoteJson) ?: return fallback
+        return positiveInt(RemoteValues.byZone(obj, "NATIVE_MAX_HEIGHT_BY_ZONE", zoneId))
+            ?: positiveInt(RemoteValues.optAny(obj, "NATIVE_MAX_HEIGHT"))
+            ?: fallback
     }
 
     /**
@@ -134,10 +125,10 @@ internal object SellwildNative {
      *   NATIVE_ZID_ANDROID -> NATIVE_ZID_ALL_ANDROID -> NATIVE_ZID -> <mobile zoneId>.
      */
     fun resolveConfigId(remoteJson: String?, zoneId: String): String {
-        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return zoneId
-        return firstNonEmpty(obj.optAny("NATIVE_ZID_ANDROID"))
-            ?: firstNonEmpty(obj.optAny("NATIVE_ZID_ALL_ANDROID"))
-            ?: firstNonEmpty(obj.optAny("NATIVE_ZID"))
+        val obj = remoteObject(remoteJson) ?: return zoneId
+        return firstNonEmpty(RemoteValues.optAny(obj, "NATIVE_ZID_ANDROID"))
+            ?: firstNonEmpty(RemoteValues.optAny(obj, "NATIVE_ZID_ALL_ANDROID"))
+            ?: firstNonEmpty(RemoteValues.optAny(obj, "NATIVE_ZID"))
             ?: zoneId
     }
 
@@ -149,20 +140,10 @@ internal object SellwildNative {
         else -> null
     }
 
-    private fun truthy(v: Any?): Boolean = when (v) {
-        is Boolean -> v
-        is Number -> v.toInt() != 0
-        is String -> v.lowercase() in setOf("1", "true", "yes", "on")
-        else -> false
-    }
-
     /** Coerce a remote value to a positive Int (numbers or numeric strings). */
-    private fun numeric(v: Any?): Int? = when (v) {
+    private fun positiveInt(v: Any?): Int? = when (v) {
         is Number -> v.toInt()
         is String -> v.trim().toDoubleOrNull()?.toInt()
         else -> null
     }?.takeIf { it > 0 }
-
-    private fun JSONObject.optAny(key: String): Any? =
-        if (has(key) && !isNull(key)) get(key) else null
 }

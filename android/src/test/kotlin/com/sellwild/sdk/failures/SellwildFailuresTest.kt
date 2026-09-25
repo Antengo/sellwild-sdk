@@ -74,6 +74,7 @@ class SellwildFailuresTest {
 
     @Test
     fun `the gate keeps its state between calls`() {
+        failures.expectRepeats()
         attached()
 
         repeat(3) { SellwildFailures.log(code = "config.fetch.http", component = "remoteConfig", message = "HTTP 403") }
@@ -115,6 +116,70 @@ class SellwildFailuresTest {
             ).joinToString("\n"),
             attributes["stack"],
         )
+    }
+
+    // Input cap (FAILURES.md 3.3 item 4): message and errMessage are cut to 1000 UTF-16
+    // units and the stack to 2000 before the pure core.
+
+    @Test
+    fun `the core sees at most 1000 units of message and of error message`() {
+        attached()
+        // 998 digits sanitize to "<n>", so whatever follows them would be sent.
+        val long = "1".repeat(998) + "ABCDEFG"
+
+        SellwildFailures.log(code = "listings.fetch.http", component = "listings", error = IllegalStateException(long), message = long)
+
+        val attributes = sink.pushed.single().attributes
+        assertEquals("<n>AB", attributes["msg"])
+        assertEquals("IllegalStateException", attributes["errName"])
+    }
+
+    @Test
+    fun `the cut is exact, and a surrogate pair it splits becomes U+FFFD`() {
+        attached()
+
+        SellwildFailures.log(code = "listings.fetch.http", component = "listings", message = "1".repeat(996) + "WXYZ")
+        SellwildFailures.log(code = "listings.fetch.http", component = "listings", message = "1".repeat(997) + "WXYZ")
+        SellwildFailures.log(code = "listings.fetch.http", component = "listings", message = "1".repeat(999) + "\uD83D\uDE00tail")
+
+        assertEquals(listOf("<n>WXYZ", "<n>WXY", "<n>\uFFFD"), sink.pushed.map { it.attributes["msg"] })
+    }
+
+    @Test
+    fun `the stack handed to the core is cut to exactly 2000 units`() {
+        attached()
+        // Each first frame's directory prefix sanitizes away, so the sent stack shows
+        // where the cut fell. A 2000-unit first frame is kept whole (a cut at 1999
+        // would lose its ")"); a 1999-unit first frame keeps its newline but not the
+        // second frame's first letter (a cut at 2001 would send "b" as a frame).
+        val exact = IOException("x").apply {
+            stackTrace = arrayOf(
+                StackTraceElement("x/".repeat(995), "m", "F.kt", 1),
+                StackTraceElement("b", "c", "G.kt", 2),
+            )
+        }
+        // Another message, so the dedupe window does not drop the second call.
+        val oneShort = IOException("y").apply {
+            stackTrace = arrayOf(
+                StackTraceElement("x/".repeat(994), "mm", "F.kt", 1),
+                StackTraceElement("b", "c", "G.kt", 2),
+            )
+        }
+        assertEquals(2000, SellwildFailures.stackOf(exact).indexOf('\n'))
+        assertEquals(1999, SellwildFailures.stackOf(oneShort).indexOf('\n'))
+
+        SellwildFailures.log(code = "listings.fetch.network", component = "listings", error = exact)
+        SellwildFailures.log(code = "listings.fetch.network", component = "listings", error = oneShort)
+
+        assertEquals(listOf(".m(F.kt:1)", ".mm(F.kt:1)"), sink.pushed.map { it.attributes["stack"] })
+    }
+
+    @Test
+    fun `capInput keeps short text and cuts long text to the first units`() {
+        assertNull(SellwildFailures.capInput(null, 3))
+        assertEquals("abc", SellwildFailures.capInput("abc", 3))
+        assertEquals("abc", SellwildFailures.capInput("abcdef", 3))
+        assertEquals("a\uD83D", SellwildFailures.capInput("a\uD83D\uDE00", 2))
     }
 
     @Test
@@ -199,6 +264,7 @@ class SellwildFailuresTest {
 
     @Test
     fun `the debug echo prints one line per call, only when debug is on`() {
+        failures.expectRepeats()
         attached()
         SellwildFailures.log(code = "config.fetch.http", component = "remoteConfig", message = "quiet")
         assertTrue(failures.lines.isEmpty())
@@ -314,6 +380,7 @@ class SellwildFailuresTest {
 
     @Test
     fun `held calls the gate drops are not sent`() {
+        failures.expectRepeats()
         repeat(2) { SellwildFailures.log(code = "config.fetch.http", component = "remoteConfig", message = "same") }
 
         SellwildFailures.bind(sink)

@@ -32,9 +32,19 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
+import android.util.Base64
 import android.util.LruCache
+import com.sellwild.sdk.core.HouseImages
+import com.sellwild.sdk.core.RemoteValues
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
+import com.sellwild.sdk.failures.SellwildFailures
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.net.URL
+import kotlin.random.Random
 
 internal object SellwildHouseAd {
 
@@ -46,16 +56,10 @@ internal object SellwildHouseAd {
      * `MOBILE_HOUSE_AD_ENABLED: false` in the CDN config to disable all backfill (image
      * and listing) and restore the plain-blank behavior.
      */
-    fun isEnabled(remoteJson: String?): Boolean {
-        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return true
-        val v = obj.optAny("MOBILE_HOUSE_AD_ENABLED") ?: return true
-        return when (v) {
-            is Boolean -> v
-            is Number -> v.toInt() != 0
-            is String -> v.lowercase() !in setOf("0", "false", "no", "off")
-            else -> true
-        }
-    }
+    fun isEnabled(remoteJson: String?): Boolean = isEnabled(remoteObject(remoteJson))
+
+    private fun isEnabled(obj: JSONObject?): Boolean =
+        RemoteValues.isNotOff(RemoteValues.optAny(obj, "MOBILE_HOUSE_AD_ENABLED"))
 
     /**
      * Resolve the house image creative for a placement, most specific first:
@@ -65,7 +69,7 @@ internal object SellwildHouseAd {
      *
      * The image field (top-level `MOBILE_HOUSE_AD_IMAGE` or the `image` inside a
      * by-zone / by-size object) accepts **either a single URL string or an array
-     * of URL strings**. For an array, one URL is chosen at random on each call —
+     * of URL strings**. For an array, one URL is chosen with [random] on each call —
      * i.e. each no-fill — so backfill rotates. The chosen image is lazily fetched
      * by [loadImage] and cached (memory + disk) per URL the first time selected.
      * The click URL (`MOBILE_HOUSE_AD_URL` / `url`) is paired the same way: a
@@ -75,108 +79,179 @@ internal object SellwildHouseAd {
      * Returns null when disabled or no image is configured (the caller then
      * falls back to a listing, or leaves the slot empty).
      */
-    fun resolve(remoteJson: String?, zoneId: String?, widthDp: Int, heightDp: Int): Creative? {
-        if (!isEnabled(remoteJson)) return null
-        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return null
-
-        if (zoneId != null) {
-            obj.optJSONObject("MOBILE_HOUSE_AD_BY_ZONE")?.optJSONObject(zoneId)?.let { creative(it)?.let { c -> return c } }
-        }
-        val sizeKey = "${widthDp}x${heightDp}"
-        obj.optJSONObject("MOBILE_HOUSE_AD_BY_SIZE")?.optJSONObject(sizeKey)?.let { creative(it)?.let { c -> return c } }
-
-        pickCreative(obj.opt("MOBILE_HOUSE_AD_IMAGE"), obj.opt("MOBILE_HOUSE_AD_URL"))?.let { return it }
-        return null
-    }
-
-    private fun creative(obj: JSONObject): Creative? =
-        pickCreative(obj.opt("image"), obj.opt("url"))
+    fun resolve(
+        remoteJson: String?,
+        zoneId: String?,
+        widthDp: Int,
+        heightDp: Int,
+        random: Random = Random.Default,
+    ): Creative? = candidates(remoteObject(remoteJson), zoneId, widthDp, heightDp).randomOrNull(random)
 
     /**
-     * Pick a house creative — an image and its paired click URL — from `image`
-     * and `url` values that are each either a single URL string or a JSON array
-     * of URL strings. One index is chosen at random per call (per no-fill), so an
-     * array of images rotates. The click URL pairs by the image's **original**
-     * index when `url` is an array (one per image); a single `url` string is
-     * shared across all images; a missing/blank paired entry yields no click.
-     * Returns null when there's no usable image.
+     * Every creative [resolve] picks from, pure: the first of BY_ZONE[zoneId],
+     * BY_SIZE["<w>x<h>"] and IMAGE/URL that has a usable image, in index order. Empty
+     * when disabled or when nothing is configured.
      */
-    private fun pickCreative(imageValue: Any?, urlValue: Any?): Creative? {
-        // Non-empty images with their original index for URL pairing.
-        val images: List<Pair<Int, String>> = when (imageValue) {
-            is org.json.JSONArray ->
-                (0 until imageValue.length()).mapNotNull { i ->
-                    nonEmpty(imageValue.optString(i))?.let { i to it }
-                }
-            is String -> nonEmpty(imageValue)?.let { listOf(0 to it) } ?: emptyList()
-            else -> emptyList()
-        }
-        val picked = images.randomOrNull() ?: return null
-        // Click URL: array → paired by the image's original index; string → shared.
-        val click: String? = when (urlValue) {
-            is org.json.JSONArray ->
-                if (picked.first < urlValue.length()) nonEmpty(urlValue.optString(picked.first)) else null
-            is String -> nonEmpty(urlValue)
-            else -> null
-        }
-        return Creative(picked.second, click)
+    internal fun candidates(obj: JSONObject?, zoneId: String?, widthDp: Int, heightDp: Int): List<Creative> {
+        if (obj == null || !isEnabled(obj)) return emptyList()
+        val byZone = zoneId?.let { obj.optJSONObject("MOBILE_HOUSE_AD_BY_ZONE")?.optJSONObject(it) }
+        val bySize = obj.optJSONObject("MOBILE_HOUSE_AD_BY_SIZE")?.optJSONObject("${widthDp}x$heightDp")
+        return listOfNotNull(byZone, bySize)
+            .map { creatives(it.opt("image"), it.opt("url")) }
+            .firstOrNull { it.isNotEmpty() }
+            ?: creatives(obj.opt("MOBILE_HOUSE_AD_IMAGE"), obj.opt("MOBILE_HOUSE_AD_URL"))
     }
 
-    private fun nonEmpty(s: String?): String? = s?.trim()?.takeIf { it.isNotEmpty() }
+    /**
+     * The creatives from `image` and `url` values that are each a single URL string or
+     * a JSON array of them. The click URL pairs by the image's **original** index when
+     * `url` is an array (one per image); a single `url` string is shared across all
+     * images; a missing/blank paired entry yields no click.
+     */
+    private fun creatives(imageValue: Any?, urlValue: Any?): List<Creative> {
+        // Non-empty images with their original index for URL pairing.
+        val images: List<Pair<Int, String>> = when (imageValue) {
+            is JSONArray -> (0 until imageValue.length()).mapNotNull { i -> nonEmpty(imageValue.optString(i))?.let { i to it } }
+            is String -> listOfNotNull(nonEmpty(imageValue)?.let { 0 to it })
+            else -> emptyList()
+        }
+        return images.map { (index, image) ->
+            val click = when (urlValue) {
+                is JSONArray -> if (index < urlValue.length()) nonEmpty(urlValue.optString(index)) else null
+                is String -> nonEmpty(urlValue)
+                else -> null
+            }
+            Creative(image, click)
+        }
+    }
+
+    private fun nonEmpty(s: String): String? {
+        val trimmed = s.trim()
+        return if (trimmed.isEmpty()) null else trimmed
+    }
 
     // ── Local image cache (memory + disk) ────────────────────────────────────
 
     private val memory = LruCache<String, Bitmap>(8)
 
-    private fun diskFile(context: Context, url: String): File {
-        val dir = File(context.cacheDir, "sellwild_house").apply { mkdirs() }
-        // Stable (launch-independent) filename: djb2 hashed to hex.
-        var hash = 5381L
-        for (b in url.toByteArray()) hash = hash * 33 + b
-        return File(dir, java.lang.Long.toHexString(hash))
+    private val newThread: (Runnable) -> Unit = { Thread(it).start() }
+    private val openStream: (URL) -> ByteArray = { url -> url.openStream().use { it.readBytes() } }
+    private val bitmapFactory: (ByteArray) -> Bitmap? = { bytes -> BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
+
+    /** Runs each image load off the main thread. Tests run it inline. */
+    @Volatile
+    internal var runner: (Runnable) -> Unit = newThread
+
+    /** Reads a remote image. Tests replace it to fail on purpose. */
+    @Volatile
+    internal var download: (URL) -> ByteArray = openStream
+
+    /** Decodes image bytes; null when they are not an image. Tests replace it. */
+    @Volatile
+    internal var decode: (ByteArray) -> Bitmap? = bitmapFactory
+
+    /** Restores the seams above and empties the memory cache. Tests only. */
+    internal fun resetForTests() {
+        runner = newThread
+        download = openStream
+        decode = bitmapFactory
+        memory.evictAll()
+    }
+
+    // Stable (launch-independent) filename: djb2 hashed to hex.
+    private fun diskFile(cacheDir: File, url: String): File {
+        val dir = File(cacheDir, "sellwild_house").apply { mkdirs() }
+        return File(dir, java.lang.Long.toHexString(HouseImages.djb2(url)))
     }
 
     /**
      * Load a house image: memory cache → disk cache → network (populating both).
-     * [callback] is always invoked on the main thread; null on failure.
+     * [callback] is always invoked on the main thread; null on failure, which is
+     * reported once (house.image.invalid, house.image.network, storage.write.exception).
      */
     fun loadImage(context: Context, url: String, callback: (Bitmap?) -> Unit) {
         memory.get(url)?.let { callback(it); return }
-        val appContext = context.applicationContext
+        val cacheDir = context.applicationContext.cacheDir
         val main = Handler(Looper.getMainLooper())
-        Thread {
-            val bitmap = runCatching {
-                // data: URI — listing photos from the static cache can be inline
-                // base64 (the feed's own cell decodes these too). Decode inline,
-                // size-capped; memory-cache only, no disk churn. Without this, a
-                // data: photo fails SellwildSafeUrl.imageUrl's http/https check
-                // below and the slot shows a grey placeholder.
-                if (url.startsWith("data:")) {
-                    val comma = url.indexOf(',')
-                    if (comma < 0) return@runCatching null
-                    val bytes = android.util.Base64.decode(url.substring(comma + 1), android.util.Base64.DEFAULT)
-                    if (bytes.size > SellwildSafeUrl.MAX_IMAGE_BYTES) return@runCatching null
-                    return@runCatching BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                }
-                val disk = diskFile(appContext, url)
-                if (disk.exists()) {
-                    BitmapFactory.decodeFile(disk.absolutePath)
-                } else {
-                    // http/https only (reject file:// — URL is remote config) + cap.
-                    val safe = SellwildSafeUrl.imageUrl(url) ?: return@runCatching null
-                    val bytes = safe.openStream().use { it.readBytes() }
-                    if (bytes.size > SellwildSafeUrl.MAX_IMAGE_BYTES) return@runCatching null
-                    disk.writeBytes(bytes)
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                }
-            }.getOrNull()
-            if (bitmap != null) memory.put(url, bitmap)
-            main.post { callback(bitmap) }
-        }.start()
+        runner(
+            Runnable {
+                val bitmap = load(cacheDir, url)
+                if (bitmap != null) memory.put(url, bitmap)
+                main.post { callback(bitmap) }
+            },
+        )
     }
 
-    private fun JSONObject.optAny(key: String): Any? =
-        if (has(key) && !isNull(key)) get(key) else null
+    /** One image by [HouseImages.source]; null (and reported) when it cannot be had. */
+    internal fun load(cacheDir: File, url: String): Bitmap? = when (val source = HouseImages.source(url)) {
+        is HouseImages.Source.Refused -> invalid(source.reason, url = source.url)
+        // data: URI — listing photos from the static cache can be inline base64 (the
+        // feed's own cell decodes these too). Decoded inline, size-capped; memory-cache
+        // only, no disk churn.
+        is HouseImages.Source.Inline -> decodeInline(source.base64)
+        is HouseImages.Source.Remote -> loadRemote(diskFile(cacheDir, url), url, source.url)
+    }
+
+    private fun decodeInline(base64: String): Bitmap? {
+        val bytes = try {
+            Base64.decode(base64, Base64.DEFAULT)
+        } catch (e: IllegalArgumentException) {
+            return invalid("data URI is not base64", error = e)
+        }
+        if (bytes.size > SellwildSafeUrl.MAX_IMAGE_BYTES) return invalid(TOO_LARGE)
+        return decodeOrReport(bytes, url = null)
+    }
+
+    private fun loadRemote(disk: File, key: String, url: URL): Bitmap? {
+        if (disk.exists()) {
+            val cached = runCatching { disk.readBytes() }.getOrElse { e -> return invalid("cached image could not be read", error = e) }
+            return decodeOrReport(cached, url = key)
+        }
+        val bytes = runCatching { download(url) }.getOrElse { e ->
+            SellwildFailures.log(
+                code = SellwildFailureCode.HOUSE_IMAGE_NETWORK,
+                component = SellwildFailureComponent.HOUSE,
+                severity = SellwildFailureSeverity.WARN,
+                error = e,
+                url = key,
+            )
+            return null
+        }
+        if (bytes.size > SellwildSafeUrl.MAX_IMAGE_BYTES) return invalid(TOO_LARGE, url = key)
+        // The disk copy saves the next download. Writing it failing drops the image, as
+        // it always has.
+        runCatching { disk.writeBytes(bytes) }.onFailure { e ->
+            SellwildFailures.log(
+                code = SellwildFailureCode.STORAGE_WRITE_EXCEPTION,
+                component = SellwildFailureComponent.HOUSE,
+                severity = SellwildFailureSeverity.WARN,
+                error = e,
+            )
+            return null
+        }
+        return decodeOrReport(bytes, url = key)
+    }
+
+    private fun decodeOrReport(bytes: ByteArray, url: String?): Bitmap? {
+        val bitmap = runCatching { decode(bytes) }.getOrElse { e -> return invalid(NOT_DECODED, url = url, error = e) }
+        return bitmap ?: invalid(NOT_DECODED, url = url)
+    }
+
+    // Reports house.image.invalid and gives the load's null result.
+    private fun invalid(message: String, url: String? = null, error: Throwable? = null): Bitmap? {
+        SellwildFailures.log(
+            code = SellwildFailureCode.HOUSE_IMAGE_INVALID,
+            component = SellwildFailureComponent.HOUSE,
+            severity = SellwildFailureSeverity.WARN,
+            error = error,
+            message = message,
+            url = url,
+        )
+        return null
+    }
+
+    private const val TOO_LARGE = "image over 8 MiB"
+    private const val NOT_DECODED = "image could not be decoded"
 
     // ── Listing fallback selection ───────────────────────────────────────────
 

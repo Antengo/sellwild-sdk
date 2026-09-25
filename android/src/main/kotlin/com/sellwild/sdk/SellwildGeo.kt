@@ -28,7 +28,9 @@ data class SellwildGeo(
 ) {
     /**
      * OpenRTB `device.geo` object built from the non-empty fields (maps [state]
-     * onto the ORTB `region` key). Returns null when nothing is set.
+     * onto the ORTB `region` key). Returns null when nothing is set. A [lat] or
+     * [lon] that is not finite (NaN, infinity) is left out: JSON has no such
+     * number, and org.json throws on it, which used to fail setGeo and bootstrap.
      */
     fun toOrtbGeo(): JSONObject? {
         val g = JSONObject()
@@ -37,8 +39,8 @@ data class SellwildGeo(
         city?.takeIf { it.isNotEmpty() }?.let { g.put("city", it) }
         zip?.takeIf { it.isNotEmpty() }?.let { g.put("zip", it) }
         metro?.takeIf { it.isNotEmpty() }?.let { g.put("metro", it) }
-        lat?.let { g.put("lat", it) }
-        lon?.let { g.put("lon", it) }
+        lat?.takeIf { it.isFinite() }?.let { g.put("lat", it) }
+        lon?.takeIf { it.isFinite() }?.let { g.put("lon", it) }
         type?.let { g.put("type", it) }
         return if (g.length() > 0) g else null
     }

@@ -1,5 +1,6 @@
 package com.sellwild.sdk.factories
 
+import com.sellwild.sdk.support.ContractSchemas
 import com.sellwild.sdk.support.FixtureLoader
 import org.json.JSONArray
 import org.json.JSONObject
@@ -35,12 +36,31 @@ abstract class JsonObjectFactory(final override val schema: String, private val 
     /** A fresh copy of the base file. */
     fun base(): JSONObject = FixtureLoader.jsonObject(basePath)
 
+    /** A fresh build of the [variants] or [invalid] entry named [name]. */
+    fun variant(name: String): JSONObject = (variants + invalid).single { it.name == name }.build() as JSONObject
+
     /**
      * The base with [overrides] applied at the top level. [JSONObject.NULL] sets JSON null;
      * a Kotlin null removes the key.
      */
     fun build(overrides: Map<String, Any?> = emptyMap()): JSONObject = base().apply {
         overrides.forEach { (key, value) -> if (value == null) remove(key) else put(key, value) }
+    }
+
+    /**
+     * [build] with [overrides], checked against the schema now: a payload a test shapes
+     * itself is still one the contract allows. Fails the test when it is not.
+     */
+    fun checked(overrides: Map<String, Any?> = emptyMap()): JSONObject =
+        build(overrides).also { ContractSchemas.assertValid(schema, it) }
+
+    /**
+     * [build] with [overrides] that must NOT match the schema: the off-contract input a
+     * robustness test feeds the SDK (JSON null where text belongs, a wrong type). Fails the
+     * test when the payload turns out to be valid, so it keeps testing what it says.
+     */
+    fun offSchema(overrides: Map<String, Any?>): JSONObject = build(overrides).also {
+        if (ContractSchemas.errors(schema, it).isEmpty()) throw AssertionError("$schema: expected an off-schema payload, got a valid one: $it")
     }
 }
 

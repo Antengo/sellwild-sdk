@@ -1,5 +1,9 @@
 package com.sellwild.sdk
 
+import com.sellwild.sdk.core.Issue
+import com.sellwild.sdk.core.RemoteValues
+import com.sellwild.sdk.core.Resolved
+import com.sellwild.sdk.failures.SellwildFailures
 import org.json.JSONObject
 
 /**
@@ -336,4 +340,104 @@ enum class AdSize(val width: Int, val height: Int) {
     WIDE_SKYSCRAPER_160x600(160, 600);
 
     val label: String get() = "${width}x${height}"
+}
+
+// ── Remote config shell ──────────────────────────────────────────────────────
+// Pure readers in core/ return what they could not use as issues; these two lines
+// are the impure half that reports them.
+
+/** Reports every issue through logFailure, once each, and returns the value. */
+internal fun <T> Resolved<T>.reported(): T {
+    issues.report()
+    return value
+}
+
+/** Reports each issue through logFailure. */
+internal fun List<Issue>.report() = forEach {
+    SellwildFailures.log(
+        code = it.code,
+        component = it.component,
+        severity = it.severity,
+        error = it.error,
+        message = it.message,
+        zoneId = it.zoneId,
+    )
+}
+
+/**
+ * The stored remote config ([SellwildConfig.remoteJson]) as an object for the resolvers
+ * that read raw CDN keys; null without one. Text that does not parse is reported as
+ * config.remote_values.parse once, not again on each read of the same text (see
+ * [reportedUnparsedRemoteJson]), and the resolver falls back to its defaults.
+ */
+internal fun remoteObject(remoteJson: String?): JSONObject? {
+    val parsed = RemoteValues.parse(remoteJson)
+    if (parsed.issues.isNotEmpty() && reportedUnparsedRemoteJson != remoteJson) {
+        reportedUnparsedRemoteJson = remoteJson
+        parsed.issues.report()
+    }
+    return parsed.value
+}
+
+/**
+ * The remote config text last reported as config.remote_values.parse. Every resolver reads
+ * the stored config, several of them on each ad load, so the same bad text would otherwise be
+ * reported on every read, not once (FAILURES.md 9). An app has one stored config, so the last
+ * text is enough; a different bad text is reported again.
+ */
+@Volatile
+private var reportedUnparsedRemoteJson: String? = null
+
+/**
+ * [reported], but each issue once per [source] text. The resolvers that read the stored
+ * remote config (ad stack, banner sizes, localized listings) run on every ad or feed load,
+ * several times each, and would otherwise report the same bad value on every read, not once
+ * (FAILURES.md 9). An issue is the same when its code and message are, as in the gate's dedupe
+ * key (FAILURES.md 5.6), which has no zone: the same bad value in a second zone is not
+ * reported again. A different [source] text, such as a refreshed remote config, is new, and
+ * its issues are reported again.
+ */
+internal fun <T> Resolved<T>.reportedOncePer(source: String?): T {
+    ReportedIssues.fresh(source, issues).report()
+    return value
+}
+
+/**
+ * The issues [reportedOncePer] reported, per source text. Only the [MAX_SOURCES] texts used
+ * last are kept: an app has one stored config, and a local localized-listings override is a
+ * second source, so a few cover every config an app switches between.
+ */
+private object ReportedIssues {
+    private const val MAX_SOURCES = 8
+
+    private val bySource = object : LinkedHashMap<String?, MutableSet<String>>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String?, MutableSet<String>>) = size > MAX_SOURCES
+    }
+
+    /** The [issues] not yet reported from [source]; they count as reported from now on. */
+    @Synchronized
+    fun fresh(source: String?, issues: List<Issue>): List<Issue> {
+        if (issues.isEmpty()) return issues
+        val seen = bySource.getOrPut(source) { HashSet() }
+        return issues.filter { seen.add("${it.code}|${it.message}") }
+    }
+
+    @Synchronized
+    fun clear() = bySource.clear()
+}
+
+/** Forgets which remote config text and issues were reported. Tests only (FailuresRule). */
+internal fun resetRemoteObjectReportsForTests() {
+    reportedUnparsedRemoteJson = null
+    ReportedIssues.clear()
+}
+
+/**
+ * An app that builds its [SellwildConfig] by hand never calls configure(), which is what sets
+ * the partner logFailure stamps on every failure (FAILURES.md 3.2). The first SDK entry that
+ * gets such a config sets it, unless one is set already.
+ */
+internal fun SellwildConfig.claimFailurePartner() {
+    if (partnerCode.isEmpty()) return
+    SellwildFailures.setContext { if (it.partnerCode.isNullOrEmpty()) it.copy(partnerCode = partnerCode) else it }
 }

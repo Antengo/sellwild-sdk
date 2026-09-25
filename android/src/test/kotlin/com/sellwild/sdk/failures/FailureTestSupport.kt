@@ -1,6 +1,7 @@
 package com.sellwild.sdk.failures
 
 import com.sellwild.sdk.SellwildEventQueue
+import com.sellwild.sdk.resetRemoteObjectReportsForTests
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.rules.ExternalResource
@@ -25,24 +26,69 @@ internal class FakeFailureSink(override val uid: String = VECTOR_UID) : FailureS
 }
 
 /**
- * Resets logFailure, its debug logger and the process-wide events queue around each test,
- * because all three are process singletons. [lines] collects everything [SellwildLog] prints.
+ * Resets logFailure, its debug logger, the process-wide events queue and the once-per-text
+ * memory of remote config issues (config.remote_values.parse, and what reportedOncePer
+ * reported) around each test, because all of them are process singletons. [lines] collects
+ * everything [SellwildLog] prints.
+ *
+ * It also enforces "log once" (FAILURES.md 9) on every test that uses it. A sink only sees
+ * what the gate lets through, and the gate folds a second identical call into the first
+ * (60 s dedupe), so a site that logs twice looks the same as one that logs once. The gate
+ * state does count it: after the test, no dedupe key may have been suppressed or emitted
+ * twice. A test that repeats a failure on purpose calls [expectRepeats].
  */
 class FailuresRule : ExternalResource() {
     val lines = CopyOnWriteArrayList<String>()
 
+    @Volatile
+    private var repeatsExpected = false
+
+    /** This test logs the same failure more than once on purpose (it tests the gate). */
+    fun expectRepeats() {
+        repeatsExpected = true
+    }
+
     override fun before() {
+        repeatsExpected = false
         reset()
         SellwildLog.printer = { lines += it }
     }
 
-    override fun after() = reset()
+    override fun after() {
+        try {
+            if (!repeatsExpected) assertNoRepeatedFailures()
+        } finally {
+            reset()
+        }
+    }
 
     private fun reset() {
         SellwildFailures.resetForTests()
         SellwildEventQueue.resetSharedForTests()
+        resetRemoteObjectReportsForTests()
     }
 }
+
+/**
+ * Fails when a failure reached the gate more than once since the last reset: a dedupe key
+ * that was suppressed, or emitted again after the window.
+ */
+internal fun assertNoRepeatedFailures() {
+    val repeated = SellwildFailures.gateState.keys.filter { it.suppressed > 0 || it.emits > 1 }
+    if (repeated.isNotEmpty()) {
+        throw AssertionError(
+            "a failure was logged more than once (FAILURES.md 9): " +
+                repeated.joinToString("; ") { "${it.key} emits=${it.emits} suppressed=${it.suppressed}" },
+        )
+    }
+}
+
+/**
+ * How many logFailure calls for [code] reached the gate since the last reset, counted before
+ * the dedupe: emitted plus suppressed, over every dedupe key of that code.
+ */
+internal fun gateCalls(code: String): Int =
+    SellwildFailures.gateState.keys.filter { it.key.startsWith("$code|") }.sumOf { it.emits + it.suppressed }
 
 /** org.json values as plain Kotlin: maps, lists, strings, booleans, Long or Double; JSON null is null. */
 internal fun plain(v: Any?): Any? = when (v) {

@@ -304,13 +304,31 @@ object SellwildFailures {
         component = component,
         severity = severity,
         errName = error?.let { it.javaClass.simpleName },
-        errMessage = error?.message,
-        message = message,
-        stack = error?.let(::stackOf),
+        errMessage = capInput(error?.message, MESSAGE_INPUT_MAX),
+        message = capInput(message, MESSAGE_INPUT_MAX),
+        stack = capInput(error?.let(::stackOf), STACK_INPUT_MAX),
         httpStatus = httpStatus,
         url = url,
         zoneId = zoneId,
     )
+
+    /**
+     * Input cap (FAILURES.md 3.3 item 4): the most UTF-16 units of message and error message
+     * handed to the pure core. Its sanitizer patterns backtrack superlinearly on long runs of
+     * letters and digits, and log must never block. Only 200 code points are ever sent, so
+     * the cut changes nothing but pathological input.
+     */
+    internal const val MESSAGE_INPUT_MAX = 1000
+
+    /** Input cap for the stack text (5 frames of at most 800 code points are ever sent). */
+    internal const val STACK_INPUT_MAX = 2000
+
+    /**
+     * The first [max] UTF-16 units of [text]. A surrogate pair the cut splits leaves a lone
+     * high surrogate, which the core's cleanText turns into U+FFFD, as on every platform.
+     */
+    internal fun capInput(text: String?, max: Int): String? =
+        if (text != null && text.length > max) text.substring(0, max) else text
 
     /**
      * The first frames of [error], one `Class.method(File.kt:line)` per line, with no

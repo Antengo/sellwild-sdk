@@ -1,5 +1,7 @@
 package com.sellwild.sdk
 
+import com.sellwild.sdk.factories.ClientFailureEventFactory
+import com.sellwild.sdk.factories.EventsBatchFactory
 import com.sellwild.sdk.failures.FailuresRule
 import com.sellwild.sdk.failures.FakeFailureSink
 import com.sellwild.sdk.failures.SellwildFailures
@@ -153,6 +155,22 @@ class SellwildEventQueueTest {
         assertFalse(nullPartner.has("label"))
     }
 
+    // A9 / FAILURES.md 6.1 item 4: the queue stamped its own partnerCode over the code
+    // logFailure set (cleaned and cut to 64), so the two could disagree.
+    @Test
+    fun `buildBatchJson keeps the code logFailure set on a clientFailure`() {
+        val failure = EventsBatchFactory.clientFailure(ClientFailureEventFactory.android(partnerCode = "weatherbug"))
+        val bare = failure.copy(attributes = failure.attributes!! - "code")
+
+        val body = buildBatchJson(listOf(failure, bare, EventsBatchFactory.adError()), "queue-partner", "9.9.9")
+
+        ContractSchemas.assertValid("events-batch", body)
+        val events = JSONArray(body)
+        assertEquals("weatherbug", events.getJSONObject(0).getJSONObject("attributes").getString("code"))
+        assertEquals("a clientFailure without a code still gets the partner", "queue-partner", events.getJSONObject(1).getJSONObject("attributes").getString("code"))
+        assertEquals("other events keep today's stamping", "queue-partner", events.getJSONObject(2).getJSONObject("attributes").getString("code"))
+    }
+
     @Test
     fun `transport never reports itself - failed POSTs are counted, not logged or printed`() {
         val sink = FakeFailureSink()
@@ -178,30 +196,43 @@ class SellwildEventQueueTest {
 
     @Test
     fun `the production sender POSTs JSON on a kept-alive socket and returns the status`() {
-        val (codes, requests) = HttpStub.install { url -> StubResponse(if (url.path == "/down") 503 else 200, "reply") }.use { stub ->
-            listOf(
-                HttpEventSender.post("https://stub.invalid/queue", """[{"event":"click"}]"""),
-                HttpEventSender.post("https://stub.invalid/down", "[]"),
-            ) to stub.requests
+        val body = EventsBatchFactory.android(EventsBatchFactory.adError()).toString()
+        val statuses = mapOf("/queue" to 200, "/down" to 503, "/early" to 199)
+        val (codes, requests, drained) = HttpStub.install { url -> StubResponse(statuses.getValue(url.path), "reply") }.use { stub ->
+            Triple(
+                listOf(
+                    HttpEventSender.post("https://stub.invalid/queue", body),
+                    HttpEventSender.post("https://stub.invalid/down", body),
+                    HttpEventSender.post("https://stub.invalid/early", body),
+                ),
+                stub.requests,
+                stub.drained.map { it.path },
+            )
         }
 
-        assertEquals(listOf(200, 503), codes)
+        assertEquals(listOf(200, 503, 199), codes)
+        // Reading the whole reply is what returns the socket to the keep-alive pool: the body
+        // on 2xx, the error body otherwise (a 1xx has neither).
+        assertEquals(listOf("/queue", "/down"), drained)
         val request = requests.first()
         assertEquals("POST", request.method)
         assertEquals("application/json", request.headers["Content-Type"])
         assertEquals("keep-alive", request.headers["Connection"])
-        assertEquals("""[{"event":"click"}]""", request.bodyText())
+        assertEquals(body, request.bodyText())
     }
 
     @Test
     fun `a failed batch is dropped, not retried`() {
         sender.status = 500
         queue.track("adError", label = "43")
+        sender.status = 199
+        queue.track("adError", label = "43")
+        assertEquals("a status below 200 is a failed POST too", 2, queue.failedPosts.get())
         sender.status = 200
 
         runBlocking { queue.flush() }
 
-        assertEquals(1, sender.posts.size)
-        assertEquals(1, queue.failedPosts.get())
+        assertEquals(2, sender.posts.size)
+        assertEquals(2, queue.failedPosts.get())
     }
 }

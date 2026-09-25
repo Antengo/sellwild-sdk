@@ -1,11 +1,13 @@
 package com.sellwild.sdk
 
 import com.sellwild.sdk.factories.AppConfigFactory
+import com.sellwild.sdk.factories.jsonArrayOf
 import com.sellwild.sdk.failures.FailuresRule
 import com.sellwild.sdk.failures.FakeFailureSink
 import com.sellwild.sdk.failures.SellwildFailureCode
 import com.sellwild.sdk.failures.SellwildFailures
 import com.sellwild.sdk.failures.SellwildLog
+import com.sellwild.sdk.failures.gateCalls
 import com.sellwild.sdk.support.FixtureLoader
 import com.sellwild.sdk.support.HttpStub
 import com.sellwild.sdk.support.NetworkBlockRule
@@ -69,7 +71,7 @@ class SellwildSDKConfigureTest {
 
     @Test
     fun `absent or JSON null flags leave the context unset`() {
-        val body = AppConfigFactory.build(mapOf("FAILURES_ENABLED" to JSONObject.NULL)).toString()
+        val body = AppConfigFactory.offSchema(mapOf("FAILURES_ENABLED" to JSONObject.NULL)).toString()
 
         configure(StubResponse(200, body)) { it.copy(debug = true) }
 
@@ -100,8 +102,51 @@ class SellwildSDKConfigureTest {
     }
 
     @Test
+    fun `values apply had to drop or coerce are logged once, naming the keys`() {
+        val body = AppConfigFactory.offSchema(mapOf("MOBILE_BANNER_ZID" to jsonArrayOf(), "AD_REFRESH_MAX" to "five")).toString()
+
+        val config = configure(StubResponse(200, body))
+
+        assertNull(config.mobileBannerZid)
+        assertEquals(0, config.adRefreshMax)
+        val event = sink.pushed.single()
+        assertEquals(SellwildFailureCode.CONFIG_FIELD_INVALID, event.action)
+        assertEquals("remoteConfig", event.label)
+        assertEquals("warn", event.attributes["severity"])
+        assertEquals("ignored or coerced: MOBILE_BANNER_ZID, AD_REFRESH_MAX", event.attributes["msg"])
+        assertEquals("the partner configure() was called with", "weatherbug", event.attributes["code"])
+        assertEquals("logFailure calls, counted before the gate", 1, gateCalls(SellwildFailureCode.CONFIG_FIELD_INVALID))
+        assertEquals("the fetched config's partner, for every later failure", "minimal", SellwildFailures.context.partnerCode)
+    }
+
+    @Test
+    fun `a config that turns failures or events off, or samples at 0, sends no report about its own fields`() {
+        val killSwitches = listOf(
+            mapOf("FAILURES_ENABLED" to false),
+            mapOf("EVENTS_ENABLED" to false),
+            mapOf("FAILURES_SAMPLE_RATE" to 0),
+        )
+
+        killSwitches.forEach { flags ->
+            configure(StubResponse(200, AppConfigFactory.offSchema(flags + ("MOBILE_BANNER_ZID" to jsonArrayOf())).toString()))
+        }
+
+        // Core's configure() does the same (core/src/config.ts applyRuntimeFlags): the flags
+        // first, then the config's issues (FAILURES.md 10.1: off drops every clientFailure).
+        assertEquals(emptyList<String>(), sink.pushed.map { it.action })
+    }
+
+    @Test
+    fun `a status below 200 is not a config either`() {
+        val config = configure(StubResponse(199, AppConfigFactory.checked().toString()))
+
+        assertNull(config.remoteJson)
+        assertEquals("199", sink.pushed.single().attributes["httpStatus"])
+    }
+
+    @Test
     fun `a body that is not JSON is logged as config fetch parse`() {
-        val config = configure(StubResponse(200, "<html>maintenance</html>"))
+        val config = configure(StubResponse(200, FixtureLoader.text("samples/app-config/weatherbug_weatherbug-main.403.xml")))
 
         assertNull(config.remoteJson)
         val event = sink.pushed.single()
@@ -156,6 +201,11 @@ class SellwildSDKConfigureTest {
         assertEquals(SellwildFailureCode.CONFIG_FETCH_PARSE, SellwildSDK.configFailureCode(JSONException("x")))
         assertEquals(SellwildFailureCode.CONFIG_FETCH_NETWORK, SellwildSDK.configFailureCode(IOException("reset")))
         assertEquals(SellwildFailureCode.CONFIG_FETCH_NETWORK, SellwildSDK.configFailureCode(SecurityException("INTERNET")))
+        assertEquals(
+            "past the network, what throws is applying the config",
+            SellwildFailureCode.CONFIG_APPLY_EXCEPTION,
+            SellwildSDK.configFailureCode(ClassCastException("x")),
+        )
     }
 
     @Test

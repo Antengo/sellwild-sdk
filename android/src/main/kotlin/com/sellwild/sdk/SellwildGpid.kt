@@ -30,7 +30,7 @@ object SellwildGpid {
      *   3. null — send nothing (no gpid/pbadslot on the imp).
      */
     fun resolveBase(remoteJson: String?, zoneId: String?): String? {
-        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return null
+        val obj = remoteObject(remoteJson) ?: return null
 
         if (zoneId != null) {
             val byZone = obj.optJSONObject("GPID_BASE_BY_ZONE")

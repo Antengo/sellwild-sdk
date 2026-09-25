@@ -2,6 +2,9 @@ package com.sellwild.sdk
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.sellwild.sdk.core.Fetch
+import com.sellwild.sdk.core.ListingsParser
+import com.sellwild.sdk.failures.FailuresCore
 import com.sellwild.sdk.failures.SellwildFailureCode
 import com.sellwild.sdk.failures.SellwildFailureComponent
 import com.sellwild.sdk.failures.SellwildFailureSeverity
@@ -109,178 +112,169 @@ data class SellwildListingsResponse(
 
 // MARK: - API Client
 
-class SellwildAPIClient(private val context: Context) {
+/**
+ * Fetches the listings cache and the per-state localized caches.
+ *
+ * @param dispatcher where the fetches run: [Dispatchers.IO]; tests inject their own.
+ * @param setGeo applies the geo a listings response seeds ([SellwildPrebidMobile.setGeo]).
+ */
+class SellwildAPIClient internal constructor(
+    private val context: Context,
+    private val dispatcher: CoroutineDispatcher,
+    private val setGeo: (SellwildGeo) -> Unit,
+) {
+
+    constructor(context: Context) : this(context, Dispatchers.IO, SellwildPrebidMobile::setGeo)
 
     private val listingCache = java.util.concurrent.ConcurrentHashMap<String, SellwildListingsResponse>()
 
     /**
      * A feed-only app never builds an ad view or calls prewarm, so this client may be
      * the first Context the SDK sees: attach logFailure here, so failures held since
-     * configure() (and this client's own) go out. Runs on the IO dispatcher because
+     * configure() (and this client's own) go out. Runs on [dispatcher] (IO) because
      * attaching reads the queue uid from SharedPreferences. Idempotent, never throws.
      */
     private fun attachFailures() = SellwildFailures.attach(context)
 
+    /**
+     * GETs and parses the listings cache ([SellwildConfig.effectiveListingsUrl]), cached per
+     * URL for this client. A failure is reported once here, as listings.url.invalid or
+     * listings.fetch.*, and returned: callers show it and must not report it again.
+     */
     suspend fun fetchListings(config: SellwildConfig): Result<SellwildListingsResponse> =
-        withContext(Dispatchers.IO) {
+        withContext(dispatcher) {
+            config.claimFailurePartner()
             attachFailures()
-            runCatching {
-                val listingsUrl = config.effectiveListingsUrl
-                listingCache[listingsUrl]?.let { return@withContext Result.success(it) }
+            val listingsUrl = config.effectiveListingsUrl
+            listingCache[listingsUrl]?.let { return@withContext Result.success(it) }
 
-                val connection = URL(listingsUrl).openConnection() as HttpURLConnection
-                connection.requestMethod = "GET"
-                connection.connectTimeout = 10_000
-                connection.readTimeout = 15_000
-
-                val responseCode = connection.responseCode
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    throw SellwildException("HTTP $responseCode from $listingsUrl")
-                }
-
-                // Seed the geo state from CloudFront's viewer-country-region
-                // header when the partner hasn't supplied one, so the
-                // localized-listings path can key a per-state cache. Mirrors the
-                // web widget's appendViewerHeaders seeding userLocation.state.
-                seedGeoFromCloudFrontIfEmpty(
-                    connection.getHeaderField("CloudFront-Viewer-Country-Region"),
-                    connection.getHeaderField("CloudFront-Viewer-Country"),
-                )
-
-                val body = connection.inputStream.bufferedReader().readText()
-                val response = parseListingsResponse(body)
-                listingCache[listingsUrl] = response
-                response
+            val url = Fetch.httpUrl(listingsUrl).getOrElse { e ->
+                logListings(SellwildFailureCode.LISTINGS_URL_INVALID, error = e)
+                return@withContext Result.failure(e)
             }
+            val reply = runCatching { get(url, accept = null) }.getOrElse { e ->
+                logListings(Fetch.codeFor(e, Fetch.LISTINGS), error = e, url = listingsUrl)
+                return@withContext Result.failure(e)
+            }
+            if (reply.status != HttpURLConnection.HTTP_OK) {
+                logListings(
+                    SellwildFailureCode.LISTINGS_FETCH_HTTP,
+                    message = "HTTP ${reply.status}",
+                    httpStatus = reply.status,
+                    url = listingsUrl,
+                )
+                return@withContext Result.failure(SellwildException("HTTP ${reply.status} from $listingsUrl"))
+            }
+
+            // Seed the geo state from CloudFront's viewer-country-region header when the
+            // partner hasn't supplied one, so the localized-listings path can key a
+            // per-state cache. Mirrors the web widget's appendViewerHeaders seeding
+            // userLocation.state. setGeo persists AND re-emits, so device.geo reaches the
+            // auction (applyGlobalOrtb runs only at bootstrap and on setGeo). A seed that
+            // throws (the Prebid fork refusing the global ORTB config) is reported and costs
+            // only the geo: the listings still load.
+            Fetch.seededGeo(SellwildGeoStore.current, reply.region, reply.country)?.let { geo ->
+                runCatching { setGeo(geo) }.onFailure { e ->
+                    SellwildFailures.log(
+                        code = SellwildFailureCode.GEO_SEED_EXCEPTION,
+                        component = SellwildFailureComponent.GEO,
+                        severity = SellwildFailureSeverity.WARN,
+                        error = e,
+                    )
+                }
+            }
+
+            runCatching { ListingsParser.parse(reply.body) }
+                .onSuccess { listingCache[listingsUrl] = it }
+                .onFailure { e -> logListings(Fetch.codeFor(e, Fetch.LISTINGS), error = e, url = listingsUrl) }
         }
 
     /**
      * GET a state-keyed secondary listings cache and reuse the primary listing
      * parser. The payload shape is identical to the primary feed (`result.rs`),
-     * so the same parser applies. A non-200 (e.g. a 404 for a state with no
-     * data) resolves to [Result.failure] — the caller treats that as a skip and
-     * renders the primary feed unchanged.
+     * so the same parser applies. A non-200 resolves to [Result.failure]; the caller
+     * treats that as a skip and renders the primary feed unchanged. A 403 or 404 (a
+     * state with no cache) is that normal skip; any other failure is reported once
+     * here as localized.url.invalid or localized.fetch.*.
      */
     suspend fun fetchCacheListings(url: String): Result<List<SellwildListing>> =
-        withContext(Dispatchers.IO) {
+        withContext(dispatcher) {
             attachFailures()
-            runCatching {
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.requestMethod = "GET"
-                connection.connectTimeout = 10_000
-                connection.readTimeout = 15_000
-                connection.setRequestProperty("Accept", "application/json")
-
-                val responseCode = connection.responseCode
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    throw SellwildException("HTTP $responseCode from $url")
-                }
-
-                val body = connection.inputStream.bufferedReader().readText()
-                parseListingsResponse(body).listings
+            val target = Fetch.httpUrl(url).getOrElse { e ->
+                logLocalized(SellwildFailureCode.LOCALIZED_URL_INVALID, error = e)
+                return@withContext Result.failure(e)
             }
+            val reply = runCatching { get(target, accept = "application/json") }.getOrElse { e ->
+                logLocalized(Fetch.codeFor(e, Fetch.LOCALIZED), error = e, url = url)
+                return@withContext Result.failure(e)
+            }
+            if (reply.status != HttpURLConnection.HTTP_OK) {
+                if (!Fetch.isMissingStateCache(reply.status)) {
+                    logLocalized(
+                        SellwildFailureCode.LOCALIZED_FETCH_HTTP,
+                        message = "HTTP ${reply.status}",
+                        httpStatus = reply.status,
+                        url = url,
+                    )
+                }
+                return@withContext Result.failure(SellwildException("HTTP ${reply.status} from $url"))
+            }
+            runCatching { ListingsParser.parse(reply.body).listings }
+                .onFailure { e -> logLocalized(Fetch.codeFor(e, Fetch.LOCALIZED), error = e, url = url) }
         }
-
-    /**
-     * Seed [SellwildGeoStore] region + country from the CloudFront viewer
-     * headers when not already set, then re-emit so `device.geo` reaches the
-     * auction. `applyGlobalOrtb()` runs only at bootstrap + [SellwildPrebidMobile.setGeo]
-     * (not per-auction), so a bare store write would never make it into a
-     * request — setGeo persists AND re-emits. Never overwrites a partner-supplied
-     * or previously-seeded value. Country is restricted to a North America
-     * alpha-2 → alpha-3 map (oRTB wants alpha-3); anything outside NA is skipped.
-     */
-    private fun seedGeoFromCloudFrontIfEmpty(region: String?, countryAlpha2: String?) {
-        var geo = SellwildGeoStore.current ?: SellwildGeo()
-        var changed = false
-
-        val r = region?.trim()?.takeIf { it.isNotEmpty() }
-        if (geo.state.isNullOrEmpty() && r != null) {
-            geo = geo.copy(state = r)
-            changed = true
-        }
-
-        val alpha3 = countryAlpha2?.trim()?.takeIf { it.isNotEmpty() }
-            ?.let { SellwildGeo.northAmericaAlpha3(it) }
-        if (geo.country.isNullOrEmpty() && alpha3 != null) {
-            geo = geo.copy(country = alpha3)
-            changed = true
-        }
-
-        if (!changed) return
-        SellwildPrebidMobile.setGeo(geo)
-    }
 
     fun clearCache() = listingCache.clear()
 
-    private fun parseListingsResponse(json: String): SellwildListingsResponse {
-        val root = JSONObject(json)
-        val result = root.optJSONObject("result") ?: root
-        val rs = result.optJSONArray("rs") ?: JSONArray()
-        val config = result.optJSONObject("config")?.toMap() ?: emptyMap()
-        val versionId = result.optString("widgetCacheVersionId").ifEmpty { null }
+    /** One GET: the status, and for a 200 the body and CloudFront's viewer geo headers. */
+    private class Reply(val status: Int, val body: String = "", val region: String? = null, val country: String? = null)
 
-        val listings = (0 until rs.length()).map { i ->
-            parseListing(rs.getJSONObject(i))
-        }
-
-        return SellwildListingsResponse(listings, config, versionId)
-    }
-
-    private fun parseListing(json: JSONObject): SellwildListing {
-        val photosArray = json.optJSONArray("photos") ?: JSONArray()
-        val photos = (0 until photosArray.length()).map { i ->
-            val p = photosArray.getJSONObject(i)
-            SellwildPhoto(
-                url = p.optString("url"),
-                thumbUrl = p.optString("thumbUrl"),
-                background = p.optString("background").ifEmpty { null },
-            )
-        }
-
-        val userJson = json.optJSONObject("user")
-        val user = userJson?.let {
-            SellwildUser(
-                id = it.optString("id"),
-                firstName = it.optString("firstName"),
-                lastName = it.optString("lastName"),
-                username = it.optString("username"),
-                membershipType = it.optString("membershipType"),
-                trustLevel = it.optString("trustLevel"),
-            )
-        }
-
-        return SellwildListing(
-            id = json.optString("id"),
-            status = json.optString("status"),
-            title = json.optString("title"),
-            text = json.optString("text").ifEmpty { null },
-            url = json.optString("url").ifEmpty { null },
-            categoryId = json.optString("categoryId").ifEmpty { null },
-            currency = json.optString("currency").ifEmpty { null },
-            price = json.optString("price").ifEmpty { null },
-            strikePrice = json.optString("strikePrice").ifEmpty { null },
-            hasPhoto = json.optBoolean("has_photo"),
-            photos = photos,
-            createdDate = json.optString("createdDate").ifEmpty { null },
-            shippable = json.optString("shippable").ifEmpty { null },
-            dataSourceId = json.optString("dataSourceId").ifEmpty { null },
-            user = user,
-            remoteUrl = json.optTextOrNull("remote_url"),
+    private fun get(url: URL, accept: String?): Reply {
+        val connection = url.openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 10_000
+        connection.readTimeout = 15_000
+        accept?.let { connection.setRequestProperty("Accept", it) }
+        val status = connection.responseCode
+        if (status != HttpURLConnection.HTTP_OK) return Reply(status)
+        return Reply(
+            status = status,
+            region = connection.getHeaderField("CloudFront-Viewer-Country-Region"),
+            country = connection.getHeaderField("CloudFront-Viewer-Country"),
+            body = connection.inputStream.use { String(it.readBytes(), Charsets.UTF_8) },
         )
     }
 
-    // The cache sends `"remote_url": null` on some items, and a device's org.json
-    // returns the text "null" from optString for JSON null (the JVM org.json used by
-    // plain unit tests returns ""), which tapUrl would then open as a URL.
-    private fun JSONObject.optTextOrNull(key: String): String? =
-        if (isNull(key)) null else optString(key).ifEmpty { null }
+    private fun logListings(
+        code: String,
+        error: Throwable? = null,
+        message: String? = null,
+        httpStatus: Int? = null,
+        url: String? = null,
+    ) = SellwildFailures.log(
+        code = code,
+        component = SellwildFailureComponent.LISTINGS,
+        severity = SellwildFailureSeverity.ERROR,
+        error = error,
+        message = message,
+        httpStatus = httpStatus,
+        url = url,
+    )
 
-    private fun JSONObject.toMap(): Map<String, Any> {
-        val map = mutableMapOf<String, Any>()
-        keys().forEach { key -> map[key] = get(key) }
-        return map
-    }
+    private fun logLocalized(
+        code: String,
+        error: Throwable? = null,
+        message: String? = null,
+        httpStatus: Int? = null,
+        url: String? = null,
+    ) = SellwildFailures.log(
+        code = code,
+        component = SellwildFailureComponent.LOCALIZED,
+        severity = SellwildFailureSeverity.WARN,
+        error = error,
+        message = message,
+        httpStatus = httpStatus,
+        url = url,
+    )
 }
 
 // MARK: - Event Analytics
@@ -342,7 +336,7 @@ internal object HttpEventSender : SellwildEventSender {
  * for the ios/android discriminator (the events view does
  * JSON_EXTRACT(attributes,'type') → the `type` column); `sdkVersion` rides along
  * for an installed-base census. Caller-supplied keys are preserved, except that
- * these three are stamped over them.
+ * these three are stamped over them. A clientFailure keeps the `code` logFailure set.
  */
 internal fun buildBatchJson(batch: List<SellwildEvent>, partnerCode: String?, sdkVersion: String): String =
     JSONArray().apply {
@@ -359,7 +353,10 @@ internal fun buildBatchJson(batch: List<SellwildEvent>, partnerCode: String?, sd
                         e.attributes?.forEach { (k, v) -> put(k, v) }
                         put("type", "android")
                         put("sdkVersion", sdkVersion)
-                        partnerCode?.takeIf { it.isNotEmpty() }?.let { put("code", it) }
+                        // logFailure sets a clientFailure's code itself, cleaned and cut to 64:
+                        // never stamp over it (FAILURES.md 6.1 item 4).
+                        val ownCode = e.event == FailuresCore.EVENT_NAME && has("code")
+                        if (!ownCode) partnerCode?.takeIf { it.isNotEmpty() }?.let { put("code", it) }
                     },
                 )
             })
@@ -486,20 +483,28 @@ class SellwildEventQueue internal constructor(
          * attaches logFailure, which sends through this queue from then on.
          */
         fun shared(context: Context): SellwildEventQueue {
-            instance?.let { return it }
-            val created = synchronized(this) {
-                instance?.let { return it }
-                SellwildEventQueue(context.applicationContext).also { instance = it }
+            val (queue, created) = synchronized(this) {
+                val existing = instance
+                if (existing != null) {
+                    existing to false
+                } else {
+                    SellwildEventQueue(context.applicationContext).also { instance = it } to true
+                }
             }
             // Outside the lock: attaching may send failures held before any Context
             // existed (configure() has none), and sending calls uid, which reads prefs.
-            SellwildFailures.attachQueue(created)
-            return created
+            if (created) SellwildFailures.attachQueue(queue)
+            return queue
         }
 
         /** Forgets the process-wide queue. Tests only. */
         internal fun resetSharedForTests() {
             instance = null
+        }
+
+        /** Makes [queue] the process-wide queue, so a test sees what the SDK sends. Tests only. */
+        internal fun setSharedForTests(queue: SellwildEventQueue) {
+            instance = queue
         }
 
         private fun prefsUid(prefs: SharedPreferences): () -> String = {
@@ -516,29 +521,17 @@ class SellwildEventQueue internal constructor(
  * Resolves the analytics kill switch from remote config. Events are enabled
  * unless the CMS explicitly disables them (EVENTS_ENABLED = false / "false" /
  * 0). An absent key leaves events ON so analytics are never silently dropped.
- * Remote JSON that does not parse also leaves them on, and is reported.
+ * Remote JSON that does not parse also leaves them on, and is reported
+ * (config.remote_values.parse).
  */
 object SellwildEvents {
-    fun isEnabled(remoteJson: String?): Boolean {
-        val obj = remoteJson?.let { json ->
-            runCatching { JSONObject(json) }.getOrElse { e ->
-                SellwildFailures.log(
-                    code = SellwildFailureCode.CONFIG_REMOTE_VALUES_PARSE,
-                    component = SellwildFailureComponent.REMOTE_CONFIG,
-                    severity = SellwildFailureSeverity.WARN,
-                    error = e,
-                )
-                null
-            }
-        } ?: return true
-        if (!obj.has("EVENTS_ENABLED")) return true
-        return when (val v = obj.opt("EVENTS_ENABLED")) {
-            is Boolean -> v
-            is Number -> v.toInt() != 0
-            is String -> v.trim().lowercase() !in setOf("false", "0", "no", "off")
-            else -> true
-        }
-    }
+    /**
+     * FailuresCore.coerceFlag of EVENTS_ENABLED, the coercion FAILURES.md 5.3 gives both
+     * kill switches: a boolean as is, a number when it is not 0, text unless it is
+     * false/0/no/off after ASCII trim and lower case, anything else (and no config) on.
+     */
+    fun isEnabled(remoteJson: String?): Boolean =
+        FailuresCore.coerceFlag(remoteObject(remoteJson)?.opt("EVENTS_ENABLED"))
 }
 
 // MARK: - Exceptions

@@ -32,10 +32,19 @@ import java.util.function.Function
  */
 class HttpStub private constructor(private val respond: (URL) -> StubResponse?) : AutoCloseable {
     private val sent = CopyOnWriteArrayList<CapturedRequest>()
-    private val opener = Function<URL, URLConnection?> { url -> respond(url)?.let { StubConnection(url, it, sent::add) } }
+    private val drainedUrls = CopyOnWriteArrayList<URL>()
+    private val opener = Function<URL, URLConnection?> { url ->
+        respond(url)?.let { StubConnection(url, it, sent::add, drainedUrls::add) }
+    }
 
     /** Requests sent so far, oldest first. A request is sent once it connects or its response is read. */
     val requests: List<CapturedRequest> get() = sent.toList()
+
+    /**
+     * URLs whose response body (the input or the error stream) was read to the end and then
+     * closed, oldest first: what returns an HttpURLConnection socket to the keep-alive pool.
+     */
+    val drained: List<URL> get() = drainedUrls.toList()
 
     /** Uninstalls the stub; later requests are blocked again. */
     override fun close() {
@@ -77,6 +86,7 @@ private class StubConnection(
     url: URL,
     private val response: StubResponse,
     private val onSend: (CapturedRequest) -> Unit,
+    private val onDrained: (URL) -> Unit,
 ) : HttpURLConnection(url) {
     private val output = ByteArrayOutputStream()
     private val body = response.body.toByteArray(Charsets.UTF_8)
@@ -112,11 +122,11 @@ private class StubConnection(
             if (response.status == 404 || response.status == 410) throw FileNotFoundException(url.toString())
             throw IOException("Server returned HTTP response code: ${response.status} for URL: $url")
         }
-        return ByteArrayInputStream(body)
+        return DrainTracking(body) { onDrained(url) }
     }
 
     override fun getErrorStream(): InputStream? =
-        if (connected && response.status >= 400) ByteArrayInputStream(body) else null
+        if (connected && response.status >= 400) DrainTracking(body) { onDrained(url) } else null
 
     override fun getHeaderField(name: String?): String? {
         connect()
@@ -126,5 +136,13 @@ private class StubConnection(
     override fun getHeaderFields(): Map<String?, List<String>> {
         connect()
         return response.headers.mapValues { listOf(it.value) }
+    }
+}
+
+/** A response body that reports, on close, whether it was read to the end. */
+private class DrainTracking(body: ByteArray, private val onDrained: () -> Unit) : ByteArrayInputStream(body) {
+    override fun close() {
+        if (available() == 0) onDrained()
+        super.close()
     }
 }

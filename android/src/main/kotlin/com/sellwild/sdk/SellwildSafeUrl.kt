@@ -1,6 +1,7 @@
 package com.sellwild.sdk
 
 import android.net.Uri
+import com.sellwild.sdk.core.Fetch
 
 /**
  * Scheme allow-list for every externally-opened URL in the SDK.
@@ -12,9 +13,13 @@ import android.net.Uri
  * whatever app handles it. Only `http`/`https` are ever opened.
  */
 internal object SellwildSafeUrl {
+    /**
+     * [url] as a Uri when it is http or https, else null. Uri.parse never throws for
+     * non-null text (it parses lazily). The caller reports a refused URL.
+     */
     fun external(url: String?): Uri? {
         if (url.isNullOrEmpty()) return null
-        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
+        val uri = Uri.parse(url)
         return when (uri.scheme?.lowercase()) {
             "http", "https" -> uri
             else -> null
@@ -31,7 +36,8 @@ internal object SellwildSafeUrl {
      */
     fun imageUrl(url: String?): java.net.URL? {
         if (url.isNullOrEmpty()) return null
-        val u = runCatching { java.net.URL(url) }.getOrNull() ?: return null
-        return if (u.protocol?.lowercase() in setOf("http", "https")) u else null
+        // Null for text that is not a URL or has another scheme: an expected outcome that
+        // the caller reports as a rejected image (house.image.invalid, feed.image.*).
+        return Fetch.httpUrl(url).getOrNull()
     }
 }

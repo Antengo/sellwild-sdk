@@ -47,6 +47,20 @@ class HttpStubTest {
     }
 
     @Test
+    fun `a body read to the end and closed counts as drained, and a partial or unclosed one does not`() {
+        HttpStub.install { url -> StubResponse(if (url.path == "/error") 503 else 200, "body") }.use { stub ->
+            fun open(path: String) = URL("https://stub.invalid$path").openConnection() as HttpURLConnection
+
+            open("/full").inputStream.use { it.readBytes() }
+            open("/error").let { it.responseCode; it.errorStream!!.use { s -> s.readBytes() } }
+            open("/partial").inputStream.use { it.read() }
+            open("/unclosed").inputStream.readBytes()
+
+            assertEquals(listOf(URL("https://stub.invalid/full"), URL("https://stub.invalid/error")), stub.drained)
+        }
+    }
+
+    @Test
     fun `a GET is sent when its response is read`() {
         HttpStub.install { StubResponse(body = "cfg") }.use { stub ->
             val conn = URL("https://stub.invalid/app.json").openConnection() as HttpURLConnection

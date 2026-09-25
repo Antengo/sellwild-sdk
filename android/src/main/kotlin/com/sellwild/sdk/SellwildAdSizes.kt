@@ -18,7 +18,14 @@
 
 package com.sellwild.sdk
 
+import com.sellwild.sdk.core.Issue
+import com.sellwild.sdk.core.RemoteValues
+import com.sellwild.sdk.core.Resolved
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import com.google.android.gms.ads.AdSize as GmaAdSize
 import com.google.android.gms.ads.admanager.AdManagerAdView
@@ -34,24 +41,35 @@ object SellwildAdSizes {
     /**
      * Ordered, de-duplicated size set for a placement: [primary] first, then any
      * remote `BANNER_SIZES` / `BANNER_SIZES_BY_ZONE` entries (per-zone overrides
-     * global). Returns `[primary]` when nothing is configured.
+     * global). Returns `[primary]` when nothing is configured. Entries that do not
+     * parse, or are not positive, are dropped and reported as config.banner_sizes.invalid,
+     * once per config text.
      */
-    fun resolve(remoteJson: String?, zoneId: String?, primary: Size): List<Size> {
-        val out = LinkedHashSet<Size>()
-        out.add(primary)
+    fun resolve(remoteJson: String?, zoneId: String?, primary: Size): List<Size> =
+        (listOf(primary) + remoteSizes(remoteObject(remoteJson), zoneId).reportedOncePer(remoteJson)).distinct()
 
-        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return out.toList()
-
-        val raw: Any? = run {
-            if (zoneId != null) {
-                obj.optJSONObject("BANNER_SIZES_BY_ZONE")?.let { byZone ->
-                    if (byZone.has(zoneId) && !byZone.isNull(zoneId)) return@run byZone.get(zoneId)
-                }
-            }
-            if (obj.has("BANNER_SIZES") && !obj.isNull("BANNER_SIZES")) obj.get("BANNER_SIZES") else null
-        }
-        parseList(raw).forEach { if (it.width > 0 && it.height > 0) out.add(it) }
-        return out.toList()
+    /**
+     * The remote sizes for [zoneId], pure: `BANNER_SIZES_BY_ZONE[zoneId]` when that map has
+     * the zone, else `BANNER_SIZES`. Only positive sizes, in order, duplicates removed.
+     */
+    internal fun remoteSizes(obj: JSONObject?, zoneId: String?): Resolved<List<Size>> {
+        val zoneValue = RemoteValues.byZone(obj, "BANNER_SIZES_BY_ZONE", zoneId)
+        // The zone is in the message: the message holds only counts, and an issue is
+        // reported once per code and message (reportedOncePer), so without it a second
+        // zone's different bad entry would never be reported.
+        val key = if (zoneValue != null) "BANNER_SIZES_BY_ZONE[$zoneId]" else "BANNER_SIZES"
+        val entries = parseList(zoneValue ?: RemoteValues.optAny(obj, "BANNER_SIZES"))
+        val sizes = entries.filterNotNull().filter { it.width > 0 && it.height > 0 }
+        val dropped = entries.size - sizes.size
+        if (dropped == 0) return Resolved(sizes.distinct())
+        val issue = Issue(
+            SellwildFailureCode.CONFIG_BANNER_SIZES_INVALID,
+            SellwildFailureComponent.REMOTE_CONFIG,
+            SellwildFailureSeverity.WARN,
+            message = "$key: dropped $dropped of ${entries.size} entries",
+            zoneId = zoneValue?.let { zoneId },
+        )
+        return Resolved(sizes.distinct(), listOf(issue))
     }
 
     /**
@@ -95,15 +113,29 @@ object SellwildAdSizes {
 
     // ── Parsing (pure) ────────────────────────────────────────────────────────
 
-    private fun parseList(raw: Any?): List<Size> = when (raw) {
-        is JSONArray -> (0 until raw.length()).mapNotNull { parseOne(raw.opt(it)) }
+    // One element per entry, null when it does not parse. '' (the CMS's unset value)
+    // and a missing value have no entries; a value of another type is one bad entry.
+    private fun parseList(raw: Any?): List<Size?> = when (raw) {
+        null, "" -> emptyList()
+        is JSONArray -> (0 until raw.length()).map { parseOne(raw.opt(it)) }
         is String -> {
-            val arr = runCatching { JSONArray(raw) }.getOrNull()
-            if (arr != null) (0 until arr.length()).mapNotNull { parseOne(arr.opt(it)) }
-            else listOfNotNull(parseOne(raw))
+            val arr = jsonArrayOrNull(raw)
+            if (arr != null) (0 until arr.length()).map { parseOne(arr.opt(it)) } else listOf(parseOne(raw))
         }
-        else -> emptyList()
+        else -> listOf(null)
     }
+
+    // A JSON list written as text; null when the text is one "WxH" size instead.
+    private fun jsonArrayOrNull(text: String): JSONArray? =
+        if (text.trimStart().startsWith("[")) {
+            try {
+                JSONArray(text)
+            } catch (e: JSONException) {
+                null // Not a list after all: parsed as one size, and dropped if it is not one.
+            }
+        } else {
+            null
+        }
 
     private fun parseOne(e: Any?): Size? = when (e) {
         is String -> {
