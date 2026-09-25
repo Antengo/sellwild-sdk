@@ -13,6 +13,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -415,7 +416,7 @@ open class SellwildFeedView @JvmOverloads constructor(
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
             return when (viewType) {
                 TYPE_HEADER -> HeaderHolder(HeaderView(parent.context))
-                TYPE_LISTING -> ListingHolder(ListingCardView(parent.context))
+                TYPE_LISTING -> ListingHolder(ListingCardView(parent.context, SellwildE2EIds.LISTING_CARD))
                 TYPE_GAM, TYPE_DIRECT -> AdHolder(AdRowView(parent.context, AdSize.MREC_300x250))
                 TYPE_BANNER -> AdHolder(AdRowView(parent.context, AdSize.BANNER_320x50))
                 else -> {
@@ -584,7 +585,8 @@ open class SellwildFeedView @JvmOverloads constructor(
     // Listing card (full-bleed photo, title, price, seller line)
     // -----------------------------------------------------------------
 
-    private class ListingCardView(context: Context) : LinearLayout(context) {
+    /** A listing card. [e2eId]: its resource-id for UI tests ([SellwildE2EIds]); none in an ad row. */
+    private class ListingCardView(context: Context, private val e2eId: String? = null) : LinearLayout(context) {
         private val photoView: ImageView
         private val titleView: TextView
         private val priceView: TextView
@@ -676,6 +678,11 @@ open class SellwildFeedView @JvmOverloads constructor(
             loadImage(listing.photos.firstOrNull()?.url)
         }
 
+        override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+            super.onInitializeAccessibilityNodeInfo(info)
+            SellwildE2EIds.apply(info, e2eId)
+        }
+
         private fun loadImage(url: String?) {
             imageJob?.cancel()
             photoView.setImageDrawable(null)
@@ -731,6 +738,11 @@ open class SellwildFeedView @JvmOverloads constructor(
                 fallbackCard,
                 LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
             )
+        }
+
+        override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+            super.onInitializeAccessibilityNodeInfo(info)
+            SellwildE2EIds.apply(info, SellwildE2EIds.FEED_AD)
         }
 
         private var priceColor = FeedTheme.PRICE
@@ -974,5 +986,27 @@ internal object FeedImages {
         fetch = streamDecoder
         decode = bytesDecoder
         memory.evictAll()
+    }
+}
+
+/**
+ * Element ids on the feed's rows, so UI tests (the sample apps' Maestro flows, a partner's
+ * UI Automator or Appium tests) can find them. They are listed in contracts/e2e/ids.json;
+ * never rename one.
+ *
+ * UI Automator reads a view's id from its accessibility node (resource-id). An Android
+ * resource name cannot hold a dot, so the row sets the node's id itself, as Compose's
+ * testTagsAsResourceId does. Screen readers do not read it.
+ */
+internal object SellwildE2EIds {
+    /** Each listing row of [SellwildFeedView]. */
+    const val LISTING_CARD = "sw.listing.card"
+
+    /** Each ad row of [SellwildFeedView]. */
+    const val FEED_AD = "sw.feed.ad"
+
+    /** Reports [id] as the resource-id of [info]. A null [id] leaves the node as it is. */
+    fun apply(info: AccessibilityNodeInfo, id: String?) {
+        if (id != null) info.viewIdResourceName = id
     }
 }
