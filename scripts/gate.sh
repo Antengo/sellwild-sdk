@@ -21,8 +21,9 @@
 # most; vitest runs at most 2 workers and Gradle 2 workers; the Gradle daemon
 # is stopped after the last Android step, and every simulator is shut down
 # after the iOS coverage step. swift-typecheck and rn-bridge-ios build without
-# a simulator. Each e2e step takes the native lock itself (scripts/e2e/run.sh)
-# and shuts its device down before it ends.
+# a simulator. The rn-bridge steps and each e2e step take the native lock
+# themselves (scripts/e2e/lib/lock.sh), and each e2e step shuts its device
+# down before it ends.
 
 set -euo pipefail
 

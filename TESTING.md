@@ -26,9 +26,11 @@ How it runs:
 3. One exception: after a failed type check, the coverage steps are skipped.
 4. Steps run one at a time, so there is never more than one native build. A
    Gradle or Xcode step first waits while another `xcodebuild` or Gradle build
-   runs on the machine (up to `GATE_NATIVE_WAIT` seconds, default 600). On a
-   machine shared by several agents, run the whole gate under the native lock
-   too.
+   runs on the machine (up to `GATE_NATIVE_WAIT` seconds, default 600). The
+   `rn-bridge-*` steps also take the native lock for their whole run (`pod
+   install` and `xcodebuild` on iOS). On a machine shared by several agents,
+   run the whole gate under the native lock too; the steps then see it and do
+   not take it again.
 5. vitest runs at most 2 workers and Gradle 2 workers. `JAVA_HOME` is set to a
    JDK 17.
 6. The Gradle steps run back to back on one daemon, then `gradlew --stop`
@@ -69,7 +71,7 @@ How it runs:
 | `kotlin-warnings` | Kotlin compiler-warnings ratchet (a full recompile) | 26s |
 | `sample-android-lint` | the SDK to mavenLocal, then detekt (the SDK's rules plus the sample's `detekt.yml`) and Android Lint (warnings are errors) on `samples/feed-demo-android` | 30s |
 | `rn-bridge-android` | `bash scripts/rn/compile-bridge-android.sh`: the SDK to mavenLocal, then the bridge's Kotlin inside `samples/demo-app`. The last Gradle step: it stops both Gradle versions | 22s (12s warm at load 2, 94s cold) |
-| `rn-bridge-ios` | `bash scripts/rn/compile-bridge-ios.sh`: `pod install` when stale, then `xcodebuild` of the `SellwildSDK-RN` pod target for the simulator. No app, no simulator | 29s after the webview pod left (4s warm, 87s cold) |
+| `rn-bridge-ios` | `bash scripts/rn/compile-bridge-ios.sh`: inside the native lock, `pod install` when stale, then `xcodebuild` of the `SellwildSDK-RN` pod target for the simulator. No app, no simulator | 29s after the webview pod left (4s warm, 87s cold) |
 | `core-coverage` | `npm --prefix core run coverage:summary` (core and RN) | 18s |
 | `ios-coverage` | `bash scripts/coverage/ios.sh` | 70s |
 | `swift-warnings` | Swift compiler-warnings ratchet, from the log `ios.sh` just wrote | 0.2s |

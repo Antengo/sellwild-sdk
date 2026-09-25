@@ -9,16 +9,20 @@
 # reads React Native's Gradle plugin from there), publish android/ to
 # mavenLocal, compile the bridge's Kotlin, stop Gradle. It builds no app.
 #
-# It takes no lock itself. On the agents' machine run it through the native
-# lock, or run the gate that calls it through the lock (one native build at
-# a time). Needs a JDK 17 (found when JAVA_HOME is not one) and the Android
-# SDK (ANDROID_HOME, default ~/Library/Android/sdk).
+# It runs inside the native lock (scripts/e2e/native-lock.sh, one native
+# build or booted device at a time): it takes the lock unless it is inside it
+# already (the gate run under it, or SELLWILD_E2E_LOCKED set by an outer
+# holder). See scripts/e2e/lib/lock.sh. Needs a JDK 17 (found when JAVA_HOME
+# is not one) and the Android SDK (ANDROID_HOME, default ~/Library/Android/sdk).
 #
 # Exit status: 0 when the bridge compiles, 1 otherwise.
 
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=../e2e/lib/lock.sh
+source "$ROOT/scripts/e2e/lib/lock.sh"
+native_lock_reexec rn-bridge-android "$ROOT/scripts/rn/compile-bridge-android.sh" "$@"
 # shellcheck source=../e2e/lib/rn.sh
 source "$ROOT/scripts/e2e/lib/rn.sh"
 
