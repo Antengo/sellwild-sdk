@@ -93,11 +93,6 @@
       "count": 2
     }
   },
-  "test/stubs/rn-globals.d.ts": {
-    "no-var": {
-      "count": 1
-    }
-  },
   "test/useSellwildListings.test.tsx": {
     "@typescript-eslint/require-await": {
       "count": 10

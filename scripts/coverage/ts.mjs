@@ -152,7 +152,8 @@ async function summarize(pkg, run) {
   // warnings: honesty checks that are reported but do not fail the script.
   const fatal = []
   const warnings = []
-  const commands = RUNS.map((r) => `cd ${pkgDir} && node_modules/.bin/vitest ${r.args.join(' ')}`)
+  // Repo-relative: the summary is committed, so no local paths.
+  const commands = RUNS.map((r) => `cd ${pkg.dir} && node_modules/.bin/vitest ${r.args.join(' ')}`)
 
   let tests = null
   let runs = null

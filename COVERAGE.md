@@ -14,6 +14,13 @@ origin/main (PRs #74-#81) removed the Flutter SDK (df551f7) and the SDK's WebVie
 
 The Flutter and widget entries in the appendix below are history.
 
+A second merge brought in #82 (37d432b), which makes the React Native tsc a hard CI gate. Where each of its changes lives now:
+
+1. `core/src/api.ts` getUid(): the events queue moved to `core/src/event-queue.ts` on this branch, so the guard moved with it. The queue's default randomUUID is `globalRandomUUID()`, which reads `crypto` off globalThis and throws when randomUUID is missing; `resolveUid()` then falls back. `core/test/event-queue.test.ts` covers it.
+2. `react-native/tsconfig.json`: lib ES2020 (from #82) with module esnext and moduleResolution bundler (this branch). `react-native/test/stubs/rn-globals.d.ts`, which declared a global `crypto` only for the old call, is gone.
+3. `react-native/src/SellwildBanner.tsx`: `style?: StyleProp<ViewStyle>`, as in #82.
+4. `.github/workflows/ci.yml` and `RELEASING.md`: exactly as origin has them.
+
 ## Coverage
 
 Gate = all runtime code minus the exclusions listed below. Each exclusion has a reason. Branches on iOS are llvm-cov regions, because Swift has no branch data.
@@ -76,13 +83,13 @@ bash scripts/coverage/ios.sh
 ## Open items (not done in this branch)
 
 1. The sample apps run on an iPhone simulator and an Android emulator in `bash scripts/gate.sh --e2e` (TESTING.md, "E2E"). The flows check each screen's elements, not ad fill.
-2. The React Native native bridge edits (react-native/ios, react-native/android) are not compiled here; they need an RN host app. The RN package also needs a native SDK release that includes SellwildFailures.
+2. The React Native native bridge (react-native/ios, react-native/android) is compiled inside the React Native sample by `scripts/rn/compile-bridge-ios.sh` and `scripts/rn/compile-bridge-android.sh` (gate `--full` steps `rn-bridge-ios` and `rn-bridge-android`), and runs in the sample's Release builds in the `rn-ios` and `rn-android` e2e runs. `node react-native/native-checks/run.mjs` runs the glue's own checks against React Native stand-ins; no gate step runs it. The RN package also needs a native SDK release that includes SellwildFailures.
 3. An independent code review of the SDK diff was not run.
 4. iOS views, verifier: Survivor R1: the per-stack once-a-launch latch for ad.zone.missing is untested. If it collapses to one latch, a later .prebidOnly or native zone-missing report (severity error) is silenced for the whole launch.
 5. iOS views, verifier: Survivor R3: 'once per token per launch' for feed.layout.invalid is untested. If the latch collapses to once per launch, a second different unknown COL1 token is never reported.
 6. iOS logic: its last fix round was not re-verified by a separate agent (all iOS tests pass).
 7. Android views: the Android 6.0 crash (Locale.getDefault(Locale.Category) is API 24+) was fixed by hand after the last verifier ran; not re-verified by an agent (tests pass).
-8. rn, test gap (accepted): Three failure sites in the native glue have no test that catches a regression. All three mutants survived (the rule says two or more uncaught mutants is major). There is also no test anywhere, in the repo or in scratch, that shows these codes fire exactly once: Android setExternalUserIds/toEids (bridge.eids.invalid and its catch), Android emit (bridge.event_emit.exception, both view managers), the Android onAfterUpdateTransaction fatal catch (bridge.config.invalid), the Android prewarm catch, the log-and-dedupe of bridge.props.invalid on both platforms, and the iOS view-manager bridge.config.exception log. The only harnesses that exist (r4/swift-rules/main.swift, r4/kt/jvmtest/GlueChecks.kt) live in /private/tmp scratch, not in the repo, so nothing will guard these sites after this session.
+8. rn, native glue: the checks for the glue's failure sites are in the repo under `react-native/native-checks/` (3bd1da4), run by `node react-native/native-checks/run.mjs`. `android/checks/GlueChecks.kt` runs the real Android glue and checks each code is sent once: setExternalUserIds (bridge.eids.invalid), emit (bridge.event_emit.exception, shared by both view managers through RnEvents), an unreadable config in banner, feed and prewarm (bridge.config.invalid), and bridge.props.invalid once per problem, again when it comes back. `ios/main.swift` checks the iOS rules the view managers call (ReportOnce for bridge.props.invalid, remoteJSON, text and list reads, eids, geo). Still open: no gate step runs these checks, and the iOS view managers' own bridge.config.exception log call is type-checked, not run.
 9. Semantic drift between platforms is recorded, not changed: contracts/expectations/drift/*.json. origin/main fixed three of the recorded drifts (text IAB_CATS, JS-literal S2S_CONFIG, Android bidder passthrough); their entries are gone.
 
 ## Appendix: behavior changes and bugs fixed, per unit
@@ -683,7 +690,7 @@ From each unit's report. Every change was made with a test written first.
 1. Fixed: [earlier round] A boolean price showed as '$1'.
 1. Fixed: [earlier round] Attribute values were not HTML-escaped, so a CMS LINK_TEXT with quotes cut off the tag.
 1. Fixed: [earlier round] The partner.js src was not escaped.
-1. Fixed: setGeo with a wrong-typed field (lat as text) threw UnexpectedNativeTypeException from RnGeo's getters inside a @ReactMethod, which crashed the host app. Red run: r4/kt/head-geo-repro.log. Fixed: type-checked parse, field dropped and reported, and a try/catch that clears geo.
+1. Fixed: setGeo with a wrong-typed field (lat as text) threw UnexpectedNativeTypeException from RnGeo's getters inside a @ReactMethod, which crashed the host app. Fixed: type-checked parse, field dropped and reported, and a try/catch that clears geo.
 1. Fixed: A prebidServer that was not an object, or an accountId/endpoint that was not text, threw and failed the whole banner or feed config. iOS used the default server and reported it. The feed also sent 2 reports for one bad config. Fixed: the problem goes to the caller, and one report is sent.
 1. Fixed: (round 3) The Android RN feed threw on a numeric zone id (getString), and core's default bannerZid 0 is a number. Fixed in JS (nativeZoneId) and in native (readText drops it and reports it).
 1. Fixed: (round 0) A size label that is not an AdSize threw a TypeError in render. Fixed via adDimensions() and an ad.size.invalid report.
@@ -739,7 +746,7 @@ From each unit's report. Every change was made with a test written first.
 1. `ios/Sources/SellwildSDK/Core/SellwildWidgetPage.swift`: The catch runs `window.__sellwildBridgeFailures = (window.__sellwildBridgeFailures || 0) + 1;` (SellwildWidgetPage.swift:243-248). The page partners load changes by that one statement. Nothing else in the script changed. SellwildWidgetPageTests.testPageLoadsTheWidgetBundleAndTheBridgeScript pins it.
 1. `ios/Sources/SellwildSDK/Core/SellwildImageLoad.swift`: A status outside 2xx is a failed download: nothing is shown or cached, and it is reported as feed.image.network (feed) or ad.native_image.network (native) with httpStatus. The 8 MB cap is unchanged. A cancelled download is still not reported.
 1. `ios/Sources/SellwildSDK/SellwildFeedView.swift`: A cell of the wrong type leaves the row blank and logs feed.cell.invalid (fatal) once per occurrence. SellwildFeedViewTests.testACellOfTheWrongTypeIsReportedAndLeftBlank pins it.
-1. `ios/Sources/SellwildSDK/Core/SellwildFormat.swift`: One shared SellwildFormat.price uses Int(exactly:). A whole price too large for an Int takes the decimal form ("$100000000000000000000.00"). Every other price formats as before. SellwildFeedLayoutTests.testAWholePriceTooLargeForAnIntIsNotACrash pins it. Repro: scratchpad/phase3/sdk-ios-views/repro-price.swift and repro-price.log.
+1. `ios/Sources/SellwildSDK/Core/SellwildFormat.swift`: One shared SellwildFormat.price uses Int(exactly:). A whole price too large for an Int takes the decimal form ("$100000000000000000000.00"). Every other price formats as before. SellwildFeedLayoutTests.testAWholePriceTooLargeForAnIntIsNotACrash pins it.
 1. `ios/Sources/SellwildSDK/SellwildWidgetView.swift`: decidePolicyFor navigationResponse reports a main-frame HTTP error (widget.webview_load.http) and then makes WebKit's own default decision (canShowMIMEType ? .allow : .cancel). didFailProvisionalNavigation reports widget.webview_load.network (the delegate is not told, as before). webViewWebContentProcessDidTerminate reports widget.webview_process.exception. A bridge ERROR is reported as bridge.script.exception, and the delegate still gets invalidResponse. A malformed bridge message is reported (bridge.message.parse / invalid / unsupported), and a LISTING_CLICK with a broken listing still opens its URL. The host sees no change.
 1. `ios/Sources/SellwildSDK/SellwildAdView.swift`: init also runs SellwildFailures.setContext { $0.partnerCode = config.partnerCode }. Failure reports carry the partner code even when an app builds its config by hand and never calls SellwildSDK.configure.
 1. `scripts/coverage/ios-summary.mjs`: whole counts every target file under ios/Sources/SellwildSDK, including range lines and EXCLUDED files. gate = whole minus exclusions. perFile numbers are the gated part, plus a `whole` object when a file has excluded lines. An EXCLUDED file appears with inGate false and excluded true.
