@@ -1,3 +1,16 @@
 {
-  "extends": "@react-native/typescript-config/tsconfig.json"
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    // The SDK packages are not npm dependencies here: Metro maps them to the
+    // repo's folders (metro.config.js). Type-check against the same sources,
+    // and give every file one copy of React and React Native.
+    "paths": {
+      "@sellwild/react-native-sdk": ["../../react-native/src"],
+      "@sellwild/sdk-core": ["../../core/src"],
+      "react": ["./node_modules/@types/react"],
+      "react-native": ["./node_modules/react-native"],
+      "react-native-webview": ["./node_modules/react-native-webview"]
+    }
+  },
+  "include": ["App.tsx", "index.js", "src", "__tests__"]
 }

@@ -20,9 +20,7 @@ const config = {
       },
       {
         get: (target, name) =>
-          name in target
-            ? target[name]
-            : path.join(appModules, String(name)),
+          name in target ? target[name] : path.join(appModules, String(name)),
       },
     ),
   },
