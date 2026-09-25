@@ -19,6 +19,8 @@
 #   SELLWILD_E2E_NO_BUILD=1        skip the build and use the last one
 #   SELLWILD_E2E_CACHE=<dir>       build caches (default e2e/.cache, gitignored)
 #   MAESTRO=<path>                 the Maestro CLI (default ~/.maestro/bin/maestro)
+#   MAESTRO_DRIVER_STARTUP_TIMEOUT how long Maestro waits for its driver on the
+#                                  device, in ms (default here 60000)
 #   JAVA_HOME                      a JDK 17 (found when unset)
 #
 # Output: e2e/artifacts/<app>/ (gitignored): screenshots/<flow>-<name>.png,
@@ -77,6 +79,10 @@ if [ ! -x "$MAESTRO" ]; then
   exit 2
 fi
 export MAESTRO_CLI_NO_ANALYTICS=1 MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
+# How long Maestro waits for its driver on the device. Its own default was too
+# short once on this busy machine (rn-android: "Maestro Android driver did not
+# start up in time"), so give it a minute.
+export MAESTRO_DRIVER_STARTUP_TIMEOUT="${MAESTRO_DRIVER_STARTUP_TIMEOUT:-60000}"
 
 E2E_CACHE="${SELLWILD_E2E_CACHE:-$ROOT/e2e/.cache}"
 ART="$ROOT/e2e/artifacts/$APP"

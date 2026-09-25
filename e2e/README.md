@@ -23,10 +23,11 @@
 3. iOS: Xcode 26.5. `xcodegen` only to regenerate a sample project.
 4. Android: the Android SDK in `~/Library/Android/sdk` (or `ANDROID_HOME`), with the AVD `Pixel_5_API_36` (API 36, arm64, Google APIs).
 5. Flutter apps: the `flutter` CLI on `PATH` (or set `FLUTTER`). Flutter 3.47.5 here. `flutter precache --ios --android` once, so the first build does not download the engine.
+6. React Native apps: Node and npm (Node 25 here), and CocoaPods for `rn-ios` (1.16.2 here). `run.sh` runs `npm ci` itself when `node_modules` is stale.
 
 ## Run
 
-1. One app: `bash scripts/e2e/run.sh ios`, `android`, `flutter-ios` or `flutter-android`.
+1. One app: `bash scripts/e2e/run.sh ios`, `android`, `flutter-ios`, `flutter-android`, `rn-ios` or `rn-android`.
 2. The apps: `bash scripts/e2e/run.sh --list`.
 3. It builds, boots the device, installs, runs the app's flows, copies the screenshots, then shuts the device down.
 4. All of that runs inside one call of the native lock (`SELLWILD_NATIVE_LOCK`). One native build or booted device at a time.
@@ -39,6 +40,7 @@
    4. `build.log`, `device.log`, and `emulator.log` on Android.
    5. `maestro/<flow>/`: Maestro's own output (commands, logs, the view hierarchy of a failed step).
 8. Build caches go to `e2e/.cache/` (gitignored).
+9. Maestro gets a minute to start its driver on the device (`MAESTRO_DRIVER_STARTUP_TIMEOUT`, 60000 ms). Its own default was too short once, on a busy machine.
 
 ## The common subflows (`e2e/maestro/common/`)
 
@@ -127,6 +129,36 @@ Flags each app's flow sets in `env` (the string `"true"` turns one on):
    3. The flows check only the containers.
 9. Fill: GPT loads in the banner WebViews, but the test unit did not fill in these runs. After 25s on Android, GPT's slot container still had a height of 0.
 10. `FLUTTER` picks another `flutter` CLI.
+
+### rn-ios and rn-android
+
+1. App: `samples/demo-app` (React Native 0.74.6, npm). Id `com.sellwild.sample.rn` on both platforms, name "Sellwild Sample". Its README has the details.
+2. The SDK as checked out:
+   1. JS: `metro.config.js` maps `@sellwild/react-native-sdk` to `react-native/` and `@sellwild/sdk-core` to `core/`. Core is read from its gitignored `dist/`, so every build first runs `npm --prefix core run build` (tsgo, under a second).
+   2. iOS: the local pods `SellwildSDK` (root podspec) and `SellwildSDK-RN` (`react-native/`), in `ios/Podfile`.
+   3. Android: the bridge is the Gradle project `:sellwild-react-native-sdk` (`react-native/android`). The SDK comes from mavenLocal as `com.sellwild:sdk:1.7.7`, published first from `android/`, as for `android`.
+3. Release builds: the JS bundle (Hermes bytecode) is inside the app. Metro runs once, as a bundler step of the build, and exits. No Metro server runs while the flows do, and no dev menu or LogBox shows.
+4. One flow for both: `e2e/maestro/react-native/sample.yaml`. Flags: `FEED_AD_ROWS` on, `NATIVE_AD` off, `HOUSE_AD` off, `FAILURE_SINK` on.
+5. What React Native has, so what the app shows:
+   1. Feed: `SellwildFeed`, the native SDK feed (iOS `SellwildFeedView`, Android `SellwildFeedView`). The SDK sets `sw.listing.card` and `sw.feed.ad` on its rows.
+   2. Ads: `SellwildBanner` at 320x50 and 300x250, native Prebid Mobile + GAM. No native ad or house ad component: the Ads screen says so.
+   3. Listings: `useSellwildListings` with `SellwildListingCard`. Refresh is the hook's `refresh`, which clears the listings cache.
+   4. Failure codes: `setFailureContext({ sink })` from `@sellwild/sdk-core` is public. The app records each code and sends the event on to the events queue. So Diagnostics must show `config.fetch.http`. The sink sees what React Native JS and core report, not the native SDKs under the bridge.
+6. Ids: `testID`. It is the accessibilityIdentifier on iOS and the resource-id on Android. A `View` around a native view (the feed, the ad slots, the widget) also sets `collapsable={false}`.
+7. `rn-ios`:
+   1. Build: `npm ci` when stale, core's dist, `pod install` when `Pods/Manifest.lock` differs from `Podfile.lock`, then `xcodebuild -workspace SellwildDemo.xcworkspace -scheme SellwildDemo -configuration Release` for the simulator, `ONLY_ACTIVE_ARCH=YES`. Derived data in `e2e/.cache/rn-ios/`.
+   2. Device: the same iPhone as `ios` (`scripts/e2e/lib/ios-sim.sh`).
+   3. Time: about 5 minutes warm (299s here: Xcode build 134s, which bundles the JS again every time; flow 70s). The first run took 549s, with `pod install` (hermes-engine, boost and the other pods download).
+8. `rn-android`:
+   1. Build: `npm ci` when stale, core's dist, the SDK to mavenLocal, then `./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a` in `samples/demo-app/android`, with 2 Gradle workers. Then `gradlew --stop` for both Gradle versions (8.14.2 for the SDK, 8.6 for the app). The release APK is signed with the template's debug keystore.
+   2. The first build downloads Gradle 8.6 and installs Android SDK Platform 34 (the app's `compileSdk`) into the Android SDK. The NDK it names (26.1) is not needed: without it, Gradle packs the native libraries unstripped and says so.
+   3. Device: `Pixel_5_API_36`, as for `android` (`scripts/e2e/lib/android-emu.sh`). The APK is 59 MB.
+   4. Time: about 3 minutes warm (174s here: SDK publish 15s, app build 13s, boot 63s, flow 55s). The first run took 681s (app build 9m 15s with the downloads).
+9. WebViews: Maestro sees inside the Legacy widget's WebView (react-native-webview) on both platforms. A separate probe flow found "View all" and "Buy now" there on iOS and on Android. The flows still check only the container.
+10. `scripts/rn/compile-bridge-ios.sh` and `scripts/rn/compile-bridge-android.sh` compile only the native bridge (no app, no device). They take no lock: run them through the lock.
+11. Seen in the runs, not checked by the flows:
+    1. Android: `SellwildListingCard` on the Listings screen shows no photos. The feed's 10 photos are `data:image/avif` URLs, and React Native's Android image pipeline did not draw them. iOS draws them, and the native SDK feed draws them on both.
+    2. The 320x50 banner did not fill on either platform. The MREC filled with a Google test ad on both.
 
 ## Add an app
 
