@@ -16,6 +16,9 @@
 #                                  The whole session (build to shutdown) runs
 #                                  inside one call of it. Unset: the agents'
 #                                  lock below, when it exists; else no lock.
+#                                  Already inside it (a parent process runs
+#                                  it, as with the gate under the lock):
+#                                  not taken again.
 #   SELLWILD_E2E_NO_BUILD=1        skip the build and use the last one
 #   SELLWILD_E2E_CACHE=<dir>       build caches (default e2e/.cache, gitignored)
 #   MAESTRO=<path>                 the Maestro CLI (default ~/.maestro/bin/maestro)
@@ -56,14 +59,38 @@ if [ ! -f "$APP_FILE" ]; then
   usage
 fi
 
+# Prints the pid of the ancestor process that runs the lock script $1, if
+# any. The lock script runs its command only once it holds the lock, so such
+# an ancestor means this session is inside the lock already (for example
+# `native-lock.sh ... -- bash scripts/gate.sh --e2e`). The lock is not
+# re-entrant: taking it again there would wait forever.
+lock_holder() {
+  local want="${1##*/}" pid="$PPID" w1 w2 rest
+  while [ -n "$pid" ] && [ "$pid" -gt 1 ]; do
+    # The command's first two words: the script itself, or its shell then it.
+    read -r w1 w2 rest <<<"$(ps -o command= -p "$pid" 2>/dev/null)"
+    if [ "${w1##*/}" = "$want" ] || [ "${w2##*/}" = "$want" ]; then
+      echo "$pid"
+      return 0
+    fi
+    pid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')"
+  done
+  return 1
+}
+
 # Run the whole session inside one lock call.
 if [ -z "${SELLWILD_E2E_LOCKED:-}" ]; then
   export SELLWILD_E2E_LOCKED=1
   LOCK="${SELLWILD_NATIVE_LOCK:-$DEFAULT_LOCK}"
   if [ -x "$LOCK" ]; then
-    exec "$LOCK" "e2e-$APP" -- bash "$E2E_DIR/run.sh" "$@"
+    if holder="$(lock_holder "$LOCK")"; then
+      echo "run.sh: already inside the native lock (pid $holder); not taking it again."
+    else
+      exec "$LOCK" "e2e-$APP" -- bash "$E2E_DIR/run.sh" "$@"
+    fi
+  else
+    echo "run.sh: no native lock at $LOCK; running without one." >&2
   fi
-  echo "run.sh: no native lock at $LOCK; running without one." >&2
 fi
 
 # Maestro needs a JDK 17 (the same search as scripts/gate.sh).
