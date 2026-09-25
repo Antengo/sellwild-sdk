@@ -103,7 +103,7 @@ Flags each app's flow sets in `env` (the string `"true"` turns one on):
 
 1. App: `samples/demo-app` (React Native 0.74.6, npm). Id `com.sellwild.sample.rn` on both platforms, name "Sellwild Sample". Its README has the details.
 2. The SDK as checked out:
-   1. JS: `metro.config.js` maps `@sellwild/react-native-sdk` to `react-native/` and `@sellwild/sdk-core` to `core/`. Core is read from its gitignored `dist/`, so every build first runs `npm --prefix core run build` (tsgo, under a second).
+   1. JS: `metro.config.js` maps `@sellwild/react-native-sdk` to `react-native/` and `@sellwild/sdk-core` to `core/`. Core is read from its gitignored `dist/`, so every build first runs `npm --prefix core run build:dev` (tsgo, under a second). Core's `build` (tsc) is the release build.
    2. iOS: the local pods `SellwildSDK` (root podspec) and `SellwildSDK-RN` (`react-native/`), in `ios/Podfile`.
    3. Android: the bridge is the Gradle project `:sellwild-react-native-sdk` (`react-native/android`). The SDK comes from mavenLocal as `com.sellwild:sdk:1.7.7`, published first from `android/`, as for `android`.
 3. Release builds: the JS bundle (Hermes bytecode) is inside the app. Metro runs once, as a bundler step of the build, and exits. No Metro server runs while the flows do, and no dev menu or LogBox shows.

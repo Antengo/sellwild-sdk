@@ -18,7 +18,7 @@ The React Native sample app. It has the same four tabs as the iOS and Android sa
 
 ## How it gets the SDK
 
-1. JS: `metro.config.js` maps `@sellwild/react-native-sdk` to `../../react-native` and `@sellwild/sdk-core` to `../../core`. Core is read from its `dist/` (gitignored): build it first with `npm --prefix ../../core run build` (tsgo).
+1. JS: `metro.config.js` maps `@sellwild/react-native-sdk` to `../../react-native` and `@sellwild/sdk-core` to `../../core`. Core is read from its `dist/` (gitignored): build it first with `npm --prefix ../../core run build:dev` (tsgo). Core's `build` (tsc) is the release build.
 2. iOS: `ios/Podfile` takes the pods `SellwildSDK` and `SellwildSDK-RN` from this repo.
 3. Android: `android/settings.gradle` includes the bridge (`react-native/android`) as `:sellwild-react-native-sdk`. The SDK comes from mavenLocal as `com.sellwild:sdk:1.7.7`: publish it first with `android/gradlew -p ../../android publishReleasePublicationToMavenLocal`.
 4. `MainApplication.kt` adds `SellwildSdkPackage` by hand, since the bridge is not autolinked here.

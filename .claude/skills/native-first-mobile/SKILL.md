@@ -159,7 +159,7 @@ core is read from its gitignored `dist/`, so build it first.
 
 ```bash
 npm --prefix samples/demo-app ci
-npm --prefix core run build                     # core/dist, with tsgo
+npm --prefix core run build:dev                 # core/dist, with tsgo (release: build, tsc)
 (cd samples/demo-app/ios && pod install)        # local pods SellwildSDK + SellwildSDK-RN
 (cd android && ./gradlew publishReleasePublicationToMavenLocal)   # com.sellwild:sdk for the bridge
 

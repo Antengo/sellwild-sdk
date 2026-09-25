@@ -40,11 +40,12 @@ rn_npm_ci_if_stale() {
 
 # The JavaScript side: the app's and core's packages, then core's dist.
 # Metro reads @sellwild/sdk-core from core/package.json "main" (dist/index.js),
-# which is gitignored, so it is built here every time (tsgo, under a second).
+# which is gitignored, so it is built here every time with core's build:dev
+# (tsgo, under a second). The release build is core's "build" (tsc).
 rn_js_deps() {
   rn_npm_ci_if_stale "$RN_SAMPLE" || return 1
   rn_npm_ci_if_stale "$ROOT/core" || return 1
-  npm --prefix "$ROOT/core" run --silent build
+  npm --prefix "$ROOT/core" run --silent build:dev
 }
 
 # pod install in the app's ios/ when Pods/ does not match Podfile.lock, or
