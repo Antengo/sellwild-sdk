@@ -10,7 +10,8 @@ import Foundation
 /// Every request is captured in `requests` with its body read into
 /// `httpBody` (URLSession hands upload bodies to a protocol as a stream).
 /// `NetworkBlocker` resets the handler and the captured requests before each
-/// test, so nothing leaks between tests.
+/// test, and cancels what a test left running on its stub sessions when it
+/// ends (`cancelRunningTasks()`), so nothing leaks between tests.
 final class StubURLProtocol: URLProtocol {
 
     struct Response {
@@ -38,6 +39,8 @@ final class StubURLProtocol: URLProtocol {
     private static let lock = NSLock()
     private static var currentHandler: Handler?
     private static var captured: [URLRequest] = []
+    /// Sessions from `makeSession()` since the last `cancelRunningTasks()`.
+    private static var sessions: [URLSession] = []
 
     static var handler: Handler? {
         get { lock.lock(); defer { lock.unlock() }; return currentHandler }
@@ -61,7 +64,41 @@ final class StubURLProtocol: URLProtocol {
     static func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubURLProtocol.self]
-        return URLSession(configuration: configuration)
+        let session = URLSession(configuration: configuration)
+        lock.lock(); defer { lock.unlock() }
+        sessions.append(session)
+        return session
+    }
+
+    /// Cancels every task still open on a session `makeSession()` made since
+    /// the last call, and returns once each one is cancelled.
+    ///
+    /// `NetworkBlocker` calls it when a test ends, before `tearDown()` and
+    /// before the next test resets `handler`. URLSession starts a resumed task
+    /// a moment later, and on a slow machine that can be after the test. Such
+    /// a task (a photo a cell asked for at the end of a test) used to reach
+    /// the next test's handler, or none, and its failure was reported into the
+    /// next test. Cancelled, it ends as cancelled, which the SDK never
+    /// reports. A task the stub already answered keeps that answer.
+    static func cancelRunningTasks() {
+        lock.lock()
+        let open = sessions
+        sessions = []
+        lock.unlock()
+        let group = DispatchGroup()
+        for session in open {
+            group.enter()
+            session.getAllTasks { tasks in
+                tasks.forEach { $0.cancel() }
+                group.leave()
+            }
+        }
+        guard Thread.isMainThread else { return group.wait() }
+        // The main run loop keeps turning while it waits, so work that needs
+        // the main thread cannot stall the wait.
+        while group.wait(timeout: .now()) == .timedOut {
+            RunLoop.current.run(mode: .default, before: Date(timeIntervalSinceNow: 0.005))
+        }
     }
 
     // MARK: URLProtocol
