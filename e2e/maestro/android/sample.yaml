@@ -1,0 +1,17 @@
+# Sellwild Sample, Android (samples/feed-demo-android). Run it with:
+#   bash scripts/e2e/run.sh android
+appId: com.sellwild.sample
+name: Sellwild Sample (Android)
+env:
+  APP_ID: com.sellwild.sample
+  FEED_AD_ROWS: "true"   # SellwildFeedView sets sw.feed.ad
+  NATIVE_AD: "true"      # SellwildNativeAdView is public
+  HOUSE_AD: "false"      # SellwildHouseAdView is internal
+  FAILURE_SINK: "false"  # no public failure sink on Android
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/feed.yaml
+- runFlow: ../common/ads.yaml
+- runFlow: ../common/listings.yaml
+- runFlow: ../common/diagnostics.yaml
+- runFlow: ../common/legacy.yaml

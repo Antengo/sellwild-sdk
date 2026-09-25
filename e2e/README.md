@@ -21,10 +21,11 @@
    The `PATH` prefix stops the installer from editing your shell profiles.
 2. A JDK 17. `run.sh` finds it, or set `JAVA_HOME`.
 3. iOS: Xcode 26.5. `xcodegen` only to regenerate a sample project.
+4. Android: the Android SDK in `~/Library/Android/sdk` (or `ANDROID_HOME`), with the AVD `Pixel_5_API_36` (API 36, arm64, Google APIs).
 
 ## Run
 
-1. One app: `bash scripts/e2e/run.sh ios`.
+1. One app: `bash scripts/e2e/run.sh ios` or `bash scripts/e2e/run.sh android`.
 2. The apps: `bash scripts/e2e/run.sh --list`.
 3. It builds, boots the device, installs, runs the app's flows, copies the screenshots, then shuts the device down.
 4. All of that runs inside one call of the native lock (`SELLWILD_NATIVE_LOCK`). One native build or booted device at a time.
@@ -34,7 +35,7 @@
    1. `screenshots/<flow>-<screen>.png`: one per screen, plus a screenshot of any failed step.
    2. `maestro.log`: Maestro's summary and every step with its status.
    3. `report-<flow>.xml`: JUnit.
-   4. `build.log`, `device.log`.
+   4. `build.log`, `device.log`, and `emulator.log` on Android.
    5. `maestro/<flow>/`: Maestro's own output (commands, logs, the view hierarchy of a failed step).
 8. Build caches go to `e2e/.cache/` (gitignored).
 
@@ -77,6 +78,24 @@ Flags each app's flow sets in `env` (the string `"true"` turns one on):
    1. House ad: there is no public house ad view. House backfill runs inside `SellwildAdView` on a no-fill.
    2. Failure codes: there is no public failure sink. The screen shows the public `SellwildFailures.context` instead.
 7. WebViews: Maestro can see into a WKWebView on iOS: the GAM test creative's iframe and images show in the hierarchy. The Legacy widget's content was not checked. The flows check only the container.
+
+### android
+
+1. App: `samples/feed-demo-android`. Jetpack Compose, application id `com.sellwild.sample`, name "Sellwild Sample".
+2. The build first publishes the SDK in `android/` to mavenLocal (`publishReleasePublicationToMavenLocal`). The sample takes `com.sellwild:sdk` only from there, at the version in `android/build.gradle.kts`. So the app tests the SDK as checked out.
+3. Then it runs `./gradlew :app:assembleDebug` in the sample, with 2 Gradle workers, and stops Gradle before the emulator boots.
+4. Flow: `e2e/maestro/android/sample.yaml`. Flags: `FEED_AD_ROWS` on, `NATIVE_AD` on, `HOUSE_AD` off, `FAILURE_SINK` off.
+5. Device: the AVD `Pixel_5_API_36` on port 5554 (`emulator-5554`), booted with `-memory 2560 -no-snapshot-save -no-audio -no-boot-anim`. 2560 MB is the emulator's floor for API 36; the AVD's own 4 GB is not used, and its config is not changed. Animations are turned off, and `pm trim-caches` clears app caches.
+6. Why not `Pixel_5_API_32`: its data partition is 800 MB and full (11 MB free after `pm trim-caches`). The 15 MB sample APK fails with "Requested internal only, but not enough space". Freeing room would mean deleting apps on that AVD or wiping it.
+7. `SELLWILD_ANDROID_AVD` picks another AVD, `SELLWILD_ANDROID_MEMORY` another RAM size in MB.
+8. Shutdown: `adb emu kill`, then the emulator process if it is still up after 30s, then `gradlew --stop`.
+9. Ids: the app's ids are Compose test tags, read as resource-ids (`testTagsAsResourceId`). The SDK feed's rows set their resource-id themselves (`SellwildFeedE2EIdTest`).
+   1. A test tag on an `AndroidView` (such as `SellwildFeed`) does not reach UI Automator. The app puts `sw.feed.list` and `sw.legacy.webview` on a `Box` around the view.
+10. Not on Android:
+   1. House ad: `SellwildHouseAdView` is internal. House backfill runs inside `SellwildAdView` on a no-fill.
+   2. Failure codes: there is no public failure sink. The screen shows the public `SellwildFailures.context` instead.
+11. WebViews: debug builds turn on `WebView.setWebContentsDebuggingEnabled`. Maestro sees inside the WebViews on Android: the GAM creative's text and the Legacy widget's listings show in the hierarchy. The flows still check only the containers.
+12. Time: about 4 minutes (SDK publish and sample build 30s warm, boot 20s, flow 60s).
 
 ## Add an app
 
