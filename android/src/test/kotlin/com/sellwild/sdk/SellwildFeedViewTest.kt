@@ -256,9 +256,14 @@ class SellwildFeedViewTest {
 
         assertEquals(FeedTheme.BACKGROUND, (feed.background as ColorDrawable).color)
         assertEquals(listOf(SellwildFailureCode.CONFIG_COLOR_INVALID, SellwildFailureCode.CONFIG_COLOR_INVALID), events.codes)
+        // Each report carries Color.parseColor's exception: its name, and its text after the message.
         assertEquals(
-            setOf("PRICE_COLOR is not a color: not-a-color", "LINK_COLOR is not a color: #12345"),
+            setOf("PRICE_COLOR is not a color: not-a-color: Unknown color", "LINK_COLOR is not a color: #12345: Unknown color"),
             events.failures.map { it.getJSONObject("attributes").getString("msg") }.toSet(),
+        )
+        assertEquals(
+            listOf("IllegalArgumentException", "IllegalArgumentException"),
+            events.failures.map { it.getJSONObject("attributes").getString("errName") },
         )
         // Two logFailure calls before the gate, one per color: the second setup() did not call again.
         assertEquals(2, gateCalls(SellwildFailureCode.CONFIG_COLOR_INVALID))

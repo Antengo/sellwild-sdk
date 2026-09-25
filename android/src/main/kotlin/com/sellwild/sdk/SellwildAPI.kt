@@ -20,6 +20,7 @@ import org.json.JSONObject
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -60,10 +61,15 @@ data class SellwildListing(
     /** Off-platform destination ("remote_url" on the cache payload). */
     val remoteUrl: String? = null,
 ) {
+    /**
+     * The price as a whole number ("19315"), or null when it is not a positive number. ASCII
+     * digits in every locale, as iOS `String(format:)` gives: the device locale would print
+     * Arabic-Indic digits under ar or fa.
+     */
     val displayPrice: String?
         get() {
             val value = price?.toDoubleOrNull() ?: return null
-            return if (value > 0) String.format("%.0f", value) else null
+            return if (value > 0) String.format(Locale.ROOT, "%.0f", value) else null
         }
 
     val primaryPhotoUrl: String?

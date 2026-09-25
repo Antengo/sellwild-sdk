@@ -7,6 +7,7 @@ import com.sellwild.sdk.failures.SellwildFailureComponent
 import com.sellwild.sdk.failures.SellwildFailureSeverity
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
 
@@ -97,7 +98,12 @@ class FormatTest {
                 Issue(SellwildFailureCode.CONFIG_COLOR_INVALID, SellwildFailureComponent.REMOTE_CONFIG, SellwildFailureSeverity.ERROR, message = "PRICE_COLOR is not a color: teal-ish"),
                 Issue(SellwildFailureCode.CONFIG_COLOR_INVALID, SellwildFailureComponent.REMOTE_CONFIG, SellwildFailureSeverity.ERROR, message = "LINK_COLOR is not a color: #12"),
             ),
-            resolved.issues,
+            resolved.issues.map { it.copy(error = null) },
         )
+        // The parser's exception goes with each issue, so the report names what failed.
+        for (issue in resolved.issues) {
+            assertTrue(issue.error is IllegalArgumentException)
+            assertEquals("Unknown color", issue.error?.message)
+        }
     }
 }

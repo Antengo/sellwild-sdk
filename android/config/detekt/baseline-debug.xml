@@ -427,8 +427,6 @@
     <ID>SpreadOperator:SellwildAdSizes.kt$SellwildAdSizes$(*extras.toTypedArray())</ID>
     <ID>SpreadOperator:SellwildAdSizes.kt$SellwildAdSizes$(*sizes.map { GmaAdSize(it.width, it.height) }.toTypedArray())</ID>
     <ID>StringTemplate:SellwildConfig.kt$AdSize$${height}</ID>
-    <ID>SwallowedException:Format.kt$FeedTheme$e: IllegalArgumentException</ID>
-    <ID>SwallowedException:SellwildAdSizes.kt$SellwildAdSizes$e: JSONException</ID>
     <ID>TooManyFunctions:AdDecisions.kt$AdDecisions</ID>
     <ID>TooManyFunctions:FailuresCore.kt$FailuresCore</ID>
     <ID>TooManyFunctions:GrowthCodeSync.kt$GrowthCodeSync</ID>

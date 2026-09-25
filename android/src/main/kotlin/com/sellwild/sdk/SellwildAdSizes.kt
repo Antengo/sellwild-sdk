@@ -58,7 +58,7 @@ object SellwildAdSizes {
         // reported once per code and message (reportedOncePer), so without it a second
         // zone's different bad entry would never be reported.
         val key = if (zoneValue != null) "BANNER_SIZES_BY_ZONE[$zoneId]" else "BANNER_SIZES"
-        val entries = parseList(zoneValue ?: RemoteValues.optAny(obj, "BANNER_SIZES"))
+        val (entries, listError) = parseList(zoneValue ?: RemoteValues.optAny(obj, "BANNER_SIZES"))
         val sizes = entries.filterNotNull().filter { it.width > 0 && it.height > 0 }
         val dropped = entries.size - sizes.size
         if (dropped == 0) return Resolved(sizes.distinct())
@@ -67,6 +67,7 @@ object SellwildAdSizes {
             SellwildFailureComponent.REMOTE_CONFIG,
             SellwildFailureSeverity.WARN,
             message = "$key: dropped $dropped of ${entries.size} entries",
+            error = listError,
             zoneId = zoneValue?.let { zoneId },
         )
         return Resolved(sizes.distinct(), listOf(issue))
@@ -115,27 +116,27 @@ object SellwildAdSizes {
 
     // One element per entry, null when it does not parse. '' (the CMS's unset value)
     // and a missing value have no entries; a value of another type is one bad entry.
-    private fun parseList(raw: Any?): List<Size?> = when (raw) {
-        null, "" -> emptyList()
-        is JSONArray -> (0 until raw.length()).map { parseOne(raw.opt(it)) }
-        is String -> {
-            val arr = jsonArrayOrNull(raw)
-            if (arr != null) (0 until arr.length()).map { parseOne(arr.opt(it)) } else listOf(parseOne(raw))
-        }
-        else -> listOf(null)
+    // With the entries comes the JSONException of text that looks like a list but is not
+    // one; the caller reports it with config.banner_sizes.invalid.
+    private fun parseList(raw: Any?): Pair<List<Size?>, JSONException?> = when (raw) {
+        null, "" -> emptyList<Size?>() to null
+        is JSONArray -> entries(raw) to null
+        is String -> parseText(raw)
+        else -> listOf<Size?>(null) to null
     }
 
-    // A JSON list written as text; null when the text is one "WxH" size instead.
-    private fun jsonArrayOrNull(text: String): JSONArray? =
-        if (text.trimStart().startsWith("[")) {
-            try {
-                JSONArray(text)
-            } catch (e: JSONException) {
-                null // Not a list after all: parsed as one size, and dropped if it is not one.
-            }
-        } else {
-            null
+    // Text is a JSON list or one "WxH" size. Text that looks like a list but is not one is
+    // parsed as one size (dropped if it is not one), and its JSONException goes with it.
+    private fun parseText(text: String): Pair<List<Size?>, JSONException?> {
+        if (!text.trimStart().startsWith("[")) return listOf(parseOne(text)) to null
+        return try {
+            entries(JSONArray(text)) to null
+        } catch (e: JSONException) {
+            listOf(parseOne(text)) to e
         }
+    }
+
+    private fun entries(array: JSONArray): List<Size?> = (0 until array.length()).map { parseOne(array.opt(it)) }
 
     private fun parseOne(e: Any?): Size? = when (e) {
         is String -> {

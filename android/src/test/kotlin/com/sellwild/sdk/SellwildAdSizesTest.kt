@@ -11,6 +11,7 @@ import com.sellwild.sdk.failures.gateCalls
 import com.sellwild.sdk.support.FixtureLoader
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -147,10 +148,13 @@ class SellwildAdSizesTest {
     }
 
     @Test
-    fun `text that looks like a list but is not one is one bad entry`() {
+    fun `text that looks like a list but is not one is one bad entry, reported with its parse error`() {
         assertEquals(listOf(mrec), resolve("43", "BANNER_SIZES" to "[300x250"))
 
-        assertEquals("BANNER_SIZES: dropped 1 of 1 entries", sink.pushed.single().attributes["msg"])
+        val event = sink.pushed.single()
+        // The parser's own words follow the message; they differ between org.json builds.
+        assertTrue(event.attributes["msg"].orEmpty().startsWith("BANNER_SIZES: dropped 1 of 1 entries: "))
+        assertEquals("JSONException", event.attributes["errName"])
     }
 
     @Test
@@ -159,7 +163,10 @@ class SellwildAdSizesTest {
 
         assertEquals(listOf(mrec), SellwildAdSizes.resolve(json, "43", mrec))
 
-        assertEquals("BANNER_SIZES: dropped 1 of 1 entries", sink.pushed.single().attributes["msg"])
+        val event = sink.pushed.single()
+        assertEquals("BANNER_SIZES: dropped 1 of 1 entries", event.attributes["msg"])
+        // Nothing threw: there is no error to name.
+        assertEquals(null, event.attributes["errName"])
     }
 
     @Test

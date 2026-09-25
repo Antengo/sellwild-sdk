@@ -78,6 +78,7 @@ internal object FeedTheme {
                     SellwildFailureComponent.REMOTE_CONFIG,
                     SellwildFailureSeverity.ERROR,
                     message = "$field is not a color: $value",
+                    error = e,
                 )
                 null
             }

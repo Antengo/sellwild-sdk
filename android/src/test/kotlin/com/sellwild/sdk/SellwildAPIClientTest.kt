@@ -25,6 +25,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.net.MalformedURLException
+import java.util.Locale
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 
@@ -329,6 +330,21 @@ class SellwildAPIClientTest {
         assertNull(listing.copy(price = "free").displayPrice)
         assertNull(listing.copy(price = null, photos = emptyList()).displayPrice)
         assertNull(listing.copy(photos = emptyList()).primaryPhotoUrl)
+    }
+
+    @Test
+    fun `display price has ASCII digits in every locale, as on iOS`() {
+        val listing = ListingsParserFor.listing(ListingFactory.build())
+        val saved = Locale.getDefault()
+        try {
+            for (tag in listOf("ar-EG", "fa-IR", "hi-IN-u-nu-deva", "de-DE")) {
+                Locale.setDefault(Locale.forLanguageTag(tag))
+                assertEquals(tag, "19315", listing.displayPrice)
+                assertEquals(tag, "1234568", listing.copy(price = "1234567.8").displayPrice)
+            }
+        } finally {
+            Locale.setDefault(saved)
+        }
     }
 
     @Test

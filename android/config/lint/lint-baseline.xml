@@ -2,17 +2,6 @@
 <issues format="6" by="lint 8.7.3" type="baseline" client="gradle" dependencies="false" name="AGP (8.7.3)" variant="all" version="8.7.3">
 
     <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            return if (value > 0) String.format(&quot;%.0f&quot;, value) else null"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt"
-            line="66"
-            column="35"/>
-    </issue>
-
-    <issue
         id="NewApi"
         message="Call requires API level 28 (current min is 23): `android.app.Application#getProcessName`"
         errorLine1="        WidgetPage.dataDirectorySuffix(Build.VERSION.SDK_INT, context.packageName) { android.app.Application.getProcessName() }"
