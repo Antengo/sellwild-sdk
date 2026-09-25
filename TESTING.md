@@ -3,6 +3,8 @@
 How long each suite takes, the fastest command that proves a change, and how
 to check that tests catch real breaks without rerunning everything.
 
+How to report a failure (logFailure) on each platform: `contracts/LOGFAILURE.md`.
+
 ## Gate
 
 One command runs every type check and linter, the print gate and the

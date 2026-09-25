@@ -14,6 +14,7 @@ npm run validate     # node scripts/validate.mjs: table of every check, exit 1 o
 | path | contents |
 |---|---|
 | `FAILURES.md` | The clientFailure contract (logFailure on all six clients). Start here. |
+| `LOGFAILURE.md` | The short practical guide: how to call logFailure on each platform, add a code, and see events locally. |
 | `failure-codes.json` | Canonical failure-code registry. `failure-codes.sources.json` traces each code to the phase-1 failure points (or its `added` record). Change it only with `scripts/add-code.mjs`, which also regenerates the three platform mirrors (`scripts/gen-codes.mjs`). |
 | `reference/log-failure.mjs` | JS reference of the logFailure pure core. `reference/vector-cases.mjs` holds the vector inputs. |
 | `golden/` | Golden vectors generated from the reference (`npm run vectors`). Every platform's pure core must reproduce them. |
