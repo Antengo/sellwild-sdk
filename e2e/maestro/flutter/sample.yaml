@@ -1,0 +1,19 @@
+# Sellwild Sample, Flutter (samples/flutter-demo), on iOS and on Android: one
+# app id on both. Run it with:
+#   bash scripts/e2e/run.sh flutter-ios
+#   bash scripts/e2e/run.sh flutter-android
+appId: com.sellwild.sample.flutter
+name: Sellwild Sample (Flutter)
+env:
+  APP_ID: com.sellwild.sample.flutter
+  FEED_AD_ROWS: "true"   # the app's feed sets sw.feed.ad on its ad rows
+  NATIVE_AD: "false"     # no native ad view in the Flutter SDK
+  HOUSE_AD: "false"      # no house ad view in the Flutter SDK
+  FAILURE_SINK: "true"   # SellwildFailures.setContext(sink:) is public
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/feed.yaml
+- runFlow: ../common/ads.yaml
+- runFlow: ../common/listings.yaml
+- runFlow: ../common/diagnostics.yaml
+- runFlow: ../common/legacy.yaml

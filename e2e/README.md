@@ -22,10 +22,11 @@
 2. A JDK 17. `run.sh` finds it, or set `JAVA_HOME`.
 3. iOS: Xcode 26.5. `xcodegen` only to regenerate a sample project.
 4. Android: the Android SDK in `~/Library/Android/sdk` (or `ANDROID_HOME`), with the AVD `Pixel_5_API_36` (API 36, arm64, Google APIs).
+5. Flutter apps: the `flutter` CLI on `PATH` (or set `FLUTTER`). Flutter 3.47.5 here. `flutter precache --ios --android` once, so the first build does not download the engine.
 
 ## Run
 
-1. One app: `bash scripts/e2e/run.sh ios` or `bash scripts/e2e/run.sh android`.
+1. One app: `bash scripts/e2e/run.sh ios`, `android`, `flutter-ios` or `flutter-android`.
 2. The apps: `bash scripts/e2e/run.sh --list`.
 3. It builds, boots the device, installs, runs the app's flows, copies the screenshots, then shuts the device down.
 4. All of that runs inside one call of the native lock (`SELLWILD_NATIVE_LOCK`). One native build or booted device at a time.
@@ -52,7 +53,7 @@
 Flags each app's flow sets in `env` (the string `"true"` turns one on):
 
 1. `APP_ID`: the bundle id or application id.
-2. `FEED_AD_ROWS`: the SDK feed sets `sw.feed.ad` on its ad rows. The feed flow then scrolls to one.
+2. `FEED_AD_ROWS`: the feed has ad rows that carry `sw.feed.ad` (set by the SDK feed, or on Flutter by the app). The feed flow then scrolls to one.
 3. `NATIVE_AD`: the platform has a public native ad view. The ads flow checks `sw.ad.native`.
 4. `HOUSE_AD`: the platform has a public house ad view. The ads flow checks `sw.ad.house`.
 5. `FAILURE_SINK`: the app can list the failure codes the SDK reported. Diagnostics must then show `config.fetch.http`. Otherwise it must show "not available on this platform".
@@ -96,6 +97,36 @@ Flags each app's flow sets in `env` (the string `"true"` turns one on):
    2. Failure codes: there is no public failure sink. The screen shows the public `SellwildFailures.context` instead.
 11. WebViews: debug builds turn on `WebView.setWebContentsDebuggingEnabled`. Maestro sees inside the WebViews on Android: the GAM creative's text and the Legacy widget's listings show in the hierarchy. The flows still check only the containers.
 12. Time: about 2 minutes warm (124s here: SDK publish 11s, sample build 13s, boot 18s, flow 61s). A cold build also downloads the Gradle dependencies.
+
+### flutter-ios and flutter-android
+
+1. App: `samples/flutter-demo` (`flutter create`, org `com.sellwild`). Id `com.sellwild.sample.flutter` on both platforms, name "Sellwild Sample".
+2. The SDK comes from `../../flutter` (a path dependency), so the app tests the SDK as checked out.
+3. One flow for both: `e2e/maestro/flutter/sample.yaml`. Flags: `FEED_AD_ROWS` on, `NATIVE_AD` off, `HOUSE_AD` off, `FAILURE_SINK` on.
+4. What Flutter has, so what the app shows:
+   1. Feed: the Flutter SDK has no feed component. The app draws `fetchListings` with `SellwildListingCard`, two a row, and puts a `SellwildBanner` ad row after every four cards. The app sets `sw.listing.card` and `sw.feed.ad` itself.
+   2. Ads: `SellwildBanner` at 320x50 and 300x250. It is a WebView that runs Google Publisher Tag. The screen says so.
+   3. No native ad view and no house ad view. The Ads screen says "Not in the Flutter SDK".
+   4. Failure codes: Flutter has a public failure sink (`SellwildFailures.setContext(sink:)`). The app records each code and sends the event on, as the SDK does without a sink. So Diagnostics must show `config.fetch.http`.
+   5. GAM tag: the built-in Flutter config has none. The app sets Google's GPT test unit `/6499/example/banner` when the CDN config has none.
+5. Ids: `Semantics(identifier:)`. It is the accessibilityIdentifier on iOS and the resource-id on Android. `main.dart` turns the semantics tree on at launch (`SemanticsBinding.instance.ensureSemantics()`).
+6. `flutter-ios`:
+   1. Build: `flutter pub get`, then `flutter build ios --simulator --debug`. Plugins come in through Swift Package Manager (no CocoaPods).
+   2. Device: the same iPhone as `ios` (`scripts/e2e/lib/ios-sim.sh`).
+   3. Time: 187s on the first run (Xcode build 42s, boot 11s, flow 53s).
+7. `flutter-android`:
+   1. Build: `flutter pub get`, then `flutter build apk --debug --target-platform android-arm64`, with 2 Gradle workers. Then `gradlew --stop` in the sample.
+   2. The app's Gradle heap is 2 GB (the template asks for 8 GB).
+   3. Flutter runs Gradle with the JDK it finds first: Android Studio's (JDK 21 here), not `JAVA_HOME`.
+   4. The first build downloads Gradle 9.3.1 and installs the NDK the template names (28.2, 2.8 GB) into the Android SDK.
+   5. Device: `Pixel_5_API_36`, as for `android` (`scripts/e2e/lib/android-emu.sh`). The debug APK is 79 MB.
+   6. Time: 348s on the first run (Gradle 256s with the downloads, boot 18s, flow 52s).
+8. WebViews:
+   1. Android: Maestro sees inside the Flutter WebViews. The banner page's `#ad` div and GPT's iframe container show in the hierarchy.
+   2. iOS: not checked.
+   3. The flows check only the containers.
+9. Fill: GPT loads in the banner WebViews, but the test unit did not fill in these runs. After 25s on Android, GPT's slot container still had a height of 0.
+10. `FLUTTER` picks another `flutter` CLI.
 
 ## Add an app
 
