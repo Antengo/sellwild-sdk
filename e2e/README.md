@@ -76,7 +76,7 @@ Flags each app's flow sets in `env` (the string `"true"` turns one on):
 6. Not on iOS:
    1. House ad: there is no public house ad view. House backfill runs inside `SellwildAdView` on a no-fill.
    2. Failure codes: there is no public failure sink. The screen shows the public `SellwildFailures.context` instead.
-7. WebViews: Maestro can see WebView content on iOS (the ad creative and widget images show in the hierarchy). The flows still check only the container.
+7. WebViews: Maestro can see into a WKWebView on iOS: the GAM test creative's iframe and images show in the hierarchy. The Legacy widget's content was not checked. The flows check only the container.
 
 ## Add an app
 
