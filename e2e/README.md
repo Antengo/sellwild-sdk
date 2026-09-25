@@ -30,7 +30,7 @@
 2. The apps: `bash scripts/e2e/run.sh --list`.
 3. Every app, one at a time, with the gate's step table: `bash scripts/gate.sh --e2e` (TESTING.md, "E2E"). Never part of `--fast` or `--full`.
 4. `run.sh` builds, boots the device, installs, runs the app's flows, copies the screenshots, then shuts the device down.
-5. All of that runs inside one call of the native lock (`SELLWILD_NATIVE_LOCK`). One native build or booted device at a time. When a parent process already runs the lock (the gate run under it), `run.sh` does not take it again.
+5. All of that runs inside one call of the native lock, `scripts/e2e/native-lock.sh` (override with `SELLWILD_NATIVE_LOCK`). One native build or booted device at a time. Wrap any other native build in it too: `bash scripts/e2e/native-lock.sh <label> -- <command>`. When a parent process already runs the lock (the gate run under it), `run.sh` does not take it again.
 6. Exit status: 0 all flows passed, 1 a flow failed, 2 setup failed (unknown app, no Maestro, build, boot or install).
 7. `SELLWILD_E2E_NO_BUILD=1` reuses the last build.
 8. Output goes to `e2e/artifacts/<app>/` (gitignored):

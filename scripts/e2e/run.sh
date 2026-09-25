@@ -14,8 +14,8 @@
 #   SELLWILD_NATIVE_LOCK=<script>  the lock that allows one native build or
 #                                  booted device at a time on this machine.
 #                                  The whole session (build to shutdown) runs
-#                                  inside one call of it. Unset: the agents'
-#                                  lock below, when it exists; else no lock.
+#                                  inside one call of it. Unset:
+#                                  scripts/e2e/native-lock.sh.
 #                                  Already inside it (a parent process runs
 #                                  it, as with the gate under the lock):
 #                                  not taken again.
@@ -37,7 +37,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 E2E_DIR="$ROOT/scripts/e2e"
-DEFAULT_LOCK=/private/tmp/claude-501/-Users-lawrence-Programming-Web-Antengo/7809ef48-b1e2-4faf-84db-3b9af9c5c86e/scratchpad/native-lock.sh
+DEFAULT_LOCK="$E2E_DIR/native-lock.sh"
 
 list_apps() {
   for f in "$E2E_DIR"/apps/*.sh; do basename "$f" .sh; done

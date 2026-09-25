@@ -77,8 +77,9 @@ bash scripts/e2e/run.sh rn-android       # samples/demo-app on the emulator
 ```
 
 Screenshots and logs land in `e2e/artifacts/<app>/`. One native build or booted
-device at a time: when `SELLWILD_NATIVE_LOCK` names a lock script, `run.sh` runs the
-whole session inside one call of it. The steps by hand:
+device at a time: `run.sh` runs the whole session inside one call of
+`scripts/e2e/native-lock.sh` (or the script `SELLWILD_NATIVE_LOCK` names). Wrap any
+other native build in it: `bash scripts/e2e/native-lock.sh <label> -- <command>`. The steps by hand:
 
 ### Android (native or RN-Android)
 

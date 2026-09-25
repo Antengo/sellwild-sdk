@@ -8,8 +8,7 @@
       "@sellwild/react-native-sdk": ["../../react-native/src"],
       "@sellwild/sdk-core": ["../../core/src"],
       "react": ["./node_modules/@types/react"],
-      "react-native": ["./node_modules/react-native"],
-      "react-native-webview": ["./node_modules/react-native-webview"]
+      "react-native": ["./node_modules/react-native"]
     }
   },
   "include": ["App.tsx", "index.js", "src", "__tests__"]
