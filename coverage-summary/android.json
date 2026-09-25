@@ -1,6 +1,6 @@
 {
   "platform": "android",
-  "generatedAt": "2026-09-25T16:33:00.777Z",
+  "generatedAt": "2026-09-25T18:20:48.349Z",
   "tool": "kover 0.9.1 (IntelliJ coverage agent, JaCoCo-format XML) over testDebugUnitTest",
   "commands": [
     "bash scripts/coverage/android.sh",

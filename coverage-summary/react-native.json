@@ -1,10 +1,10 @@
 {
   "platform": "react-native",
-  "generatedAt": "2026-09-25T16:33:37.591Z",
+  "generatedAt": "2026-09-25T18:21:25.794Z",
   "tool": "vitest 3.2.7 + @vitest/coverage-v8 3.2.7 (experimentalAstAwareRemapping)",
   "commands": [
-    "cd /Users/lawrence/Programming/Web/Antengo/sellwild-sdk/react-native && node_modules/.bin/vitest run --coverage",
-    "cd /Users/lawrence/Programming/Web/Antengo/sellwild-sdk/react-native && node_modules/.bin/vitest run --coverage --mode whole"
+    "cd react-native && node_modules/.bin/vitest run --coverage",
+    "cd react-native && node_modules/.bin/vitest run --coverage --mode whole"
   ],
   "gate": {
     "include": [

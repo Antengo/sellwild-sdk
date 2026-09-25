@@ -1,23 +1,23 @@
 {
   "platform": "core",
-  "generatedAt": "2026-09-25T16:33:29.571Z",
+  "generatedAt": "2026-09-25T18:21:17.963Z",
   "tool": "vitest 3.2.7 + @vitest/coverage-v8 3.2.7 (experimentalAstAwareRemapping)",
   "commands": [
-    "cd /Users/lawrence/Programming/Web/Antengo/sellwild-sdk/core && node_modules/.bin/vitest run --coverage",
-    "cd /Users/lawrence/Programming/Web/Antengo/sellwild-sdk/core && node_modules/.bin/vitest run --coverage --mode whole"
+    "cd core && node_modules/.bin/vitest run --coverage",
+    "cd core && node_modules/.bin/vitest run --coverage --mode whole"
   ],
   "gate": {
     "include": [
       "src/**"
     ],
     "lines": {
-      "covered": 804,
-      "total": 804,
+      "covered": 806,
+      "total": 806,
       "pct": 100
     },
     "branches": {
-      "covered": 914,
-      "total": 914,
+      "covered": 916,
+      "total": 916,
       "pct": 100
     },
     "regions": null,
@@ -41,13 +41,13 @@
       "src/**"
     ],
     "lines": {
-      "covered": 804,
-      "total": 804,
+      "covered": 806,
+      "total": 806,
       "pct": 100
     },
     "branches": {
-      "covered": 914,
-      "total": 914,
+      "covered": 916,
+      "total": 916,
       "pct": 100
     },
     "regions": null,
@@ -112,8 +112,8 @@
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 50,
-      "linesTotal": 50,
+      "linesCovered": 52,
+      "linesTotal": 52,
       "missedLines": ""
     },
     {

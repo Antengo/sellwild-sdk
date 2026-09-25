@@ -1,13 +1,13 @@
 {
   "platform": "ios",
-  "generatedAt": "2026-09-25T16:34:30.433Z",
+  "generatedAt": "2026-09-25T18:22:33.846Z",
   "tool": "xccov+llvm-cov",
   "commands": [
     "bash scripts/coverage/ios.sh",
-    "command xcodebuild test -scheme SellwildSDK -destination 'platform=iOS Simulator,id=C43FAF7C-58E5-4C81-B514-F4304A56359C' -enableCodeCoverage YES -derivedDataPath .coverage-tmp/ios-dd -resultBundlePath .coverage-tmp/ios.xcresult",
+    "command xcodebuild test -scheme SellwildSDK -destination 'platform=iOS Simulator,id=<udid>' -enableCodeCoverage YES -derivedDataPath .coverage-tmp/ios-dd -resultBundlePath .coverage-tmp/ios.xcresult",
     "xcrun xccov view --report --json .coverage-tmp/ios.xcresult",
     "xcrun xccov view --archive --json .coverage-tmp/ios.xcresult",
-    "xcrun llvm-cov export -instr-profile .coverage-tmp/ios-dd/Build/ProfileData/C43FAF7C-58E5-4C81-B514-F4304A56359C/Coverage.profdata .coverage-tmp/ios-dd/Build/Products/Debug-iphonesimulator/SellwildSDKTests.xctest/SellwildSDKTests -sources ios/Sources/SellwildSDK",
+    "xcrun llvm-cov export -instr-profile .coverage-tmp/ios-dd/Build/ProfileData/<udid>/Coverage.profdata .coverage-tmp/ios-dd/Build/Products/Debug-iphonesimulator/SellwildSDKTests.xctest/SellwildSDKTests -sources ios/Sources/SellwildSDK",
     "node contracts/scripts/validate.mjs --out ios",
     "node scripts/coverage/ios-summary.mjs"
   ],
@@ -85,6 +85,10 @@
       "reason": "type-only and generated: a String enum of registry raw values, written by contracts/scripts/gen-codes.mjs from contracts/failure-codes.json. No executable regions; SellwildFailureCodeTests checks it against the registry."
     },
     {
+      "path": "ios/Sources/SellwildSDK/SellwildAdView.swift:204-207",
+      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported); the report it sends first is tested through reportUnsupportedInit()."
+    },
+    {
       "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift:135-135",
       "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported)."
     },
@@ -113,14 +117,6 @@
       "reason": "preview: Xcode previews run this; the app and the tests never do."
     },
     {
-      "path": "ios/Sources/SellwildSDK/SellwildPrebidMobile.swift:66-81",
-      "reason": "third-party-init: MobileAds.start and SellwildPrebid.initializeSDK need the app's GMA application id and the network; the outcome handlers below are tested."
-    },
-    {
-      "path": "ios/Sources/SellwildSDK/SellwildPrebidMobile.swift:85-88",
-      "reason": "fetch-demand: BannerAdUnit.fetchDemand sends the Prebid Server request."
-    },
-    {
       "path": "ios/Sources/SellwildSDK/SellwildNativeAdView.swift:61-61",
       "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported)."
     },
@@ -129,8 +125,12 @@
       "reason": "fetch-demand: NativeRequest.fetchDemand sends the Prebid Server request."
     },
     {
-      "path": "ios/Sources/SellwildSDK/SellwildAdView.swift:204-207",
-      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported); the report it sends first is tested through reportUnsupportedInit()."
+      "path": "ios/Sources/SellwildSDK/SellwildPrebidMobile.swift:66-81",
+      "reason": "third-party-init: MobileAds.start and SellwildPrebid.initializeSDK need the app's GMA application id and the network; the outcome handlers below are tested."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildPrebidMobile.swift:85-88",
+      "reason": "fetch-demand: BannerAdUnit.fetchDemand sends the Prebid Server request."
     }
   ],
   "outsideTarget": [
