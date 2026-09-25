@@ -6,11 +6,12 @@
 #     mode    fast (runs in --fast and --full) or full (--full only)
 #     kind    typecheck, lint, check, coverage or warnings. After a failed
 #             typecheck step, the coverage steps are skipped.
-#     native  gradle, ios, flutter or -. A native step waits while another
-#             xcodebuild or Gradle build runs on the machine (up to
+#     native  gradle, ios, xcode, flutter or -. A native step waits while
+#             another xcodebuild or Gradle build runs on the machine (up to
 #             GATE_NATIVE_WAIT seconds, default 600). After the last gradle
-#             step in a row, GATE_GRADLE_STOP runs; after an ios step,
-#             GATE_IOS_STOP runs.
+#             step in a row, GATE_GRADLE_STOP runs; after an ios step (one
+#             that boots a simulator), GATE_IOS_STOP runs. An xcode step only
+#             builds, so nothing is shut down after it.
 #     needs   a step id or -. When that step is skipped, this one is too.
 #     command run with bash -c from the repo root.
 #

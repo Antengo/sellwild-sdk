@@ -2,7 +2,7 @@
 # The SDK testing gate: type checks, lint, the print gate and the contracts
 # checks, in one command. TESTING.md ("Gate") has the steps and their times.
 #
-#   bash scripts/gate.sh               --fast (the default): no device, no coverage, about a minute
+#   bash scripts/gate.sh               --fast (the default): no device, no coverage, about 45s warm
 #   bash scripts/gate.sh --full        --fast, then Android Lint, every platform's coverage
 #                                      (one at a time), the compiler-warnings ratchets and
 #                                      the 95% coverage check
@@ -16,7 +16,7 @@
 # Machine rules: steps run one at a time, so there is one native build at
 # most; vitest runs at most 2 workers and Gradle 2 workers; the Gradle daemon
 # is stopped after the last Android step, and every simulator is shut down
-# after the iOS step.
+# after the iOS coverage step. swift-typecheck builds without a simulator.
 
 set -euo pipefail
 
@@ -49,6 +49,9 @@ GATE_IOS_STOP='xcrun simctl shutdown all'
 step tsgo-core            fast typecheck -       -            'npm --prefix core run --silent typecheck'
 step tsgo-react-native    fast typecheck -       -            'npm --prefix react-native run --silent typecheck'
 step flutter-analyze      fast typecheck -       -            'cd flutter && flutter analyze --fatal-infos --fatal-warnings'
+# Compiles SellwildSDK and its tests for the iOS Simulator, in ios.sh's derived
+# data (warm 5-7s, cold about 30s). No simulator boots.
+step swift-typecheck      fast typecheck xcode   -            'bash scripts/lint/swift-typecheck.sh'
 # Lint. Each baseline sits next to its config; a new finding fails.
 step eslint-core          fast lint      -       -            'npm --prefix core run --silent lint'
 step eslint-react-native  fast lint      -       -            'npm --prefix react-native run --silent lint'
