@@ -131,7 +131,7 @@
     },
     "ios/Sources/SellwildSDK/SellwildFeedView.swift": {
       "file_length: File should contain # lines or less excluding comments and whitespaces: currently contains #": [
-        613
+        596
       ],
       "function_parameter_count: Function should have # parameters or less: it currently has #": [
         6

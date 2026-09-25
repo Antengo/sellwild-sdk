@@ -1,5 +1,4 @@
 import UIKit
-import SafariServices
 
 /// All-in-one native feed surface. As of 1.4.0 this view renders a
 /// single-column scroll of native listing cards interleaved with native
@@ -399,38 +398,6 @@ public final class SellwildFeedView: UIView {
     }
 }
 
-// MARK: - Environment
-
-extension SellwildFeedView {
-    /// What the feed calls outside itself. Partners always get `live`; tests
-    /// set `SellwildFeedView.environment` before they make feeds.
-    struct Environment {
-        /// A listings client for one feed (each feed keeps its own cache).
-        var makeAPIClient: () -> SellwildAPIClient
-        /// The ad view of an ad row.
-        var makeAdView: (SellwildConfig, AdSize, String?) -> SellwildAdView
-        /// Shows a listing or partner page over `from`.
-        var present: (URL, UIViewController) -> Void
-        /// Where listing photos download from.
-        var imageSession: URLSession
-
-        static let live = Environment(
-            makeAPIClient: { SellwildAPIClient() },
-            makeAdView: SellwildAdView.init(config:adSize:zoneId:),
-            present: presentSafari,
-            imageSession: .shared
-        )
-
-        /// SFSafariViewController over the app. It loads the page from the
-        /// network, so it never runs in tests.
-        static let presentSafari: (URL, UIViewController) -> Void = { url, viewController in
-            viewController.present(SFSafariViewController(url: url), animated: true)
-        }
-    }
-
-    static var environment = Environment.live
-}
-
 // MARK: - UITableViewDataSource / Delegate
 
 extension SellwildFeedView: UITableViewDataSource, UITableViewDelegate {
@@ -718,6 +685,7 @@ private final class ListingCardCell: UITableViewCell {
         selectionStyle = .none
         backgroundColor = .clear
         contentView.backgroundColor = .clear
+        accessibilityIdentifier = SellwildFeedView.listingCardAccessibilityID
 
         cardView.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(cardView)
@@ -770,6 +738,7 @@ private final class AdRowCell: UITableViewCell, SellwildAdViewDelegate {
         selectionStyle = .none
         backgroundColor = .clear
         contentView.backgroundColor = .clear
+        accessibilityIdentifier = SellwildFeedView.adRowAccessibilityID
 
         fallbackCard.translatesAutoresizingMaskIntoConstraints = false
         fallbackCard.isHidden = true
