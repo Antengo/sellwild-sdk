@@ -10,7 +10,7 @@
 4. The app sets ids on its own containers:
    1. iOS: `accessibilityIdentifier`.
    2. Android views: resource id. Compose: `testTag` with `testTagsAsResourceId`. An SDK view sets its accessibility node's `viewIdResourceName`: a resource name cannot hold a dot.
-   3. Flutter: `Semantics(identifier:)`.
+   3. Flutter: `Semantics(identifier:)`, with `container: true` so the id keeps its own node. Inside a widget that merges its children (a `NavigationBar` tab), the id merges up into that node, which is the node the platform sees.
    4. React Native: `testID`.
 5. When a flow needs an id inside an SDK view (a listing row in the SDK feed), the SDK sets it. Add a unit test for it, and name the file under `sdk` in the entry.
 6. `setBy` says who sets the id: `app`, `sdk` or both.
@@ -22,3 +22,4 @@
 1. `contracts/test/e2e-ids.test.mjs` fails when a flow in `e2e/maestro/` or a sample app uses an `sw.*` id that is not listed here.
 2. The iOS SDK test `testListingAndAdRowsCarryTheE2EIdentifiers` checks the SDK feed's ids are listed here.
 3. The Android SDK test `SellwildFeedE2EIdTest` checks the same, on the resource-id UI Automator reads.
+4. The Flutter sample's widget tests (`samples/flutter-demo/test/sample_test.dart`) find its ids with `find.bySemanticsIdentifier`.
