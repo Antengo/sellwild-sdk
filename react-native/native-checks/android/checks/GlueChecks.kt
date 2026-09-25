@@ -322,6 +322,12 @@ private fun bannerProps() {
     // New props (another size) set up again.
     p.size = "320x50"
     check(p.nextSetUp()?.adSize == AdSize.BANNER_320x50, "banner new size: set up again")
+    // origin 943b1f1: the config is compared by value, not by hash.
+    p.config = FakeMap(mapOf("partnerCode" to "fixture"))
+    check(p.nextSetUp() == null, "banner equal config in a new map: no second set up")
+    p.config = FakeMap(mapOf("partnerCode" to "other"))
+    check(p.nextSetUp()?.config?.partnerCode == "other", "banner changed config value: set up again")
+    p.config = config
 
     // The first problem coming back after usable props is reported again.
     p.config = null
@@ -375,6 +381,16 @@ private fun feedProps() {
         check(f.nextConfig() == null, "feed same config: no second set up")
     }
     check(ready.calls.isEmpty() && config?.bannerZid == "43", "feed set up: $ready")
+
+    // origin 943b1f1: the config is compared by value. The same values in a new
+    // map set up nothing; one changed value sets the feed up again.
+    f.config = FakeMap(mapOf("partnerCode" to "fixture", "bannerZid" to "43"))
+    check(f.nextConfig() == null, "feed equal config in a new map: no second set up")
+    f.config = FakeMap(mapOf("partnerCode" to "fixture", "bannerZid" to "44"))
+    check(f.nextConfig()?.bannerZid == "44", "feed changed config value: set up again")
+
+    // origin bcfb531: consumeListingTaps defaults to false (the SDK opens the listing).
+    check(!FeedProps().consumeListingTaps, "feed consumeListingTaps defaults to false")
 
     // A config it cannot read: reported once (fatal), no feed.
     f.config = FakeMap(mapOf("partnerCode" to "fixture", "gamTag" to 5.0))

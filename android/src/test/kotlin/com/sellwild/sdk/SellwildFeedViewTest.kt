@@ -609,6 +609,24 @@ class SellwildFeedViewTest {
     }
 
     @Test
+    fun `destroy tears down every ad row and leaves the feed empty for good (origin 991e7ca)`() {
+        val feed = adFeed()
+        val adViews = feed.rows().flatMap { it.adViews() }
+        assertEquals(2, adViews.size)
+
+        feed.destroy()
+
+        for (ad in adViews) {
+            assertNull(ad.listener)
+            assertNull(ad.parent)
+        }
+        assertNull(feed.recycler().adapter)
+        assertNull(feed.listener)
+        idleFor(120_000)
+        assertEquals("no ad row refreshes after destroy", 2, ads.network.gamLoads.size)
+    }
+
+    @Test
     fun `an unknown view type is reported and gets an empty row`() {
         val feed = feed()
         val recycler = feed.recycler()

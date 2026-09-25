@@ -59,6 +59,13 @@ class AdDecisionsTest {
         assertEquals(AdDecisions.ColdStart.TIMED_OUT, AdDecisions.coldStart(ready = false, attempts = 1, maxAttempts = 1))
     }
 
+    @Test
+    fun `the prebidOnly refresh budget is the first render plus max refreshes (origin d8c2d96)`() {
+        assertTrue(AdDecisions.hasPrebidRefreshBudget(renderCount = 1, max = 1))
+        assertFalse(AdDecisions.hasPrebidRefreshBudget(renderCount = 2, max = 1))
+        assertFalse(AdDecisions.hasPrebidRefreshBudget(renderCount = 0, max = 0))
+    }
+
     // ── Resume ───────────────────────────────────────────────────────────────
 
     private val never: () -> Boolean = { throw AssertionError("asked a remote flag it did not need") }

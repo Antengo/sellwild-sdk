@@ -212,6 +212,62 @@ describe('SellwildFeed: the native view', () => {
   })
 })
 
+describe('SellwildFeed: listing taps (origin bcfb531, 2f790ce)', () => {
+  interface NativeFeedTaps {
+    consumeListingTaps: boolean
+    onListingTap: (e: { nativeEvent: { listing: ReturnType<typeof listing> } }) => void
+  }
+  const taps = (tree: ReactTestRenderer) => host(tree, 'SellwildFeedView').props as NativeFeedTaps
+  const tap = (tree: ReactTestRenderer) => {
+    act(() => {
+      taps(tree).onListingTap({ nativeEvent: { listing: listing() } })
+    })
+  }
+  const unmount = (tree: ReactTestRenderer) => {
+    act(() => {
+      tree.unmount()
+    })
+  }
+
+  it('passes consumeListingTaps to the native view, false by default', () => {
+    const plain = render(feed())
+    expect(taps(plain).consumeListingTaps).toBe(false)
+    unmount(plain)
+
+    const consuming = render(feed({ consumeListingTaps: true }))
+    expect(taps(consuming).consumeListingTaps).toBe(true)
+    unmount(consuming)
+  })
+
+  it('warns once per feed in a debug build when onListingTap returns true without consumeListingTaps', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const tree = render(feed({ onListingTap: () => true }))
+
+    tap(tree)
+    tap(tree)
+
+    expect(warn).toHaveBeenCalledOnce()
+    expect(String(warn.mock.calls[0][0])).toMatch(/return value is ignored.*consumeListingTaps/)
+    expect(takeFailureEvents()).toEqual([])
+    unmount(tree)
+  })
+
+  it('does not warn when the host consumes taps, returns nothing, or runs a release build', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const consuming = render(feed({ consumeListingTaps: true, onListingTap: () => true }))
+    tap(consuming)
+    const observing = render(feed({ onListingTap: () => undefined }))
+    tap(observing)
+    ;(globalThis as { __DEV__?: boolean }).__DEV__ = false
+    const release = render(feed({ onListingTap: () => true }))
+    tap(release)
+
+    expect(warn).not.toHaveBeenCalled()
+    for (const tree of [consuming, observing, release]) unmount(tree)
+  })
+})
+
 describe('SellwildFeed: the native view manager is not registered', () => {
   async function loadWithoutViewManager() {
     rn.setRegisteredViewManagers(['SellwildBannerView'])

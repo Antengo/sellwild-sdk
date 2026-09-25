@@ -324,6 +324,40 @@ class SellwildAdViewPrebidTest {
     }
 
     @Test
+    fun `a reattach starts no new auction once the refresh cap is spent (origin d218ba2)`() {
+        ads.prebidReady(context)
+        val view = adView(configWith(*prebidOnly, "AD_REFRESH_MAX_MOBILE" to 1))
+        view.load()
+        repeat(2) { view.prebidEvents.onAdLoaded(FakeBanner(context)) }
+
+        view.pause()
+        view.resume()
+
+        assertEquals("the first render and its one refresh spent the cap", 1, ads.network.renderingLoads.size)
+    }
+
+    @Test
+    fun `with a cap of 1 a kept creative still gets its one refresh (origin d8c2d96)`() {
+        ads.prebidReady(context)
+        val activity = newActivity()
+        val config = configWith(
+            *prebidOnly,
+            "AD_REFRESH_MAX_MOBILE" to 1,
+            "MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH" to true,
+        )
+        val view = adView(config, ctx = activity)
+        attach(activity, view)
+        view.load()
+        view.prebidEvents.onAdLoaded(FakeBanner(context))
+
+        view.pause()
+        view.resume()
+        idleFor(30_000)
+
+        assertEquals(2, ads.network.renderingLoads.size)
+    }
+
+    @Test
     fun `resume with no refresh does nothing on prebidOnly`() {
         ads.prebidReady(context)
         val view = adView(configWith(*prebidOnly))

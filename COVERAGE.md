@@ -19,10 +19,10 @@ Gate = all runtime code minus the exclusions listed below. Each exclusion has a 
 
 | Platform | Gate lines | Gate branches | Gate functions | Whole lines | Whole branches | Whole functions | Exclusions |
 |---|---|---|---|---|---|---|---|
-| android | 99.17 | 97.08 | 99.56 | 98.74 | 97.01 | 97.44 | 3 |
+| android | 99.97 | 98.56 | 100.00 | 99.54 | 98.48 | 97.86 | 3 |
 | core | 100.00 | 100.00 | 100.00 | 100.00 | 100.00 | 100.00 | 1 |
-| ios | 98.91 | 98.11 | 98.30 | 98.03 | 97.24 | 96.46 | 13 |
-| react-native | 98.93 | 98.44 | 100.00 | 98.93 | 98.44 | 100.00 | 2 |
+| ios | 99.59 | 99.26 | 98.94 | 98.71 | 98.37 | 97.08 | 13 |
+| react-native | 100.00 | 100.00 | 100.00 | 100.00 | 100.00 | 100.00 | 2 |
 
 Regenerate:
 

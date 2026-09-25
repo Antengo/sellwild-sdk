@@ -379,6 +379,23 @@ class SellwildAdViewTest {
     }
 
     @Test
+    fun `a GAM load that lands after a detach does not re-arm refresh (origin 7a07be8)`() {
+        val activity = newActivity()
+        val view = adView(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX_MOBILE" to 3), ctx = activity)
+        val parent = attach(activity, view)
+        view.load()
+
+        parent.removeView(view)
+        view.gam().adListener.onAdLoaded()
+        idleFor(60_000)
+        assertEquals(1, ads.network.gamLoads.size)
+
+        parent.addView(view)
+        idleFor(30_000)
+        assertEquals("the reattach restarts it", 2, ads.network.gamLoads.size)
+    }
+
+    @Test
     fun `with MOBILE_PAUSE_REFRESH_DETACHED off a detached view keeps refreshing`() {
         val activity = newActivity()
         val view = adView(configWith(*gam, "AD_STACK" to "gamOnly", "AD_REFRESH_MAX_MOBILE" to 3, "MOBILE_PAUSE_REFRESH_DETACHED" to false), ctx = activity)

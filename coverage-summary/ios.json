@@ -1,6 +1,6 @@
 {
   "platform": "ios",
-  "generatedAt": "2026-09-25T16:16:51.975Z",
+  "generatedAt": "2026-09-25T16:34:30.433Z",
   "tool": "xccov+llvm-cov",
   "commands": [
     "bash scripts/coverage/ios.sh",
@@ -39,20 +39,20 @@
       "ios/Sources/SellwildSDK/Core/**"
     ],
     "lines": {
-      "covered": 4789,
+      "covered": 4822,
       "total": 4842,
-      "pct": 98.91
+      "pct": 99.59
     },
     "branches": null,
     "regions": {
-      "covered": 2392,
+      "covered": 2420,
       "total": 2438,
-      "pct": 98.11
+      "pct": 99.26
     },
     "functions": {
-      "covered": 926,
+      "covered": 932,
       "total": 942,
-      "pct": 98.3
+      "pct": 98.94
     },
     "unmeasured": []
   },
@@ -62,20 +62,20 @@
     ],
     "target": "SellwildSDK",
     "lines": {
-      "covered": 4789,
+      "covered": 4822,
       "total": 4885,
-      "pct": 98.03
+      "pct": 98.71
     },
     "branches": null,
     "regions": {
-      "covered": 2392,
+      "covered": 2420,
       "total": 2460,
-      "pct": 97.24
+      "pct": 98.37
     },
     "functions": {
-      "covered": 926,
+      "covered": 932,
       "total": 960,
-      "pct": 96.46
+      "pct": 97.08
     },
     "unmeasured": []
   },
@@ -326,20 +326,20 @@
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildAdView.swift",
-      "lines": 95.92,
+      "lines": 98.25,
       "branches": null,
-      "regions": 94.44,
-      "functions": 92.55,
+      "regions": 97.69,
+      "functions": 96.81,
       "inGate": true,
-      "linesCovered": 658,
+      "linesCovered": 674,
       "linesTotal": 686,
-      "missedLines": "868-870,875-877,881-883,886-888,1043-1046,1048-1050,1052-1056,1058-1061",
+      "missedLines": "868-870,875-877,881-883,886-888",
       "excludedLines": "204-207",
       "whole": {
-        "lines": 95.36,
-        "regions": 93.58,
-        "functions": 90.63,
-        "linesCovered": 658,
+        "lines": 97.68,
+        "regions": 96.79,
+        "functions": 94.79,
+        "linesCovered": 674,
         "linesTotal": 690
       }
     },
@@ -501,20 +501,20 @@
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildPrebidMobile.swift",
-      "lines": 93.72,
+      "lines": 100,
       "branches": null,
-      "regions": 87.93,
+      "regions": 98.28,
       "functions": 94.44,
       "inGate": true,
-      "linesCovered": 179,
+      "linesCovered": 191,
       "linesTotal": 191,
-      "missedLines": "131-135,250-256",
+      "missedLines": "",
       "excludedLines": "66-81,85-88",
       "whole": {
-        "lines": 84.83,
-        "regions": 78.46,
+        "lines": 90.52,
+        "regions": 87.69,
         "functions": 80.95,
-        "linesCovered": 179,
+        "linesCovered": 191,
         "linesTotal": 211
       }
     },
@@ -531,14 +531,14 @@
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildS2SConfig.swift",
-      "lines": 95.93,
+      "lines": 100,
       "branches": null,
-      "regions": 81.55,
-      "functions": 81.82,
+      "regions": 96.12,
+      "functions": 90.91,
       "inGate": true,
-      "linesCovered": 118,
+      "linesCovered": 123,
       "linesTotal": 123,
-      "missedLines": "113,115-117,141"
+      "missedLines": ""
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildSafeURL.swift",
@@ -586,7 +586,7 @@
     "exitCode": 0,
     "passed": true,
     "result": "Passed",
-    "passedTests": 525,
+    "passedTests": 539,
     "failedTests": 0,
     "skippedTests": 0,
     "expectedFailures": 1,

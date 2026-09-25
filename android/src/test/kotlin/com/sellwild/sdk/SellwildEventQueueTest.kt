@@ -10,7 +10,10 @@ import com.sellwild.sdk.support.HttpStub
 import com.sellwild.sdk.support.NetworkBlockRule
 import com.sellwild.sdk.support.StubResponse
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -24,6 +27,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  * The events queue with an injected sender, uid, clock and dispatcher. Dispatchers.Unconfined
  * runs track()'s flush in place, so every POST has happened when the call returns.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class SellwildEventQueueTest {
 
     @get:Rule
@@ -232,5 +236,100 @@ class SellwildEventQueueTest {
 
         assertEquals("nothing was left to send again", 1, sender.posts.size)
         assertEquals(1, queue.failedPosts.get())
+    }
+
+    // ── Retry (origin 81e762d, 1847555) ──────────────────────────────────────
+
+    private val scheduler = TestCoroutineScheduler()
+
+    /** A queue on virtual time, so the 10 s re-flush runs only when the test says. */
+    private fun timedQueue(): SellwildEventQueue = SellwildEventQueue(
+        uidProvider = { "2d0f7a0a-9d1f-4c35-9d8b-0a1f2f9a8c11" },
+        sender = sender,
+        clock = { now },
+        dispatcher = StandardTestDispatcher(scheduler),
+    )
+
+    /** The labels of the events in POST [i]. */
+    private fun labels(i: Int): List<String> {
+        val batch = sender.batch(i)
+        return (0 until batch.length()).map { batch.getJSONObject(it).getString("label") }
+    }
+
+    private fun runFor(ms: Long) {
+        scheduler.advanceTimeBy(ms)
+        scheduler.runCurrent()
+    }
+
+    @Test
+    fun `a 5xx puts the batch back, and one re-flush 10 s later sends it again`() {
+        val timed = timedQueue()
+        sender.status = 503
+        timed.track("adError", label = "43")
+        timed.track("adError", label = "44")
+        scheduler.runCurrent()
+        assertEquals("both tracks failed", 2, sender.posts.size)
+        sender.status = 200
+
+        runFor(9_999)
+        assertEquals(2, sender.posts.size)
+        runFor(1)
+
+        assertEquals("one retry, not one per failure", 3, sender.posts.size)
+        assertEquals(listOf("43", "44"), labels(2))
+        runFor(60_000)
+        assertEquals("nothing is left to send", 3, sender.posts.size)
+    }
+
+    @Test
+    fun `a network error and a 408 or 429 are retried too, a 413 is not`() {
+        val timed = timedQueue()
+        sender.error = IOException("events.sellwild.com unreachable")
+        timed.track("adError", label = "net")
+        scheduler.runCurrent()
+        sender.error = null
+        sender.status = 429
+        runFor(10_000)
+        sender.status = 408
+        runFor(10_000)
+        sender.status = 413
+        runFor(10_000)
+        assertEquals(4, sender.posts.size)
+
+        sender.status = 200
+        runFor(60_000)
+        assertEquals("the 413 batch was dropped", 4, sender.posts.size)
+        assertEquals(4, timed.failedPosts.get())
+    }
+
+    @Test
+    fun `a flush sends at most 100 events per POST and drains the rest in follow-ups`() {
+        repeat(250) { queue.push("adError", label = "$it") }
+
+        runBlocking { queue.flush() }
+
+        assertEquals(listOf(100, 100, 50), (0 until sender.posts.size).map { sender.batch(it).length() })
+        assertEquals("0", sender.batch(0).getJSONObject(0).getString("label"))
+        assertEquals("249", sender.batch(2).getJSONObject(49).getString("label"))
+    }
+
+    @Test
+    fun `the queue keeps the newest 1000 events, dropping the oldest`() {
+        repeat(1005) { queue.push("adError", label = "$it") }
+
+        runBlocking { queue.flush() }
+
+        val labels = sender.posts.indices.flatMap(::labels)
+        assertEquals(1000, labels.size)
+        assertEquals("5", labels.first())
+        assertEquals("1004", labels.last())
+    }
+
+    @Test
+    fun `isRetryableStatus retries 5xx, 408, 429 and anything else outside 2xx and 4xx`() {
+        assertEquals(
+            listOf(false, false, true, true, true, false, false, true),
+            listOf(200, 299, 199, 408, 429, 400, 499, 500).map(SellwildEventQueue::isRetryableStatus),
+        )
     }
 }

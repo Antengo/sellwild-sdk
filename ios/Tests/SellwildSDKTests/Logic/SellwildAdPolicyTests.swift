@@ -60,6 +60,20 @@ final class SellwildAdPolicyTests: XCTestCase {
         XCTAssertTrue(SellwildAdPolicy.flag(["x"], default: true), "another type is the default")
     }
 
+    func testThePrebidOnlyRefreshBudgetIsTheFirstRenderPlusMaxRefreshes() {
+        // origin d8c2d96
+        XCTAssertTrue(SellwildAdPolicy.hasPrebidRefreshBudget(renderCount: 1, max: 1))
+        XCTAssertFalse(SellwildAdPolicy.hasPrebidRefreshBudget(renderCount: 2, max: 1))
+        XCTAssertFalse(SellwildAdPolicy.hasPrebidRefreshBudget(renderCount: 0, max: 0))
+    }
+
+    func testThePrebidOwnRefreshIsOffForCapZero() {
+        // origin 75b65f8
+        XCTAssertEqual(SellwildAdPolicy.prebidAutoRefreshInterval(refreshMax: 0, configured: 30), -1)
+        XCTAssertEqual(SellwildAdPolicy.prebidAutoRefreshInterval(refreshMax: 2, configured: 5), 10, "floored")
+        XCTAssertEqual(SellwildAdPolicy.prebidAutoRefreshInterval(refreshMax: 2, configured: 45), 45)
+    }
+
     // MARK: Resume and detach
 
     func testResumeReloadsWhenTheFirstAuctionNeverFinished() {

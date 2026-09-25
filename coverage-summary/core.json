@@ -1,6 +1,6 @@
 {
   "platform": "core",
-  "generatedAt": "2026-09-25T16:15:51.673Z",
+  "generatedAt": "2026-09-25T16:33:29.571Z",
   "tool": "vitest 3.2.7 + @vitest/coverage-v8 3.2.7 (experimentalAstAwareRemapping)",
   "commands": [
     "cd /Users/lawrence/Programming/Web/Antengo/sellwild-sdk/core && node_modules/.bin/vitest run --coverage",

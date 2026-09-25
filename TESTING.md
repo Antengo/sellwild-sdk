@@ -30,12 +30,12 @@ How it runs:
 6. The Gradle steps run back to back on one daemon, then `gradlew --stop`
    runs. `xcrun simctl shutdown all` runs after the iOS step.
 
-`--fast`, measured 2026-09-24 (load about 2):
+`--fast`, measured 2026-09-25 after the origin/main merge (load about 35, other agents busy):
 
 | Step | What it checks | Time |
 |---|---|---|
 | `tsgo-core`, `tsgo-react-native` | tsgo type check of src and tests | 1s each |
-| `eslint-core`, `eslint-react-native` | ESLint with type info and the house failure rules | 2s each |
+| `eslint-core`, `eslint-react-native` | ESLint with type info and the house failure rules | 2.5s each |
 | `lint-rules-test` | tests of the house ESLint rules (`contracts/lint/`) | 0.5s |
 | `swiftlint` | SwiftLint on `ios/` and the React Native iOS bridge | 0.3s |
 | `swift-lint-tests`, `kotlin-warnings-test` | tests of the Swift and Kotlin lint tooling | 1s |
@@ -43,21 +43,21 @@ How it runs:
 | `contracts-validate` | every contract file against its schema | 0.3s |
 | `contracts-test` | `npm --prefix contracts test` | 5s |
 | `coverage-gate-test` | tests of `tools/coverage-gate.mjs` | 0.3s |
-| `detekt-android` | detekt on `android/` and the React Native Android bridge | 11s; 20-40s after Kotlin changes |
-| total | | 29s |
+| `detekt-android` | detekt on `android/` and the React Native Android bridge | 8s; 20-40s after Kotlin changes |
+| total | | 23s |
 
-`--full` adds these, in this order (measured 2026-09-24):
+`--full` adds these, in this order (measured 2026-09-25, load about 50):
 
 | Step | What it runs | Time |
 |---|---|---|
-| `android-lint` | Android Lint (`lintDebug`) | 18s |
-| `android-coverage` | `bash scripts/coverage/android.sh` | 21s |
-| `kotlin-warnings` | Kotlin compiler-warnings ratchet (a full recompile) | 24s |
+| `android-lint` | Android Lint (`lintDebug`) | 23s |
+| `android-coverage` | `bash scripts/coverage/android.sh` | 20s |
+| `kotlin-warnings` | Kotlin compiler-warnings ratchet (a full recompile) | 18s |
 | `core-coverage` | `npm --prefix core run coverage:summary` (core and RN) | 19s |
-| `ios-coverage` | `bash scripts/coverage/ios.sh` | 64s |
+| `ios-coverage` | `bash scripts/coverage/ios.sh` | 53s |
 | `swift-warnings` | Swift compiler-warnings ratchet, from the log `ios.sh` just wrote | 0.2s |
 | `coverage-thresholds` | `node tools/coverage-gate.mjs`: every `coverage-summary/*.json` gate at 95% lines, branches (regions for iOS) and functions | 0.2s |
-| total, with `--fast` | | 189s |
+| total, with `--fast` | | 150s |
 
 ### Baselines
 
