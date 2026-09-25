@@ -68,9 +68,15 @@ test('Swift: print family and empty catch clauses', () => {
     'do { try x() } catch { }',
     'do { try x() } catch let e as URLError {\n  // nothing\n}',
     'do { try x() } catch { SellwildFailures.log(code: "a.b.c", component: "feed", error: error) }',
+    'Swift.print("qualified")',
+    'Swift . debugPrint(x)',
+    'Foundation.NSLog("x")',
+    'os.os_log("x")',
+    'printer.Swift.print("a member named Swift is not the module")',
   ].join('\n')
   const r = scanSource(src, 'swift')
-  assert.equal(r.print, 5, JSON.stringify(r.hits))
+  assert.equal(r.print, 9, JSON.stringify(r.hits))
+  assert.deepEqual(r.hits.filter((h) => h.kind === 'print').map((h) => h.line), [1, 2, 3, 4, 5, 15, 16, 17, 18])
   assert.equal(r.emptyCatch, 2, JSON.stringify(r.hits))
 })
 
@@ -87,9 +93,13 @@ test('Kotlin: Log, println, printStackTrace, System.out and empty catch', () => 
     'try { a() } catch (e: Exception) {}',
     'try { a() } catch (_: Throwable) { /* ok */ }',
     'try { a() } catch (e: Exception) { SellwildFailures.log(code = "a.b.c", component = "feed", error = e) }',
+    'kotlin.io.println("qualified")',
+    'kotlin.io.print(x)',
+    'android.util.Log.w(TAG, "q")',
+    'java.lang.System.out.println("q")',
   ].join('\n')
   const r = scanSource(src, 'kotlin')
-  assert.equal(r.print, 5, JSON.stringify(r.hits))
+  assert.equal(r.print, 9, JSON.stringify(r.hits))
   assert.equal(r.emptyCatch, 2, JSON.stringify(r.hits))
 })
 

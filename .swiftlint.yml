@@ -64,7 +64,8 @@ file_length:
 custom_rules:
   no_print:
     name: "No printing"
-    regex: '(?<![.\w])(?:print|debugPrint|dump|NSLog|os_log)\s*\('
+    # A module-qualified call (Swift.print, Foundation.NSLog, os.os_log) counts too.
+    regex: '(?<![.\w])(?:(?:Swift|Foundation|os)\s*\.\s*)?(?:print|debugPrint|dump|NSLog|os_log)\s*\('
     excluded_match_kinds: [comment, comment.mark, comment.url, doccomment, doccomment.field, string]
     included: ['/ios/Sources/', '/react-native/ios/']
     excluded:

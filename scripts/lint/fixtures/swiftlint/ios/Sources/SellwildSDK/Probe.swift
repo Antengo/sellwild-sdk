@@ -9,7 +9,13 @@ func probe(_ printer: Printer, _ logger: Sink) async {
     dump(1) // expect: no_print
     NSLog("z") // expect: no_print
     os_log("z") // expect: no_print
+    Swift.print("qualified") // expect: no_print
+    Swift.debugPrint(1) // expect: no_print
+    Swift . dump(1) // expect: no_print
+    Foundation.NSLog("z") // expect: no_print
+    os.os_log("z") // expect: no_print
     printer.print("a method named print is fine")
+    printer.Swift.print("a member named Swift is not the module")
     // print("in a comment")
     let text = "print(1) and catch {} in a string"
     let made = Logger(subsystem: "a", category: "b") // expect: no_os_logger

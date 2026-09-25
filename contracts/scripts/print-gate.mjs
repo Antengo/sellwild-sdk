@@ -197,10 +197,13 @@ export function views(src, lang) {
 // ── Detectors ────────────────────────────────────────────────────────────────
 
 const CONSOLE = /\bconsole\s*\.\s*(?:log|error|warn|info|debug|trace)\s*\(/g
+// A print function called by its module-qualified name counts too: Swift.print,
+// Foundation.NSLog, os.os_log, kotlin.io.println. Dart has no fixed module
+// name (an import prefix is any name), so a prefixed print is not caught here.
 const PRINT_RULES = {
   ts: [CONSOLE],
-  swift: [CONSOLE, /(?<![.\w])(?:print|debugPrint|dump|NSLog|os_log)\s*\(/g],
-  kotlin: [CONSOLE, /(?<![.\w])(?:println|print)\s*\(/g, /\bLog\s*\.\s*(?:e|w|i|d|v|wtf)\s*\(/g, /\.\s*printStackTrace\s*\(/g, /\bSystem\s*\.\s*(?:out|err)\s*\.\s*print/g],
+  swift: [CONSOLE, /(?<![.\w])(?:(?:Swift|Foundation|os)\s*\.\s*)?(?:print|debugPrint|dump|NSLog|os_log)\s*\(/g],
+  kotlin: [CONSOLE, /(?<![.\w])(?:kotlin\s*\.\s*io\s*\.\s*)?(?:println|print)\s*\(/g, /\bLog\s*\.\s*(?:e|w|i|d|v|wtf)\s*\(/g, /\.\s*printStackTrace\s*\(/g, /\bSystem\s*\.\s*(?:out|err)\s*\.\s*print/g],
   dart: [CONSOLE, /(?<![.\w])(?:print|debugPrint)\s*\(/g],
   objc: [CONSOLE, /\bNSLog\s*\(/g],
 }
