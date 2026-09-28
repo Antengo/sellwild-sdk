@@ -1,6 +1,8 @@
 package com.sellwild.sdk
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -35,6 +37,10 @@ object SellwildSDK {
      * `build.gradle.kts` version and the other platforms' version constants.
      */
     const val SDK_VERSION = "1.7.7"
+
+    /** Application Context, captured at app start by [SellwildInitProvider]. */
+    @Volatile
+    internal var appContext: Context? = null
 
     /**
      * Build a [SellwildConfig] by fetching `partnerCode/slug.json` from the
@@ -76,23 +82,28 @@ object SellwildSDK {
         // Silent fallback — config retains defaults on any failure.
 
         overrides?.let { config = it(config) }
+
+        // Pre-warm Prebid Mobile + GMA as soon as we have a config, matching iOS
+        // configure(). Idempotent (the first bootstrap initializes; later ones are
+        // cheap), so an explicit prewarm() or the first ad load is harmless. Posted
+        // to the main thread: SDK init and Targeting mutations are main-sensitive.
+        appContext?.let { ctx ->
+            val resolved = config
+            Handler(Looper.getMainLooper()).post { SellwildPrebidMobile.bootstrap(ctx, resolved) }
+        }
         config
     }
 
     /**
-     * Optional cold-start optimization. Call once at app launch (e.g. from
-     * `Application.onCreate()`) to pre-initialize the Prebid Mobile + Google
-     * Mobile Ads stack, so the first `SellwildAdView.load()` doesn't have to
-     * absorb SDK init latency during its readiness wait — recovering the first
-     * impression's header-bidding demand on a slow cold start.
+     * Pre-initialize the Prebid Mobile + Google Mobile Ads stack, so the first
+     * `SellwildAdView.load()` doesn't absorb SDK init latency during its
+     * readiness wait (recovering the first impression's header-bidding demand
+     * on a slow cold start).
      *
-     * Fully optional and non-breaking: if you skip it, the SDK still initializes
-     * lazily on the first ad load (behind the built-in readiness wait), exactly
-     * as before — no integration change required. Idempotent: the first call
-     * initializes; later calls are a cheap no-op.
-     *
-     * (iOS pre-warms automatically inside `configure()`; Android's `configure()`
-     * takes no `Context`, so this is the explicit opt-in for parity.)
+     * Since 1.7.7 [configure] does this automatically (like iOS), so most apps
+     * never need to call it. It's for configs built without [configure], or for
+     * warming the stack even earlier. Idempotent: the first call initializes;
+     * later calls are a cheap no-op.
      *
      * @param context Any Context; the application context is used internally.
      * @param config The config returned by [configure].
