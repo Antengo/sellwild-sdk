@@ -4,8 +4,6 @@
     "module": "CommonJS",
     "lib": ["ES2017", "DOM"],
     "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
