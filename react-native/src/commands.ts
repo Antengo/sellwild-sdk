@@ -1,4 +1,5 @@
 import { NativeModules } from 'react-native'
+import { configure as coreConfigure } from '@sellwild/sdk-core'
 import type { SellwildConfig, SellwildEid, SellwildGeo } from '@sellwild/sdk-core'
 import { toNativeConfig } from './nativeConfig'
 
@@ -43,10 +44,23 @@ export function setExternalUserIds(eids: SellwildEid[]): void {
  * `<SellwildBanner>`/`<SellwildFeed>` mounts, so the first impression doesn't
  * incur cold-start init latency and fall back to server-only demand.
  *
- * Optional: mounting an ad view already bootstraps idempotently. Call this at
- * app launch (with the same config you pass to the components) when first-fill
- * on a cold start matters. No-op if the native module isn't linked.
+ * Since 1.7.7 `configure()` calls this automatically, so it's only needed for
+ * configs built another way (e.g. `buildConfig`). Idempotent, and a no-op if the
+ * native module isn't linked.
  */
 export function prewarm(config: SellwildConfig): void {
   SellwildRNModule?.prewarm?.(toNativeConfig(config))
+}
+
+/**
+ * Fetch the partner's CDN config (see core `configure`) and pre-warm the native
+ * ad stack with it, so the first ad view doesn't pay SDK init latency. Matches
+ * native iOS / Android `configure()`, which pre-warm too.
+ */
+export async function configure(
+  ...args: Parameters<typeof coreConfigure>
+): Promise<SellwildConfig> {
+  const config = await coreConfigure(...args)
+  prewarm(config)
+  return config
 }

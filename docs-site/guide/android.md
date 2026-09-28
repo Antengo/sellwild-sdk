@@ -818,9 +818,9 @@ The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your
 
 See [Configuration → Remote Config](./configuration#remote-config) for the full CDN field reference.
 
-### Pre-warming (optional)
+### Pre-warming (automatic)
 
-The Prebid Mobile + Google Mobile Ads stack initializes lazily on the first `SellwildAdView.load()`, guarded by a short readiness wait. On a slow cold start that wait may expire before init finishes, so the **first** impression can fall back to GAM-only (losing header-bidding demand). To recover it, pre-initialize the stack once at app launch:
+`configure()` pre-initializes the Prebid Mobile + Google Mobile Ads stack as soon as the config arrives, so the first `SellwildAdView.load()` doesn't absorb SDK init latency (on a slow cold start that can otherwise cost the **first** impression its header-bidding demand). Calling `configure()` early, e.g. from `Application.onCreate()`, gets the most benefit:
 
 ```kotlin
 class MyApp : Application() {
@@ -828,13 +828,13 @@ class MyApp : Application() {
         super.onCreate()
         applicationScope.launch {
             val config = SellwildSDK.configure(partnerCode = "weatherbug", slug = "weatherbug-weatherbug")
-            SellwildSDK.prewarm(applicationContext, config)
+            // configure() pre-warms the ad stack; keep `config` for your ad views.
         }
     }
 }
 ```
 
-`prewarm(context, config)` is **fully optional and non-breaking** — skip it and the SDK still initializes lazily exactly as before. It is idempotent (first call initializes; later calls are a cheap no-op). This mirrors iOS, which pre-warms automatically inside `configure()` (Swift needs no `Context`); Android's `configure()` takes no `Context`, so pre-warming is the explicit opt-in.
+Since 1.7.7, `SellwildSDK.configure()` pre-warms automatically (like iOS), using the application Context the SDK captures at app start, so you don't need to call `prewarm`. Call it only if you build a `SellwildConfig` without `configure()`, or want to warm the stack even earlier. It is idempotent (first call initializes; later calls are a cheap no-op).
 
 ---
 
