@@ -368,6 +368,30 @@ The CMS publishes this file. Native ads run Prebid Mobile in-process and native 
 
 ---
 
+## What `cache.sellwild.com` needs
+
+`cache.sellwild.com` (CloudFront `E2Y8I3DBSXG2JF`, S3-backed) serves the listings and playlist JSON. It is **hand-managed** (not in CloudFormation), so keep these on its default behavior:
+
+| Setting | Value | Why |
+|---------|-------|-----|
+| Cache policy | `sellwild-cache-path-only` | Path-only cache key; don't add viewer headers here (it fragments the cache) |
+| Origin request policy | `sellwild-cache-viewer-geo` | Forwards `CloudFront-Viewer-Country` / `-Country-Region` / `-City` so the function below can see them (not in the cache key) |
+| Response headers policy | `sellwild-cache-cors-star` | CORS `*` for the widget on partner domains |
+| Function (viewer response) | `add-viewer-headers` | Copies the viewer geo headers onto the response and adds them to `Access-Control-Expose-Headers` |
+
+The web widget (`appendViewerHeaders`), Shorts/TV, and the iOS/Android SDKs (`fetchListings`) read the viewer's state from those response headers. Without them, SportServer localized listings, state geo-blocking, and the SDK `device.geo` seed all quietly stop working. They were lost once (Aug 2026) and went unnoticed for weeks.
+
+- **Edit only with AWS CLI v2.2+ or the console.** Older CLIs (e.g. 2.0.x) don't know function associations / response-headers / origin-request policies and silently drop them on a `get-distribution-config` → `update-distribution` round trip.
+- The `CDN viewer-geo headers` workflow (`.github/workflows/cdn-headers.yml`) checks hourly and fails if the headers go missing or stop being CORS-exposed.
+
+Quick check:
+
+```bash
+curl -sI -H "Origin: https://example.com" https://cache.sellwild.com/listings-img-data-sm | grep -i -e cloudfront-viewer -e access-control-expose
+```
+
+---
+
 ## Admin Dashboard (Netlify)
 
 The admin dashboard is a Vite + React app deployed to Netlify with serverless functions for the backend (Athena/CloudWatch queries) and Netlify Identity for authentication.
