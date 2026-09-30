@@ -94,16 +94,17 @@ dependencies {
     // transitive fork deps resolve with no extra setup. Don't use the JitPack
     // coordinate here: partners don't have jitpack.io, so the release POM would
     // fail to resolve for them.
-    // 3.3.2-sw4: cumulative Sellwild fork patches on the rendering BannerView —
+    // 3.3.2-sw5: cumulative Sellwild fork patches on the rendering BannerView —
     // sw1 exposes multiformat (banner+video) for prebidOnly outstream; sw2 makes
     // BasicParameterBuilder honor the VideoParameters on the rendering path; sw3
     // adds getCreativeWidth()/getCreativeHeight() so prebidOnly multi-size slots
     // (e.g. 300x250 + 320x50) can shrink to the won creative instead of holding
     // the reserved bounding box; sw4 substitutes the ${AUCTION_PRICE} macro in
-    // bid.burl (billing URL) and emits device.geo.country in ISO alpha-3
-    // (see Antengo/prebid-mobile-android).
-    implementation("com.sellwild:PrebidMobile-core:3.3.2-sw4")
-    implementation("com.sellwild:PrebidMobile-gamEventHandlers:3.3.2-sw4")
+    // bid.burl (billing URL) and emits device.geo.country in ISO alpha-3; sw5
+    // backports upstream PRs 948 (banner onAdLoaded after the creative is
+    // attached) and 996 (COPPA at regs.coppa). See Antengo/prebid-mobile-android.
+    implementation("com.sellwild:PrebidMobile-core:3.3.2-sw5")
+    implementation("com.sellwild:PrebidMobile-gamEventHandlers:3.3.2-sw5")
     implementation("com.google.android.gms:play-services-ads:23.6.0")
 
     // SellwildFeed (1.4.0+) — all-in-one native feed surface.
