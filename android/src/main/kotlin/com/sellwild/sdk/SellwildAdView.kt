@@ -99,6 +99,13 @@ open class SellwildAdView @JvmOverloads constructor(
          * visible. See [SellwildHouseAd].
          */
         fun onHouseAdImpression(adView: SellwildAdView, zoneId: String) {}
+
+        /**
+         * Boltive flagged and blanked the rendered creative (only when
+         * `MOBILE_BOLTIVE_ENABLED` is on). The SDK shows the house backdrop and
+         * re-auctions if the refresh cap allows; no host action is required.
+         */
+        fun onAdBlocked(adView: SellwildAdView, zoneId: String) {}
     }
 
     var listener: Listener? = null
@@ -167,6 +174,11 @@ open class SellwildAdView @JvmOverloads constructor(
     // reattach should keep it (so its viewability tracker can fire the
     // impression/burl) rather than discard it with a fresh auction.
     private var prebidHasRenderedCreative = false
+
+    // Boltive ad-quality monitor (remote-gated, default off). See SellwildBoltive.
+    private val boltive = SellwildBoltiveController()
+    // What the monitored creative was (bidder, or "gam") — the adBlocked action.
+    private var boltiveSource = ""
 
     /**
      * Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
@@ -475,6 +487,7 @@ open class SellwildAdView @JvmOverloads constructor(
 
     fun destroy() {
         pause()
+        boltive.stop()
         bannerView?.destroy()
         bannerView = null
         prebidBanner?.destroy()
@@ -602,6 +615,7 @@ open class SellwildAdView @JvmOverloads constructor(
             it.destroy()
             removeView(it)
             prebidBanner = null
+            boltive.stop()
         }
         nativeAdView?.let { it.destroy(); removeView(it); nativeAdView = null }
         bannerView?.let { return it }
@@ -693,6 +707,7 @@ open class SellwildAdView @JvmOverloads constructor(
             it.destroy()
             removeView(it)
             bannerView = null
+            boltive.stop()
         }
         nativeAdView?.let { it.destroy(); removeView(it); nativeAdView = null }
         prebidBanner?.let { return it }
@@ -797,6 +812,8 @@ open class SellwildAdView @JvmOverloads constructor(
         // Tear down banner render paths if we previously rendered one.
         bannerView?.let { it.destroy(); removeView(it); bannerView = null }
         prebidBanner?.let { it.destroy(); removeView(it); prebidBanner = null }
+        // Native assets render in our own views — nothing for Boltive to watch.
+        boltive.stop()
         nativeAdView?.let { return it }
 
         val cap = SellwildNative.maxHeight(config.remoteJson, zoneId, fallback = adSize.height)
@@ -880,9 +897,62 @@ open class SellwildAdView @JvmOverloads constructor(
         }
     }
 
+    // ── Boltive (ad quality) ─────────────────────────────────────────────────
+
+    /** Monitor this render with Boltive when the policy allows it. */
+    private fun monitorWithBoltive(
+        view: View,
+        widthDp: Int,
+        heightDp: Int,
+        network: SellwildBoltive.Network,
+        tag: SellwildBoltiveController.Tag,
+        source: String,
+    ) {
+        val monitored = boltive.renderDidSucceed(
+            bannerView = view,
+            widthDp = widthDp,
+            heightDp = heightDp,
+            network = network,
+            remoteJson = config.remoteJson,
+            zoneId = zoneId,
+            tag = tag,
+            debug = config.debug,
+        ) { blocked -> handleBoltiveBlock(blocked) }
+        if (monitored) boltiveSource = source
+    }
+
+    /**
+     * Boltive blanked a flagged creative. Hide it, show the house backdrop
+     * instead of a blank slot, report it, then re-auction if the refresh cap
+     * has budget (the reload counts against the cap). The next successful
+     * render makes the banner visible again.
+     */
+    private fun handleBoltiveBlock(blocked: View) {
+        // Ignore a late callback for a banner we've since torn down.
+        if (blocked !== bannerView && blocked !== prebidBanner) return
+        Log.w(TAG, "[Boltive] creative blocked — zone ${zoneId.orEmpty()}, source $boltiveSource")
+        blocked.visibility = View.INVISIBLE
+        setHouseVisible(true)
+        listener?.onAdBlocked(this, zoneId.orEmpty())
+        SellwildEventQueue.shared(context).track("adBlocked", action = boltiveSource, label = zoneId.orEmpty())
+        recordHouseImpressionIfShowing()
+        if (isPausedForDetach) return
+        if (blocked === bannerView) {
+            refreshHandler?.removeCallbacksAndMessages(null)
+            val maxRefresh = effectiveRefreshMax
+            if (maxRefresh <= 0 || refreshCount >= maxRefresh) return
+            refreshCount++
+            load()
+        } else if (hasPrebidRefreshBudget) {
+            prebidBanner?.loadAd()
+        }
+    }
+
     private fun bannerAdListener() = object : AdListener() {
         override fun onAdLoaded() {
             val self = this@SellwildAdView
+            // Visible again after a Boltive block (handleBoltiveBlock hides it).
+            self.bannerView?.visibility = View.VISIBLE
             // Paid creative rendered — hide the house backdrop so a transparent
             // or smaller-than-slot creative can't bleed through (re-shown on a
             // later no-fill). Mirrors the native path; don't rely on the creative
@@ -895,6 +965,18 @@ open class SellwildAdView @JvmOverloads constructor(
             self.bannerView?.adSize?.let { self.listener?.onAdResize(self, it.width, it.height) }
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
             self.emitAdRender()
+            // GAM path: Boltive reads advertiser/creative/line item from the GMA
+            // ResponseInfo itself.
+            self.bannerView?.let { gam ->
+                self.monitorWithBoltive(
+                    gam,
+                    gam.adSize?.width ?: self.adSize.width,
+                    gam.adSize?.height ?: self.adSize.height,
+                    SellwildBoltive.Network.GAM,
+                    SellwildBoltiveController.Tag(adUnitId = gam.adUnitId.orEmpty()),
+                    source = "gam",
+                )
+            }
             scheduleRefresh()
         }
 
@@ -929,6 +1011,8 @@ open class SellwildAdView @JvmOverloads constructor(
             }
             if (self.config.debug) android.util.Log.d("SellwildAdView", "[prebidOnly] rendered — zone ${self.zoneId.orEmpty()}")
             self.prebidHasRenderedCreative = true
+            // Visible again after a Boltive block (handleBoltiveBlock hides it).
+            bannerView?.visibility = View.VISIBLE
             // Paid creative rendered — hide the house backdrop so a transparent or
             // smaller-than-slot creative can't bleed through. NOTE: Prebid's
             // rendering banner self-refreshes with a teardown gap the backdrop used
@@ -951,6 +1035,23 @@ open class SellwildAdView @JvmOverloads constructor(
             self.listener?.onAdResize(self, w, h)
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
             self.emitAdRender()
+            bannerView?.let { pb ->
+                val response = pb.bidResponse
+                val bid = response?.winningBid
+                val bidder = response?.targeting?.get("hb_bidder")
+                self.monitorWithBoltive(
+                    pb, w, h,
+                    SellwildBoltive.Network.PREBID,
+                    SellwildBoltiveController.Tag(
+                        adUnitId = self.zoneId.orEmpty(),
+                        advertiserId = bid?.adomain?.firstOrNull(),
+                        creativeId = bid?.crid,
+                        campaignId = bid?.cid,
+                        sspRefreshCode = bidder,
+                    ),
+                    source = bidder ?: "prebid",
+                )
+            }
         }
 
         override fun onAdDisplayed(bannerView: PrebidBannerView?) {}

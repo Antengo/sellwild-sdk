@@ -107,6 +107,16 @@ dependencies {
     implementation("com.sellwild:PrebidMobile-gamEventHandlers:3.3.2-sw5")
     implementation("com.google.android.gms:play-services-ads:23.6.0")
 
+    // Boltive ad-quality monitor (proprietary AAR). Dormant unless
+    // MOBILE_BOLTIVE_ENABLED is on. Its POM pulls kotlin-stdlib 2.1.21; exclude
+    // it for the same reason the publish step strips kotlin-stdlib (RN 0.74
+    // hosts compile with Kotlin 1.9). Every stdlib API it calls exists in 1.9.
+    // Resolves from packagecloud (see settings.gradle.kts) until it's mirrored
+    // to maven.sellwild.com.
+    implementation("com.boltive:boltive-sdk:1.4.19") {
+        exclude(group = "org.jetbrains.kotlin")
+    }
+
     // SellwildFeed (1.4.0+) — all-in-one native feed surface.
     // RecyclerView + SwipeRefreshLayout for the list itself; Browser for the
     // Chrome Custom Tabs fallback when the partner doesn't handle onListingTap.

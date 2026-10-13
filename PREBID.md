@@ -399,7 +399,47 @@ Some banner / MRAID creatives autoplay video or audio **with sound**, unprompted
 ```
 On by default; set `false` to disable.
 
-> **Best-effort, by design.** It reaches media in the WebView's **main frame** only — a creative whose media is inside a cross-origin `<iframe>` is walled off by the same-origin policy, and creatives rendered in **GAM/AdX's own** container (not ours) are out of reach. For those, block auto-play-audio creatives in Google Ad Manager. Full ad-quality coverage (auto-redirects, malware, heavy ads) is the domain of dedicated vendors (Boltive, AppHarbr); this guard targets the common unsolicited-audio case.
+> **Best-effort, by design.** It reaches media in the WebView's **main frame** only — a creative whose media is inside a cross-origin `<iframe>` is walled off by the same-origin policy, and creatives rendered in **GAM/AdX's own** container (not ours) are out of reach. For those, block auto-play-audio creatives in Google Ad Manager. Full ad-quality coverage (auto-redirects, malware, heavy ads) is the domain of dedicated vendors (Boltive, AppHarbr); this guard targets the common unsolicited-audio case. For blocking, see [Boltive](#boltive-ad-quality-blocking) below.
+
+---
+
+## Boltive ad-quality blocking
+
+The SDK bundles the [Boltive](https://www.boltive.com/) mobile SDK (iOS `Boltive` 1.3.12, Android `com.boltive:boltive-sdk` 1.4.19). When enabled, Boltive watches each rendered banner's creative WebView and **blanks a creative it flags** (malware, auto-redirects, offensive content). It's **off by default** and controlled entirely from remote config.
+
+When Boltive blocks a creative in a `SellwildAdView` slot (standalone or inside `SellwildFeedView`), the SDK:
+
+1. Hides the blanked creative and shows the house backdrop (when house ads are configured).
+2. Emits an `adBlocked` analytics event. The label is the zone; the action is the winning bidder on `prebidOnly`, or `gam`.
+3. Calls `sellwildAdView(_:didBlockAdForZoneId:)` (iOS), `Listener.onAdBlocked` (Android), or `onBlocked` (RN `SellwildBanner`).
+4. Re-auctions if the refresh cap still has budget. The reload counts against `AD_REFRESH_MAX(_MOBILE)`.
+
+Boltive covers both `both`/`gamOnly` (GAM-rendered) and `prebidOnly` (Prebid-rendered) banners. Native ads render in SDK views, so they aren't monitored.
+
+**Keys (remote config / CDN):**
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `MOBILE_BOLTIVE_ENABLED` | bool | `false` | Master switch. |
+| `MOBILE_BOLTIVE_ENABLED_IOS` / `_ANDROID` | bool | unset | Platform override. `false` turns Boltive off on that platform even if other keys are on. `true` turns it on everywhere on that platform. |
+| `MOBILE_BOLTIVE_ENABLED_BY_ZONE` | `{zoneId: bool}` | unset | Per-zone opt-in when the master switch is off. |
+| `MOBILE_BOLTIVE_CLIENT_ID` | string | unset | Boltive client id. Required: Boltive stays off without it. |
+| `MOBILE_BOLTIVE_SAMPLE_RATE` | number 0–1 | `1` | Share of renders monitored. |
+| `MOBILE_BOLTIVE_MAX_PER_SESSION` | int | `0` (unlimited) | Monitored renders per app launch. |
+| `MOBILE_BOLTIVE_MAX_PER_SLOT` | int | `0` (unlimited) | Monitored renders per ad view, including refreshes. |
+
+```json
+{
+  "MOBILE_BOLTIVE_ENABLED": true,
+  "MOBILE_BOLTIVE_CLIENT_ID": "<client id from Boltive>",
+  "MOBILE_BOLTIVE_SAMPLE_RATE": 0.5,
+  "MOBILE_BOLTIVE_MAX_PER_SESSION": 200
+}
+```
+
+The caps are checked first, then the sample roll. Only monitored renders count toward the caps.
+
+> **Caps limit coverage, not just cost.** Boltive checks a creative **after it renders**; it doesn't filter bids before the auction. A render that isn't monitored (sampled out or over a cap) isn't protected. To keep known-bad demand out of the auction, use the Prebid Server ORTB2 blocking module (`badv` / `bcat` / `battr`) as well.
 
 ---
 

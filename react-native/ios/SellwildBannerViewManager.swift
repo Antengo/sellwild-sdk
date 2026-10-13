@@ -53,6 +53,8 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
     @objc var onAdFailed: RCTDirectEventBlock?
     /// Emitted with the rendered creative size so JS can resize the slot.
     @objc var onAdResize: RCTDirectEventBlock?
+    /// Boltive blocked the rendered creative (MOBILE_BOLTIVE_ENABLED only).
+    @objc var onAdBlocked: RCTDirectEventBlock?
 
     // MARK: Internals
 
@@ -142,6 +144,10 @@ final class SellwildBannerHostView: UIView, SellwildAdViewDelegate {
 
     func sellwildAdView(_ adView: SellwildAdView, didFailWithError error: Error) {
         onAdFailed?(["message": error.localizedDescription])
+    }
+
+    func sellwildAdView(_ adView: SellwildAdView, didBlockAdForZoneId zoneId: String) {
+        onAdBlocked?(["zoneId": zoneId])
     }
 
     func sellwildAdView(_ adView: SellwildAdView, didRenderWithSize size: CGSize) {

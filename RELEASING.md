@@ -102,6 +102,17 @@ publishing, check the fork version the SDK pins resolves there:
 curl -sI https://maven.sellwild.com/releases/com/sellwild/PrebidMobile-core/<ver>/PrebidMobile-core-<ver>.pom  # expect 200
 ```
 
+**Boltive (Android).** The SDK depends on Boltive's AAR, which lives only on
+packagecloud (`com.boltive:boltive-sdk`). Partners only have maven.sellwild.com,
+and our install docs scope that repo to `com\.sellwild.*`. So before the first
+release that ships Boltive, mirror the AAR unchanged as `com.sellwild:boltive-sdk`
+(same version, POM rewritten to our group, no `org.jetbrains.kotlin` deps), the
+same way omsdk-android is mirrored. Then switch the dependency in
+`build.gradle.kts` to that coordinate and drop the packagecloud repo from
+`settings.gradle.kts`. Boltive's license is proprietary: get their OK to
+redistribute first. iOS needs nothing extra: the `Boltive` pod is on trunk, and
+the SPM `binaryTarget` points at Boltive's own zip.
+
 ## npm Release Steps (React Native)
 
 Publish **after** the iOS pod and Android AAR are live: the RN bridge compiles

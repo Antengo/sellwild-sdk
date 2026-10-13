@@ -121,6 +121,13 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
                 emit(reactContext, adView, "onAdClicked", null)
             }
 
+            override fun onAdBlocked(adView: SellwildAdView, zoneId: String) {
+                val payload = com.facebook.react.bridge.Arguments.createMap().apply {
+                    putString("zoneId", zoneId)
+                }
+                emit(reactContext, adView, "onAdBlocked", payload)
+            }
+
             override fun onAdFailed(adView: SellwildAdView, message: String) {
                 val payload = com.facebook.react.bridge.Arguments.createMap().apply {
                     putString("message", message)
@@ -204,6 +211,7 @@ class SellwildBannerViewManager : SimpleViewManager<SellwildAdView>() {
             .put("onAdClicked", MapBuilder.of("registrationName", "onAdClicked"))
             .put("onAdFailed", MapBuilder.of("registrationName", "onAdFailed"))
             .put("onAdResize", MapBuilder.of("registrationName", "onAdResize"))
+            .put("onAdBlocked", MapBuilder.of("registrationName", "onAdBlocked"))
             .build()
     }
 
