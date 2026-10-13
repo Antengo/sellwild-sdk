@@ -42,6 +42,15 @@ final class SellwildBoltiveTests: XCTestCase {
             zoneId: zone))
     }
 
+    func testPlatformOverrideFromCMSSelect() {
+        var v = on
+        v["MOBILE_BOLTIVE_ENABLED_IOS"] = ""
+        XCTAssertNotNil(SellwildBoltive.policy(remoteValues: v, zoneId: zone), "blank = unset")
+        v["MOBILE_BOLTIVE_ENABLED_IOS"] = "off"
+        XCTAssertNil(SellwildBoltive.policy(remoteValues: v, zoneId: zone))
+        XCTAssertTrue(SellwildBoltive.isEnabled(remoteValues: ["MOBILE_BOLTIVE_ENABLED_IOS": "on"], zoneId: zone))
+    }
+
     func testPerZone() {
         let v: [String: Any] = ["MOBILE_BOLTIVE_ENABLED": false, "MOBILE_BOLTIVE_ENABLED_BY_ZONE": [zone: true]]
         XCTAssertTrue(SellwildBoltive.isEnabled(remoteValues: v, zoneId: zone))

@@ -7,8 +7,9 @@
 //
 // Remote config (all default OFF / unlimited):
 //   MOBILE_BOLTIVE_ENABLED          bool — master switch (default false)
-//   MOBILE_BOLTIVE_ENABLED_IOS      bool — platform override; false is a hard
-//                                   kill, true turns it on everywhere on iOS
+//   MOBILE_BOLTIVE_ENABLED_IOS      bool or "on"/"off" — platform override; off
+//                                   is a hard kill, on turns it on everywhere on
+//                                   iOS. Blank (the CMS select's default) = unset
 //   MOBILE_BOLTIVE_ENABLED_BY_ZONE  {zoneId: bool} — per-zone opt-in when the
 //                                   global switch is off
 //   MOBILE_BOLTIVE_CLIENT_ID        string — Boltive client id; empty ⇒ off
@@ -45,9 +46,8 @@ enum SellwildBoltive {
     /// Whether Boltive is enabled for this placement. See the file header for
     /// the key precedence.
     static func isEnabled(remoteValues: [String: Any]?, zoneId: String?) -> Bool {
-        if let platform = remoteValues?["MOBILE_BOLTIVE_ENABLED_IOS"] {
-            if !truthy(platform) { return false }
-            return true
+        if let platform = remoteValues?["MOBILE_BOLTIVE_ENABLED_IOS"], !isBlank(platform) {
+            return truthy(platform)
         }
         if truthy(remoteValues?["MOBILE_BOLTIVE_ENABLED"]) { return true }
         if let zoneId,
@@ -91,6 +91,10 @@ enum SellwildBoltive {
         case let s as String: return ["1", "true", "yes", "on"].contains(s.lowercased())
         default: return false
         }
+    }
+
+    private static func isBlank(_ v: Any) -> Bool {
+        (v as? String)?.trimmingCharacters(in: .whitespaces).isEmpty ?? false
     }
 
     private static func number(_ v: Any?) -> Double? {

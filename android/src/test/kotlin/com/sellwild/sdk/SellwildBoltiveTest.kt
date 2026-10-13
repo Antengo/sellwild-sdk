@@ -60,6 +60,12 @@ class SellwildBoltiveTest {
         )
     }
 
+    @Test fun platformOverrideFromCmsSelect() {
+        assertNotNull("blank = unset", SellwildBoltive.policy(json(*on, "MOBILE_BOLTIVE_ENABLED_ANDROID" to ""), zone))
+        assertNull(SellwildBoltive.policy(json(*on, "MOBILE_BOLTIVE_ENABLED_ANDROID" to "off"), zone))
+        assertTrue(SellwildBoltive.isEnabled(json("MOBILE_BOLTIVE_ENABLED_ANDROID" to "on"), zone))
+    }
+
     @Test fun perZone() {
         val v = json(
             "MOBILE_BOLTIVE_ENABLED" to false,

@@ -400,7 +400,7 @@ Boltive covers both `both`/`gamOnly` (GAM-rendered) and `prebidOnly` (Prebid-ren
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `MOBILE_BOLTIVE_ENABLED` | bool | `false` | Master switch. |
-| `MOBILE_BOLTIVE_ENABLED_IOS` / `_ANDROID` | bool | unset | Platform override. `false` turns Boltive off on that platform even if other keys are on. `true` turns it on everywhere on that platform. |
+| `MOBILE_BOLTIVE_ENABLED_IOS` / `_ANDROID` | bool, or `"on"` / `"off"` | unset | Platform override. Off turns Boltive off on that platform even if other keys are on. On turns it on everywhere on that platform. Blank (the CMS default) means unset. |
 | `MOBILE_BOLTIVE_ENABLED_BY_ZONE` | `{zoneId: bool}` | unset | Per-zone opt-in when the master switch is off. |
 | `MOBILE_BOLTIVE_CLIENT_ID` | string | unset | Boltive client id. Required: Boltive stays off without it. |
 | `MOBILE_BOLTIVE_SAMPLE_RATE` | number 0–1 | `1` | Share of renders monitored. |

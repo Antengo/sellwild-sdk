@@ -7,8 +7,9 @@
 //
 // Remote config (all default OFF / unlimited):
 //   MOBILE_BOLTIVE_ENABLED          bool — master switch (default false)
-//   MOBILE_BOLTIVE_ENABLED_ANDROID  bool — platform override; false is a hard
-//                                   kill, true turns it on everywhere on Android
+//   MOBILE_BOLTIVE_ENABLED_ANDROID  bool or "on"/"off" — platform override; off
+//                                   is a hard kill, on turns it on everywhere on
+//                                   Android. Blank (the CMS select's default) = unset
 //   MOBILE_BOLTIVE_ENABLED_BY_ZONE  {zoneId: bool} — per-zone opt-in when the
 //                                   global switch is off
 //   MOBILE_BOLTIVE_CLIENT_ID        string — Boltive client id; empty ⇒ off
@@ -56,8 +57,9 @@ internal object SellwildBoltive {
     /** Whether Boltive is enabled for this placement. See the file header. */
     fun isEnabled(remoteJson: String?, zoneId: String?): Boolean {
         val obj = parse(remoteJson) ?: return false
-        if (obj.has("MOBILE_BOLTIVE_ENABLED_ANDROID") && !obj.isNull("MOBILE_BOLTIVE_ENABLED_ANDROID")) {
-            return truthy(obj.get("MOBILE_BOLTIVE_ENABLED_ANDROID"))
+        val platform = obj.opt("MOBILE_BOLTIVE_ENABLED_ANDROID")
+        if (platform != null && platform != JSONObject.NULL && !(platform is String && platform.isBlank())) {
+            return truthy(platform)
         }
         if (truthy(obj.opt("MOBILE_BOLTIVE_ENABLED"))) return true
         if (zoneId != null) {
