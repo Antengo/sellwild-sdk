@@ -103,14 +103,17 @@ curl -sI https://maven.sellwild.com/releases/com/sellwild/PrebidMobile-core/<ver
 ```
 
 **Boltive (Android).** The SDK depends on Boltive's AAR, which lives only on
-packagecloud (`com.boltive:boltive-sdk`). Partners only have maven.sellwild.com,
-and our install docs scope that repo to `com\.sellwild.*`. So before the first
-release that ships Boltive, mirror the AAR unchanged as `com.sellwild:boltive-sdk`
-(same version, POM rewritten to our group, no `org.jetbrains.kotlin` deps), the
-same way omsdk-android is mirrored. Then switch the dependency in
-`build.gradle.kts` to that coordinate and drop the packagecloud repo from
-`settings.gradle.kts`. Boltive's license is proprietary: get their OK to
-redistribute first. iOS needs nothing extra: the `Boltive` pod is on trunk, and
+packagecloud (`com.boltive:boltive-sdk`), and partners only have maven.sellwild.com.
+Before the first release that ships Boltive, mirror the AAR and POM byte-for-byte
+to maven.sellwild.com under its **original** coordinate (`com.boltive:boltive-sdk`).
+Don't rename it into `com.sellwild` the way omsdk-android is: a partner that
+already depends on Boltive would then get two copies of the same classes
+(duplicate-class build failure). With the original coordinate, Gradle dedupes it
+and the higher version wins. Our install docs scope maven.sellwild.com to
+`com\.sellwild.*`, so update that filter to include `com\.boltive`. Partners
+who copied the old filter must update it too, so call it out in the release
+notes. Then drop the packagecloud repo from `settings.gradle.kts`. Boltive's
+license is proprietary: get their OK to redistribute first. iOS needs nothing extra: the `Boltive` pod is on trunk, and
 the SPM `binaryTarget` points at Boltive's own zip.
 
 ## npm Release Steps (React Native)

@@ -954,6 +954,10 @@ When a house ad backfills an empty slot (a no-fill), both components emit a call
 
 > These fire only on a no-fill (when the backdrop is actually visible), not for the transient `prebidOnly` refresh gap. A house fill is **not** a paid impression — report it separately.
 
+### Boltive block events
+
+With Boltive enabled (`MOBILE_BOLTIVE_ENABLED`), `<SellwildBanner onBlocked={(zoneId) => …} />` fires when Boltive blocks a rendered creative. The native SDK already shows the house ad and re-auctions, so this is for reporting only. Ad slots inside `<SellwildFeed>` are monitored too; their blocks are reported through the SDK's `adBlocked` analytics event. See [Boltive](./prebid-server.md#boltive-ad-quality-blocking).
+
 ---
 
 ## Metro Configuration

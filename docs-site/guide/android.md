@@ -64,6 +64,8 @@ dependencyResolutionManagement {
             url = uri("https://maven.sellwild.com/releases")
             content {
                 includeGroupByRegex("com\\.sellwild.*")
+                // Boltive ad-quality SDK (a transitive dependency of the SDK).
+                includeGroup("com.boltive")
             }
         }
     }
@@ -492,6 +494,7 @@ class AdActivity : AppCompatActivity() {
 | `onAdClicked(adView)` | The user tapped on the ad creative. |
 | `onAdFailed(adView, message)` | The auction returned no fill, or an error occurred during rendering. |
 | `onHouseAdImpression(adView, zoneId)` | A house ad backfilled an empty slot (a no-fill). **Not** a paid impression — report it separately. See [House ads](#house-ads). |
+| `onAdBlocked(adView, zoneId)` | Boltive blocked the rendered creative (only with `MOBILE_BOLTIVE_ENABLED` on). The SDK already shows the house ad and re-auctions within the refresh cap. See [Boltive](./prebid-server.md#boltive-ad-quality-blocking). |
 
 All callbacks are dispatched on the main thread.
 
