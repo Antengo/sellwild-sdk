@@ -102,7 +102,7 @@ function ListingsScreen() {
 
 **CocoaPods:**
 ```ruby
-pod 'SellwildSDK', '~> 1.7'
+pod 'SellwildSDK', '~> 1.8'
 ```
 
 **UIKit:**
@@ -157,7 +157,7 @@ struct ContentView: View {
 Add to `build.gradle.kts`:
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.7.0")
+    implementation("com.sellwild:sdk:1.8.0")
 }
 ```
 

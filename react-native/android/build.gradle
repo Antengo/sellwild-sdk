@@ -78,7 +78,7 @@ dependencies {
     // for npm consumers, or to mavenLocal in the SDK monorepo dev workflow.
     // Keep in lockstep with the SDK release version: the bridge uses APIs
     // (SellwildGeo, SellwildEid, SellwildSDK.prewarm) that older AARs lack.
-    implementation "com.sellwild:sdk:1.7.7"
+    implementation "com.sellwild:sdk:1.8.0"
 }
 
 // Force kotlin-stdlib down to the bridge's declared Kotlin version. The
