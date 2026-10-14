@@ -5,6 +5,7 @@ import android.view.View
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.ReadableType
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.common.MapBuilder
 import com.facebook.react.uimanager.SimpleViewManager
@@ -204,6 +205,23 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
         const val REACT_CLASS = "SellwildFeedView"
 
         /**
+         * A zone id from JS: a string, or a number (core config's default is
+         * `0`, meaning unset). `getString` throws on a number, so read either
+         * type. Returns null for missing, empty, or `0`.
+         */
+        internal fun zoneIdOrNull(map: ReadableMap, key: String): String? {
+            if (!map.hasKey(key) || map.isNull(key)) return null
+            val s = when (map.getType(key)) {
+                ReadableType.String -> map.getString(key)
+                ReadableType.Number -> map.getDouble(key).let { d ->
+                    if (d % 1.0 == 0.0) d.toLong().toString() else d.toString()
+                }
+                else -> null
+            }?.trim()
+            return s?.takeIf { it.isNotEmpty() && it != "0" }
+        }
+
+        /**
          * Build a full SellwildConfig from a JS map. The JS side passes the
          * resolved CDN payload under `remote`; we re-run the canonical CDN
          * decoder ([SellwildSDK.apply]) against it so feed-specific fields
@@ -242,13 +260,13 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
             if (map.hasKey("slug")) config = config.copy(slug = map.getString("slug") ?: config.slug)
             if (map.hasKey("listingsUrl")) config = config.copy(listingsUrl = map.getString("listingsUrl"))
             if (map.hasKey("priceColor")) config = config.copy(priceColor = map.getString("priceColor") ?: config.priceColor)
-            if (map.hasKey("bannerZid")) config = config.copy(bannerZid = map.getString("bannerZid"))
-            if (map.hasKey("bottomBannerZid")) config = config.copy(bottomBannerZid = map.getString("bottomBannerZid"))
+            zoneIdOrNull(map, "bannerZid")?.let { config = config.copy(bannerZid = it) }
+            zoneIdOrNull(map, "bottomBannerZid")?.let { config = config.copy(bottomBannerZid = it) }
             // mobileZids / mobileBannerZid are OS-suffix-resolved by SellwildSDK.apply
             // when `remote` is present; only fall back to the flat (OS-agnostic) JS
             // values when there was no remote payload to resolve from (parity w/ iOS).
             if (!map.hasKey("remote") || map.isNull("remote")) {
-                if (map.hasKey("mobileBannerZid")) config = config.copy(mobileBannerZid = map.getString("mobileBannerZid"))
+                zoneIdOrNull(map, "mobileBannerZid")?.let { config = config.copy(mobileBannerZid = it) }
                 if (map.hasKey("mobileZids") && !map.isNull("mobileZids")) {
                     val arr = map.getArray("mobileZids")
                     if (arr != null) config = config.copy(mobileZids = (0 until arr.size()).mapNotNull { arr.getString(it) })
