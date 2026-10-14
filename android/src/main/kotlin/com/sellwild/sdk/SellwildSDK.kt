@@ -36,7 +36,7 @@ object SellwildSDK {
      * the config-fetch User-Agent beacon. Keep in lockstep with the
      * `build.gradle.kts` version and the other platforms' version constants.
      */
-    const val SDK_VERSION = "1.7.7"
+    const val SDK_VERSION = "1.8.0"
 
     /** Application Context, captured at app start by [SellwildInitProvider]. */
     @Volatile
@@ -100,7 +100,7 @@ object SellwildSDK {
      * readiness wait (recovering the first impression's header-bidding demand
      * on a slow cold start).
      *
-     * Since 1.7.7 [configure] does this automatically (like iOS), so most apps
+     * Since 1.8.0 [configure] does this automatically (like iOS), so most apps
      * never need to call it. It's for configs built without [configure], or for
      * warming the stack even earlier. Idempotent: the first call initializes;
      * later calls are a cheap no-op.

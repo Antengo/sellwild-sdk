@@ -44,7 +44,7 @@ export function setExternalUserIds(eids: SellwildEid[]): void {
  * `<SellwildBanner>`/`<SellwildFeed>` mounts, so the first impression doesn't
  * incur cold-start init latency and fall back to server-only demand.
  *
- * Since 1.7.7 `configure()` calls this automatically, so it's only needed for
+ * Since 1.8.0 `configure()` calls this automatically, so it's only needed for
  * configs built another way (e.g. `buildConfig`). Idempotent, and a no-op if the
  * native module isn't linked.
  */

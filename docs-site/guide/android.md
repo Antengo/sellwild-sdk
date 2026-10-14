@@ -837,7 +837,7 @@ class MyApp : Application() {
 }
 ```
 
-Since 1.7.7, `SellwildSDK.configure()` pre-warms automatically (like iOS), using the application Context the SDK captures at app start, so you don't need to call `prewarm`. Call it only if you build a `SellwildConfig` without `configure()`, or want to warm the stack even earlier. It is idempotent (first call initializes; later calls are a cheap no-op).
+Since 1.8.0, `SellwildSDK.configure()` pre-warms automatically (like iOS), using the application Context the SDK captures at app start, so you don't need to call `prewarm`. Call it only if you build a `SellwildConfig` without `configure()`, or want to warm the stack even earlier. It is idempotent (first call initializes; later calls are a cheap no-op).
 
 ---
 
