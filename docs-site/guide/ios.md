@@ -1142,6 +1142,10 @@ adView.houseFallbackListing = listing   // public; external callers rarely need 
     // impression — report it separately.
     @objc optional func sellwildAdView(_ adView: SellwildAdView,
                                        didRecordHouseImpressionForZoneId zoneId: String)
+    // Fires when Boltive blocked the rendered creative (MOBILE_BOLTIVE_ENABLED
+    // only). The SDK already shows the house ad and re-auctions.
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didBlockAdForZoneId zoneId: String)
 }
 ```
 

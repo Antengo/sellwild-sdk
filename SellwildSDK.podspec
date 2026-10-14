@@ -36,4 +36,9 @@ Pod::Spec.new do |s|
   s.dependency 'SellwildPrebid', '1.4.5'
   s.dependency 'SellwildPrebidGAMEventHandlers', '1.4.5'
   s.dependency 'Google-Mobile-Ads-SDK', '>= 12.0', '< 14.0'
+  # Boltive ad-quality monitor. Dormant unless MOBILE_BOLTIVE_ENABLED is on.
+  # A range, not an exact pin, so a partner that already has the Boltive pod
+  # resolves to one shared copy instead of failing pod install. Keep the floor
+  # in step with the Package.swift binaryTarget.
+  s.dependency 'Boltive', '>= 1.3.12', '< 2.0'
 end

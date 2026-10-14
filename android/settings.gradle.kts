@@ -23,6 +23,11 @@ dependencyResolutionManagement {
         // Sellwild Maven: namespace-shaded Prebid Mobile fork (com.sellwild:PrebidMobile-*)
         // and its omsdk-android dependency. Same repo partners already add.
         maven { url = uri("https://maven.sellwild.com/releases") }
+        // Boltive ad-quality SDK (com.boltive:boltive-sdk). Scoped to its group.
+        maven {
+            url = uri("https://packagecloud.io/Boltive/Mobile-SDK/maven2")
+            content { includeGroup("com.boltive") }
+        }
         // Local Maven repo for namespace-shaded Prebid Mobile (dev only)
         mavenLocal()
     }

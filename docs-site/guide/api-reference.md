@@ -109,6 +109,8 @@ public init(config: SellwildConfig, adSize: AdSize, zoneId: String? = nil)
                                        didFailWithError error: Error)
     @objc optional func sellwildAdView(_ adView: SellwildAdView,
                                        didRecordHouseImpressionForZoneId zoneId: String)
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didBlockAdForZoneId zoneId: String)
 }
 ```
 
@@ -119,6 +121,7 @@ public init(config: SellwildConfig, adSize: AdSize, zoneId: String? = nil)
 | `sellwildAdViewDidRecordClick(_:)` | The user tapped the ad creative. |
 | `sellwildAdView(_:didFailWithError:)` | The auction returned no fill, or an error occurred during rendering. |
 | `sellwildAdView(_:didRecordHouseImpressionForZoneId:)` | A house ad backfilled an empty slot (a no-fill). **Not** a paid impression — report it separately. See [House ads](/guide/ios#house-ads). |
+| `sellwildAdView(_:didBlockAdForZoneId:)` | Boltive blocked the rendered creative (only with `MOBILE_BOLTIVE_ENABLED` on). The SDK already shows the house ad and re-auctions within the refresh cap. See [Boltive](/guide/prebid-server#boltive-ad-quality-blocking). |
 
 All callbacks are dispatched on the main thread. All methods are optional (`@objc optional`).
 
@@ -289,6 +292,7 @@ interface Listener {
     fun onAdClicked(adView: SellwildAdView) {}
     fun onAdFailed(adView: SellwildAdView, message: String) {}
     fun onHouseAdImpression(adView: SellwildAdView, zoneId: String) {}
+    fun onAdBlocked(adView: SellwildAdView, zoneId: String) {}
 }
 ```
 
@@ -299,6 +303,7 @@ interface Listener {
 | `onAdClicked(adView)` | User tapped the ad. |
 | `onAdFailed(adView, message)` | No fill or render error. |
 | `onHouseAdImpression(adView, zoneId)` | A house ad backfilled an empty slot (a no-fill). **Not** a paid impression — report it separately. See [House ads](/guide/android#house-ads). |
+| `onAdBlocked(adView, zoneId)` | Boltive blocked the rendered creative (only with `MOBILE_BOLTIVE_ENABLED` on). The SDK already shows the house ad and re-auctions within the refresh cap. See [Boltive](/guide/prebid-server#boltive-ad-quality-blocking). |
 
 All callbacks are dispatched on the main thread. All methods have default (empty) implementations -- override only what you need.
 
