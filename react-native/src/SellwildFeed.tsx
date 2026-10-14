@@ -132,6 +132,17 @@ export interface SellwildFeedProps {
   onError?: (error: Error) => void
 }
 
+/**
+ * Zone ids are `number | string` in core config, defaulting to `0` (unset).
+ * Both native bridges read them as strings, so send a string, or nothing when
+ * unset: Android threw on a number and iOS silently dropped it.
+ */
+function zoneIdProp(v: number | string | null | undefined): string | undefined {
+  if (v === null || v === undefined) return undefined
+  const s = String(v).trim()
+  return s === '' || s === '0' ? undefined : s
+}
+
 export function SellwildFeed({
   config,
   style,
@@ -204,9 +215,9 @@ export function SellwildFeed({
     remote: config.remote,
     listingsUrl: config.listingsUrl,
     priceColor: config.priceColor,
-    bannerZid: config.bannerZid,
-    bottomBannerZid: config.bottomBannerZid,
-    mobileBannerZid: config.mobileBannerZid,
+    bannerZid: zoneIdProp(config.bannerZid),
+    bottomBannerZid: zoneIdProp(config.bottomBannerZid),
+    mobileBannerZid: zoneIdProp(config.mobileBannerZid),
     mobileZids: config.mobileZids,
   }
 
