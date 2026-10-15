@@ -63,6 +63,15 @@ object SellwildAdSizes {
     fun boundingSize(sizes: List<Size>): Size =
         Size(sizes.maxOfOrNull { it.width } ?: 0, sizes.maxOfOrNull { it.height } ?: 0)
 
+    /**
+     * The size to report for a rendered creative. The fork reports 0 when the
+     * winning bid omits `w`/`h`, so fall back to the placement's primary size
+     * (iOS does the same). Without this a host that resizes its slot from
+     * `onAdResize` collapses it to nothing.
+     */
+    fun renderedSize(reported: Size, primary: Size): Size =
+        if (reported.width > 0 && reported.height > 0) reported else primary
+
     // ── Apply (per stack) ────────────────────────────────────────────────────
 
     /** GAM multi-size — this is what delivers fallback fill on BOTH / GAM_ONLY. */

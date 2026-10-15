@@ -58,6 +58,15 @@ enum SellwildAdSizes {
         )
     }
 
+    /// The size to report for a rendered creative. The prebidOnly render
+    /// callback reports the winning bid's `w`/`h`, which is 0×0 when a bidder
+    /// omits them, so fall back to the placement's primary size (Android does
+    /// the same). Without this a host that resizes its slot from
+    /// `didRenderWithSize` collapses it to nothing.
+    static func renderedSize(reported: CGSize, primary: CGSize) -> CGSize {
+        reported.width > 0 && reported.height > 0 ? reported : primary
+    }
+
     // MARK: Apply (per stack)
 
     /// GAM multi-size: primary `adSize` + `validAdSizes` for the rest. Solid GMA

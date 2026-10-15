@@ -1025,20 +1025,24 @@ open class SellwildAdView @JvmOverloads constructor(
             self.listener?.onAdLoaded(self)
             // sw3 fork getters surface the winning creative size, so tighten the
             // reserved multi-size bounding box to what actually rendered and
-            // report it. Falls back to the primary when the fork can't report a
-            // size (0 — e.g. no-fill), preserving prior behavior.
-            val wonW = bannerView?.creativeWidth ?: 0
-            val wonH = bannerView?.creativeHeight ?: 0
-            val w = if (wonW > 0) wonW else self.adSize.width
-            val h = if (wonH > 0) wonH else self.adSize.height
+            // report it. Falls back to the primary when the bid has no size.
+            val response = bannerView?.bidResponse
+            val bidder = response?.targeting?.get("hb_bidder")
+            val reported = SellwildAdSizes.Size(bannerView?.creativeWidth ?: 0, bannerView?.creativeHeight ?: 0)
+            val rendered = SellwildAdSizes.renderedSize(reported, SellwildAdSizes.Size(self.adSize.width, self.adSize.height))
+            if (rendered != reported) {
+                // A bid with no w/h. Report it so we can see which bidders send them.
+                if (self.config.debug) android.util.Log.w("SellwildAdView", "[prebidOnly] bid has no size (reported ${reported.width}x${reported.height}) — bidder ${bidder ?: "?"}, zone ${self.zoneId.orEmpty()}; using ${rendered.width}x${rendered.height}")
+                SellwildEventQueue.shared(self.context).track("adSizeMissing", action = bidder ?: "unknown", label = self.zoneId.orEmpty())
+            }
+            val w = rendered.width
+            val h = rendered.height
             self.tightenPrebidSlot(w, h)
             self.listener?.onAdResize(self, w, h)
             self.listener?.onAdImpression(self, self.zoneId.orEmpty())
             self.emitAdRender()
             bannerView?.let { pb ->
-                val response = pb.bidResponse
                 val bid = response?.winningBid
-                val bidder = response?.targeting?.get("hb_bidder")
                 self.monitorWithBoltive(
                     pb, w, h,
                     SellwildBoltive.Network.PREBID,
