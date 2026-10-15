@@ -102,4 +102,17 @@ final class SellwildBoltiveTests: XCTestCase {
         XCTAssertEqual(c.slotCount, 1)
         XCTAssertEqual(SellwildBoltive.sessionCount, start + 1)
     }
+
+    func testEachMonitoredRenderGetsAFreshMonitor() {
+        let c = SellwildBoltiveController()
+        let view = UIView()
+        for _ in 0..<3 {
+            XCTAssertTrue(c.renderDidSucceed(bannerView: view, network: .prebid, remoteValues: on,
+                                             zoneId: zone, tag: .init(), roll: 0) { _ in })
+        }
+        XCTAssertEqual(c.monitorsCreated, 3, "a refresh must not reuse the previous render's monitor")
+        XCTAssertFalse(c.renderDidSucceed(bannerView: view, network: .prebid, remoteValues: nil,
+                                          zoneId: zone, tag: .init(), roll: 0) { _ in })
+        XCTAssertEqual(c.monitorsCreated, 3, "an unmonitored render creates none")
+    }
 }
