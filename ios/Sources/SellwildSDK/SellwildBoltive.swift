@@ -107,8 +107,10 @@ enum SellwildBoltive {
 }
 
 /// Per-ad-view Boltive monitor. Created once per `SellwildAdView`; holds at most
-/// one live `BoltiveMonitor`, dropped whenever a render isn't monitored so a
-/// sampled-out render costs nothing. Main thread only.
+/// one live `BoltiveMonitor`. Each monitored render gets a fresh monitor and the
+/// previous one is dropped first: a monitor keeps watching the creative WebView
+/// it captured, which a refresh tears down. A render that isn't monitored drops
+/// it too, so a sampled-out render costs nothing. Main thread only.
 final class SellwildBoltiveController {
 
     /// Details Boltive attaches to a block report.
@@ -123,9 +125,11 @@ final class SellwildBoltiveController {
     /// Monitored renders for this ad view.
     private(set) var slotCount = 0
 
+    /// Monitors created by this controller (for tests).
+    private(set) var monitorsCreated = 0
+
     #if canImport(Boltive)
     private var monitor: BoltiveMonitor?
-    private var monitorKey: String?
     #endif
 
     /// Decide whether to monitor this render and, if so, capture `bannerView`.
@@ -152,14 +156,13 @@ final class SellwildBoltiveController {
             return false
         }
         #if canImport(Boltive)
-        let key = "\(policy.clientId)|\(network)"
-        if monitor == nil || monitorKey != key {
-            let adNetwork: BoltiveAdNetwork = network == .gam
-                ? .GoogleAdManager
-                : .customAdNetwork(adNetworkName: "Prebid")
-            monitor = BoltiveMonitor(configuration: BoltiveConfiguration(clientId: policy.clientId, adNetwork: adNetwork))
-            monitorKey = key
-        }
+        // End the previous render's monitor before capturing the new creative.
+        stop()
+        let adNetwork: BoltiveAdNetwork = network == .gam
+            ? .GoogleAdManager
+            : .customAdNetwork(adNetworkName: "Prebid")
+        monitor = BoltiveMonitor(configuration: BoltiveConfiguration(clientId: policy.clientId, adNetwork: adNetwork))
+        monitorsCreated += 1
         let details = BoltiveTagDetails(
             adUnitId: tag.adUnitId,
             advertiserId: tag.advertiserId,
@@ -192,7 +195,6 @@ final class SellwildBoltiveController {
     func stop() {
         #if canImport(Boltive)
         monitor = nil
-        monitorKey = nil
         #endif
     }
 }

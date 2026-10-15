@@ -112,8 +112,11 @@ internal object SellwildBoltive {
 
 /**
  * Per-ad-view Boltive monitor. Created once per [SellwildAdView]; holds at most
- * one live [BoltiveMonitor], terminated whenever a render isn't monitored so a
- * sampled-out render costs nothing. Main thread only.
+ * one live [BoltiveMonitor]. Each monitored render gets a fresh monitor and the
+ * previous one is terminated first: a monitor's timer keeps polling the
+ * creative WebView it captured, which a refresh destroys. A render that isn't
+ * monitored terminates it too, so a sampled-out render costs nothing. Main
+ * thread only.
  */
 internal class SellwildBoltiveController {
 
@@ -131,7 +134,10 @@ internal class SellwildBoltiveController {
         private set
 
     private var monitor: BoltiveMonitor? = null
-    private var monitorKey: String? = null
+
+    /** Monitors created by this controller (for tests). */
+    internal var monitorsCreated = 0
+        private set
     private val main = Handler(Looper.getMainLooper())
 
     /**
@@ -158,15 +164,12 @@ internal class SellwildBoltiveController {
             stop()
             return false
         }
-        val key = "${policy.clientId}|$network"
-        val m = monitor.takeIf { monitorKey == key } ?: run {
-            stop()
-            val adNetwork = if (network == SellwildBoltive.Network.GAM) AdNetwork.GAM else AdNetwork.custom("Prebid")
-            BoltiveMonitor(BoltiveConfiguration(policy.clientId, adNetwork)).also {
-                monitor = it
-                monitorKey = key
-            }
-        }
+        // End the previous render's monitor before capturing the new creative.
+        stop()
+        val adNetwork = if (network == SellwildBoltive.Network.GAM) AdNetwork.GAM else AdNetwork.custom("Prebid")
+        val m = BoltiveMonitor(BoltiveConfiguration(policy.clientId, adNetwork))
+        monitor = m
+        monitorsCreated++
         val details = BoltiveTagDetails(tag.adUnitId).apply {
             tag.advertiserId?.let { advertiserId = it }
             tag.creativeId?.let { creativeId = it }
@@ -192,12 +195,10 @@ internal class SellwildBoltiveController {
         return true
     }
 
-    /** Terminate the live monitor (if any). A terminated monitor can't capture
-     *  again, so the next monitored render creates a fresh one. */
+    /** Terminate the live monitor (if any). */
     fun stop() {
         monitor?.let { runCatching { it.terminate() } }
         monitor = null
-        monitorKey = null
     }
 
     private companion object {
