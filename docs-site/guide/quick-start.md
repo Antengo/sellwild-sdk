@@ -17,14 +17,14 @@ For full integration guides with all ad formats, GDPR, lifecycle management, and
 https://github.com/Antengo/sellwild-sdk.git
 ```
 
-Pick the **SellwildSDK** library product, rule **Up to Next Major Version** from `1.4.0`. No credentials are required — the repository is public.
+Pick the **SellwildSDK** library product, rule **Up to Next Major Version** from `1.8.1`. No credentials are required — the repository is public.
 
 **CocoaPods** -- Add to your `Podfile`:
 
 ```ruby
 target 'YourApp' do
   use_frameworks! :linkage => :static
-  pod 'SellwildSDK', '~> 1.4'
+  pod 'SellwildSDK', '~> 1.8.1'
 end
 ```
 
@@ -194,7 +194,7 @@ Add the dependency to `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.4.0")
+    implementation("com.sellwild:sdk:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
 ```

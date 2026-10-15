@@ -3,6 +3,9 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Sellwild SDK',
   description: 'Multi-platform SDK for native in-app advertising powered by server-side header bidding.',
+  // DEPLOY.md is the internal runbook (AWS account, distribution IDs); keep it
+  // in the repo, off the public site.
+  srcExclude: ['DEPLOY.md'],
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],

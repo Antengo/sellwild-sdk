@@ -30,7 +30,7 @@ Replace it with `<SellwildFeed>`, the all-in-one native feed. Native apps use `S
 Upgrade if needed:
 
 ```bash
-npm install @sellwild/react-native-sdk@^1.4.0
+npm install @sellwild/react-native-sdk@^1.8.1
 cd ios && pod install --repo-update && cd ..
 ```
 

@@ -527,7 +527,9 @@ Native hosts resize their container from this callback. **React Native handles i
 
 **No-clip baseline.** The slot starts at the **bounding box of the requested size set** — `max(width) × max(height)` across the primary and any `BANNER_SIZES` fallbacks — not the primary alone. Fallbacks can be *wider* than the primary (a `320×50` fallback in a `300×250` request: 320 > 300) or taller, so reserving the bounding box guarantees no clip in any dimension before/without the resize callback (`SellwildAdSizes.boundingSize` on native; computed in JS on RN). The callback then reports the **actual** size so the slot can tighten.
 
-Reported size by path: `both`/`gamOnly` → the winning GAM creative size (slot tightens); native → the capped template height; `prebidOnly` banner → the primary size (the rendering `BannerView` doesn't surface the winning multi-size creative, so a prebidOnly slot **stays at the reserved bounding box** — it never clips, but it won't tighten). Feed ad rows are not yet self-sizing.
+Reported size by path: `both`/`gamOnly` → the winning GAM creative size; native → the capped template height; `prebidOnly` banner → the winning creative's size (iOS reports the winning bid's `w`/`h`; Android reports the rendered creative size), so the slot tightens to it. Feed ad rows are not yet self-sizing.
+
+**Bids without a size (1.8.1+).** Some bidders omit `w`/`h`. For those renders the SDK reports the placement's **primary** size instead of 0×0, so a host that sizes its slot from the callback never collapses it. Each time this happens it emits an **`adSizeMissing`** analytics event (`label` = zone, `action` = the bidder from `hb_bidder`, or `unknown`).
 
 ---
 

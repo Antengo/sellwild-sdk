@@ -58,10 +58,10 @@ The SDK is available through both Swift Package Manager and CocoaPods. SPM is th
 https://github.com/Antengo/sellwild-sdk.git
 ```
 
-3. Set the dependency rule to **Up to Next Major Version** starting at `1.4.0`.
+3. Set the dependency rule to **Up to Next Major Version** starting at `1.8.1`.
 4. Select the **SellwildSDK** library product and add it to your app target.
 
-No credentials are required — the repository is public. Xcode will resolve `SellwildSDK`, `PrebidMobile`, `GoogleMobileAds`, and `GoogleUserMessagingPlatform` automatically.
+No credentials are required — the repository is public. Xcode will resolve `SellwildSDK`, `SellwildPrebidSDK` (our namespace-shaded Prebid Mobile), `Boltive`, `GoogleMobileAds`, and `GoogleUserMessagingPlatform` automatically.
 
 If you prefer to declare the dependency in a `Package.swift` manifest:
 
@@ -69,7 +69,7 @@ If you prefer to declare the dependency in a `Package.swift` manifest:
 dependencies: [
     .package(
         url: "https://github.com/Antengo/sellwild-sdk.git",
-        from: "1.4.0"
+        from: "1.8.1"
     )
 ],
 targets: [
@@ -92,7 +92,7 @@ platform :ios, '13.0'
 target 'YourApp' do
   use_frameworks! :linkage => :static
 
-  pod 'SellwildSDK', '~> 1.4.2'
+  pod 'SellwildSDK', '~> 1.8.1'
 end
 ```
 

@@ -84,7 +84,7 @@ cd android
 ./gradlew publishReleasePublicationToMavenLocal
 ```
 
-This outputs the AAR and POM to `~/.m2/repository/com/sellwild/sdk/1.0.0/`.
+This outputs the AAR, POM and Gradle module to `~/.m2/repository/com/sellwild/sdk/<version>/`. The full release procedure (version bump, upload, metadata, verification) is in [RELEASING.md](../RELEASING.md).
 
 ### Deploy to S3
 
@@ -120,7 +120,8 @@ aws cloudfront create-invalidation --distribution-id E16P8KJDWTNW2W --paths "/*"
 | ACM Certificate | `arn:aws:acm:us-east-1:457870823482:certificate/689f47f8-081d-423b-a427-f6c454e4d4c6` |
 | Route53 Zone | `Z3G3982AWLHGHP` (sellwild.com) |
 | DNS | `maven.sellwild.com` CNAME → CloudFront |
-| Maven Coordinates | `com.sellwild:sdk:1.0.0` |
+| Maven Coordinates | `com.sellwild:sdk:<version>` (latest: 1.8.1) |
+| Also hosted | `com.sellwild:PrebidMobile-*` / `omsdk-android` (Prebid fork), `com.boltive:boltive-sdk` (Boltive mirror) |
 
 ---
 
@@ -133,7 +134,7 @@ cd core && npm publish --access public
 cd react-native && npm publish --access public
 ```
 
-Requires npm login and 2FA OTP.
+Publish `@sellwild/sdk-core` **before** `@sellwild/react-native-sdk`, because RN loads core APIs at startup. Publishing requires `npm login` and 2FA. npm only accepts a **security key** (Touch ID or a passkey) for new 2FA: `npm publish` prints an auth link, and you approve it in the browser. Publishers: `rphansen91`, `nsp37`.
 
 | Package | Registry |
 |---|---|
@@ -147,12 +148,12 @@ Requires npm login and 2FA OTP.
 Published to CocoaPods trunk.
 
 ```bash
-cd ios && pod trunk push SellwildSDK.podspec
+pod trunk push SellwildSDK.podspec --allow-warnings --synchronous
 ```
 
-Requires trunk session registered to `ryan@antengo.com`.
+Run it from the repo root (where `SellwildSDK.podspec` lives), at the release tag. If the Prebid fork changed, push `SellwildPrebid` and then `SellwildPrebidGAMEventHandlers` from the fork repo first. See [RELEASING.md](../RELEASING.md). A trunk session for one of the pod owners is required.
 
 | Resource | Value |
 |---|---|
 | Pod | [SellwildSDK](https://cocoapods.org/pods/SellwildSDK) |
-| Trunk Account | `ryan@antengo.com` |
+| Trunk Owners | `ryan@antengo.com`, `nicholas.pirollo@gmail.com` |
