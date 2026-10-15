@@ -943,8 +943,20 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         prebidHasRenderedCreative = true
         // Un-hide after a Boltive block (handleBoltiveBlock hides the banner).
         bannerView.isHidden = false
+        // The fork keeps the ORTB bid (crid/cid) internal; the bidder and
+        // advertiser domain are what the public Bid exposes.
+        let bid = bannerView.lastBidResponse?.winningBid
+        let bidder = bid?.targetingInfo?["hb_bidder"]
+        let renderedSize = SellwildAdSizes.renderedSize(reported: adSize, primary: self.adSize.cgSize)
+        if renderedSize != adSize {
+            // A bid with no w/h. Report it so we can see which bidders send them.
+            #if DEBUG
+            print("[SellwildAdView][prebidOnly] ⚠️ bid has no size (reported \(adSize)) — bidder \(bidder ?? "?"), zone \(zoneId ?? "?"); using \(renderedSize)")
+            #endif
+            SellwildAPIClient.shared.sendEvent(SellwildEvent(event: "adSizeMissing", action: bidder ?? "unknown", label: zoneId ?? ""))
+        }
         #if DEBUG
-        print("[SellwildAdView][prebidOnly] ✅ rendered — size \(adSize), zone \(zoneId ?? "?")")
+        print("[SellwildAdView][prebidOnly] ✅ rendered — size \(renderedSize), bidder \(bidder ?? "?"), zone \(zoneId ?? "?")")
         #endif
         // Paid creative rendered — hide the house backdrop so a transparent or
         // smaller-than-slot creative can't let it bleed through. NOTE: Prebid's
@@ -956,13 +968,9 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         applyAudioGuard()
         enforceVideoMuteAndValidatePlacement(on: bannerView)
         delegate?.sellwildAdViewDidLoad?(self)
-        delegate?.sellwildAdView?(self, didRenderWithSize: adSize)
+        delegate?.sellwildAdView?(self, didRenderWithSize: renderedSize)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneId ?? "")
         emitAdRender()
-        // The fork keeps the ORTB bid (crid/cid) internal; the bidder and
-        // advertiser domain are what the public Bid exposes.
-        let bid = bannerView.lastBidResponse?.winningBid
-        let bidder = bid?.targetingInfo?["hb_bidder"]
         let adomain = (bid?.meta?["advertiserDomains"] as? [String])?.first
         monitorWithBoltive(bannerView, network: .prebid,
                            tag: .init(adUnitId: zoneId, advertiserId: adomain, sspRefreshCode: bidder),
