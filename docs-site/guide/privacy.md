@@ -78,12 +78,12 @@ Pass the consent values directly through `SellwildConfig`:
 
 ```ts
 const config = buildConfig({
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
   gdprApplies: true,
   tcString: 'CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA',
   tcfVersion: 2,
   prebidServer: {
-    accountId: 'weatherbug',
+    accountId: 'acme',
     endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
     bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
     timeout: 1500,
@@ -367,7 +367,7 @@ app-ads.txt is a mechanism for app publishers to declare which ad networks are a
 
 ```
 # Sellwild as authorized reseller
-sellwild.com, weatherbug, RESELLER
+sellwild.com, acme, RESELLER
 
 # Direct SSP relationships
 appnexus.com, 12345, DIRECT
