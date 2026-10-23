@@ -102,7 +102,7 @@ export default function MarketplaceScreen() {
   const [config, setConfig] = useState(null);
 
   useEffect(() => {
-    configure('weatherbug', 'weatherbug-weatherbug').then(setConfig);
+    configure('acme', 'acme-acme').then(setConfig);
   }, []);
 
   if (!config) return <ActivityIndicator />;
@@ -355,7 +355,7 @@ field below automatically:
 ```tsx
 import { configure } from '@sellwild/react-native-sdk';
 
-const config = await configure('weatherbug', 'weatherbug-weatherbug');
+const config = await configure('acme', 'acme-acme');
 ```
 
 The static example below is shown only to document each field.
@@ -376,7 +376,7 @@ import {
 // 1. Configure the SDK
 // ---------------------------------------------------------------------------
 const partialConfig: PartialSellwildConfig = {
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
 
   // Mobile app identity -- required for proper in-app bid classification.
   appBundleId: 'com.aws.android',
@@ -385,7 +385,7 @@ const partialConfig: PartialSellwildConfig = {
   // Prebid Server S2S -- routes header bidding through Sellwild's managed
   // Prebid Server instance instead of running client-side adapters.
   prebidServer: {
-    accountId: 'weatherbug',
+    accountId: 'acme',
     endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
     bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
     timeout: 1500,
@@ -402,7 +402,7 @@ const partialConfig: PartialSellwildConfig = {
 const sdkConfig: SellwildConfig = buildConfig(partialConfig);
 
 // Tip: in 1.2.0+ the first-class integration path is
-// `await configure('weatherbug', 'weatherbug-weatherbug')`, which fetches every
+// `await configure('acme', 'acme-acme')`, which fetches every
 // runtime field — ad zones, refresh intervals, waterfall
 // partners — from the Sellwild CDN. See `Configuration > Remote Config`.
 
@@ -503,10 +503,10 @@ import {
 } from '@sellwild/react-native-sdk';
 
 const sdkConfig: SellwildConfig = buildConfig({
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
   appBundleId: 'com.aws.android',
   prebidServer: {
-    accountId: 'weatherbug',
+    accountId: 'acme',
     endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
     bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
     timeout: 1500,
@@ -731,7 +731,7 @@ async function runPrebidAuction(): Promise<void> {
           prebid: {
             bidder: {
               appnexus: { placement_id: 13144371 },
-              openx: { unit: '540012345', delDomain: 'weatherbug-d.openx.net' },
+              openx: { unit: '540012345', delDomain: 'acme-d.openx.net' },
             },
           },
         },
@@ -739,7 +739,7 @@ async function runPrebidAuction(): Promise<void> {
     ],
     app: {
       bundle: 'com.aws.android',
-      publisher: { id: 'weatherbug' },
+      publisher: { id: 'acme' },
       storeurl: 'https://play.google.com/store/apps/details?id=com.aws.android',
     },
     device: {
@@ -900,7 +900,7 @@ interface PrebidServerConfig {
 
 ```ts
 prebidServer: {
-  accountId: 'weatherbug',
+  accountId: 'acme',
   endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
   bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
   timeout: 1500,
@@ -922,7 +922,7 @@ When `prebidServer` is set, `<SellwildBanner>`:
 The remote `GROWTHCODE_*` keys ride the CMS/remote passthrough automatically — **no JS needed** to enable it. For a code-pinned value, pass an optional `growthCode` object on the `config` prop (precedence: local field → remote `GROWTHCODE_*` → default):
 
 ```tsx
-<SellwildBanner config={{ ...config, growthCode: { partnerId: 'YOUR_PID', syncUrl: 'https://weatherbug.com' } }} size="300x250" zoneId="43" />
+<SellwildBanner config={{ ...config, growthCode: { partnerId: 'YOUR_PID', syncUrl: 'https://example.com' } }} size="300x250" zoneId="43" />
 ```
 
 The MAID policy is handled natively per platform: iOS reads the IDFA only when the app already has ATT authorization; Android reads the GAID by reflection with no added dependency. The SDK never prompts for tracking and adds no new dependency.
@@ -1023,7 +1023,7 @@ Pass GDPR parameters through the `SellwildConfig`:
 
 ```ts
 const config: PartialSellwildConfig = {
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
 
   // GDPR consent signals
   gdprApplies: true,
@@ -1036,7 +1036,7 @@ const config: PartialSellwildConfig = {
   gppEnabled: true,
 
   prebidServer: {
-    accountId: 'weatherbug',
+    accountId: 'acme',
     endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
     bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
     timeout: 1500,
@@ -1224,7 +1224,7 @@ import {
 
 // Build a full SellwildConfig from partial input with defaults applied
 const config: SellwildConfig = buildConfig({
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
 });
 
 // Convert ISO currency code to symbol
@@ -1314,7 +1314,7 @@ Remove this before submitting to the App Store.
 
 ```ts
 const config = buildConfig({
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
   debug: true,
 });
 ```
@@ -1341,7 +1341,7 @@ curl -X POST https://prebid.sellwild.com/openrtb2/auction \
     }],
     "app": {
       "bundle": "com.aws.android",
-      "publisher": { "id": "weatherbug" }
+      "publisher": { "id": "acme" }
     },
     "tmax": 1500
   }'
@@ -1361,7 +1361,7 @@ curl -X POST https://prebid.sellwild.com/openrtb2/auction \
 
 ```tsx
 const sdkConfig = useMemo(
-  () => buildConfig({ partnerCode: 'weatherbug' }),
+  () => buildConfig({ partnerCode: 'acme' }),
   [],
 );
 ```

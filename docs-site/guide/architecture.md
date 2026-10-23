@@ -81,7 +81,7 @@ The SDK constructs an OpenRTB 2.6 bid request with the following structure:
   "app": {
     "bundle": "com.aws.android",
     "storeurl": "https://play.google.com/store/apps/details?id=com.aws.android",
-    "publisher": { "id": "weatherbug" }
+    "publisher": { "id": "acme" }
   },
   "device": {
     "ua": "Mozilla/5.0 (Linux; Android 14; Pixel 8)",
@@ -101,7 +101,7 @@ The SDK constructs an OpenRTB 2.6 bid request with the following structure:
 |-------|---------|
 | `imp[]` | One entry per ad slot. Contains size, floor price, and per-bidder params. |
 | `app.bundle` | Identifies the app for app-ads.txt verification and DSP targeting. |
-| `app.publisher.id` | Maps to your Sellwild partner code (e.g., `"weatherbug"`). |
+| `app.publisher.id` | Maps to your Sellwild partner code (e.g., `"acme"`). |
 | `device` | User agent, OS, and optionally IP/geo for geo-targeted demand. |
 | `regs.ext.gdpr` | GDPR applicability flag. `1` = enforced, `0` = not applicable. |
 | `user.ext.consent` | TCF v2 consent string (when GDPR applies). |

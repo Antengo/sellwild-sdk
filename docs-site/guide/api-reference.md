@@ -365,7 +365,7 @@ Native banner component. Bridges to `SellwildAdView` on iOS and Android (Prebid 
 import { SellwildBanner, buildConfig } from '@sellwild/react-native-sdk';
 
 <SellwildBanner
-  config={buildConfig({ partnerCode: 'weatherbug' })}
+  config={buildConfig({ partnerCode: 'acme' })}
   size="300x250"
   zoneId={12345}
   onImpression={() => {}}
@@ -450,7 +450,7 @@ Utility function that applies default values to a partial configuration object.
 import { buildConfig, type SellwildConfig, type PartialSellwildConfig } from '@sellwild/react-native-sdk';
 
 const config: SellwildConfig = buildConfig({
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
 });
 ```
 
@@ -465,7 +465,7 @@ const config: SellwildConfig = buildConfig({
 ```ts
 import { configure } from '@sellwild/react-native-sdk';
 
-const config = await configure('weatherbug', 'weatherbug-weatherbug');
+const config = await configure('acme', 'acme-acme');
 ```
 
 The remote config is fetched from `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Merge order:
@@ -486,7 +486,7 @@ The remote config is fetched from `https://widget.sellwild.com/app/{partnerCode}
 | `overrides` | `PartialSellwildConfig` | — | App-controlled values that win over CDN values. |
 
 ```ts
-const config = await configure('weatherbug', 'weatherbug-weatherbug', {
+const config = await configure('acme', 'acme-acme', {
   timeout: 1500,
   overrides: { debug: __DEV__ },
 });
@@ -506,8 +506,8 @@ Async helper that merges remote config onto a static base config. Superseded by 
 import { buildConfigWithRemote } from '@sellwild/react-native-sdk';
 
 const config = await buildConfigWithRemote(
-  { partnerCode: 'weatherbug' },
-  'weatherbug-weatherbug',
+  { partnerCode: 'acme' },
+  'acme-acme',
 );
 ```
 

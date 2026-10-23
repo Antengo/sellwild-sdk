@@ -200,8 +200,8 @@ class FeedActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             val config = SellwildSDK.configure(
-                partnerCode = "weatherbug",
-                slug = "weatherbug-weatherbug"
+                partnerCode = "acme",
+                slug = "acme-acme"
             )
             feedView.setup(config)
             feedView.load()
@@ -393,12 +393,12 @@ class AdActivity : AppCompatActivity() {
     // Static example. In production prefer:
     //   lifecycleScope.launch {
     //       val config = SellwildSDK.configure(
-    //           partnerCode = "weatherbug",
-    //           slug = "weatherbug-weatherbug",
+    //           partnerCode = "acme",
+    //           slug = "acme-acme",
     //       )
     //   }
     private val config = SellwildConfig(
-        partnerCode = "weatherbug",
+        partnerCode = "acme",
         appBundleId = "com.aws.android",
         appStoreUrl = "https://play.google.com/store/apps/details?id=com.aws.android",
         prebidServer = PrebidServerConfig(
@@ -564,7 +564,7 @@ fun SellwildBanner(
 fun HomeScreen() {
     val config = remember {
         SellwildConfig(
-            partnerCode = "weatherbug",
+            partnerCode = "acme",
             appBundleId = "com.aws.android",
             prebidServer = PrebidServerConfig(
                 accountId = "sellwild",
@@ -575,7 +575,7 @@ fun HomeScreen() {
     }
 
     Column {
-        Text("Weather Forecast", style = MaterialTheme.typography.headlineMedium)
+        Text("Today's Highlights", style = MaterialTheme.typography.headlineMedium)
 
         // 300x250 MREC between content sections
         SellwildBanner(
@@ -744,7 +744,7 @@ class ListingsViewModel(
     val uiState: StateFlow<ListingsUiState> = _uiState
 
     private val config = SellwildConfig(
-        partnerCode = "weatherbug",
+        partnerCode = "acme",
         appBundleId = "com.aws.android",
         prebidServer = PrebidServerConfig(
             accountId = "sellwild",
@@ -803,8 +803,8 @@ import com.sellwild.sdk.SellwildSDK
 
 lifecycleScope.launch {
     val config = SellwildSDK.configure(
-        partnerCode = "weatherbug",
-        slug = "weatherbug-weatherbug",
+        partnerCode = "acme",
+        slug = "acme-acme",
     ) { c ->
         // Optional: override CDN values with app-controlled ones.
         c.copy(appBundleId = packageName)
@@ -830,7 +830,7 @@ class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
         applicationScope.launch {
-            val config = SellwildSDK.configure(partnerCode = "weatherbug", slug = "weatherbug-weatherbug")
+            val config = SellwildSDK.configure(partnerCode = "acme", slug = "acme-acme")
             // configure() pre-warms the ad stack; keep `config` for your ad views.
         }
     }
@@ -942,8 +942,8 @@ var houseFallbackListing: SellwildListing? = null
 Typical setup is CMS-only. For a code-pinned value, set the optional `growthCode` override with `.copy(...)` (precedence: local field → remote `GROWTHCODE_*` → default):
 
 ```kotlin
-val config = SellwildSDK.configure(context, "weatherbug", "weatherbug-main").copy(
-    growthCode = SellwildGrowthCodeConfig(partnerId = "YOUR_PID", syncUrl = "https://weatherbug.com"),
+val config = SellwildSDK.configure(context, "acme", "acme-main").copy(
+    growthCode = SellwildGrowthCodeConfig(partnerId = "YOUR_PID", syncUrl = "https://example.com"),
 )
 ```
 
@@ -959,7 +959,7 @@ The SDK supports IAB TCF v2 consent management. For users in GDPR regions, you m
 
 ```kotlin
 val config = SellwildConfig(
-    partnerCode = "weatherbug",
+    partnerCode = "acme",
     appBundleId = "com.aws.android",
 
     // Privacy
@@ -1043,7 +1043,7 @@ The SDK supports automatic ad refresh to maximize revenue from long-lived screen
 
 ```kotlin
 val config = SellwildConfig(
-    partnerCode = "weatherbug",
+    partnerCode = "acme",
     appBundleId = "com.aws.android",
 
     // Refresh settings

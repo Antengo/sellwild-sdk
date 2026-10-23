@@ -82,7 +82,7 @@ Configure Prebid Server in the SDK by setting the `prebidServer` field on `Sellw
 
 ```kotlin
 prebidServer = PrebidServerConfig(
-    accountId = "weatherbug",
+    accountId = "acme",
     endpoint  = "https://prebid.sellwild.com/openrtb2/auction",
     bidders   = listOf("appnexus", "pubmatic", "ix", "rubicon", "openx"),
     timeout   = 1500,
@@ -133,7 +133,7 @@ Adding a new SSP to your Prebid Server auction requires only your seat ID for th
 
    ```kotlin
    prebidServer = PrebidServerConfig(
-       accountId = "weatherbug",
+       accountId = "acme",
        endpoint  = "https://prebid.sellwild.com/openrtb2/auction",
        bidders   = listOf("appnexus", "pubmatic", "ix", "rubicon", "openx", "new_ssp"),
        timeout   = 1500,
@@ -647,7 +647,7 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
       "bundle": "com.aws.android",
       "storeurl": "https://play.google.com/store/apps/details?id=com.aws.android",
       "publisher": {
-        "id": "weatherbug"
+        "id": "acme"
       }
     },
     "device": {
@@ -726,7 +726,7 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
       "bundle": "com.aws.android",
       "storeurl": "https://play.google.com/store/apps/details?id=com.aws.android",
       "publisher": {
-        "id": "weatherbug"
+        "id": "acme"
       }
     },
     "device": {
@@ -765,7 +765,7 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
     ],
     "app": {
       "bundle": "com.aws.android",
-      "publisher": { "id": "weatherbug" }
+      "publisher": { "id": "acme" }
     },
     "regs": {
       "ext": {
@@ -814,7 +814,7 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
     "app": {
       "bundle": "com.aws.android",
       "storeurl": "https://play.google.com/store/apps/details?id=com.aws.android",
-      "publisher": { "id": "weatherbug" }
+      "publisher": { "id": "acme" }
     },
     "device": {
       "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
@@ -852,7 +852,7 @@ The SDK respects `maxFailedAuctions` in `SellwildConfig` (default: 3). After thr
 
 ```kotlin
 SellwildConfig(
-    partnerCode = "weatherbug",
+    partnerCode = "acme",
     maxFailedAuctions = 5,           // Allow more retries before stopping
     adRefreshIntervalMs = 45_000L,   // Slow down refresh rate
 )
