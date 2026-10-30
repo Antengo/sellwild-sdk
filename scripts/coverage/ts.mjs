@@ -22,7 +22,8 @@
 //     reason text. An ignore without a reason is flagged.
 //
 // Usage:
-//   node scripts/coverage/ts.mjs [--run]
+//   node scripts/coverage/ts.mjs [--run] [--only core|react-native]
+// --only summarizes one package (each CI job runs its own).
 // --run deletes each package's coverage/ and makes both coverage runs first,
 // so the summary can only come from this run. `runs` records both exit codes.
 // Without --run the script reads the output already on disk and `runs` is
@@ -279,8 +280,15 @@ async function summarize(pkg, run) {
 }
 
 const run = process.argv.includes('--run')
+const onlyAt = process.argv.indexOf('--only')
+const only = onlyAt === -1 ? null : process.argv[onlyAt + 1]
+const selected = only ? PACKAGES.filter((pkg) => pkg.platform === only) : PACKAGES
+if (selected.length === 0) {
+  console.error(`ts.mjs: --only takes one of ${PACKAGES.map((pkg) => pkg.platform).join(', ')}`)
+  process.exit(2)
+}
 let failed = false
-for (const pkg of PACKAGES) {
+for (const pkg of selected) {
   const { fatal, warnings } = await summarize(pkg, run)
   for (const message of [...fatal, ...warnings]) console.error(message)
   if (fatal.length) failed = true

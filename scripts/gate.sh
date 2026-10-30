@@ -6,7 +6,7 @@
 #   bash scripts/gate.sh --full        --fast, then Android Lint, the Android sample's lint,
 #                                      every platform's coverage (one at a time), the
 #                                      React Native bridge compiles, the compiler-warnings
-#                                      ratchets and the 95% coverage check
+#                                      ratchets and the coverage check (tools/coverage-thresholds.json)
 #   bash scripts/gate.sh --e2e         the sample apps' e2e only: scripts/e2e/run.sh for
 #                                      each app, one at a time (about 10 min warm).
 #                                      Never part of --fast or --full.

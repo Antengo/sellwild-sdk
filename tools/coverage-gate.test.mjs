@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { after, describe, it } from 'node:test'
-import { checkDir, checkSummary, main } from './coverage-gate.mjs'
+import { checkDir, checkSummary, main, minimumFor, readThresholds } from './coverage-gate.mjs'
 
 const pct = (value) => ({ covered: value, total: 100, pct: value })
 const gate = (over = {}) => ({ gate: { lines: pct(100), branches: pct(99), regions: null, functions: pct(98), unmeasured: [], ...over } })
@@ -57,12 +57,68 @@ describe('checkSummary', () => {
     assert.deepEqual(checkSummary(null), ['no gate block'])
   })
 
+  it('takes a minimum per metric', () => {
+    assert.deepEqual(checkSummary(gate(), { lines: 100, branches: 99, functions: 98 }), [])
+    assert.deepEqual(checkSummary(gate(), { lines: 100, branches: 99.5, functions: 98.5 }), [
+      'branches 99% is under 99.5%',
+      'functions 98% is under 98.5%',
+    ])
+  })
+
+  it('checks regions against regions, else branches', () => {
+    const swift = gate({ branches: null, regions: pct(99) })
+    assert.deepEqual(checkSummary(swift, { lines: 100, regions: 99.2, functions: 98 }), ['regions 99% is under 99.2%'])
+    assert.deepEqual(checkSummary(swift, { lines: 100, branches: 99.5, functions: 98 }), ['regions 99% is under 99.5%'])
+  })
+
   it('takes another target', () => {
     assert.deepEqual(checkSummary(gate(), 99.5), ['branches 99% is under 99.5%', 'functions 98% is under 99.5%'])
   })
 })
 
+describe('minimumFor', () => {
+  it('uses one number for every metric, or 95 for a metric the object lacks', () => {
+    assert.equal(minimumFor(90, 'regions'), 90)
+    assert.equal(minimumFor({ lines: 100 }, 'functions'), 95)
+    assert.equal(minimumFor({ lines: 100, branches: 97 }, 'regions'), 97)
+  })
+})
+
+describe('readThresholds', () => {
+  const write = (body) => {
+    const file = path.join(fs.mkdtempSync(path.join(tmp, 't-')), 'thresholds.json')
+    fs.writeFileSync(file, typeof body === 'string' ? body : JSON.stringify(body))
+    return file
+  }
+
+  it('reads platforms and skips _ comment keys', () => {
+    const file = write({ _comment: 'x', ios: { lines: 99, regions: 98, functions: 97 } })
+    assert.deepEqual(readThresholds(file), { ios: { lines: 99, regions: 98, functions: 97 } })
+  })
+
+  it('throws on a platform missing a metric', () => {
+    assert.throws(() => readThresholds(write({ ios: { lines: 99, functions: 97 } })), /ios: needs branches or regions/)
+    assert.throws(() => readThresholds(write({ core: { branches: 99, functions: 97 } })), /core: lines is not a number/)
+    assert.throws(() => readThresholds(write('[]')), /not an object/)
+  })
+})
+
 describe('checkDir', () => {
+  it('applies a platform\'s own thresholds and the target to the rest', () => {
+    const dir = dirWith({ core: gate(), android: gate() })
+    const rows = checkDir(dir, { thresholds: { core: { lines: 100, branches: 100, functions: 100 } } })
+    assert.deepEqual(rows.map((r) => [r.name, r.problems]), [
+      ['android', []],
+      ['core', ['branches 99% is under 100%', 'functions 98% is under 100%']],
+    ])
+  })
+
+  it('reads only the listed summaries with only, and each must exist', () => {
+    const dir = dirWith({ core: gate({ lines: pct(10) }), ios: gate() })
+    const rows = checkDir(dir, { only: ['ios', 'android'] })
+    assert.deepEqual(rows.map((r) => [r.name, r.problems]), [['android', ['missing']], ['ios', []]])
+  })
+
   it('reports a missing expected summary and an unreadable one', () => {
     const dir = dirWith({ core: gate(), ios: '{ not json' })
     const rows = checkDir(dir, { expect: ['core', 'android'] })
@@ -94,9 +150,37 @@ describe('main', () => {
     assert.match(text, /1 of 2 under 90%/)
   })
 
+  it('reads tools/coverage-thresholds.json under the root', () => {
+    const root = fs.mkdtempSync(path.join(tmp, 'r-'))
+    fs.mkdirSync(path.join(root, 'tools'))
+    fs.writeFileSync(path.join(root, 'tools/coverage-thresholds.json'), JSON.stringify({ core: { lines: 100, branches: 100, functions: 100 } }))
+    const dir = dirWith({ core: gate() })
+    let text = ''
+    const code = main(['--dir', dir], { root, out: { write: (s) => { text += s } } })
+    assert.equal(code, 1)
+    assert.match(text, /^core .*FAIL: branches 99% is under 100%; functions 98% is under 100%$/m)
+    assert.match(text, /1 of 1 under their thresholds/)
+  })
+
+  it('takes --thresholds and --only', () => {
+    const file = path.join(tmp, 'only-thresholds.json')
+    fs.writeFileSync(file, JSON.stringify({ ios: { lines: 100, regions: 99.5, functions: 98 } }))
+    const dir = dirWith({ core: gate({ lines: pct(1) }), ios: gate({ branches: null, regions: pct(99.5) }) })
+    const { code, text } = run(['--dir', dir, '--thresholds', file, '--only', 'ios'])
+    assert.equal(code, 0)
+    assert.doesNotMatch(text, /^core/m)
+  })
+
+  it('exits 2 on an unreadable thresholds file or --target with --thresholds', () => {
+    const dir = dirWith({ core: gate() })
+    assert.equal(run(['--dir', dir, '--thresholds', path.join(tmp, 'missing.json')]).code, 2)
+    assert.equal(run(['--dir', dir, '--target', '90', '--thresholds', 'x.json']).code, 2)
+  })
+
   it('exits 2 on a usage error', () => {
     assert.equal(run(['--bogus']).code, 2)
     assert.equal(run(['--target', 'high']).code, 2)
     assert.equal(run(['--dir']).code, 2)
+    assert.equal(run(['--only']).code, 2)
   })
 })

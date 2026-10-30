@@ -1,6 +1,13 @@
+import { readFileSync } from 'node:fs'
 import { coverageConfigDefaults, defineConfig } from 'vitest/config'
 
-// Files the 95% gate measures. scripts/coverage/ts.mjs reads this and the
+// The gate's minimums: tools/coverage-thresholds.json is the one source, also
+// read by tools/coverage-gate.mjs in CI. Statements follow lines.
+const gateMinimum = JSON.parse(
+  readFileSync(decodeURIComponent(new URL('../tools/coverage-thresholds.json', import.meta.url).pathname), 'utf8'),
+)['core'] as { lines: number; branches: number; functions: number }
+
+// Files the gate measures. scripts/coverage/ts.mjs reads this and the
 // exclusions below to write coverage-summary/core.json, so keep them here.
 export const coverageInclude = ['src/**']
 
@@ -9,7 +16,7 @@ export const coverageExclusions: Array<{ path: string; reason: string }> = [
   { path: 'src/types.ts', reason: 'type-only: interfaces and type aliases, compiles to an empty module' },
 ]
 
-// `vitest run --coverage` is the gate: exclusions applied, 95% thresholds.
+// `vitest run --coverage` is the gate: exclusions applied, the thresholds above.
 // `vitest run --coverage --mode whole` measures every source file with no
 // thresholds, into coverage/whole, for the `whole` block of the summary.
 export default defineConfig(({ mode }) => {
@@ -38,7 +45,12 @@ export default defineConfig(({ mode }) => {
         reportOnFailure: true,
         thresholds: whole
           ? undefined
-          : { lines: 95, branches: 95, functions: 95, statements: 95 },
+          : {
+              lines: gateMinimum.lines,
+              branches: gateMinimum.branches,
+              functions: gateMinimum.functions,
+              statements: gateMinimum.lines,
+            },
       },
     },
   }

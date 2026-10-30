@@ -9,6 +9,8 @@
 #                                    iPhone, else an iPhone on the newest iOS runtime)
 #   SELLWILD_IOS_DERIVED_DATA=<dir>  derived data (default: .coverage-tmp/ios-dd)
 #   SELLWILD_CONTRACT_OUT=<dir>      contract output root; tests write <dir>/ios
+#   SELLWILD_IOS_XCODEBUILD_ARGS="…" extra xcodebuild arguments, split on spaces
+#                                    (CI passes build settings that skip indexing)
 #   COVERAGE_ENFORCE=1               also fail when the gate is under 95%
 #
 # Exit status: the xcodebuild status if tests failed (no summary is written),
@@ -107,6 +109,10 @@ cd "$ROOT" || exit 1
 test_cmd=(command xcodebuild test -scheme SellwildSDK
   -destination "platform=iOS Simulator,id=$SIM_ID"
   -enableCodeCoverage YES -derivedDataPath "$DERIVED" -resultBundlePath "$RESULT")
+if [ -n "${SELLWILD_IOS_XCODEBUILD_ARGS:-}" ]; then
+  read -r -a extra_args <<<"$SELLWILD_IOS_XCODEBUILD_ARGS"
+  test_cmd+=("${extra_args[@]}")
+fi
 echo "ios.sh: building and testing (log: $(rel "$LOG"))"
 "${test_cmd[@]}" >"$LOG" 2>&1
 test_status=$?
