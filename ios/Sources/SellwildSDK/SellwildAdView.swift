@@ -152,6 +152,11 @@ public final class SellwildAdView: UIView {
     // sheet) open, so a leave-app from inside it isn't counted as a 2nd click.
     private var prebidClickModalOpen = false
 
+    // Boltive ad-quality monitor (remote-gated, default off). See SellwildBoltive.
+    private let boltive = SellwildBoltiveController()
+    // What the monitored creative was (bidder, or "gam") — the adBlocked action.
+    private var boltiveSource = ""
+
     /// Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
     /// when set, else the shared `AD_REFRESH_MAX` (matches Android + web). iOS
     /// previously honored only the mobile key, silently disabling refresh — and
@@ -472,6 +477,7 @@ public final class SellwildAdView: UIView {
             prebidBanner = nil
             prebidHasRenderedCreative = false
             prebidClickModalOpen = false // didDismissModal may never arrive
+            boltive.stop()
         }
         if let na = nativeAdView { na.removeFromSuperview(); nativeAdView = nil }
         if let existing = gamBanner { return existing }
@@ -532,6 +538,7 @@ public final class SellwildAdView: UIView {
         if let gb = gamBanner {
             gb.removeFromSuperview()
             gamBanner = nil
+            boltive.stop()
         }
         if let na = nativeAdView { na.removeFromSuperview(); nativeAdView = nil }
         if let existing = prebidBanner { return existing }
@@ -594,6 +601,8 @@ public final class SellwildAdView: UIView {
             prebidHasRenderedCreative = false
             prebidClickModalOpen = false // didDismissModal may never arrive
         }
+        // Native assets render in our own views — nothing for Boltive to watch.
+        boltive.stop()
         if let existing = nativeAdView { return existing }
 
         let cap = SellwildNative.maxHeight(
@@ -778,6 +787,48 @@ public final class SellwildAdView: UIView {
         }
     }
 
+    // MARK: Boltive (ad quality)
+
+    /// Monitor this render with Boltive when the policy allows it.
+    private func monitorWithBoltive(_ bannerView: UIView, network: SellwildBoltive.Network,
+                                    tag: SellwildBoltiveController.Tag, source: String) {
+        let monitored = boltive.renderDidSucceed(
+            bannerView: bannerView,
+            network: network,
+            remoteValues: config.remoteValues,
+            zoneId: zoneId,
+            tag: tag
+        ) { [weak self] blocked in
+            self?.handleBoltiveBlock(blocked)
+        }
+        if monitored { boltiveSource = source }
+    }
+
+    /// Boltive blanked a flagged creative. Hide it, show the house backdrop
+    /// instead of a blank slot, report it, then re-auction if the refresh cap
+    /// has budget (the reload counts against the cap). The next successful
+    /// render un-hides the banner.
+    private func handleBoltiveBlock(_ blocked: UIView) {
+        // Ignore a late callback for a banner we've since torn down.
+        guard blocked === gamBanner || blocked === prebidBanner else { return }
+        SellwildLog.debug("[SellwildBoltive] creative blocked — zone \(zoneLabel), source \(boltiveSource)")
+        blocked.isHidden = true
+        houseView?.isHidden = false
+        delegate?.sellwildAdView?(self, didBlockAdForZoneId: zoneLabel)
+        environment.events.sendEvent(SellwildEvent(event: "adBlocked", action: boltiveSource, label: zoneLabel))
+        recordHouseImpressionIfShowing()
+        guard !isPausedForDetach else { return }
+        if blocked === gamBanner {
+            refreshTimer?.invalidate()
+            refreshTimer = nil
+            guard effectiveRefreshMax > 0, refreshCount < effectiveRefreshMax else { return }
+            refreshCount += 1
+            load()
+        } else if hasPrebidRefreshBudget {
+            prebidBanner?.loadAd()
+        }
+    }
+
     // MARK: Refresh (GAM path only — Prebid path self-refreshes)
 
     private func scheduleRefresh() {
@@ -941,6 +992,8 @@ public enum SellwildAdError: Error, LocalizedError {
 extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
 
     public func bannerViewDidReceiveAd(_ bannerView: GoogleMobileAds.BannerView) {
+        // Un-hide after a Boltive block (handleBoltiveBlock hides the banner).
+        bannerView.isHidden = false
         // Paid creative rendered — hide the house backdrop so a transparent or
         // smaller-than-slot creative can't let it bleed through (re-shown on a
         // subsequent no-fill). Mirrors the native path; don't rely on the
@@ -953,6 +1006,10 @@ extension SellwildAdView: GoogleMobileAds.BannerViewDelegate {
         delegate?.sellwildAdView?(self, didRenderWithSize: bannerView.adSize.size)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneLabel)
         emitAdRender()
+        // GAM path: Boltive reads advertiser/creative/line item from the GMA
+        // response info itself.
+        monitorWithBoltive(bannerView, network: .gam,
+                           tag: .init(adUnitId: bannerView.adUnitID), source: "gam")
         scheduleRefresh()
     }
 
@@ -1006,6 +1063,19 @@ extension SellwildAdView: PrebidBannerViewDelegate {
             }
         }
         prebidHasRenderedCreative = true
+        // Un-hide after a Boltive block (handleBoltiveBlock hides the banner).
+        bannerView.isHidden = false
+        // The fork keeps the ORTB bid (crid/cid) internal; the bidder and
+        // advertiser domain are what the public Bid exposes.
+        let bid = bannerView.lastBidResponse?.winningBid
+        let bidder = bid?.targetingInfo?["hb_bidder"]
+        let renderedSize = SellwildAdSizes.renderedSize(reported: adSize, primary: self.adSize.cgSize)
+        if renderedSize != adSize {
+            // A bid with no w/h. Report it so we can see which bidders send them.
+            SellwildLog.debug("[SellwildAdView][prebidOnly] bid has no size (reported \(adSize)) — bidder \(bidder ?? "?"), zone \(zoneLabel); using \(renderedSize)")
+            environment.events.sendEvent(SellwildEvent(event: "adSizeMissing", action: bidder ?? "unknown", label: zoneLabel))
+        }
+        SellwildLog.debug("[SellwildAdView][prebidOnly] rendered — size \(renderedSize), bidder \(bidder ?? "?"), zone \(zoneLabel)")
         // Paid creative rendered — hide the house backdrop so a transparent or
         // smaller-than-slot creative can't let it bleed through. NOTE: Prebid's
         // rendering banner self-refreshes with a teardown gap the backdrop used
@@ -1016,9 +1086,13 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         applyAudioGuard()
         enforceVideoMuteAndValidatePlacement(on: bannerView)
         delegate?.sellwildAdViewDidLoad?(self)
-        delegate?.sellwildAdView?(self, didRenderWithSize: adSize)
+        delegate?.sellwildAdView?(self, didRenderWithSize: renderedSize)
         delegate?.sellwildAdView?(self, didReceiveImpressionForZoneId: zoneLabel)
         emitAdRender()
+        let adomain = (bid?.meta?["advertiserDomains"] as? [String])?.first
+        monitorWithBoltive(bannerView, network: .prebid,
+                           tag: .init(adUnitId: zoneId, advertiserId: adomain, sspRefreshCode: bidder),
+                           source: bidder ?? "prebid")
     }
 
     public func bannerView(_ bannerView: PrebidBannerView,
@@ -1082,4 +1156,9 @@ public protocol SellwildAdViewDelegate: AnyObject {
     /// visible. See `SellwildHouseAd`.
     @objc optional func sellwildAdView(_ adView: SellwildAdView,
                                        didRecordHouseImpressionForZoneId zoneId: String)
+    /// Boltive flagged and blanked the rendered creative (only when
+    /// `MOBILE_BOLTIVE_ENABLED` is on). The SDK shows the house backdrop and
+    /// re-auctions if the refresh cap allows; no host action is required.
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didBlockAdForZoneId zoneId: String)
 }

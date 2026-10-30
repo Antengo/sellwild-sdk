@@ -14,6 +14,8 @@ object SellwildFailureCode {
     const val AD_AUDIO_GUARD_EXCEPTION = "ad.audio_guard.exception"
     /** Reading the winning bid (isVideo) threw, so video mute enforcement was skipped. */
     const val AD_BID_INSPECT_EXCEPTION = "ad.bid_inspect.exception"
+    /** Boltive's monitor threw while capturing a rendered banner, so that render is not ad-quality monitored. */
+    const val AD_BOLTIVE_CAPTURE_EXCEPTION = "ad.boltive_capture.exception"
     /** GAM failed to load an ad for a reason other than no-fill (network, invalid request, internal). No-fill stays on adError. */
     const val AD_GAM_LOAD_EXCEPTION = "ad.gam_load.exception"
     /** No GAM ad unit is configured (gamTag and GAM both empty), so Google's test ad unit is used. */
@@ -147,6 +149,7 @@ object SellwildFailureCode {
     val ALL: List<String> = listOf(
         AD_AUDIO_GUARD_EXCEPTION,
         AD_BID_INSPECT_EXCEPTION,
+        AD_BOLTIVE_CAPTURE_EXCEPTION,
         AD_GAM_LOAD_EXCEPTION,
         AD_GAM_UNIT_MISSING,
         AD_GMA_INIT_EXCEPTION,

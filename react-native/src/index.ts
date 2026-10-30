@@ -11,7 +11,7 @@ export { useSellwildListings } from './useSellwildListings'
 export type { UseSellwildListingsResult } from './useSellwildListings'
 
 // Imperative native setters (runtime, session-scoped).
-export { setGeo, setExternalUserIds, prewarm } from './commands'
+export { setGeo, setExternalUserIds, prewarm, configure } from './commands'
 
 // Re-export core types for convenience
 export type {
@@ -31,7 +31,6 @@ export type {
 } from '@sellwild/sdk-core'
 
 export {
-  configure,
   buildConfig,
   buildConfigWithRemote,
   currencyToSymbol,

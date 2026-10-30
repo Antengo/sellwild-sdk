@@ -36,14 +36,17 @@ export function toNativeConfig(config: SellwildConfig): Record<string, unknown> 
 /**
  * A zone id as the native feed bridges read it: text. Both read these fields
  * as strings (Android ReadableMap.getString threw for a number; iOS `as?
- * String` dropped one). Text is sent as it is; a number is sent as its
- * decimal text, except core's unset default 0, which is left out (undefined:
- * the bridge drops the key). So the iOS feed now uses a non-zero numeric zone
- * id that it dropped before this change, and gets no key at all for 0.
+ * String` dropped one). Text is sent trimmed; a number is sent as its decimal
+ * text. Core's unset default 0, and text that is empty or "0" once trimmed,
+ * is left out (undefined: the bridge drops the key), as in 1.8.1. So the iOS
+ * feed now uses a non-zero numeric zone id that it dropped before this
+ * change, and gets no key at all for an unset one.
  */
 export function nativeZoneId(zid: unknown): string | undefined {
-  if (typeof zid === 'string') return zid
-  return typeof zid === 'number' && Number.isFinite(zid) && zid !== 0 ? String(zid) : undefined
+  let text: string | undefined
+  if (typeof zid === 'string') text = zid.trim()
+  else if (typeof zid === 'number' && Number.isFinite(zid)) text = String(zid)
+  return text === undefined || text === '' || text === '0' ? undefined : text
 }
 
 /** A zone id list as text (nativeZoneId), unset entries left out. Anything else is sent as it is. */

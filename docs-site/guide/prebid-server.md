@@ -15,13 +15,14 @@ This document covers the Sellwild managed Prebid Server instance at `prebid.sell
 7. [External User IDs (eids)](#external-user-ids-eids)
 8. [GrowthCode Signal Resolve](#growthcode-signal-resolve)
 9. [Outstream Video](#outstream-video)
-10. [Native Ad Format](#native-ad-format)
-11. [Multi-Size Banners](#multi-size-banners)
-12. [Dynamic Slot Sizing](#dynamic-slot-sizing)
-13. [Auction Telemetry](#auction-telemetry)
-14. [Testing](#testing)
-15. [House Ads and No-Fill Handling](#house-ads-and-no-fill-handling)
-16. [Troubleshooting](#troubleshooting)
+10. [Boltive Ad-Quality Blocking](#boltive-ad-quality-blocking)
+11. [Native Ad Format](#native-ad-format)
+12. [Multi-Size Banners](#multi-size-banners)
+13. [Dynamic Slot Sizing](#dynamic-slot-sizing)
+14. [Auction Telemetry](#auction-telemetry)
+15. [Testing](#testing)
+16. [House Ads and No-Fill Handling](#house-ads-and-no-fill-handling)
+17. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -81,7 +82,7 @@ Configure Prebid Server in the SDK by setting the `prebidServer` field on `Sellw
 
 ```kotlin
 prebidServer = PrebidServerConfig(
-    accountId = "weatherbug",
+    accountId = "acme",
     endpoint  = "https://prebid.sellwild.com/openrtb2/auction",
     bidders   = listOf("appnexus", "pubmatic", "ix", "rubicon", "openx"),
     timeout   = 1500,
@@ -132,7 +133,7 @@ Adding a new SSP to your Prebid Server auction requires only your seat ID for th
 
    ```kotlin
    prebidServer = PrebidServerConfig(
-       accountId = "weatherbug",
+       accountId = "acme",
        endpoint  = "https://prebid.sellwild.com/openrtb2/auction",
        bidders   = listOf("appnexus", "pubmatic", "ix", "rubicon", "openx", "new_ssp"),
        timeout   = 1500,
@@ -381,6 +382,54 @@ mp4 · VAST 2.0–4.0 · autoplay sound-off · OMID + MRAID (no VPAID) · in-ban
 
 ---
 
+## Boltive ad-quality blocking
+
+The SDK bundles the [Boltive](https://www.boltive.com/) mobile SDK (iOS `Boltive` 1.3.12, Android `com.boltive:boltive-sdk` 1.4.19). When enabled, Boltive watches each rendered banner's creative WebView and **blanks a creative it flags** (malware, auto-redirects, offensive content). It's **off by default** and controlled entirely from remote config.
+
+When Boltive blocks a creative in a `SellwildAdView` slot (standalone or inside `SellwildFeedView`), the SDK:
+
+1. Hides the blanked creative and shows the house backdrop (when house ads are configured).
+2. Emits an `adBlocked` analytics event. The label is the zone; the action is the winning bidder on `prebidOnly`, or `gam`.
+3. Calls `sellwildAdView(_:didBlockAdForZoneId:)` (iOS), `Listener.onAdBlocked` (Android), or `onBlocked` (RN `SellwildBanner`).
+4. Re-auctions if the refresh cap still has budget. The reload counts against `AD_REFRESH_MAX(_MOBILE)`.
+
+Boltive covers both `both`/`gamOnly` (GAM-rendered) and `prebidOnly` (Prebid-rendered) banners. Native ads render in SDK views, so they aren't monitored.
+
+**Keys (remote config / CDN):**
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `MOBILE_BOLTIVE_ENABLED` | bool | `false` | Master switch. |
+| `MOBILE_BOLTIVE_ENABLED_IOS` / `_ANDROID` | bool, or `"on"` / `"off"` | unset | Platform override. Off turns Boltive off on that platform even if other keys are on. On turns it on everywhere on that platform. Blank (the CMS default) means unset. |
+| `MOBILE_BOLTIVE_ENABLED_BY_ZONE` | `{zoneId: bool}` | unset | Per-zone opt-in when the master switch is off. |
+| `MOBILE_BOLTIVE_CLIENT_ID` | string | unset | Boltive client id. Required: Boltive stays off without it. |
+| `MOBILE_BOLTIVE_SAMPLE_RATE` | number 0–1 | `1` | Share of renders monitored. |
+| `MOBILE_BOLTIVE_MAX_PER_SESSION` | int | `0` (unlimited) | Monitored renders per app launch. |
+| `MOBILE_BOLTIVE_MAX_PER_SLOT` | int | `0` (unlimited) | Monitored renders per ad view, including refreshes. |
+
+```json
+{
+  "MOBILE_BOLTIVE_ENABLED": true,
+  "MOBILE_BOLTIVE_CLIENT_ID": "<client id from Boltive>",
+  "MOBILE_BOLTIVE_SAMPLE_RATE": 0.5,
+  "MOBILE_BOLTIVE_MAX_PER_SESSION": 200
+}
+```
+
+The caps are checked first, then the sample roll. Only monitored renders count toward the caps.
+
+**If your app already uses Boltive:**
+
+- **No runtime conflict.** Boltive has no shared singleton or global setup: each `BoltiveMonitor` is its own instance with its own client id, and it only attaches to the banner views it's given. Your monitors watch your banners and ours watch Sellwild's, each reported under its own Boltive account. Neither SDK swizzles or hooks global WebView behavior.
+- **Use one copy of the binary:**
+  - **CocoaPods:** the SDK depends on `Boltive` `>= 1.3.12, < 2.0`, so your own `pod 'Boltive'` resolves to the same single pod.
+  - **SPM:** Boltive has no Swift package, so the SDK ships it as a binary target. If you also embed `Boltive.xcframework` by hand or through CocoaPods, Xcode sees two copies. Install SellwildSDK through CocoaPods instead.
+  - **Gradle:** the SDK depends on `com.boltive:boltive-sdk`, so Gradle dedupes it with yours and the higher version wins. If you vendor Boltive as a local AAR (`files("libs/…")`), switch to the Maven coordinate to avoid duplicate classes.
+
+> **Caps limit coverage, not just cost.** Boltive checks a creative **after it renders**; it doesn't filter bids before the auction. A render that isn't monitored (sampled out or over a cap) isn't protected. To keep known-bad demand out of the auction, use the Prebid Server ORTB2 blocking module (`badv` / `bcat` / `battr`) as well.
+
+---
+
 ## Native Ad Format
 
 The SDK supports the **Prebid native ad format**. Unlike banner/outstream (auto-rendered by the fork), native returns raw **assets** — title, body, icon, main image, CTA, sponsoredBy — which the SDK lays out into a default template (icon + title + sponsoredBy / main media / body + CTA) and registers for impression + click tracking. It is **off by default** and toggled from remote config with **no app release**.
@@ -478,7 +527,9 @@ Native hosts resize their container from this callback. **React Native handles i
 
 **No-clip baseline.** The slot starts at the **bounding box of the requested size set** — `max(width) × max(height)` across the primary and any `BANNER_SIZES` fallbacks — not the primary alone. Fallbacks can be *wider* than the primary (a `320×50` fallback in a `300×250` request: 320 > 300) or taller, so reserving the bounding box guarantees no clip in any dimension before/without the resize callback (`SellwildAdSizes.boundingSize` on native; computed in JS on RN). The callback then reports the **actual** size so the slot can tighten.
 
-Reported size by path: `both`/`gamOnly` → the winning GAM creative size (slot tightens); native → the capped template height; `prebidOnly` banner → the primary size (the rendering `BannerView` doesn't surface the winning multi-size creative, so a prebidOnly slot **stays at the reserved bounding box** — it never clips, but it won't tighten). Feed ad rows are not yet self-sizing.
+Reported size by path: `both`/`gamOnly` → the winning GAM creative size; native → the capped template height; `prebidOnly` banner → the winning creative's size (iOS reports the winning bid's `w`/`h`; Android reports the rendered creative size), so the slot tightens to it. Feed ad rows are not yet self-sizing.
+
+**Bids without a size (1.8.1+).** Some bidders omit `w`/`h`. For those renders the SDK reports the placement's **primary** size instead of 0×0, so a host that sizes its slot from the callback never collapses it. Each time this happens it emits an **`adSizeMissing`** analytics event (`label` = zone, `action` = the bidder from `hb_bidder`, or `unknown`).
 
 ---
 
@@ -596,7 +647,7 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
       "bundle": "com.aws.android",
       "storeurl": "https://play.google.com/store/apps/details?id=com.aws.android",
       "publisher": {
-        "id": "weatherbug"
+        "id": "acme"
       }
     },
     "device": {
@@ -675,7 +726,7 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
       "bundle": "com.aws.android",
       "storeurl": "https://play.google.com/store/apps/details?id=com.aws.android",
       "publisher": {
-        "id": "weatherbug"
+        "id": "acme"
       }
     },
     "device": {
@@ -714,7 +765,7 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
     ],
     "app": {
       "bundle": "com.aws.android",
-      "publisher": { "id": "weatherbug" }
+      "publisher": { "id": "acme" }
     },
     "regs": {
       "ext": {
@@ -763,7 +814,7 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
     "app": {
       "bundle": "com.aws.android",
       "storeurl": "https://play.google.com/store/apps/details?id=com.aws.android",
-      "publisher": { "id": "weatherbug" }
+      "publisher": { "id": "acme" }
     },
     "device": {
       "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
@@ -801,7 +852,7 @@ The SDK respects `maxFailedAuctions` in `SellwildConfig` (default: 3). After thr
 
 ```kotlin
 SellwildConfig(
-    partnerCode = "weatherbug",
+    partnerCode = "acme",
     maxFailedAuctions = 5,           // Allow more retries before stopping
     adRefreshIntervalMs = 45_000L,   // Slow down refresh rate
 )

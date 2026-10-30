@@ -157,6 +157,18 @@
     "description": "Removing a bidder from the ad units failed (Prebid APIs missing)."
   },
   {
+    "code": "ad.boltive_capture.exception",
+    "area": "ad",
+    "operation": "boltive_capture",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "android"
+    ],
+    "description": "Boltive's monitor threw while capturing a rendered banner, so that render is not ad-quality monitored."
+  },
+  {
     "code": "ad.boltive_script.network",
     "area": "ad",
     "operation": "boltive_script",

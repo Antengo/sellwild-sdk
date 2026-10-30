@@ -76,12 +76,13 @@ describe('toNativeFeedConfig', () => {
     expectValid('rn-native-config', sent, 'feed-defaults')
   })
 
-  it('sends a numeric zone id as its text, and a text zone id as it is', () => {
-    const config = sellwildConfig({ bannerZid: 43, bottomBannerZid: '44', mobileBannerZid: '', mobileZids: [45, '46'] })
+  it('sends a numeric zone id as its text, a text zone id trimmed, and leaves an empty one out', () => {
+    const config = sellwildConfig({ bannerZid: 43, bottomBannerZid: ' 44 ', mobileBannerZid: '', mobileZids: [45, '46'] })
 
     const sent = bridged(toNativeFeedConfig(config))
 
-    expect(sent).toMatchObject({ bannerZid: '43', bottomBannerZid: '44', mobileBannerZid: '', mobileZids: ['45', '46'] })
+    expect(sent).toMatchObject({ bannerZid: '43', bottomBannerZid: '44', mobileZids: ['45', '46'] })
+    expect(sent).not.toHaveProperty('mobileBannerZid')
     expectValid('rn-native-config', sent, 'feed-zone-ids')
   })
 })
@@ -89,7 +90,10 @@ describe('toNativeFeedConfig', () => {
 describe('nativeZoneId', () => {
   it.each([
     ['text', '43', '43'],
-    ['empty text', '', ''],
+    ['padded text', ' 43 ', '43'],
+    ['empty text', '', undefined],
+    ['blank text', '  ', undefined],
+    ['text "0"', '0', undefined],
     ['a number', 43, '43'],
     ['core\'s unset 0', 0, undefined],
     ['NaN', Number.NaN, undefined],
@@ -102,7 +106,7 @@ describe('nativeZoneId', () => {
   })
 
   it('maps a list entry by entry, leaving the unset ones out, and passes anything else as it is', () => {
-    expect(nativeZoneIds([45, '46', 0, ''])).toEqual(['45', '46', ''])
+    expect(nativeZoneIds([45, '46', 0, '', '0'])).toEqual(['45', '46'])
     expect(nativeZoneIds(undefined)).toBeUndefined()
     expect(nativeZoneIds('45,46')).toBe('45,46')
   })

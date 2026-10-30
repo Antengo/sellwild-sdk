@@ -1,0 +1,51 @@
+name: CDN viewer-geo headers
+
+# cache.sellwild.com (CloudFront E2Y8I3DBSXG2JF) is hand-managed. The web widget
+# and the native SDKs read the viewer's country/state off its listings
+# responses (SportServer localized listings, state geo-blocking, device.geo
+# seeding). Those headers come from the `add-viewer-headers` function plus the
+# `sellwild-cache-viewer-geo` origin request policy, and a manual edit has
+# already dropped them once without anyone noticing. This fails loudly if they
+# go missing again. See DEPLOYMENT.md → "What cache.sellwild.com needs".
+
+on:
+  schedule:
+    - cron: '17 * * * *' # hourly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Viewer-geo headers present and exposed
+        run: |
+          set -u
+          fail=0
+          for url in \
+            https://cache.sellwild.com/listings-img-data-sm \
+            https://cache.sellwild.com/listings-img-data-sm-avif-weatherbug; do
+            ok=0
+            # Two attempts so a single network blip doesn't page anyone.
+            for attempt in 1 2; do
+              h=$(curl -sS -D - -o /dev/null --max-time 20 \
+                    -H "Origin: https://ci.sellwild.com" "$url" || true)
+              if printf '%s' "$h" | grep -qi '^cloudfront-viewer-country-region:' &&
+                 printf '%s' "$h" | grep -qi '^cloudfront-viewer-country:' &&
+                 printf '%s' "$h" | grep -qi '^access-control-expose-headers:.*cloudfront-viewer-country-region'; then
+                ok=1; break
+              fi
+              sleep 10
+            done
+            if [ "$ok" = 1 ]; then
+              echo "OK   $url"
+            else
+              echo "::error::$url is missing CloudFront viewer-geo headers (or they aren't CORS-exposed)."
+              printf '%s\n' "$h" | sed 's/^/     /'
+              fail=1
+            fi
+          done
+          exit $fail

@@ -30,7 +30,7 @@ Replace it with `<SellwildFeed>`, the all-in-one native feed. Native apps use `S
 Upgrade if needed:
 
 ```bash
-npm install @sellwild/react-native-sdk@^1.4.0
+npm install @sellwild/react-native-sdk@^1.8.1
 cd ios && pod install --repo-update && cd ..
 ```
 
@@ -203,7 +203,7 @@ subprojects {
 Check that your config has a valid `listingsUrl` or the CDN config includes `LISTINGS`:
 
 ```tsx
-const config = await configure('weatherbug', 'weatherbug-weatherbug');
+const config = await configure('acme', 'acme-acme');
 console.log('Listings URL:', config.listingsUrl);
 ```
 
@@ -229,7 +229,7 @@ export default function MarketplaceScreen() {
   const [config, setConfig] = React.useState(null);
 
   React.useEffect(() => {
-    configure('weatherbug', 'weatherbug-weatherbug').then(setConfig);
+    configure('acme', 'acme-acme').then(setConfig);
   }, []);
 
   if (!config) return null;
@@ -258,7 +258,7 @@ export default function MarketplaceScreen() {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    configure('weatherbug', 'weatherbug-weatherbug').then(setConfig);
+    configure('acme', 'acme-acme').then(setConfig);
   }, []);
 
   if (!config) return <ActivityIndicator />;
@@ -295,6 +295,5 @@ export default function MarketplaceScreen() {
 
 ## Questions?
 
-- **Slack:** #ext-weatherbug-sellwild
 - **Email:** sdk-support@sellwild.com
 - **Docs:** [sdk.sellwild.com](https://sdk.sellwild.com)

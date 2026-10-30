@@ -152,14 +152,6 @@ class AdDecisionsTest {
     }
 
     @Test
-    fun `a Prebid render reports the won size, or the primary where the fork reports none`() {
-        assertEquals(320 to 50, AdDecisions.renderedSize(320, 50, 300, 250))
-        assertEquals(300 to 250, AdDecisions.renderedSize(0, 0, 300, 250))
-        assertEquals(320 to 250, AdDecisions.renderedSize(320, -1, 300, 250))
-        assertEquals(300 to 50, AdDecisions.renderedSize(0, 50, 300, 250))
-    }
-
-    @Test
     fun `a collapsed view heals to its parent, and a sized one does not`() {
         assertEquals(1080 to 600, AdDecisions.healedSize(0, 0, 1080, 600))
         assertEquals(1080 to 600, AdDecisions.healedSize(1080, 0, 1080, 600))

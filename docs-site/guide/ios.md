@@ -58,10 +58,10 @@ The SDK is available through both Swift Package Manager and CocoaPods. SPM is th
 https://github.com/Antengo/sellwild-sdk.git
 ```
 
-3. Set the dependency rule to **Up to Next Major Version** starting at `1.4.0`.
+3. Set the dependency rule to **Up to Next Major Version** starting at `1.8.1`.
 4. Select the **SellwildSDK** library product and add it to your app target.
 
-No credentials are required — the repository is public. Xcode will resolve `SellwildSDK`, `PrebidMobile`, `GoogleMobileAds`, and `GoogleUserMessagingPlatform` automatically.
+No credentials are required — the repository is public. Xcode will resolve `SellwildSDK`, `SellwildPrebidSDK` (our namespace-shaded Prebid Mobile), `Boltive`, `GoogleMobileAds`, and `GoogleUserMessagingPlatform` automatically.
 
 If you prefer to declare the dependency in a `Package.swift` manifest:
 
@@ -69,7 +69,7 @@ If you prefer to declare the dependency in a `Package.swift` manifest:
 dependencies: [
     .package(
         url: "https://github.com/Antengo/sellwild-sdk.git",
-        from: "1.4.0"
+        from: "1.8.1"
     )
 ],
 targets: [
@@ -92,7 +92,7 @@ platform :ios, '13.0'
 target 'YourApp' do
   use_frameworks! :linkage => :static
 
-  pod 'SellwildSDK', '~> 1.4.2'
+  pod 'SellwildSDK', '~> 1.8.1'
 end
 ```
 
@@ -169,8 +169,8 @@ class FeedViewController: UIViewController, SellwildFeedViewDelegate {
         super.viewDidLoad()
         Task {
             let config = await SellwildSDK.configure(
-                partnerCode: "weatherbug",
-                slug: "weatherbug-weatherbug"
+                partnerCode: "acme",
+                slug: "acme-acme"
             )
             let feed = SellwildFeedView(config: config)
             feed.delegate = self
@@ -376,8 +376,8 @@ class AdViewController: UIViewController {
         super.viewDidLoad()
         Task {
             let config = await SellwildSDK.configure(
-                partnerCode: "weatherbug",
-                slug: "weatherbug-weatherbug"
+                partnerCode: "acme",
+                slug: "acme-acme"
             )
             let ad = SellwildAdView(config: config, adSize: .mrec300x250)
             ad.translatesAutoresizingMaskIntoConstraints = false
@@ -409,11 +409,11 @@ final class AdViewController: UIViewController {
 
     // Static example. In production prefer:
     //   let config = await SellwildSDK.configure(
-    //       partnerCode: "weatherbug",
-    //       slug: "weatherbug-weatherbug"
+    //       partnerCode: "acme",
+    //       slug: "acme-acme"
     //   )
     private lazy var config: SellwildConfig = {
-        var c = SellwildConfig(partnerCode: "weatherbug")
+        var c = SellwildConfig(partnerCode: "acme")
 
         // App identity for OpenRTB ortb2.app signals
         c.appBundleId = Bundle.main.bundleIdentifier ?? "com.example.myapp"
@@ -421,7 +421,7 @@ final class AdViewController: UIViewController {
 
         // Prebid Server S2S configuration
         c.prebidServer = PrebidServerConfig(
-            accountId: "weatherbug-prod",
+            accountId: "acme-prod",
             endpoint: "https://prebid.sellwild.com/openrtb2/auction",
             bidders: ["appnexus", "rubicon", "ix", "openx"],
             timeout: 1500
@@ -554,8 +554,8 @@ struct MyApp: App {
         }
         .task {
             config = await SellwildSDK.configure(
-                partnerCode: "weatherbug",
-                slug: "weatherbug-weatherbug"
+                partnerCode: "acme",
+                slug: "acme-acme"
             )
         }
     }
@@ -587,11 +587,11 @@ import SellwildSDK
 struct AdContentView: View {
 
     private let config: SellwildConfig = {
-        var c = SellwildConfig(partnerCode: "weatherbug")
+        var c = SellwildConfig(partnerCode: "acme")
         c.appBundleId = Bundle.main.bundleIdentifier ?? "com.example.myapp"
         c.appStoreUrl = "https://apps.apple.com/app/id1234567890"
         c.prebidServer = PrebidServerConfig(
-            accountId: "weatherbug-prod",
+            accountId: "acme-prod",
             endpoint: "https://prebid.sellwild.com/openrtb2/auction",
             bidders: ["appnexus", "rubicon", "ix", "openx"],
             timeout: 1500
@@ -649,7 +649,7 @@ import SellwildSDK
 
 final class ListingsViewController: UIViewController {
 
-    private let config = SellwildConfig(partnerCode: "weatherbug")
+    private let config = SellwildConfig(partnerCode: "acme")
 
     private var listings: [SellwildListing] = []
     private let tableView = UITableView()
@@ -795,8 +795,8 @@ import SellwildSDK
 
 Task {
     let config = await SellwildSDK.configure(
-        partnerCode: "weatherbug",
-        slug: "weatherbug-weatherbug"
+        partnerCode: "acme",
+        slug: "acme-acme"
     ) { c in
         // Optional: override CDN values with app-controlled ones.
         c.appBundleId = Bundle.main.bundleIdentifier
@@ -818,10 +818,10 @@ See [Configuration → Remote Config](./configuration#remote-config) for the ful
 The SDK routes header bidding through Prebid Server. The auction is initiated in-process by Prebid Mobile and resolved server-side. No on-device waterfall, no cookie dependency.
 
 ```swift
-var config = SellwildConfig(partnerCode: "weatherbug")
+var config = SellwildConfig(partnerCode: "acme")
 
 config.prebidServer = PrebidServerConfig(
-    accountId: "weatherbug-prod",
+    accountId: "acme-prod",
     endpoint: "https://prebid.sellwild.com/openrtb2/auction",
     bidders: ["appnexus", "rubicon", "ix", "openx"],
     timeout: 1500,
@@ -915,8 +915,8 @@ public var houseFallbackListing: SellwildListing?
 Typical setup is CMS-only. For a code-pinned value, set the optional `growthCode` override in the `configure` overrides closure (precedence: local field → remote `GROWTHCODE_*` → default):
 
 ```swift
-let config = await SellwildSDK.configure(partnerCode: "weatherbug", slug: "weatherbug-main") {
-    $0.growthCode = SellwildGrowthCodeConfig(partnerId: "YOUR_PID", syncUrl: "https://weatherbug.com")
+let config = await SellwildSDK.configure(partnerCode: "acme", slug: "acme-main") {
+    $0.growthCode = SellwildGrowthCodeConfig(partnerId: "YOUR_PID", syncUrl: "https://example.com")
 }
 ```
 
@@ -1142,6 +1142,10 @@ adView.houseFallbackListing = listing   // public; external callers rarely need 
     // impression — report it separately.
     @objc optional func sellwildAdView(_ adView: SellwildAdView,
                                        didRecordHouseImpressionForZoneId zoneId: String)
+    // Fires when Boltive blocked the rendered creative (MOBILE_BOLTIVE_ENABLED
+    // only). The SDK already shows the house ad and re-auctions.
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didBlockAdForZoneId zoneId: String)
 }
 ```
 

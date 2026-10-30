@@ -13,3 +13,8 @@
 -keep public class com.sellwild.sdk.SellwildPhoto { *; }
 -keep public class com.sellwild.sdk.SellwildConfig { *; }
 -keep public enum com.sellwild.sdk.AdSize { *; }
+
+# Boltive ad-quality SDK ships no consumer rules and is already obfuscated;
+# keep it intact so app-level R8 can't strip or rename what it reflects on.
+-keep class com.boltive.** { *; }
+-dontwarn com.boltive.**

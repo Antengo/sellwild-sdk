@@ -36,6 +36,7 @@ interface NativeBannerProps {
   onAdClicked?: (e: NativeSyntheticEvent<{}>) => void
   onAdFailed?: (e: NativeSyntheticEvent<{ message: string }>) => void
   onAdResize?: (e: NativeSyntheticEvent<{ width: number; height: number }>) => void
+  onAdBlocked?: (e: NativeSyntheticEvent<{ zoneId: string }>) => void
 }
 
 // Probed once, when this module loads. null renders the fallback slot below.
@@ -56,6 +57,12 @@ export interface SellwildBannerProps {
   onHouseImpression?: (zoneId: string) => void
   onClick?: () => void
   onError?: (error: Error) => void
+  /**
+   * Fired when Boltive blocks the rendered creative (only with
+   * `MOBILE_BOLTIVE_ENABLED` on). The SDK already swaps in the house ad and
+   * re-auctions; this is for reporting.
+   */
+  onBlocked?: (zoneId: string) => void
 }
 
 export function SellwildBanner({
@@ -67,6 +74,7 @@ export function SellwildBanner({
   onHouseImpression,
   onClick,
   onError,
+  onBlocked,
 }: SellwildBannerProps) {
   // null for a label that is not an AdSize (JS callers are not type-checked).
   // It used to throw a TypeError from the render; the slot now holds the
@@ -149,6 +157,7 @@ export function SellwildBanner({
       onAdImpression={() => onImpression?.()}
       onHouseAdImpression={(e: NativeSyntheticEvent<{ zoneId: string }>) => onHouseImpression?.(e.nativeEvent?.zoneId)}
       onAdClicked={() => onClick?.()}
+      onAdBlocked={(e: NativeSyntheticEvent<{ zoneId: string }>) => onBlocked?.(e.nativeEvent?.zoneId)}
       onAdFailed={(e: NativeSyntheticEvent<{ message: string }>) => {
         const msg = e.nativeEvent?.message ?? 'Ad failed'
         onError?.(new Error(msg))

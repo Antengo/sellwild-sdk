@@ -190,6 +190,23 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
         const val REACT_CLASS = "SellwildFeedView"
 
         /**
+         * A zone id from JS: a string, or a number (core config's default is
+         * `0`, meaning unset). `getString` throws on a number, so read either
+         * type. Returns null for missing, empty, or `0`.
+         */
+        internal fun zoneIdOrNull(map: ReadableMap, key: String): String? {
+            if (!map.hasKey(key) || map.isNull(key)) return null
+            val s = when (map.getType(key)) {
+                ReadableType.String -> map.getString(key)
+                ReadableType.Number -> map.getDouble(key).let { d ->
+                    if (d % 1.0 == 0.0) d.toLong().toString() else d.toString()
+                }
+                else -> null
+            }?.trim()
+            return s?.takeIf { it.isNotEmpty() && it != "0" }
+        }
+
+        /**
          * Build a full SellwildConfig from a JS map. The JS side passes the
          * resolved CDN payload under `remote`; we re-run the canonical CDN
          * decoder ([SellwildSDK.apply]) against it so feed-specific fields
@@ -235,13 +252,13 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
             if (map.hasKey("slug")) config = config.copy(slug = map.getString("slug") ?: config.slug)
             if (map.hasKey("listingsUrl")) config = config.copy(listingsUrl = map.getString("listingsUrl"))
             if (map.hasKey("priceColor")) config = config.copy(priceColor = map.getString("priceColor") ?: config.priceColor)
-            readText(map, "bannerZid", problems) { config = config.copy(bannerZid = it) }
-            readText(map, "bottomBannerZid", problems) { config = config.copy(bottomBannerZid = it) }
+            readZoneId(map, "bannerZid", problems) { config = config.copy(bannerZid = it) }
+            readZoneId(map, "bottomBannerZid", problems) { config = config.copy(bottomBannerZid = it) }
             // mobileZids / mobileBannerZid are OS-suffix-resolved by SellwildSDK.apply
             // when `remote` is present; only fall back to the flat (OS-agnostic) JS
             // values when there was no remote payload to resolve from (parity w/ iOS).
             if (!map.hasKey("remote") || map.isNull("remote")) {
-                readText(map, "mobileBannerZid", problems) { config = config.copy(mobileBannerZid = it) }
+                readZoneId(map, "mobileBannerZid", problems) { config = config.copy(mobileBannerZid = it) }
                 readTextList(map, "mobileZids", problems) { config = config.copy(mobileZids = it) }
             }
 
@@ -317,6 +334,19 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
                 ReadableType.Null -> set(null)
                 ReadableType.String -> set(map.getString(key))
                 else -> problems += RnBridgeRules.wrongType(key, type.name, "text")
+            }
+        }
+
+        /**
+         * Reads the zone id [key] into [set] through [zoneIdOrNull]: text or a number,
+         * and nothing for missing, null, empty or `0` (core's unset default). A value of
+         * another type is dropped and added to [problems].
+         */
+        private inline fun readZoneId(map: ReadableMap, key: String, problems: MutableList<String>, set: (String) -> Unit) {
+            if (!map.hasKey(key) || map.isNull(key)) return
+            when (val type = map.getType(key)) {
+                ReadableType.String, ReadableType.Number -> zoneIdOrNull(map, key)?.let(set)
+                else -> problems += RnBridgeRules.wrongType(key, type.name, "text or a number")
             }
         }
 

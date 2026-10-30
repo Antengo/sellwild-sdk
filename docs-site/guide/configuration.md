@@ -10,20 +10,20 @@ In 1.2.0+, partners integrate the SDK with two strings:
 
 ```ts
 // React Native / TypeScript
-const config = await configure('weatherbug', 'weatherbug-weatherbug')
+const config = await configure('acme', 'acme-acme')
 ```
 
 ```swift
 // iOS
 let config = await SellwildSDK.configure(
-    partnerCode: "weatherbug", slug: "weatherbug-weatherbug"
+    partnerCode: "acme", slug: "acme-acme"
 )
 ```
 
 ```kotlin
 // Android
 val config = SellwildSDK.configure(
-    partnerCode = "weatherbug", slug = "weatherbug-weatherbug"
+    partnerCode = "acme", slug = "acme-acme"
 )
 ```
 
@@ -117,7 +117,7 @@ These fields control the appearance of the native feed and listing cards.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `gamTag` | `String?` | `null` | Google Ad Manager ad unit path (e.g., `"/12345678/weatherbug_mrec"`). Enables GAM as the primary ad server with Prebid as header bidding. |
+| `gamTag` | `String?` | `null` | Google Ad Manager ad unit path (e.g., `"/12345678/acme_mrec"`). Enables GAM as the primary ad server with Prebid as header bidding. |
 | `disableGpt` | `Bool` | `false` | Disable Google Publisher Tag entirely. |
 | `adDisableDisplay` | `Bool` | `false` | Disable all display ad rendering. Listings still load. |
 | `hideBannerTop` | `Bool` | `false` | Hide the top banner ad placement. |
@@ -182,7 +182,7 @@ Controls server-side header bidding through Prebid Server. Set this on `Sellwild
 ```swift
 // iOS
 config.prebidServer = PrebidServerConfig(
-    accountId: "weatherbug-prod",
+    accountId: "acme-prod",
     endpoint: "https://prebid.sellwild.com/openrtb2/auction",
     bidders: ["appnexus", "rubicon", "ix", "openx"],
     timeout: 1500
@@ -202,7 +202,7 @@ prebidServer = PrebidServerConfig(
 ```ts
 // React Native
 prebidServer: {
-  accountId: 'weatherbug',
+  accountId: 'acme',
   endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
   bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
   timeout: 1500,
@@ -322,7 +322,7 @@ config.maxFailedAuctions = 5
 ```kotlin
 // Android -- refresh every 30 seconds, up to 10 times
 config = SellwildConfig(
-    partnerCode = "weatherbug",
+    partnerCode = "acme",
     adRefreshMaxMobile = 10,
     adRefreshIntervalMs = 30_000L,
     maxFailedAuctions = 3,
@@ -361,13 +361,13 @@ If the fetch fails (network error, timeout, 404), the SDK falls back silently to
 ```ts [React Native / TypeScript]
 import { configure } from '@sellwild/react-native-sdk';
 
-const config = await configure('weatherbug', 'weatherbug-weatherbug');
+const config = await configure('acme', 'acme-acme');
 ```
 
 ```swift [iOS]
 let config = await SellwildSDK.configure(
-    partnerCode: "weatherbug",
-    slug: "weatherbug-weatherbug"
+    partnerCode: "acme",
+    slug: "acme-acme"
 ) { c in
     c.appBundleId = Bundle.main.bundleIdentifier
 }
@@ -375,8 +375,8 @@ let config = await SellwildSDK.configure(
 
 ```kotlin [Android]
 val config = SellwildSDK.configure(
-    partnerCode = "weatherbug",
-    slug = "weatherbug-weatherbug",
+    partnerCode = "acme",
+    slug = "acme-acme",
 ) { c -> c.copy(appBundleId = packageName) }
 ```
 
@@ -438,18 +438,18 @@ The pick happens in the native mapper (Swift on iOS, Kotlin on Android), so it i
 
 **Backward compatible**: with no suffixed/ALL keys, resolution falls through to the unsuffixed base, so existing CDN documents behave exactly as before.
 
-**Naming**: placements are dynamic-/multi-size now, so the size no longer belongs in the stored-imp id — name the per-platform imps **size-less** (e.g. `weatherbug-mobile`, `weatherbug-mobile-ios`, `weatherbug-mobile-android`). The legacy `…-300x250` imp keeps working for placements not yet migrated.
+**Naming**: placements are dynamic-/multi-size now, so the size no longer belongs in the stored-imp id — name the per-platform imps **size-less** (e.g. `acme-mobile`, `acme-mobile-ios`, `acme-mobile-android`). The legacy `…-300x250` imp keeps working for placements not yet migrated.
 
 ```json
 {
-  "MOBILE_ZID": ["weatherbug-mobile-300x250"],
-  "MOBILE_ZID_ALL_IOS": "weatherbug-mobile-ios",
-  "MOBILE_ZID_ALL_ANDROID": "weatherbug-mobile-android",
-  "MOBILE_BANNER_ZID_IOS": "weatherbug-banner-ios"
+  "MOBILE_ZID": ["acme-mobile-300x250"],
+  "MOBILE_ZID_ALL_IOS": "acme-mobile-ios",
+  "MOBILE_ZID_ALL_ANDROID": "acme-mobile-android",
+  "MOBILE_BANNER_ZID_IOS": "acme-banner-ios"
 }
 ```
 
-With the document above — **iOS**: the feed uses `weatherbug-mobile-ios` (tier-2 ALL) and the banner uses `weatherbug-banner-ios` (tier-1 override wins). **Android**: feed + banner both use `weatherbug-mobile-android` (tier-2 ALL). Neither OS falls to the shared `MOBILE_ZID`, because an ALL value is set for both.
+With the document above — **iOS**: the feed uses `acme-mobile-ios` (tier-2 ALL) and the banner uses `acme-banner-ios` (tier-1 override wins). **Android**: feed + banner both use `acme-mobile-android` (tier-2 ALL). Neither OS falls to the shared `MOBILE_ZID`, because an ALL value is set for both.
 
 ---
 
@@ -477,7 +477,7 @@ It is **mobile-only** — the web widget ignores every `MOBILE_HOUSE_AD_*` key. 
 | `MOBILE_HOUSE_AD_IMAGE` | string (URL) **or** array of URL strings | — | App-wide house creative(s), sized to the slot. An array **rotates**: one URL is chosen at random on each no-fill (lazily fetched, then cached per URL). |
 | `MOBILE_HOUSE_AD_URL` | string **or** array of URL strings | — | Click-through URL(s). A single string is **shared** across all images; an **array pairs one click URL per image by index** (index-matched to `MOBILE_HOUSE_AD_IMAGE`; a missing/blank paired entry means no click). |
 | `MOBILE_HOUSE_AD_BY_SIZE` | object | — | Per-size overrides, keyed `"<w>x<h>"` — e.g. `{"300x250":{"image":"…","url":"…"}}`. Each `image` may itself be a single URL or an array of URLs. |
-| `MOBILE_HOUSE_AD_BY_ZONE` | object | — | Per-zone overrides (most specific), keyed by zone id — e.g. `{"weatherbug-mobile-300x250":{"image":"…","url":"…"}}`. Each `image` may be a single URL or an array of URLs. |
+| `MOBILE_HOUSE_AD_BY_ZONE` | object | — | Per-zone overrides (most specific), keyed by zone id — e.g. `{"acme-mobile-300x250":{"image":"…","url":"…"}}`. Each `image` may be a single URL or an array of URLs. |
 
 ### Image resolution precedence
 
@@ -495,19 +495,19 @@ House images are cached on-device — **in-memory plus on-disk in the app's cach
 {
   "MOBILE_HOUSE_AD_ENABLED": true,
   "MOBILE_HOUSE_AD_IMAGE": [
-    "https://cdn.sellwild.com/house/weatherbug-default-1.png",
-    "https://cdn.sellwild.com/house/weatherbug-default-2.png"
+    "https://cdn.sellwild.com/house/acme-default-1.png",
+    "https://cdn.sellwild.com/house/acme-default-2.png"
   ],
   "MOBILE_HOUSE_AD_URL": [
-    "https://weatherbug.com/app?c=default-1",
-    "https://weatherbug.com/app?c=default-2"
+    "https://example.com/app?c=default-1",
+    "https://example.com/app?c=default-2"
   ],
   "MOBILE_HOUSE_AD_BY_SIZE": {
-    "300x250": { "image": "https://cdn.sellwild.com/house/wb-mrec.png",   "url": "https://weatherbug.com/mrec" },
-    "320x50":  { "image": "https://cdn.sellwild.com/house/wb-banner.png", "url": "https://weatherbug.com/banner" }
+    "300x250": { "image": "https://cdn.sellwild.com/house/acme-mrec.png",   "url": "https://example.com/mrec" },
+    "320x50":  { "image": "https://cdn.sellwild.com/house/acme-banner.png", "url": "https://example.com/banner" }
   },
   "MOBILE_HOUSE_AD_BY_ZONE": {
-    "weatherbug-mobile-300x250": { "image": "https://cdn.sellwild.com/house/wb-weather-mrec.png", "url": "https://weatherbug.com/weather" }
+    "acme-mobile-300x250": { "image": "https://cdn.sellwild.com/house/acme-featured-mrec.png", "url": "https://example.com/featured" }
   }
 }
 ```

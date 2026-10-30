@@ -102,7 +102,7 @@ export default function MarketplaceScreen() {
   const [config, setConfig] = useState(null);
 
   useEffect(() => {
-    configure('weatherbug', 'weatherbug-weatherbug').then(setConfig);
+    configure('acme', 'acme-acme').then(setConfig);
   }, []);
 
   if (!config) return <ActivityIndicator />;
@@ -238,7 +238,7 @@ import { SellwildBanner } from '@sellwild/react-native-sdk';
 
 **Dynamic slot sizing.** `<SellwildBanner>` **resizes itself to the rendered creative** — a multi-size fallback (e.g. no 300×250 fill → a 320×50 renders), an outstream video, or the capped native template. The native view reports its size on render and the component updates its own width/height, so the slot never clips tall content or leaves whitespace under a smaller fill. You don't wire anything; just don't hard-lock `height` in `style` if you want it to track.
 
-The slot's **baseline is the bounding box of the requested size set** (the widest and tallest across the primary `size` and any `BANNER_SIZES` fallbacks, which `<SellwildBanner>` reads from `config.remote`), not the primary alone — so a *wider* fallback (a 320-wide creative in a 300-wide MREC request) never clips horizontally before the resize event lands. `onAdResize` then tightens the slot to the actual creative. (Gaps: a `prebidOnly` multi-size slot stays at the reserved bounding box — the rendering view doesn't surface the winning creative size, so it won't tighten, but it no longer clips; feed ad rows are not yet self-sizing.)
+The slot's **baseline is the bounding box of the requested size set** (the widest and tallest across the primary `size` and any `BANNER_SIZES` fallbacks, which `<SellwildBanner>` reads from `config.remote`), not the primary alone — so a *wider* fallback (a 320-wide creative in a 300-wide MREC request) never clips horizontally before the resize event lands. `onAdResize` then tightens the slot to the actual creative, on `prebidOnly` too. A bid with no size reports the primary size (1.8.1+), and `<SellwildBanner>` ignores any 0×0 resize, so the slot never collapses. (Gap: feed ad rows are not yet self-sizing.)
 
 **Required platform setup.** GMA still needs `GADApplicationIdentifier` (iOS `Info.plist`) and `com.google.android.gms.ads.APPLICATION_ID` (Android `AndroidManifest.xml`) to initialize. See the [iOS Configuration](#ios-configuration) and [Android Configuration](#android-configuration) sections below.
 
@@ -355,7 +355,7 @@ field below automatically:
 ```tsx
 import { configure } from '@sellwild/react-native-sdk';
 
-const config = await configure('weatherbug', 'weatherbug-weatherbug');
+const config = await configure('acme', 'acme-acme');
 ```
 
 The static example below is shown only to document each field.
@@ -376,7 +376,7 @@ import {
 // 1. Configure the SDK
 // ---------------------------------------------------------------------------
 const partialConfig: PartialSellwildConfig = {
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
 
   // Mobile app identity -- required for proper in-app bid classification.
   appBundleId: 'com.aws.android',
@@ -385,7 +385,7 @@ const partialConfig: PartialSellwildConfig = {
   // Prebid Server S2S -- routes header bidding through Sellwild's managed
   // Prebid Server instance instead of running client-side adapters.
   prebidServer: {
-    accountId: 'weatherbug',
+    accountId: 'acme',
     endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
     bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
     timeout: 1500,
@@ -402,7 +402,7 @@ const partialConfig: PartialSellwildConfig = {
 const sdkConfig: SellwildConfig = buildConfig(partialConfig);
 
 // Tip: in 1.2.0+ the first-class integration path is
-// `await configure('weatherbug', 'weatherbug-weatherbug')`, which fetches every
+// `await configure('acme', 'acme-acme')`, which fetches every
 // runtime field — ad zones, refresh intervals, waterfall
 // partners — from the Sellwild CDN. See `Configuration > Remote Config`.
 
@@ -503,10 +503,10 @@ import {
 } from '@sellwild/react-native-sdk';
 
 const sdkConfig: SellwildConfig = buildConfig({
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
   appBundleId: 'com.aws.android',
   prebidServer: {
-    accountId: 'weatherbug',
+    accountId: 'acme',
     endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
     bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
     timeout: 1500,
@@ -731,7 +731,7 @@ async function runPrebidAuction(): Promise<void> {
           prebid: {
             bidder: {
               appnexus: { placement_id: 13144371 },
-              openx: { unit: '540012345', delDomain: 'weatherbug-d.openx.net' },
+              openx: { unit: '540012345', delDomain: 'acme-d.openx.net' },
             },
           },
         },
@@ -739,7 +739,7 @@ async function runPrebidAuction(): Promise<void> {
     ],
     app: {
       bundle: 'com.aws.android',
-      publisher: { id: 'weatherbug' },
+      publisher: { id: 'acme' },
       storeurl: 'https://play.google.com/store/apps/details?id=com.aws.android',
     },
     device: {
@@ -900,7 +900,7 @@ interface PrebidServerConfig {
 
 ```ts
 prebidServer: {
-  accountId: 'weatherbug',
+  accountId: 'acme',
   endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
   bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
   timeout: 1500,
@@ -922,7 +922,7 @@ When `prebidServer` is set, `<SellwildBanner>`:
 The remote `GROWTHCODE_*` keys ride the CMS/remote passthrough automatically — **no JS needed** to enable it. For a code-pinned value, pass an optional `growthCode` object on the `config` prop (precedence: local field → remote `GROWTHCODE_*` → default):
 
 ```tsx
-<SellwildBanner config={{ ...config, growthCode: { partnerId: 'YOUR_PID', syncUrl: 'https://weatherbug.com' } }} size="300x250" zoneId="43" />
+<SellwildBanner config={{ ...config, growthCode: { partnerId: 'YOUR_PID', syncUrl: 'https://example.com' } }} size="300x250" zoneId="43" />
 ```
 
 The MAID policy is handled natively per platform: iOS reads the IDFA only when the app already has ATT authorization; Android reads the GAID by reflection with no added dependency. The SDK never prompts for tracking and adds no new dependency.
@@ -953,6 +953,10 @@ When a house ad backfills an empty slot (a no-fill), both components emit a call
 ```
 
 > These fire only on a no-fill (when the backdrop is actually visible), not for the transient `prebidOnly` refresh gap. A house fill is **not** a paid impression — report it separately.
+
+### Boltive block events
+
+With Boltive enabled (`MOBILE_BOLTIVE_ENABLED`), `<SellwildBanner onBlocked={(zoneId) => …} />` fires when Boltive blocks a rendered creative. The native SDK already shows the house ad and re-auctions, so this is for reporting only. Ad slots inside `<SellwildFeed>` are monitored too; their blocks are reported through the SDK's `adBlocked` analytics event. See [Boltive](./prebid-server.md#boltive-ad-quality-blocking).
 
 ---
 
@@ -1019,7 +1023,7 @@ Pass GDPR parameters through the `SellwildConfig`:
 
 ```ts
 const config: PartialSellwildConfig = {
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
 
   // GDPR consent signals
   gdprApplies: true,
@@ -1032,7 +1036,7 @@ const config: PartialSellwildConfig = {
   gppEnabled: true,
 
   prebidServer: {
-    accountId: 'weatherbug',
+    accountId: 'acme',
     endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
     bidders: ['appnexus', 'rubicon', 'ix', 'openx'],
     timeout: 1500,
@@ -1220,7 +1224,7 @@ import {
 
 // Build a full SellwildConfig from partial input with defaults applied
 const config: SellwildConfig = buildConfig({
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
 });
 
 // Convert ISO currency code to symbol
@@ -1310,7 +1314,7 @@ Remove this before submitting to the App Store.
 
 ```ts
 const config = buildConfig({
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
   debug: true,
 });
 ```
@@ -1337,7 +1341,7 @@ curl -X POST https://prebid.sellwild.com/openrtb2/auction \
     }],
     "app": {
       "bundle": "com.aws.android",
-      "publisher": { "id": "weatherbug" }
+      "publisher": { "id": "acme" }
     },
     "tmax": 1500
   }'
@@ -1357,7 +1361,7 @@ curl -X POST https://prebid.sellwild.com/openrtb2/auction \
 
 ```tsx
 const sdkConfig = useMemo(
-  () => buildConfig({ partnerCode: 'weatherbug' }),
+  () => buildConfig({ partnerCode: 'acme' }),
   [],
 );
 ```

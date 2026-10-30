@@ -128,13 +128,6 @@ internal object AdDecisions {
     fun px(dp: Int, density: Float): Int = (dp * density).toInt()
 
     /**
-     * The size a Prebid render is reported and tightened to: the won creative size, or the
-     * slot's primary size where the fork reports none (0).
-     */
-    fun renderedSize(wonWidth: Int, wonHeight: Int, primaryWidth: Int, primaryHeight: Int): Pair<Int, Int> =
-        (if (wonWidth > 0) wonWidth else primaryWidth) to (if (wonHeight > 0) wonHeight else primaryHeight)
-
-    /**
      * The size a view that the host never laid out heals to: its parent's, when the view is
      * 0-sized in either dimension and the parent is not. Null when there is nothing to heal.
      */

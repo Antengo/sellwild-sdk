@@ -109,6 +109,8 @@ public init(config: SellwildConfig, adSize: AdSize, zoneId: String? = nil)
                                        didFailWithError error: Error)
     @objc optional func sellwildAdView(_ adView: SellwildAdView,
                                        didRecordHouseImpressionForZoneId zoneId: String)
+    @objc optional func sellwildAdView(_ adView: SellwildAdView,
+                                       didBlockAdForZoneId zoneId: String)
 }
 ```
 
@@ -119,6 +121,7 @@ public init(config: SellwildConfig, adSize: AdSize, zoneId: String? = nil)
 | `sellwildAdViewDidRecordClick(_:)` | The user tapped the ad creative. |
 | `sellwildAdView(_:didFailWithError:)` | The auction returned no fill, or an error occurred during rendering. |
 | `sellwildAdView(_:didRecordHouseImpressionForZoneId:)` | A house ad backfilled an empty slot (a no-fill). **Not** a paid impression — report it separately. See [House ads](/guide/ios#house-ads). |
+| `sellwildAdView(_:didBlockAdForZoneId:)` | Boltive blocked the rendered creative (only with `MOBILE_BOLTIVE_ENABLED` on). The SDK already shows the house ad and re-auctions within the refresh cap. See [Boltive](/guide/prebid-server#boltive-ad-quality-blocking). |
 
 All callbacks are dispatched on the main thread. All methods are optional (`@objc optional`).
 
@@ -289,6 +292,7 @@ interface Listener {
     fun onAdClicked(adView: SellwildAdView) {}
     fun onAdFailed(adView: SellwildAdView, message: String) {}
     fun onHouseAdImpression(adView: SellwildAdView, zoneId: String) {}
+    fun onAdBlocked(adView: SellwildAdView, zoneId: String) {}
 }
 ```
 
@@ -299,6 +303,7 @@ interface Listener {
 | `onAdClicked(adView)` | User tapped the ad. |
 | `onAdFailed(adView, message)` | No fill or render error. |
 | `onHouseAdImpression(adView, zoneId)` | A house ad backfilled an empty slot (a no-fill). **Not** a paid impression — report it separately. See [House ads](/guide/android#house-ads). |
+| `onAdBlocked(adView, zoneId)` | Boltive blocked the rendered creative (only with `MOBILE_BOLTIVE_ENABLED` on). The SDK already shows the house ad and re-auctions within the refresh cap. See [Boltive](/guide/prebid-server#boltive-ad-quality-blocking). |
 
 All callbacks are dispatched on the main thread. All methods have default (empty) implementations -- override only what you need.
 
@@ -360,7 +365,7 @@ Native banner component. Bridges to `SellwildAdView` on iOS and Android (Prebid 
 import { SellwildBanner, buildConfig } from '@sellwild/react-native-sdk';
 
 <SellwildBanner
-  config={buildConfig({ partnerCode: 'weatherbug' })}
+  config={buildConfig({ partnerCode: 'acme' })}
   size="300x250"
   zoneId={12345}
   onImpression={() => {}}
@@ -445,7 +450,7 @@ Utility function that applies default values to a partial configuration object.
 import { buildConfig, type SellwildConfig, type PartialSellwildConfig } from '@sellwild/react-native-sdk';
 
 const config: SellwildConfig = buildConfig({
-  partnerCode: 'weatherbug',
+  partnerCode: 'acme',
 });
 ```
 
@@ -460,7 +465,7 @@ const config: SellwildConfig = buildConfig({
 ```ts
 import { configure } from '@sellwild/react-native-sdk';
 
-const config = await configure('weatherbug', 'weatherbug-weatherbug');
+const config = await configure('acme', 'acme-acme');
 ```
 
 The remote config is fetched from `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Merge order:
@@ -481,7 +486,7 @@ The remote config is fetched from `https://widget.sellwild.com/app/{partnerCode}
 | `overrides` | `PartialSellwildConfig` | — | App-controlled values that win over CDN values. |
 
 ```ts
-const config = await configure('weatherbug', 'weatherbug-weatherbug', {
+const config = await configure('acme', 'acme-acme', {
   timeout: 1500,
   overrides: { debug: __DEV__ },
 });
@@ -501,8 +506,8 @@ Async helper that merges remote config onto a static base config. Superseded by 
 import { buildConfigWithRemote } from '@sellwild/react-native-sdk';
 
 const config = await buildConfigWithRemote(
-  { partnerCode: 'weatherbug' },
-  'weatherbug-weatherbug',
+  { partnerCode: 'acme' },
+  'acme-acme',
 );
 ```
 

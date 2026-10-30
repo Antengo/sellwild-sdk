@@ -175,4 +175,22 @@ class SellwildAdSizesTest {
         assertEquals(Size(320, 250), SellwildAdSizes.boundingSize(listOf(Size(320, 50), Size(300, 250))))
         assertEquals(Size(0, 0), SellwildAdSizes.boundingSize(emptyList()))
     }
+
+    // renderedSize: the fork reports 0 when the winning bid has no w/h; the host gets the primary.
+
+    @Test
+    fun `a reported size is kept`() {
+        assertEquals(Size(320, 50), SellwildAdSizes.renderedSize(Size(320, 50), mrec))
+    }
+
+    @Test
+    fun `a zero size falls back to the primary`() {
+        assertEquals(mrec, SellwildAdSizes.renderedSize(Size(0, 0), mrec))
+    }
+
+    @Test
+    fun `a half-zero size falls back to the primary`() {
+        assertEquals(mrec, SellwildAdSizes.renderedSize(Size(300, 0), mrec))
+        assertEquals(mrec, SellwildAdSizes.renderedSize(Size(0, 250), mrec))
+    }
 }

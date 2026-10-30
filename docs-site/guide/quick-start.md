@@ -17,14 +17,14 @@ For full integration guides with all ad formats, GDPR, lifecycle management, and
 https://github.com/Antengo/sellwild-sdk.git
 ```
 
-Pick the **SellwildSDK** library product, rule **Up to Next Major Version** from `1.4.0`. No credentials are required — the repository is public.
+Pick the **SellwildSDK** library product, rule **Up to Next Major Version** from `1.8.1`. No credentials are required — the repository is public.
 
 **CocoaPods** -- Add to your `Podfile`:
 
 ```ruby
 target 'YourApp' do
   use_frameworks! :linkage => :static
-  pod 'SellwildSDK', '~> 1.4'
+  pod 'SellwildSDK', '~> 1.8.1'
 end
 ```
 
@@ -63,8 +63,8 @@ struct MyApp: App {
         }
         .task {
             config = await SellwildSDK.configure(
-                partnerCode: "weatherbug",
-                slug: "weatherbug-weatherbug"
+                partnerCode: "acme",
+                slug: "acme-acme"
             )
         }
     }
@@ -84,8 +84,8 @@ class FeedViewController: UIViewController, SellwildFeedViewDelegate {
         super.viewDidLoad()
         Task {
             let config = await SellwildSDK.configure(
-                partnerCode: "weatherbug",
-                slug: "weatherbug-weatherbug"
+                partnerCode: "acme",
+                slug: "acme-acme"
             )
             let feed = SellwildFeedView(config: config)
             feed.delegate = self
@@ -151,8 +151,8 @@ class BannerViewController: UIViewController {
         super.viewDidLoad()
         Task {
             let config = await SellwildSDK.configure(
-                partnerCode: "weatherbug",
-                slug: "weatherbug-weatherbug"
+                partnerCode: "acme",
+                slug: "acme-acme"
             )
             let ad = SellwildAdView(config: config, adSize: .mrec300x250)
             ad.translatesAutoresizingMaskIntoConstraints = false
@@ -194,7 +194,7 @@ Add the dependency to `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.4.0")
+    implementation("com.sellwild:sdk:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
 ```
@@ -225,8 +225,8 @@ class FeedActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             val config = SellwildSDK.configure(
-                partnerCode = "weatherbug",
-                slug = "weatherbug-weatherbug"
+                partnerCode = "acme",
+                slug = "acme-acme"
             )
             setContent {
                 SellwildFeed(
@@ -275,8 +275,8 @@ class FeedActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             val config = SellwildSDK.configure(
-                partnerCode = "weatherbug",
-                slug = "weatherbug-weatherbug"
+                partnerCode = "acme",
+                slug = "acme-acme"
             )
             feedView.setup(config)
             feedView.load()
@@ -317,8 +317,8 @@ class BannerActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             val config = SellwildSDK.configure(
-                partnerCode = "weatherbug",
-                slug = "weatherbug-weatherbug",
+                partnerCode = "acme",
+                slug = "acme-acme",
             ) { c -> c.copy(appBundleId = packageName) }
             adView.setup(config, AdSize.MREC_300x250)
             adView.load()
@@ -362,7 +362,7 @@ export default function App() {
   const [config, setConfig] = useState<SellwildConfig | null>(null);
 
   useEffect(() => {
-    configure('weatherbug', 'weatherbug-weatherbug').then(setConfig);
+    configure('acme', 'acme-acme').then(setConfig);
   }, []);
 
   if (!config) return null;

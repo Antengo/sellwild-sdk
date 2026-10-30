@@ -64,6 +64,8 @@ dependencyResolutionManagement {
             url = uri("https://maven.sellwild.com/releases")
             content {
                 includeGroupByRegex("com\\.sellwild.*")
+                // Boltive ad-quality SDK (a transitive dependency of the SDK).
+                includeGroup("com.boltive")
             }
         }
     }
@@ -76,7 +78,7 @@ In your app-level `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.4.0")
+    implementation("com.sellwild:sdk:1.8.1")
 
     // Required -- coroutines for async listings API
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -198,8 +200,8 @@ class FeedActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             val config = SellwildSDK.configure(
-                partnerCode = "weatherbug",
-                slug = "weatherbug-weatherbug"
+                partnerCode = "acme",
+                slug = "acme-acme"
             )
             feedView.setup(config)
             feedView.load()
@@ -391,12 +393,12 @@ class AdActivity : AppCompatActivity() {
     // Static example. In production prefer:
     //   lifecycleScope.launch {
     //       val config = SellwildSDK.configure(
-    //           partnerCode = "weatherbug",
-    //           slug = "weatherbug-weatherbug",
+    //           partnerCode = "acme",
+    //           slug = "acme-acme",
     //       )
     //   }
     private val config = SellwildConfig(
-        partnerCode = "weatherbug",
+        partnerCode = "acme",
         appBundleId = "com.aws.android",
         appStoreUrl = "https://play.google.com/store/apps/details?id=com.aws.android",
         prebidServer = PrebidServerConfig(
@@ -492,6 +494,7 @@ class AdActivity : AppCompatActivity() {
 | `onAdClicked(adView)` | The user tapped on the ad creative. |
 | `onAdFailed(adView, message)` | The auction returned no fill, or an error occurred during rendering. |
 | `onHouseAdImpression(adView, zoneId)` | A house ad backfilled an empty slot (a no-fill). **Not** a paid impression — report it separately. See [House ads](#house-ads). |
+| `onAdBlocked(adView, zoneId)` | Boltive blocked the rendered creative (only with `MOBILE_BOLTIVE_ENABLED` on). The SDK already shows the house ad and re-auctions within the refresh cap. See [Boltive](./prebid-server.md#boltive-ad-quality-blocking). |
 
 All callbacks are dispatched on the main thread.
 
@@ -561,7 +564,7 @@ fun SellwildBanner(
 fun HomeScreen() {
     val config = remember {
         SellwildConfig(
-            partnerCode = "weatherbug",
+            partnerCode = "acme",
             appBundleId = "com.aws.android",
             prebidServer = PrebidServerConfig(
                 accountId = "sellwild",
@@ -572,7 +575,7 @@ fun HomeScreen() {
     }
 
     Column {
-        Text("Weather Forecast", style = MaterialTheme.typography.headlineMedium)
+        Text("Today's Highlights", style = MaterialTheme.typography.headlineMedium)
 
         // 300x250 MREC between content sections
         SellwildBanner(
@@ -741,7 +744,7 @@ class ListingsViewModel(
     val uiState: StateFlow<ListingsUiState> = _uiState
 
     private val config = SellwildConfig(
-        partnerCode = "weatherbug",
+        partnerCode = "acme",
         appBundleId = "com.aws.android",
         prebidServer = PrebidServerConfig(
             accountId = "sellwild",
@@ -800,8 +803,8 @@ import com.sellwild.sdk.SellwildSDK
 
 lifecycleScope.launch {
     val config = SellwildSDK.configure(
-        partnerCode = "weatherbug",
-        slug = "weatherbug-weatherbug",
+        partnerCode = "acme",
+        slug = "acme-acme",
     ) { c ->
         // Optional: override CDN values with app-controlled ones.
         c.copy(appBundleId = packageName)
@@ -818,23 +821,23 @@ The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your
 
 See [Configuration → Remote Config](./configuration#remote-config) for the full CDN field reference.
 
-### Pre-warming (optional)
+### Pre-warming (automatic)
 
-The Prebid Mobile + Google Mobile Ads stack initializes lazily on the first `SellwildAdView.load()`, guarded by a short readiness wait. On a slow cold start that wait may expire before init finishes, so the **first** impression can fall back to GAM-only (losing header-bidding demand). To recover it, pre-initialize the stack once at app launch:
+`configure()` pre-initializes the Prebid Mobile + Google Mobile Ads stack as soon as the config arrives, so the first `SellwildAdView.load()` doesn't absorb SDK init latency (on a slow cold start that can otherwise cost the **first** impression its header-bidding demand). Calling `configure()` early, e.g. from `Application.onCreate()`, gets the most benefit:
 
 ```kotlin
 class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
         applicationScope.launch {
-            val config = SellwildSDK.configure(partnerCode = "weatherbug", slug = "weatherbug-weatherbug")
-            SellwildSDK.prewarm(applicationContext, config)
+            val config = SellwildSDK.configure(partnerCode = "acme", slug = "acme-acme")
+            // configure() pre-warms the ad stack; keep `config` for your ad views.
         }
     }
 }
 ```
 
-`prewarm(context, config)` is **fully optional and non-breaking** — skip it and the SDK still initializes lazily exactly as before. It is idempotent (first call initializes; later calls are a cheap no-op). This mirrors iOS, which pre-warms automatically inside `configure()` (Swift needs no `Context`); Android's `configure()` takes no `Context`, so pre-warming is the explicit opt-in.
+Since 1.8.0, `SellwildSDK.configure()` pre-warms automatically (like iOS), using the application Context the SDK captures at app start, so you don't need to call `prewarm`. Call it only if you build a `SellwildConfig` without `configure()`, or want to warm the stack even earlier. It is idempotent (first call initializes; later calls are a cheap no-op).
 
 ---
 
@@ -939,8 +942,8 @@ var houseFallbackListing: SellwildListing? = null
 Typical setup is CMS-only. For a code-pinned value, set the optional `growthCode` override with `.copy(...)` (precedence: local field → remote `GROWTHCODE_*` → default):
 
 ```kotlin
-val config = SellwildSDK.configure(context, "weatherbug", "weatherbug-main").copy(
-    growthCode = SellwildGrowthCodeConfig(partnerId = "YOUR_PID", syncUrl = "https://weatherbug.com"),
+val config = SellwildSDK.configure(context, "acme", "acme-main").copy(
+    growthCode = SellwildGrowthCodeConfig(partnerId = "YOUR_PID", syncUrl = "https://example.com"),
 )
 ```
 
@@ -956,7 +959,7 @@ The SDK supports IAB TCF v2 consent management. For users in GDPR regions, you m
 
 ```kotlin
 val config = SellwildConfig(
-    partnerCode = "weatherbug",
+    partnerCode = "acme",
     appBundleId = "com.aws.android",
 
     // Privacy
@@ -1040,7 +1043,7 @@ The SDK supports automatic ad refresh to maximize revenue from long-lived screen
 
 ```kotlin
 val config = SellwildConfig(
-    partnerCode = "weatherbug",
+    partnerCode = "acme",
     appBundleId = "com.aws.android",
 
     // Refresh settings

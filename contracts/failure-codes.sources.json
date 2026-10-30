@@ -83,6 +83,11 @@
       "code": "config.apply.exception",
       "date": "2026-09-25",
       "note": "Its only phase-1 point was in the Flutter SDK, which origin removed (df551f7); Android still reports it when SellwildSDK.apply throws on a CDN config."
+    },
+    {
+      "code": "ad.boltive_capture.exception",
+      "date": "2026-10-30",
+      "note": "Boltive ad-quality monitoring arrived from main (1.8.0) after the phase-1 inventory; its Android capture runCatching printed instead of reporting."
     }
   ],
   "points": [
