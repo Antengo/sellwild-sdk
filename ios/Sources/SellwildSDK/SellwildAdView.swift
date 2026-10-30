@@ -819,7 +819,7 @@ public final class SellwildAdView: UIView {
         recordHouseImpressionIfShowing()
         guard !isPausedForDetach else { return }
         if blocked === gamBanner {
-            refreshTimer?.invalidate()
+            refreshTimer?.cancel()
             refreshTimer = nil
             guard effectiveRefreshMax > 0, refreshCount < effectiveRefreshMax else { return }
             refreshCount += 1
