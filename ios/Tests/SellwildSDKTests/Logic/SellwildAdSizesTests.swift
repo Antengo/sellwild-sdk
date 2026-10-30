@@ -192,4 +192,22 @@ final class SellwildAdSizesTests: FailureCapturingTestCase {
         SellwildAdSizes.applyPrebid([mrec, banner], to: unit)
         XCTAssertNil(unit.getImpORTBConfig(), "only the sizes are touched")
     }
+
+    // MARK: renderedSize
+
+    // A bid with no w/h reports 0x0 from the prebidOnly render callback; the
+    // host gets the primary size instead.
+
+    func testRenderedSizeKeepsTheReportedSize() {
+        XCTAssertEqual(SellwildAdSizes.renderedSize(reported: banner, primary: mrec), banner)
+    }
+
+    func testRenderedSizeFallsBackToThePrimaryForZero() {
+        XCTAssertEqual(SellwildAdSizes.renderedSize(reported: .zero, primary: mrec), mrec)
+    }
+
+    func testRenderedSizeFallsBackToThePrimaryForHalfZero() {
+        XCTAssertEqual(SellwildAdSizes.renderedSize(reported: CGSize(width: 300, height: 0), primary: mrec), mrec)
+        XCTAssertEqual(SellwildAdSizes.renderedSize(reported: CGSize(width: 0, height: 250), primary: mrec), mrec)
+    }
 }
