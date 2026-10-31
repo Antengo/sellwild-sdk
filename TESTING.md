@@ -139,8 +139,8 @@ What each check leaves to another (all found by mutation checks, 2026-09-24):
 
 ### CI
 
-`.github/workflows/ci.yml` runs every platform's full unit suite with coverage on
-every pull request, with the same scripts as `--full`, and fails a job whose
+`.github/workflows/ci.yml` runs each platform's full unit suite with coverage,
+with the same scripts as `--full`, and fails a job whose
 fresh `coverage-summary/<platform>.json` is under its minimums in
 `tools/coverage-thresholds.json` (`node tools/coverage-gate.mjs --only <platform>`):
 
@@ -151,6 +151,20 @@ fresh `coverage-summary/<platform>.json` is under its minimums in
 | `react-native` | tsc, `scripts/coverage/ts.mjs --run --only react-native` |
 | `android` | `scripts/coverage/android.sh` (Gradle unit tests + Kover) |
 | `ios` | `scripts/coverage/ios.sh`: one `xcodebuild test -enableCodeCoverage YES` (no separate build), derived data cached on the package manifest and Swift sources, the simulator booted while the build runs |
+
+On a pull request a quick `changes` job ([dorny/paths-filter](https://github.com/dorny/paths-filter),
+from the PR's file list) picks which platform jobs run; the others show as
+skipped (job-level `if:`). On push to `main`, the nightly schedule (06:17 UTC)
+and a manual `workflow_dispatch`, every job runs. `contracts` always runs.
+
+| Job | Runs on a PR that changes |
+|---|---|
+| `ios` | `ios/**`, `Package.swift`, `Package.resolved`, `SellwildSDK.podspec` |
+| `android` | `android/**` |
+| `core` | `core/**` |
+| `react-native` | `react-native/**`, `core/**` |
+| `dashboard` | `dashboard/**` |
+| all of the above | `contracts/**`, `tools/coverage*`, `scripts/coverage/**`, `.github/workflows/**` |
 
 core and react-native's `vitest.config.ts` thresholds must equal
 `tools/coverage-thresholds.json`; `ts.mjs` fails when they differ. Raise a

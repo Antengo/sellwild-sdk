@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    # Nightly full run of every job (06:17 UTC), so a platform no PR touched
+    # still gets checked against fresh runners and dependencies.
+    - cron: '17 6 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -19,8 +23,73 @@ permissions:
 # fails below its minimums in tools/coverage-thresholds.json
 # (node tools/coverage-gate.mjs). The summary is checked fresh: the committed
 # copy is deleted first, so a run that writes none fails as "missing".
+#
+# Per-platform runs: on pull_request the `changes` job (dorny/paths-filter,
+# from the PR's file list) decides which platform jobs run; a job whose paths
+# did not change is skipped by its job-level `if:` and shows as skipped. On
+# push to main, the nightly schedule and workflow_dispatch every job runs.
+# `contracts` always runs (it is quick and its print gate scans every
+# platform's sources).
+#
+#   ios           ios/**, Package.swift, Package.resolved, SellwildSDK.podspec
+#   android       android/**
+#   core          core/**
+#   react-native  react-native/**, core/**
+#   dashboard     dashboard/**
+#   all of them   contracts/**, tools/coverage*, scripts/coverage/**, .github/workflows/**
 
 jobs:
+  changes:
+    name: changes (which platforms run)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      ios: ${{ github.event_name != 'pull_request' || steps.filter.outputs.ios == 'true' }}
+      android: ${{ github.event_name != 'pull_request' || steps.filter.outputs.android == 'true' }}
+      core: ${{ github.event_name != 'pull_request' || steps.filter.outputs.core == 'true' }}
+      react-native: ${{ github.event_name != 'pull_request' || steps.filter.outputs.react-native == 'true' }}
+      dashboard: ${{ github.event_name != 'pull_request' || steps.filter.outputs.dashboard == 'true' }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            everything: &everything
+              - 'contracts/**'
+              - 'tools/coverage*'
+              - 'scripts/coverage/**'
+              - '.github/workflows/**'
+            ios:
+              - *everything
+              - 'ios/**'
+              - 'Package.swift'
+              - 'Package.resolved'
+              - 'SellwildSDK.podspec'
+            android:
+              - *everything
+              - 'android/**'
+            core:
+              - *everything
+              - 'core/**'
+            react-native:
+              - *everything
+              - 'core/**'
+              - 'react-native/**'
+            dashboard:
+              - *everything
+              - 'dashboard/**'
+      - name: Platforms that run
+        run: |
+          echo "event=${{ github.event_name }}"
+          echo "ios=${{ github.event_name != 'pull_request' || steps.filter.outputs.ios == 'true' }}"
+          echo "android=${{ github.event_name != 'pull_request' || steps.filter.outputs.android == 'true' }}"
+          echo "core=${{ github.event_name != 'pull_request' || steps.filter.outputs.core == 'true' }}"
+          echo "react-native=${{ github.event_name != 'pull_request' || steps.filter.outputs.react-native == 'true' }}"
+          echo "dashboard=${{ github.event_name != 'pull_request' || steps.filter.outputs.dashboard == 'true' }}"
+
   contracts:
     name: contracts (node --test, validate, print gate)
     runs-on: ubuntu-latest
@@ -43,6 +112,8 @@ jobs:
 
   core:
     name: core (typecheck, smoke, unit tests + coverage)
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -72,6 +143,8 @@ jobs:
 
   react-native:
     name: react-native (tsc, unit tests + coverage)
+    needs: changes
+    if: needs.changes.outputs.react-native == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -112,6 +185,8 @@ jobs:
 
   dashboard:
     name: dashboard (tsc)
+    needs: changes
+    if: needs.changes.outputs.dashboard == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -128,6 +203,8 @@ jobs:
 
   ios:
     name: ios (unit tests + coverage)
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
     runs-on: macos-15
     timeout-minutes: 45
     env:
@@ -206,6 +283,8 @@ jobs:
 
   android:
     name: android (unit tests + coverage)
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
