@@ -169,6 +169,7 @@ describe('recordTiming', () => {
   })
 
   it('reads performance.now when there is one, and Date.now otherwise', () => {
+    setTimingContext({ monotonic: undefined }) // no test clock: the default one
     vi.stubGlobal('performance', { now: () => 42 })
     expect(monotonicMs()).toBe(42)
     vi.stubGlobal('performance', undefined)

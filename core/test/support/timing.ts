@@ -12,11 +12,15 @@ function record(): SdkTimingEvent[] {
   return (g[RECORD] ??= [])
 }
 
-/** Reset timing and record what it sends. */
+/**
+ * Reset timing and record what it sends. The monotonic clock is frozen at 0,
+ * so a slow runner can never turn a real fetch into a `*.slow` failure; tests
+ * that time a step set their own clock.
+ */
 export function resetTiming(): void {
   record().splice(0)
   resetTimingForTests()
-  setTimingContext({ push: (event) => record().push(event) })
+  setTimingContext({ push: (event) => record().push(event), monotonic: () => 0 })
 }
 
 /** The timing events recorded since the last drain, and clears them. */

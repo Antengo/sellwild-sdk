@@ -13,7 +13,8 @@ final class SellwildFeedTimingTests: ViewTestCase {
         pushed = []
         SellwildTiming.setDependencies(SellwildTiming.Dependencies(
             push: { [unowned self] in self.pushed.append($0) }, now: { 1 }, uid: { "u" },
-            monotonic: { ProcessInfo.processInfo.systemUptime }
+            // Frozen: a slow runner must not turn these fetches into listings.fetch.slow.
+            monotonic: { 0 }
         ))
         SellwildTiming.remote = ["TIMING_SAMPLE_RATE": 1]
         SellwildListingCardView.cache.removeAllObjects()

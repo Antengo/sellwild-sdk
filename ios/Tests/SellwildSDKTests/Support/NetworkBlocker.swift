@@ -242,6 +242,10 @@ final class NetworkBlocker: URLProtocol {
             SharedEventsQueue.drain()
             // Process-wide timing and guard state (fv 2) starts fresh per test too.
             SellwildTiming.resetForTests()
+            // A monotonic clock that never moves, so no test trips a `*.slow`
+            // budget because the runner is slow (CI saw config.fetch.slow from a
+            // 3 s config fetch). Tests that time a step set their own clock.
+            SellwildTiming.setDependencies(.frozenClockForTests)
             SellwildGuards.resetForTests()
             SellwildViews.resetForTests()
             // Registered first, so it runs after the test's own teardown
@@ -316,3 +320,13 @@ private let sellwildTestsInstallNetworkBlocker: @convention(c) () -> Void = {
     NetworkBlocker.install(origin: .imageLoad)
 }
 #endif
+
+extension SellwildTiming.Dependencies {
+    /// The live push, clock and uid with a monotonic clock stuck at 0: every
+    /// step measures 0 ms whatever the runner's speed.
+    static var frozenClockForTests: Self {
+        var deps = Self.live
+        deps.monotonic = { 0 }
+        return deps
+    }
+}

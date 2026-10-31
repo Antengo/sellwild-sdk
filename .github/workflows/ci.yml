@@ -214,8 +214,23 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      # Caches ~/.gradle and validates the committed wrapper jar.
+      # Validates the committed wrapper jar. Its own cache is off: it only
+      # saves on the default branch, so every PR run downloaded the Robolectric
+      # android-all jar again and Maven Central answered 429.
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
+      # Gradle's dependency cache (it holds the Robolectric android-all jar,
+      # pinned in android/build.gradle.kts) and the wrapper distribution.
+      # actions/cache saves on every branch; a PR also reads its base's cache.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches/modules-2
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/*.gradle.kts', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -223,6 +238,17 @@ jobs:
           cache-dependency-path: contracts/package-lock.json
       # android.sh validates the payloads the tests emit with contracts/scripts/validate.mjs.
       - run: npm --prefix contracts ci --no-audit --no-fund
+      # The Robolectric jar alone, retried with a growing wait: Maven Central
+      # rate-limits (429). A cache hit makes this a no-op.
+      - name: Robolectric android-all jar (retried)
+        working-directory: android
+        run: |
+          for attempt in 1 2 3 4; do
+            ./gradlew syncRobolectricDeps && exit 0
+            echo "syncRobolectricDeps failed (attempt $attempt); retrying in $((attempt * 30)) s"
+            sleep $((attempt * 30))
+          done
+          exit 1
       # The Prebid fork resolves from maven.sellwild.com (settings.gradle.kts).
       - name: Unit tests with coverage (Kover)
         run: |
