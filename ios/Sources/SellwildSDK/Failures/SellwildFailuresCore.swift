@@ -477,11 +477,60 @@ enum SellwildFailuresCore {
         return text(path.reversed().prefix { $0 != "/" }.reversed())
     }
 
+    /// Hosts whose stack URLs are kept whole, so their frames can be source-mapped.
+    static let ourDomains = ["sellwild.com", "sellwild.org"]
+
+    /// True for sellwild.com, sellwild.org and any subdomain of either.
+    static func isOurHost(_ host: String) -> Bool {
+        let h = Array(host.unicodeScalars)
+        return ourDomains.contains { d in
+            same(host, d) || h.reversed().starts(with: ("." + d).unicodeScalars.reversed())
+        }
+    }
+
+    /// Where the trailing `(:[0-9]+){1,2}$` (":line" or ":line:col") starts;
+    /// `a.count` when there is none.
+    private static func lineColStart(_ a: [Unicode.Scalar]) -> Int {
+        var start = a.count
+        for _ in 0..<2 {
+            var j = start
+            while j > 0 && isDigit(a[j - 1]) { j -= 1 }
+            guard j < start, j > 0, a[j - 1] == ":" else { break }
+            start = j - 1
+        }
+        return start
+    }
+
+    private static let pathTokens: [Token] = [.email, .uuid, .ipv4]
+
+    /// A stack URL on one of our hosts (FAILURES.md 7.4): the scheme (lower
+    /// case) or "//", the host from hostOf, the path, then the trailing ":line"
+    /// or ":line:col". Userinfo, port, query and fragment are removed; emails,
+    /// UUIDs and IPv4s in the path are masked.
+    private static func keepOurURL(_ m: String, host: String) -> String {
+        let s = Array(m.unicodeScalars)
+        let scheme = s.prefix(while: isSchemeChar)
+        let prefix = scheme.isEmpty ? "//" : asciiLower(text(scheme)) + "://"
+        let rest = s.dropFirst(prefix.unicodeScalars.count)
+        let auth = rest.prefix { c in c != "/" && c != "?" && c != "#" && isAuthorityChar(c) }
+        let after = Array(rest.dropFirst(auth.count))
+        let lc = lineColStart(after)
+        let path = text(after[..<lc].prefix { $0 != "?" && $0 != "#" })
+        let masked = replacing(path, pathTokens) { token, _ in
+            switch token {
+            case .email: return "<email>"
+            case .uuid: return "<id>"
+            default: return "<ip>"
+            }
+        }
+        return prefix + host + masked + text(after[lc...])
+    }
+
     private static func sanitizeFrame(_ line: String) -> String {
         replacing(cleanText(line), frameTokens) { token, m in
             switch token {
             case .url, .relative:
-                if let host = hostOf(m) { return host }
+                if let host = hostOf(m) { return isOurHost(host) ? keepOurURL(m, host: host) : host }
                 let base = basenameOfURL(m)
                 return base.isEmpty ? "<url>" : base
             case .email: return "<email>"
@@ -494,7 +543,8 @@ enum SellwildFailuresCore {
 
     /// First 30 frames, one per line: the engine header line (`errName` or
     /// `errName: …`) is dropped, each frame is cut to its first 500 UTF-16
-    /// units, URLs become hosts, directories and query strings are removed,
+    /// units, URLs on our hosts keep their path and line:col (no query), other
+    /// URLs become hosts, directories and query strings are removed,
     /// emails, UUIDs and IPs are masked. At most 4000 code points; nil when
     /// nothing is left.
     static func sanitizeStack(_ stack: Any?, errName: String?) -> String? {

@@ -169,6 +169,11 @@ internal object FailuresCore {
     ).joinToString("|")
     private val MESSAGE_RE = Regex(MESSAGE_PATTERN)
     private val FRAME_RE = Regex(FRAME_PATTERN)
+    private val LINE_COL_RE = Regex("(:[0-9]+){1,2}$")
+    private val PATH_PII_RE = Regex(listOf(EMAIL_ALT, UUID_ALT, IPV4_ALT).joinToString("|"))
+
+    /** Hosts whose stack URLs are kept whole, so their frames can be source-mapped. */
+    val OUR_DOMAINS = listOf("sellwild.com", "sellwild.org")
 
     // ── Code points ──────────────────────────────────────────────────────────
 
@@ -343,12 +348,47 @@ internal object FailuresCore {
         return path.substring(path.lastIndexOf('/') + 1)
     }
 
+    /** True for sellwild.com, sellwild.org and any subdomain of either. */
+    fun isOurHost(host: String): Boolean = OUR_DOMAINS.any { host == it || host.endsWith(".$it") }
+
+    /**
+     * A stack URL on one of our hosts (FAILURES.md 7.4): the scheme (lower case)
+     * or "//", the host from hostOf, the path, then the trailing ":line" or
+     * ":line:col". Userinfo, port, query and fragment are removed; emails, UUIDs
+     * and IPv4s in the path are masked.
+     */
+    private fun keepOurUrl(m: String, host: String): String {
+        val prefix = if (m.startsWith("//")) "//" else asciiLower(m.substring(0, m.indexOf("://"))) + "://"
+        val rest = m.substring(prefix.length)
+        var authLen = 0
+        for (cp in codePoints(rest)) {
+            if (cp == '/'.code || cp == '?'.code || cp == '#'.code || !isAuthorityChar(cp)) break
+            authLen += Character.charCount(cp)
+        }
+        val after = rest.substring(authLen)
+        val lcMatch = LINE_COL_RE.find(after)
+        val lc = if (lcMatch == null) "" else lcMatch.value
+        val path = after.substring(0, after.length - lc.length).substringBefore('?').substringBefore('#')
+        val masked = PATH_PII_RE.replace(path) { p ->
+            when {
+                p.groups[1] != null -> "<email>"
+                p.groups[2] != null -> "<id>"
+                else -> "<ip>"
+            }
+        }
+        return prefix + host + masked + lc
+    }
+
+    private fun frameUrl(m: String): String {
+        val host = hostOf(m) ?: return basenameOfUrl(m).ifEmpty { "<url>" }
+        return if (isOurHost(host)) keepOurUrl(m, host) else host
+    }
+
     private fun sanitizeFrame(line: String): String =
         FRAME_RE.replace(cleanText(line)) { m ->
             val g = m.groups
             when {
-                g[1] != null || g[2] != null ->
-                    hostOf(m.value) ?: basenameOfUrl(m.value).ifEmpty { "<url>" }
+                g[1] != null || g[2] != null -> frameUrl(m.value)
                 g[3] != null -> "<email>"
                 g[4] != null -> "<id>"
                 g[5] != null -> "<ip>"
@@ -359,7 +399,8 @@ internal object FailuresCore {
     /**
      * First 30 frames of a stack, one per line: the engine header line
      * ([errName] or `errName: …`) is dropped, each frame is cut to its first 500
-     * UTF-16 units, URLs become hosts, directories and query strings are removed,
+     * UTF-16 units, URLs on our hosts keep their path and line:col (no query),
+     * other URLs become hosts, directories and query strings are removed,
      * emails/UUIDs/IPs are masked. Max 4000 code points.
      * Null when nothing is left.
      */

@@ -1,6 +1,6 @@
 {
   "platform": "ios",
-  "generatedAt": "2026-10-31T00:43:02.181Z",
+  "generatedAt": "2026-10-31T02:02:45.960Z",
   "tool": "xccov+llvm-cov",
   "commands": [
     "bash scripts/coverage/ios.sh",
@@ -16,19 +16,19 @@
       "ios/Sources/SellwildSDK/**"
     ],
     "lines": {
-      "covered": 5474,
-      "total": 5474,
+      "covered": 5508,
+      "total": 5508,
       "pct": 100
     },
     "branches": null,
     "regions": {
-      "covered": 2804,
-      "total": 2818,
-      "pct": 99.5
+      "covered": 2833,
+      "total": 2847,
+      "pct": 99.51
     },
     "functions": {
-      "covered": 1122,
-      "total": 1128,
+      "covered": 1136,
+      "total": 1142,
       "pct": 99.47
     },
     "unmeasured": []
@@ -39,20 +39,20 @@
     ],
     "target": "SellwildSDK",
     "lines": {
-      "covered": 5475,
-      "total": 5534,
-      "pct": 98.93
+      "covered": 5509,
+      "total": 5568,
+      "pct": 98.94
     },
     "branches": null,
     "regions": {
-      "covered": 2804,
-      "total": 2847,
-      "pct": 98.49
+      "covered": 2833,
+      "total": 2876,
+      "pct": 98.5
     },
     "functions": {
-      "covered": 1122,
-      "total": 1153,
-      "pct": 97.31
+      "covered": 1136,
+      "total": 1167,
+      "pct": 97.34
     },
     "unmeasured": []
   },
@@ -60,6 +60,14 @@
     {
       "path": "ios/Sources/SellwildSDK/Failures/SellwildFailureCode.swift",
       "reason": "type-only and generated: a String enum of registry raw values, written by contracts/scripts/gen-codes.mjs from contracts/failure-codes.json. No executable regions; SellwildFailureCodeTests checks it against the registry."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildSwiftUI.swift:134-145",
+      "reason": "preview: Xcode previews run this; the app and the tests never do."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildListingCardView.swift:81-81",
+      "reason": "crash-guard: init(coder:) traps by design; the feed builds the card in code."
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildAdNetwork.swift:58-61",
@@ -70,6 +78,10 @@
       "reason": "network-call: GAM, Prebid Server, Safari; tests replace the environment."
     },
     {
+      "path": "ios/Sources/SellwildSDK/SellwildFeedEnvironment.swift:31-35",
+      "reason": "network-call: Safari loads the page; tests replace the environment."
+    },
+    {
       "path": "ios/Sources/SellwildSDK/SellwildPrebidMobile.swift:66-81",
       "reason": "third-party-init: MobileAds.start and SellwildPrebid.initializeSDK need the app's GMA application id and the network; the outcome handlers below are tested."
     },
@@ -78,20 +90,8 @@
       "reason": "fetch-demand: BannerAdUnit.fetchDemand sends the Prebid Server request."
     },
     {
-      "path": "ios/Sources/SellwildSDK/SellwildListingCardView.swift:81-81",
-      "reason": "crash-guard: init(coder:) traps by design; the feed builds the card in code."
-    },
-    {
-      "path": "ios/Sources/SellwildSDK/SellwildFeedEnvironment.swift:31-35",
-      "reason": "network-call: Safari loads the page; tests replace the environment."
-    },
-    {
-      "path": "ios/Sources/SellwildSDK/SellwildHouseAdView.swift:93-93",
-      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported)."
-    },
-    {
-      "path": "ios/Sources/SellwildSDK/Guards/SellwildGuards.swift:124-124",
-      "reason": "os-report: only MetricKit creates an MXDiagnosticPayload (no public init)."
+      "path": "ios/Sources/SellwildSDK/SellwildAdView.swift:205-208",
+      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported); the report it sends first is tested through reportUnsupportedInit()."
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildNativeAdView.swift:61-61",
@@ -102,8 +102,8 @@
       "reason": "fetch-demand: NativeRequest.fetchDemand sends the Prebid Server request."
     },
     {
-      "path": "ios/Sources/SellwildSDK/SellwildSwiftUI.swift:134-145",
-      "reason": "preview: Xcode previews run this; the app and the tests never do."
+      "path": "ios/Sources/SellwildSDK/Guards/SellwildGuards.swift:124-124",
+      "reason": "os-report: only MetricKit creates an MXDiagnosticPayload (no public init)."
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift:135-135",
@@ -122,8 +122,8 @@
       "reason": "crash-guard: init(coder:) traps by design; the feed registers this cell by class."
     },
     {
-      "path": "ios/Sources/SellwildSDK/SellwildAdView.swift:205-208",
-      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported); the report it sends first is tested through reportUnsupportedInit()."
+      "path": "ios/Sources/SellwildSDK/SellwildHouseAdView.swift:93-93",
+      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported)."
     }
   ],
   "outsideTarget": [
@@ -280,8 +280,8 @@
       "regions": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 479,
-      "linesTotal": 479,
+      "linesCovered": 513,
+      "linesTotal": 513,
       "missedLines": ""
     },
     {

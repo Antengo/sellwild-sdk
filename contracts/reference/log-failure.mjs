@@ -274,12 +274,47 @@ function basenameOfUrl(u) {
   return path.slice(path.lastIndexOf('/') + 1)
 }
 
+/** Hosts whose stack URLs are kept whole, so their frames can be source-mapped. */
+export const OUR_DOMAINS = ['sellwild.com', 'sellwild.org']
+
+/** True for sellwild.com, sellwild.org and any subdomain of either. */
+export function isOurHost(host) {
+  return OUR_DOMAINS.some((d) => host === d || host.endsWith('.' + d))
+}
+
+const LINE_COL_RE = /(:[0-9]+){1,2}$/
+const PATH_PII_RE = new RegExp([EMAIL_ALT, UUID_ALT, IPV4_ALT].join('|'), 'g')
+
+/**
+ * A stack URL on one of our hosts (7.4 group 1/2 with isOurHost): the scheme
+ * (lower case) or "//", the host from hostOf, the path, then the trailing
+ * ":line" or ":line:col". Userinfo, port, query and fragment are removed;
+ * emails, UUIDs and IPv4s in the path are masked.
+ */
+function keepOurUrl(m, host) {
+  const i = m.indexOf('://')
+  const prefix = m.startsWith('//') ? '//' : asciiLower(m.slice(0, i)) + '://'
+  const rest = m.slice(prefix.length)
+  let auth = ''
+  for (const ch of rest) {
+    if (ch === '/' || ch === '?' || ch === '#' || !isAuthorityChar(ch)) break
+    auth += ch
+  }
+  const after = rest.slice(auth.length)
+  const lc = after.match(LINE_COL_RE)?.[0] ?? ''
+  const pathAndQuery = after.slice(0, after.length - lc.length)
+  const cut = pathAndQuery.search(/[?#]/)
+  const path = (cut >= 0 ? pathAndQuery.slice(0, cut) : pathAndQuery)
+    .replace(PATH_PII_RE, (_, email, uuid) => (email !== undefined ? '<email>' : uuid !== undefined ? '<id>' : '<ip>'))
+  return prefix + host + path + lc
+}
+
 function sanitizeFrame(line) {
   const text = cleanText(line)
   return text.replace(FRAME_RE, (m, url, rel, email, uuid, ip, path, query) => {
     if (url !== undefined || rel !== undefined) {
       const host = hostOf(m)
-      if (host !== null) return host
+      if (host !== null) return isOurHost(host) ? keepOurUrl(m, host) : host
       const base = basenameOfUrl(m)
       return base === '' ? '<url>' : base
     }
@@ -293,7 +328,8 @@ function sanitizeFrame(line) {
 /**
  * First 30 frames of a stack, one per line: the engine header line
  * (`errName` or `errName: …`) is dropped, each frame is cut to its first 500
- * UTF-16 units (so the patterns never see a long line), URLs become hosts,
+ * UTF-16 units (so the patterns never see a long line), URLs on our hosts
+ * keep their path and line:col (no query), other URLs become hosts,
  * directories and query strings are removed, emails/UUIDs/IPs are masked.
  * Max 4000 code points. Returns null when nothing is left.
  */

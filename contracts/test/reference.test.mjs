@@ -208,10 +208,18 @@ test('hand: all 16 attributes are strings and unknown input fields never appear'
   assert.equal(vec('attrs.partnerCode-empty-unknown').event.attributes.code, 'unknown')
 })
 
-test('hand: stacks keep 30 frames with basenames and hosts only', () => {
+test('hand: stacks keep 30 frames, basenames, our script URLs whole and other hosts only', () => {
   assert.equal(vec('stack.v8-header-dropped-and-basenamed').event.attributes.stack, 'at fetchListings (api.js:37:11)\nat async load (Feed.tsx:12:3)')
   assert.equal(vec('stack.query-removed').event.attributes.stack, 'at load (main.js:1:99)')
-  assert.equal(vec('stack.url-becomes-host').event.attributes.stack, 'at render (widget.sellwild.com)')
+  assert.equal(vec('stack.our-url-query-removed-line-col-kept').event.attributes.stack, 'at render (https://widget.sellwild.com/partner.js:1:234567)')
+  assert.equal(vec('stack.widget-frame-kept-for-source-maps').event.attributes.stack, 'at Ve (https://widget.sellwild.com/fandom/fandom-fandom.js:2:48211)\nat https://embed.sellwild.org/v2/embed.js:1:900')
+  assert.equal(vec('stack.firefox-frame-kept').event.attributes.stack, 'Ve@https://widget.sellwild.com/fandom/fandom-fandom.js:2:48211\nloadFeed@https://www.sellwild.com/static/js/main.js:10:5')
+  assert.equal(vec('stack.jsc-at-sign-format').event.attributes.stack, 'render@https://widget.sellwild.com/partner.js:1:2\nglobal code@example.com')
+  assert.equal(vec('stack.third-party-url-becomes-host').event.attributes.stack, 'at pbjs (cdn.example.com)\nat s (sellwild.com.evil.io)\nat t (notsellwild.com)')
+  assert.equal(vec('stack.our-url-userinfo-port-fragment-pii-removed').event.attributes.stack,
+    'at load (https://embed.sellwild.org/p/<email>/<id>/<ip>/c.js:10:20)\nat rel (//widget.sellwild.com/w.js:1:2)\nat bare (https://sellwild.com)')
+  assert.equal(vec('stack.rn-bundle-frames-kept').event.attributes.stack,
+    'at anonymous (address at index.android.bundle:1:2345)\nat render (index.android.bundle:1:2345)\nat load (address at index.android.bundle:1:9)')
   assert.equal(vec('stack.first-30-frames').event.attributes.stack.split('\n').length, 30)
   assert.equal(vec('stack.long-frame-cut-to-500-units').event.attributes.stack.split('\n')[0].length, 500)
   assert.equal(vec('stack.java-caused-by-chain').event.attributes.stack.split('\n')[1], 'Caused by: SocketTimeoutException')
@@ -219,6 +227,10 @@ test('hand: stacks keep 30 frames with basenames and hosts only', () => {
 })
 
 test('hand: unit tables', () => {
+  assert.equal(L.isOurHost('sellwild.com'), true)
+  assert.equal(L.isOurHost('widget.sellwild.org'), true)
+  assert.equal(L.isOurHost('notsellwild.com'), false)
+  assert.equal(L.isOurHost('sellwild.com.evil.io'), false)
   assert.equal(L.hostOf('https://user:pw@host.example:8443/p?q#f'), 'host.example')
   assert.equal(L.hostOf('http://[::1]:80/'), '<ip>')
   assert.equal(L.hostOf('HTTPS://Example.COM.'), 'example.com')

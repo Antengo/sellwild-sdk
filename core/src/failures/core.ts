@@ -379,12 +379,47 @@ function basenameOfUrl(u: string): string {
   return path.slice(path.lastIndexOf('/') + 1)
 }
 
+/** Hosts whose stack URLs are kept whole, so their frames can be source-mapped. */
+export const OUR_DOMAINS: readonly string[] = ['sellwild.com', 'sellwild.org']
+
+/** True for sellwild.com, sellwild.org and any subdomain of either. */
+export function isOurHost(host: string): boolean {
+  return OUR_DOMAINS.some((d) => host === d || host.endsWith('.' + d))
+}
+
+const LINE_COL_RE = /(:[0-9]+){1,2}$/
+const PATH_PII_RE = new RegExp([EMAIL_ALT, UUID_ALT, IPV4_ALT].join('|'), 'g')
+
+/**
+ * A stack URL on one of our hosts (FAILURES.md 7.4): the scheme (lower case)
+ * or "//", the host from hostOf, the path, then the trailing ":line" or
+ * ":line:col". Userinfo, port, query and fragment are removed; emails, UUIDs
+ * and IPv4s in the path are masked.
+ */
+function keepOurUrl(m: string, host: string): string {
+  const prefix = m.startsWith('//') ? '//' : asciiLower(m.slice(0, m.indexOf('://'))) + '://'
+  const rest = m.slice(prefix.length)
+  let auth = ''
+  for (const ch of rest) {
+    if (ch === '/' || ch === '?' || ch === '#' || !isAuthorityChar(ch)) break
+    auth += ch
+  }
+  const after = rest.slice(auth.length)
+  const lc = after.match(LINE_COL_RE)?.[0] ?? ''
+  const pathAndQuery = after.slice(0, after.length - lc.length)
+  const cut = pathAndQuery.search(/[?#]/)
+  const path = (cut >= 0 ? pathAndQuery.slice(0, cut) : pathAndQuery)
+    .replace(PATH_PII_RE, (_m: string, email: Group, uuid: Group) =>
+      email !== undefined ? '<email>' : uuid !== undefined ? '<id>' : '<ip>')
+  return prefix + host + path + lc
+}
+
 function sanitizeFrame(line: string): string {
   const text = cleanText(line)
   return text.replace(FRAME_RE, (m: string, url: Group, rel: Group, email: Group, uuid: Group, ip: Group) => {
     if (url !== undefined || rel !== undefined) {
       const host = hostOf(m)
-      if (host !== null) return host
+      if (host !== null) return isOurHost(host) ? keepOurUrl(m, host) : host
       const base = basenameOfUrl(m)
       return base === '' ? '<url>' : base
     }
@@ -398,7 +433,8 @@ function sanitizeFrame(line: string): string {
 /**
  * First 30 frames of a stack, one per line: the engine header line
  * (`errName` or `errName: …`) is dropped, each frame is cut to its first 500
- * UTF-16 units (so the patterns never see a long line), URLs become hosts,
+ * UTF-16 units (so the patterns never see a long line), URLs on our hosts
+ * keep their path and line:col (no query), other URLs become hosts,
  * directories and query strings are removed, emails/UUIDs/IPs are masked.
  * Max 4000 code points. Returns null when nothing is left.
  */

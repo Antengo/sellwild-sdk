@@ -10318,7 +10318,7 @@
             "fv": "2",
             "errName": "TypeError",
             "msg": "x is undefined",
-            "stack": "at render (widget.sellwild.com)",
+            "stack": "at render (https://widget.sellwild.com/partner.js:1:2)",
             "httpStatus": "200",
             "host": "widget.sellwild.com",
             "zoneId": "280",
@@ -11939,7 +11939,7 @@
       }
     },
     {
-      "name": "stack.url-becomes-host",
+      "name": "stack.our-url-query-removed-line-col-kept",
       "input": {
         "code": "listings.fetch.http",
         "component": "listings",
@@ -11971,7 +11971,7 @@
             "fv": "2",
             "errName": "Error",
             "msg": "boom",
-            "stack": "at render (widget.sellwild.com)",
+            "stack": "at render (https://widget.sellwild.com/partner.js:1:234567)",
             "seq": "1",
             "repeat": "1"
           },
@@ -12026,7 +12026,337 @@
             "fv": "2",
             "errName": "Error",
             "msg": "boom",
-            "stack": "render@widget.sellwild.com\nglobal code@example.com",
+            "stack": "render@https://widget.sellwild.com/partner.js:1:2\nglobal code@example.com",
+            "seq": "1",
+            "repeat": "1"
+          },
+          "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+          "createdTime": 1790000000000
+        },
+        "flushNow": true,
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1,
+          "keys": [
+            {
+              "key": "listings.fetch.http|listings|Error|boom",
+              "lastEmitAt": 1790000000000,
+              "suppressed": 0,
+              "emits": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "stack.widget-frame-kept-for-source-maps",
+      "input": {
+        "code": "listings.fetch.http",
+        "component": "listings",
+        "errName": "TypeError",
+        "errMessage": "boom",
+        "stack": "TypeError: x is undefined\n    at Ve (https://widget.sellwild.com/fandom/fandom-fandom.js:2:48211)\n    at https://embed.sellwild.org/v2/embed.js:1:900"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "widget",
+        "clientVersion": "1.7.7",
+        "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0,
+        "keys": []
+      },
+      "expected": {
+        "event": {
+          "event": "clientFailure",
+          "action": "listings.fetch.http",
+          "label": "listings",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "widget",
+            "clientVersion": "1.7.7",
+            "severity": "error",
+            "fv": "2",
+            "errName": "TypeError",
+            "msg": "boom",
+            "stack": "at Ve (https://widget.sellwild.com/fandom/fandom-fandom.js:2:48211)\nat https://embed.sellwild.org/v2/embed.js:1:900",
+            "seq": "1",
+            "repeat": "1"
+          },
+          "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+          "createdTime": 1790000000000
+        },
+        "flushNow": true,
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1,
+          "keys": [
+            {
+              "key": "listings.fetch.http|listings|TypeError|boom",
+              "lastEmitAt": 1790000000000,
+              "suppressed": 0,
+              "emits": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "stack.firefox-frame-kept",
+      "input": {
+        "code": "listings.fetch.http",
+        "component": "listings",
+        "errName": "TypeError",
+        "errMessage": "boom",
+        "stack": "Ve@https://widget.sellwild.com/fandom/fandom-fandom.js:2:48211\nloadFeed@https://www.sellwild.com/static/js/main.js:10:5"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "widget",
+        "clientVersion": "1.7.7",
+        "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0,
+        "keys": []
+      },
+      "expected": {
+        "event": {
+          "event": "clientFailure",
+          "action": "listings.fetch.http",
+          "label": "listings",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "widget",
+            "clientVersion": "1.7.7",
+            "severity": "error",
+            "fv": "2",
+            "errName": "TypeError",
+            "msg": "boom",
+            "stack": "Ve@https://widget.sellwild.com/fandom/fandom-fandom.js:2:48211\nloadFeed@https://www.sellwild.com/static/js/main.js:10:5",
+            "seq": "1",
+            "repeat": "1"
+          },
+          "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+          "createdTime": 1790000000000
+        },
+        "flushNow": true,
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1,
+          "keys": [
+            {
+              "key": "listings.fetch.http|listings|TypeError|boom",
+              "lastEmitAt": 1790000000000,
+              "suppressed": 0,
+              "emits": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "stack.third-party-url-becomes-host",
+      "input": {
+        "code": "listings.fetch.http",
+        "component": "listings",
+        "errName": "Error",
+        "errMessage": "boom",
+        "stack": "at pbjs (https://cdn.example.com/prebid/prebid.js:3:44)\nat s (https://sellwild.com.evil.io/a.js:1:2)\nat t (https://notsellwild.com/b.js:5:6)"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "widget",
+        "clientVersion": "1.7.7",
+        "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0,
+        "keys": []
+      },
+      "expected": {
+        "event": {
+          "event": "clientFailure",
+          "action": "listings.fetch.http",
+          "label": "listings",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "widget",
+            "clientVersion": "1.7.7",
+            "severity": "error",
+            "fv": "2",
+            "errName": "Error",
+            "msg": "boom",
+            "stack": "at pbjs (cdn.example.com)\nat s (sellwild.com.evil.io)\nat t (notsellwild.com)",
+            "seq": "1",
+            "repeat": "1"
+          },
+          "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+          "createdTime": 1790000000000
+        },
+        "flushNow": true,
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1,
+          "keys": [
+            {
+              "key": "listings.fetch.http|listings|Error|boom",
+              "lastEmitAt": 1790000000000,
+              "suppressed": 0,
+              "emits": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "stack.our-url-userinfo-port-fragment-pii-removed",
+      "input": {
+        "code": "listings.fetch.http",
+        "component": "listings",
+        "errName": "Error",
+        "errMessage": "boom",
+        "stack": "at load (HTTPS://user:pw@Embed.Sellwild.ORG:443/p/jane@example.com/2d0f7a0a-9d1f-4c35-9d8b-0a1f2f9a8c11/10.1.2.3/c.js?cb=123#frag:10:20)\nat rel (//widget.sellwild.com/w.js#x:1:2)\nat bare (https://sellwild.com)"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "core",
+        "clientVersion": "1.7.7",
+        "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0,
+        "keys": []
+      },
+      "expected": {
+        "event": {
+          "event": "clientFailure",
+          "action": "listings.fetch.http",
+          "label": "listings",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "core",
+            "clientVersion": "1.7.7",
+            "severity": "error",
+            "fv": "2",
+            "errName": "Error",
+            "msg": "boom",
+            "stack": "at load (https://embed.sellwild.org/p/<email>/<id>/<ip>/c.js:10:20)\nat rel (//widget.sellwild.com/w.js:1:2)\nat bare (https://sellwild.com)",
+            "seq": "1",
+            "repeat": "1"
+          },
+          "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+          "createdTime": 1790000000000
+        },
+        "flushNow": true,
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1,
+          "keys": [
+            {
+              "key": "listings.fetch.http|listings|Error|boom",
+              "lastEmitAt": 1790000000000,
+              "suppressed": 0,
+              "emits": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "stack.our-url-without-path",
+      "input": {
+        "code": "listings.fetch.http",
+        "component": "listings",
+        "errName": "Error",
+        "errMessage": "boom",
+        "stack": "at q (https://widget.sellwild.com?cb=1:3:4)\nat f (https://widget.sellwild.com#top:5:6)\nat o (https://widget.sellwild.com\\odd/a.js:7:8)"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "core",
+        "clientVersion": "1.7.7",
+        "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0,
+        "keys": []
+      },
+      "expected": {
+        "event": {
+          "event": "clientFailure",
+          "action": "listings.fetch.http",
+          "label": "listings",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "core",
+            "clientVersion": "1.7.7",
+            "severity": "error",
+            "fv": "2",
+            "errName": "Error",
+            "msg": "boom",
+            "stack": "at q (https://widget.sellwild.com:3:4)\nat f (https://widget.sellwild.com:5:6)\nat o (https://widget.sellwild.com\\odd/a.js:7:8)",
+            "seq": "1",
+            "repeat": "1"
+          },
+          "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+          "createdTime": 1790000000000
+        },
+        "flushNow": true,
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1,
+          "keys": [
+            {
+              "key": "listings.fetch.http|listings|Error|boom",
+              "lastEmitAt": 1790000000000,
+              "suppressed": 0,
+              "emits": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "stack.rn-bundle-frames-kept",
+      "input": {
+        "code": "listings.fetch.http",
+        "component": "listings",
+        "errName": "Error",
+        "errMessage": "boom",
+        "stack": "at anonymous (address at index.android.bundle:1:2345)\nat render (index.android.bundle:1:2345)\nat load (address at /data/app/com.example/base.apk!/assets/index.android.bundle:1:9)"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "core",
+        "clientVersion": "1.7.7",
+        "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0,
+        "keys": []
+      },
+      "expected": {
+        "event": {
+          "event": "clientFailure",
+          "action": "listings.fetch.http",
+          "label": "listings",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "core",
+            "clientVersion": "1.7.7",
+            "severity": "error",
+            "fv": "2",
+            "errName": "Error",
+            "msg": "boom",
+            "stack": "at anonymous (address at index.android.bundle:1:2345)\nat render (index.android.bundle:1:2345)\nat load (address at index.android.bundle:1:9)",
             "seq": "1",
             "repeat": "1"
           },
