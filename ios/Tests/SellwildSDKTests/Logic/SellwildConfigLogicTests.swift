@@ -181,7 +181,7 @@ final class SellwildConfigLogicTests: FailureCapturingTestCase {
         // The live bootstrap is SellwildPrebidMobile.bootstrap itself; only
         // its identity is checked here (running it starts GMA and Prebid).
         let live = SellwildSDK.ConfigureEnvironment.live
-        XCTAssertTrue(live.session === URLSession.shared)
+        XCTAssertTrue(live.session === SellwildNetwork.session, "the SDK session with explicit timeouts")
         XCTAssertTrue(SellwildSDK.environment.events === SellwildAPIClient.shared)
         // The live URL builder is Foundation's own parser: no encoding added.
         XCTAssertEqual(live.makeURL("https://widget.sellwild.com/app/weatherbug/weatherbug.json")?.path,

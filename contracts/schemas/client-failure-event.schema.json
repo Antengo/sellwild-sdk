@@ -15,7 +15,7 @@
   "additionalProperties": false,
   "$defs": {
     "attributes": {
-      "description": "Allowlisted attributes, at most 16, all strings.",
+      "description": "Allowlisted attributes, at most 32, all strings: the fixed keys below plus up to 8 call-site context keys ctx.<key>.",
       "type": "object",
       "required": [
         "code",
@@ -27,7 +27,7 @@
         "repeat"
       ],
       "additionalProperties": false,
-      "maxProperties": 16,
+      "maxProperties": 32,
       "properties": {
         "code": {
           "description": "Partner code from context, or 'unknown'.",
@@ -62,7 +62,7 @@
         },
         "fv": {
           "description": "Contract version.",
-          "const": "1"
+          "const": "2"
         },
         "errName": {
           "description": "Error type or class name.",
@@ -77,10 +77,10 @@
           "maxLength": 200
         },
         "stack": {
-          "description": "Sanitized stack: up to 5 frames, one per line.",
+          "description": "Sanitized stack: up to 30 frames, one per line.",
           "type": "string",
           "minLength": 1,
-          "maxLength": 800
+          "maxLength": 4000
         },
         "httpStatus": {
           "description": "HTTP status, three digits.",
@@ -109,6 +109,36 @@
         },
         "release": {
           "description": "Widget git sha.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "appId": {
+          "description": "Host app bundle id or package name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "appVersion": {
+          "description": "Host app version.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "os": {
+          "description": "OS name and version, e.g. \"iOS 26.1\" or \"Android 15\".",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "device": {
+          "description": "Device model identifier, e.g. \"iPhone16,2\" or Build.MODEL.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "slug": {
+          "description": "Remote-config slug in use.",
           "type": "string",
           "minLength": 1,
           "maxLength": 64
@@ -127,6 +157,14 @@
           "description": "Present only on the 20th event of the session.",
           "const": "1"
         }
+      },
+      "patternProperties": {
+        "^ctx\\.[a-z][a-zA-Z0-9_]{0,31}$": {
+          "description": "Call-site context value (logFailure context), sanitized like msg.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
       }
     },
     "wireAttributes": {
@@ -142,7 +180,7 @@
         "repeat"
       ],
       "additionalProperties": false,
-      "maxProperties": 18,
+      "maxProperties": 34,
       "properties": {
         "code": {
           "description": "Partner code from context, or 'unknown'.",
@@ -177,7 +215,7 @@
         },
         "fv": {
           "description": "Contract version.",
-          "const": "1"
+          "const": "2"
         },
         "errName": {
           "description": "Error type or class name.",
@@ -192,10 +230,10 @@
           "maxLength": 200
         },
         "stack": {
-          "description": "Sanitized stack: up to 5 frames, one per line.",
+          "description": "Sanitized stack: up to 30 frames, one per line.",
           "type": "string",
           "minLength": 1,
-          "maxLength": 800
+          "maxLength": 4000
         },
         "httpStatus": {
           "description": "HTTP status, three digits.",
@@ -224,6 +262,36 @@
         },
         "release": {
           "description": "Widget git sha.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "appId": {
+          "description": "Host app bundle id or package name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "appVersion": {
+          "description": "Host app version.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "os": {
+          "description": "OS name and version, e.g. \"iOS 26.1\" or \"Android 15\".",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "device": {
+          "description": "Device model identifier, e.g. \"iPhone16,2\" or Build.MODEL.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "slug": {
+          "description": "Remote-config slug in use.",
           "type": "string",
           "minLength": 1,
           "maxLength": 64
@@ -255,6 +323,14 @@
         "sdkVersion": {
           "description": "SDK version stamped by the SDK queue.",
           "type": "string"
+        }
+      },
+      "patternProperties": {
+        "^ctx\\.[a-z][a-zA-Z0-9_]{0,31}$": {
+          "description": "Call-site context value (logFailure context), sanitized like msg.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
         }
       }
     },
@@ -302,6 +378,7 @@
             "growthcode",
             "geo",
             "storage",
+            "sdk",
             "unknown"
           ]
         },
@@ -357,6 +434,7 @@
         "growthcode",
         "geo",
         "storage",
+        "sdk",
         "unknown"
       ]
     },

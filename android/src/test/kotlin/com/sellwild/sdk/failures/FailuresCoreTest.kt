@@ -39,7 +39,7 @@ class FailuresCoreTest {
             "at mail jane@example.com 2d0f7a0a-9d1f-4c35-9d8b-0a1f2f9a8c11 10.0.0.1",
             "at q (lib/a.js?token=abc:3)",
             "at //cdn.example/b.js:4",
-            "at dropped (sixth.js:6)",
+            "at kept (sixth.js:6)",
         ).joinToString("\r\n")
 
         assertEquals(
@@ -49,6 +49,7 @@ class FailuresCoreTest {
                 "at mail <email> <id> <ip>",
                 "at q (a.js:3)",
                 "at cdn.example",
+                "at kept (sixth.js:6)",
             ).joinToString("\n"),
             FailuresCore.sanitizeStack(stack, "Error"),
         )

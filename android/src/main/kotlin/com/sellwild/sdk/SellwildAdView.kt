@@ -12,10 +12,7 @@ import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.admanager.AdManagerAdRequest
 import com.google.android.gms.ads.admanager.AdManagerAdView
-import com.sellwild.prebid.AdSize as PrebidAdSize
 import com.sellwild.prebid.api.exceptions.AdException
-import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView
-import com.sellwild.prebid.api.rendering.VideoView as PrebidVideoView
 import com.sellwild.prebid.api.rendering.listeners.BannerViewListener
 import com.sellwild.sdk.core.AdDecisions
 import com.sellwild.sdk.core.AdFlags
@@ -24,7 +21,12 @@ import com.sellwild.sdk.failures.SellwildFailureComponent
 import com.sellwild.sdk.failures.SellwildFailureSeverity
 import com.sellwild.sdk.failures.SellwildFailures
 import com.sellwild.sdk.failures.SellwildLog
+import com.sellwild.sdk.guards.SellwildViews
+import com.sellwild.sdk.timing.SellwildTiming
 import java.util.concurrent.atomic.AtomicBoolean
+import com.sellwild.prebid.AdSize as PrebidAdSize
+import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView
+import com.sellwild.prebid.api.rendering.VideoView as PrebidVideoView
 
 /**
  * Per-surface once-guard for the web-parity `firstAdViewed` event.
@@ -83,6 +85,7 @@ open class SellwildAdView @JvmOverloads constructor(
         fun onAdImpression(adView: SellwildAdView, zoneId: String) {}
         fun onAdClicked(adView: SellwildAdView) {}
         fun onAdFailed(adView: SellwildAdView, message: String) {}
+
         /**
          * The ad rendered at [width]x[height] (dp). Fires on every render so a
          * host can resize its slot to the actual creative — the winning
@@ -164,6 +167,7 @@ open class SellwildAdView @JvmOverloads constructor(
     private val zoneLabel: String get() = zoneId.orEmpty()
 
     private var bannerView: AdManagerAdView? = null
+
     // House-ad backdrop. Sits behind the paid creative and shows through only
     // when the slot is empty (no-fill, or the transient PREBID_ONLY refresh gap).
     private var houseView: SellwildHouseAdView? = null
@@ -171,9 +175,11 @@ open class SellwildAdView @JvmOverloads constructor(
     private var nativeAdView: SellwildNativeAdView? = null
     private var refreshHandler: Handler? = null
     private var refreshCount = 0
+
     // prebidOnly renders (initial + auto-refreshes). Caps Prebid's internal
     // auto-refresh at effectiveRefreshMax, which it otherwise ignores.
     private var prebidRefreshCount = 0
+
     // True once the prebidOnly BannerView has rendered a creative at least once.
     // Gates the reattach behavior: if we already have a rendered creative, a
     // reattach should keep it (so its viewability tracker can fire the
@@ -182,6 +188,7 @@ open class SellwildAdView @JvmOverloads constructor(
 
     // Boltive ad-quality monitor (remote-gated, default off). See SellwildBoltive.
     private val boltive = SellwildBoltiveController()
+
     // What the monitored creative was (bidder, or "gam") — the adBlocked action.
     private var boltiveSource = ""
 
@@ -274,6 +281,8 @@ open class SellwildAdView @JvmOverloads constructor(
      */
     fun load() {
         if (!isSetUp("load")) return
+        // ad.firstLoad: from the first load() to the first render, once per zone per process.
+        if (firstLoadTimer == null && !firstLoadTimed) firstLoadTimer = SellwildTiming.start("ad.firstLoad", zoneLabel)
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(context, config)
 
@@ -409,6 +418,7 @@ open class SellwildAdView @JvmOverloads constructor(
     // refreshes are unaffected — this only gates FULLY-detached views.
 
     private var isPausedForDetach = false
+
     // Set when pause() interrupts an in-flight first auction (cold-start wait);
     // resume() then re-issues load() so the first impression isn't lost.
     private var needsReloadOnResume = false
@@ -418,6 +428,7 @@ open class SellwildAdView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        SellwildViews.adViews.decrementAndGet()
         stopLayoutSelfHeal()
         if (pausesRefreshWhenDetached && !isPausedForDetach) {
             isPausedForDetach = true
@@ -427,6 +438,7 @@ open class SellwildAdView @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        SellwildViews.adViews.incrementAndGet()
         startLayoutSelfHealIfEnabled()
         if (pausesRefreshWhenDetached && isPausedForDetach) {
             isPausedForDetach = false
@@ -672,7 +684,11 @@ open class SellwildAdView @JvmOverloads constructor(
             prebidBanner = null
             boltive.stop()
         }
-        nativeAdView?.let { it.destroy(); removeView(it); nativeAdView = null }
+        nativeAdView?.let {
+            it.destroy()
+            removeView(it)
+            nativeAdView = null
+        }
         bannerView?.let { return it }
 
         // Captured: inside apply, `adSize` is the AdManagerAdView's own.
@@ -771,7 +787,11 @@ open class SellwildAdView @JvmOverloads constructor(
             bannerView = null
             boltive.stop()
         }
-        nativeAdView?.let { it.destroy(); removeView(it); nativeAdView = null }
+        nativeAdView?.let {
+            it.destroy()
+            removeView(it)
+            nativeAdView = null
+        }
         prebidBanner?.let { return it }
 
         val size = adSize
@@ -881,8 +901,16 @@ open class SellwildAdView @JvmOverloads constructor(
         }
 
         // Tear down banner render paths if we previously rendered one.
-        bannerView?.let { it.destroy(); removeView(it); bannerView = null }
-        prebidBanner?.let { it.destroy(); removeView(it); prebidBanner = null }
+        bannerView?.let {
+            it.destroy()
+            removeView(it)
+            bannerView = null
+        }
+        prebidBanner?.let {
+            it.destroy()
+            removeView(it)
+            prebidBanner = null
+        }
         // Native assets render in our own views — nothing for Boltive to watch.
         boltive.stop()
         nativeAdView?.let { return it }
@@ -965,7 +993,15 @@ open class SellwildAdView @JvmOverloads constructor(
      * flush) but no label, matching the web widget's payload, and is deduped by
      * [firstAdViewedGuard] so it lands once per surface mount even across refreshes.
      */
+    private var firstLoadTimer: (() -> Long)? = null
+    private var firstLoadTimed = false
+
     private fun emitAdRender() {
+        firstLoadTimer?.let { timer ->
+            firstLoadTimer = null
+            firstLoadTimed = true
+            if (SellwildTiming.claimOnce("ad.firstLoad:$zoneLabel")) timer()
+        }
         val q = SellwildEventQueue.shared(context)
         q.track("adRenderSucceeded", label = zoneLabel)
         firstAdViewedGuard.fireOnce {
@@ -977,6 +1013,8 @@ open class SellwildAdView @JvmOverloads constructor(
     // ── Boltive (ad quality) ─────────────────────────────────────────────────
 
     /** Monitor this render with Boltive when the policy allows it. */
+    // what Boltive needs about the render
+    @Suppress("LongParameterList")
     private fun monitorWithBoltive(
         view: View,
         widthDp: Int,
@@ -1004,6 +1042,8 @@ open class SellwildAdView @JvmOverloads constructor(
      * has budget (the reload counts against the cap). The next successful
      * render makes the banner visible again.
      */
+    // a late callback, a detached view, no refresh budget
+    @Suppress("ReturnCount")
     private fun handleBoltiveBlock(blocked: View) {
         // Ignore a late callback for a banner we've since torn down.
         if (blocked !== bannerView && blocked !== prebidBanner) return
@@ -1021,7 +1061,8 @@ open class SellwildAdView @JvmOverloads constructor(
             refreshCount++
             load()
         } else if (hasPrebidRefreshBudget) {
-            prebidBanner?.loadAd()
+            // Through the network seam, as every other Prebid re-auction here.
+            network.loadRendering(blocked as PrebidBannerView)
         }
     }
 
@@ -1050,7 +1091,7 @@ open class SellwildAdView @JvmOverloads constructor(
                     gam.adSize?.width ?: self.adSize.width,
                     gam.adSize?.height ?: self.adSize.height,
                     SellwildBoltive.Network.GAM,
-                    SellwildBoltiveController.Tag(adUnitId = gam.adUnitId.orEmpty()),
+                    SellwildBoltiveController.Tag(adUnitId = gam.adUnitId),
                     source = "gam",
                 )
             }
@@ -1094,7 +1135,13 @@ open class SellwildAdView @JvmOverloads constructor(
             // spent. Fails safe: if this stops firing on refresh, behavior is today's.
             if (self.effectiveRefreshMax > 0) {
                 self.prebidRefreshCount++
-                if (AdDecisions.prebidRefreshSpent(self.prebidRefreshCount, self.effectiveRefreshMax)) bannerView?.stopRefresh()
+                if (AdDecisions.prebidRefreshSpent(
+                        self.prebidRefreshCount,
+                        self.effectiveRefreshMax
+                    )
+                ) {
+                    bannerView?.stopRefresh()
+                }
             }
             SellwildLog.debug { "[prebidOnly] rendered — zone ${self.zoneId}" }
             self.prebidHasRenderedCreative = true
@@ -1116,11 +1163,19 @@ open class SellwildAdView @JvmOverloads constructor(
             val response = bannerView?.bidResponse
             val bidder = response?.targeting?.get("hb_bidder")
             val reported = SellwildAdSizes.Size(bannerView?.creativeWidth ?: 0, bannerView?.creativeHeight ?: 0)
-            val rendered = SellwildAdSizes.renderedSize(reported, SellwildAdSizes.Size(self.adSize.width, self.adSize.height))
+            val rendered = SellwildAdSizes.renderedSize(
+                reported,
+                SellwildAdSizes.Size(self.adSize.width, self.adSize.height)
+            )
             if (rendered != reported) {
                 // A bid with no w/h. Report it so we can see which bidders send them.
-                SellwildLog.debug { "[prebidOnly] bid has no size (reported ${reported.width}x${reported.height}) — bidder ${bidder ?: "?"}, zone ${self.zoneLabel}; using ${rendered.width}x${rendered.height}" }
-                SellwildEventQueue.shared(self.context).track("adSizeMissing", action = bidder ?: "unknown", label = self.zoneLabel)
+                SellwildLog.debug {
+                    "[prebidOnly] bid has no size (reported ${reported.width}x${reported.height}) — " +
+                        "bidder ${bidder ?: "?"}, zone ${self.zoneLabel}; using ${rendered.width}x${rendered.height}"
+                }
+                SellwildEventQueue.shared(
+                    self.context
+                ).track("adSizeMissing", action = bidder ?: "unknown", label = self.zoneLabel)
             }
             val w = rendered.width
             val h = rendered.height
@@ -1131,7 +1186,9 @@ open class SellwildAdView @JvmOverloads constructor(
             bannerView?.let { pb ->
                 val bid = response?.winningBid
                 self.monitorWithBoltive(
-                    pb, w, h,
+                    pb,
+                    w,
+                    h,
                     SellwildBoltive.Network.PREBID,
                     SellwildBoltiveController.Tag(
                         adUnitId = self.zoneId.orEmpty(),

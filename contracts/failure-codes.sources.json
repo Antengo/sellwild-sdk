@@ -88,6 +88,61 @@
       "code": "ad.boltive_capture.exception",
       "date": "2026-10-30",
       "note": "Boltive ad-quality monitoring arrived from main (1.8.0) after the phase-1 inventory; its Android capture runCatching printed instead of reporting."
+    },
+    {
+      "code": "ad.boltive_terminate.exception",
+      "date": "2026-10-30",
+      "note": "SellwildBoltiveController.stop() swallowed terminate() failures (FAILURES.md 1.4); it now reports them."
+    },
+    {
+      "code": "sdk.crash.exception",
+      "date": "2026-10-30",
+      "note": "fv 2 guards (2026-10-30)"
+    },
+    {
+      "code": "sdk.hang.timeout",
+      "date": "2026-10-30",
+      "note": "fv 2 guards (2026-10-30)"
+    },
+    {
+      "code": "sdk.cpu.exception",
+      "date": "2026-10-30",
+      "note": "fv 2 guards (2026-10-30)"
+    },
+    {
+      "code": "sdk.disk_write.exception",
+      "date": "2026-10-30",
+      "note": "fv 2 guards (2026-10-30)"
+    },
+    {
+      "code": "sdk.memory.warning",
+      "date": "2026-10-30",
+      "note": "fv 2 guards (2026-10-30)"
+    },
+    {
+      "code": "sdk.memory.killed",
+      "date": "2026-10-30",
+      "note": "fv 2 guards (2026-10-30)"
+    },
+    {
+      "code": "config.fetch.slow",
+      "date": "2026-10-30",
+      "note": "fv 2 guards (2026-10-30)"
+    },
+    {
+      "code": "listings.fetch.slow",
+      "date": "2026-10-30",
+      "note": "fv 2 guards (2026-10-30)"
+    },
+    {
+      "code": "ad.load.slow",
+      "date": "2026-10-30",
+      "note": "fv 2 guards (2026-10-30)"
+    },
+    {
+      "code": "sdk.exit_reasons.exception",
+      "date": "2026-10-30",
+      "note": "fv 2 guards (2026-10-30)"
     }
   ],
   "points": [

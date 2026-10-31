@@ -50,8 +50,9 @@ describe('src/failures.ts', () => {
         client: 'react-native',
         clientVersion: core.SDK_VERSION,
         severity: 'error',
-        fv: '1',
+        fv: '2',
         msg: 'SellwildFeedView is not linked',
+        os: 'iOS 17.4',
         seq: '2',
         repeat: '1',
       },
@@ -59,6 +60,14 @@ describe('src/failures.ts', () => {
       createdTime: TEST_NOW,
     })
     expectValid('client-failure-event', events[1], 'rn-native-view-missing')
+  })
+
+  it.each([
+    ['ios', '17.4', 'iOS 17.4'],
+    ['android', 34, 'Android 34'],
+    ['windows', undefined, 'windows'],
+  ])('osLabel(%s, %s) is %s', (os, version, label) => {
+    expect(rnFailures.osLabel(os, version)).toBe(label)
   })
 
   it('is loaded by the package index', async () => {

@@ -1,4 +1,6 @@
-# clientFailure contract, fv 1
+# clientFailure contract, fv 2
+
+fv 2 (2026-10-30): stacks up to 30 frames and 4000 code points (Android with the `Caused by:` chain, iOS from `Thread.callStackSymbols` at the log call), the app context attributes `appId`, `appVersion`, `os`, `device` and `slug` set once by each shell, the call-site context `logFailure({ context })` sent as `ctx.<key>`, at most 32 attributes and an 8192-byte budget that sheds `ctx.*` first. The event name, wire shape and server path did not change.
 
 This is the formal failure-reporting contract for all six clients: core, react-native, ios, android, flutter and widget. It merges the phase-1 proposal and the orchestrator amendments A1–A10 into one document. Where they differed, the amendments won. Section 17 lists every decision this document adds on top of both.
 
@@ -21,6 +23,9 @@ The reference implementation is `reference/log-failure.mjs`. The golden vectors 
 | `schemas/failure-codes.schema.json` | JSON Schema of the registry. |
 | `print-gate.allowlist.json`, `scripts/print-gate.mjs` | The print gate (section 11). |
 | `expectations/drift/<platform>.json` | Known cross-platform drift, one file per SDK platform (section 14). |
+| `reference/sdk-timing.mjs`, `reference/timing-cases.mjs` | Reference of the sdkTiming core and its cases (section 18.1). |
+| `golden/sdk-timing.vectors.json` | Golden vectors every platform's timing core must reproduce. |
+| `schemas/sdk-timing-event.schema.json` | JSON Schema of the sdkTiming event. |
 
 ## 1. The rule (A1)
 
@@ -69,11 +74,15 @@ The debug echo line is:
 4. Dart: `SellwildFailures.log(code:, component:, ...)`, `SellwildFailures.setContext(...)`, `SellwildFailures.resetForTests()`.
 5. React Native: JS calls core's logFailure with client `react-native`. The native bridge calls `setWrapper('react-native')` so native failures carry `wrapper`.
 
-The parameters are the same everywhere: `code`, `component`, `severity?`, `error?`, `message?`, `httpStatus?`, `url?`, `zoneId?`. logFailure returns nothing (Dart too: `void`, not a `Future`).
+The parameters are the same everywhere: `code`, `component`, `severity?`, `error?`, `message?`, `httpStatus?`, `url?`, `zoneId?`, `context?`.
+
+`context` (fv 2) is a small map the call site fills with what helps debug it, for example `{ file: 'listings-weatherbug.json', attempt: 2 }`: at most 8 keys matching `^[a-z][a-zA-Z0-9_]{0,31}$`, values strings or finite numbers (section 7.7). Never listing text, keywords or other PII (7.6). Call sites pass a file name, not a URL: `urlFileName(url)` in each shell gives the last path segment without query or fragment. logFailure returns nothing (Dart too: `void`, not a `Future`).
 
 ### 3.2 Context
 
-The context holds `partnerCode`, `client`, `clientVersion`, `debug`, `eventsEnabled`, `failuresEnabled`, `failuresSampleRate`, `wrapper`, `release` (widget only), and injectable dependencies: clock, uid provider and event sink.
+The context holds `partnerCode`, `client`, `clientVersion`, `debug`, `eventsEnabled`, `failuresEnabled`, `failuresSampleRate`, `wrapper`, `release` (widget only), the app context `appId`, `appVersion`, `os`, `device`, `slug` (fv 2), and injectable dependencies: clock, uid provider and event sink.
+
+5. The app context is set by the shell once, not per call: iOS from the main bundle (`CFBundleIdentifier`, `CFBundleShortVersionString`), `ProcessInfo.operatingSystemVersion` (`iOS 26.1`) and `utsname.machine` (`iPhone16,2`; the simulator's `SIMULATOR_MODEL_IDENTIFIER`); Android on the first `attach(Context)` from the package name, its `versionName`, `Android <Build.VERSION.RELEASE>` and `Build.MODEL`; React Native JS sets `os` from `Platform` (`iOS 17.4`, `Android 34`). `configure()` sets `slug` with the partner, before its fetch.
 
 1. `configure()` (or widget theme resolution) sets `partnerCode` FIRST, before any fetch, so config failures carry the partner.
 2. `clientVersion` is `SDK_VERSION` on SDK clients and the package.json version on the widget (for example `1.1.114`).
@@ -86,15 +95,15 @@ The shell turns the call into the pure-core input `{ code, component, severity, 
 
 1. `error` becomes `errName`, `errMessage` and, where stacks are sent, `stack`:
    - TS: an `Error` gives `name`, `message`, `stack`. A string gives `errMessage`. Anything else is ignored.
-   - Swift: `errName` is the type name (`String(describing: type(of: error))`); for a bridged `NSError`, `"<domain>(<code>)"`. `errMessage` is `localizedDescription`. No stack (off on iOS).
-   - Kotlin: `errName` is `javaClass.simpleName`, `errMessage` is `message`, `stack` is the first frames of `stackTrace`, one `Class.method(File.kt:line)` per line, no header line.
+   - Swift: `errName` is the type name (`String(describing: type(of: error))`); for a bridged `NSError`, `"<domain>(<code>)"`. `errMessage` is `localizedDescription`. Swift errors carry no stack, so `stack` is `Thread.callStackSymbols` at the log call, without its first frame and the `SellwildFailures` frames after it (their symbols name `Failures`), on every call with or without an error. Swift symbols stay mangled: there is no public demangler.
+   - Kotlin: `errName` is `javaClass.simpleName`, `errMessage` is `message`, `stack` is the frames of `stackTrace`, one `Class.method(File.kt:line)` per line, no header line, then for each cause a line `Caused by: <SimpleName>` (never its message, which may hold PII) and its frames; 30 lines in all; a cause cycle ends the chain.
    - Dart: `errName` is `runtimeType.toString()`, `errMessage` is the exception's message (`toString()` when it has none). No stack.
 2. `message`, `httpStatus`, `url` and `zoneId` pass through as given, after the input cap in item 4.
-3. `stack` is sent by TS (core, widget) and Android only.
-4. Input cap. Every shell cuts `message` and `errMessage` to their first 1000 UTF-16 code units, and `stack` to its first 2000, BEFORE the pure core. The sanitizer patterns (7.4, 7.5) backtrack superlinearly on long runs of `[A-Za-z0-9._%+-]` (10,000 characters take about 0.35 s in V8, more on Hermes, the JVM and ICU), and logFailure must never block (3.4). Only 200 code points of message and 5 frames are ever sent, so the cap changes only pathological input, and it changes it the same way everywhere:
+3. `stack` is sent by TS (core, widget), Android and iOS.
+4. Input cap. Every shell cuts `message` and `errMessage` to their first 1000 UTF-16 code units, and `stack` to its first 16000, BEFORE the pure core. The core then cuts each stack line to its first 500 units before its patterns run (7.4), so no pattern sees a long line. The sanitizer patterns (7.4, 7.5) backtrack superlinearly on long runs of `[A-Za-z0-9._%+-]` (10,000 characters take about 0.35 s in V8, more on Hermes, the JVM and ICU), and logFailure must never block (3.4). Only 200 code points of message and 30 frames are ever sent, so the cap changes only pathological input, and it changes it the same way everywhere:
    - A surrogate pair split by the cut leaves a lone high surrogate, which cleanText (7.1) turns into U+FFFD. Swift strings cannot hold one, so Swift drops the pair and appends U+FFFD itself. Every platform hands the core the same text.
    - Non-strings pass through unchanged.
-   - TS: when `stack` is over 2000 units and starts with V8's header (`<name>: <message>`, or `<name>` alone when the message is empty) followed by a line break or the end, the header is removed before the cut. Otherwise a long message would push every frame out of the cut. Under the cap the pure core drops the header itself (7.4 step 2).
+   - TS: when `stack` is over 16000 units and starts with V8's header (`<name>: <message>`, or `<name>` alone when the message is empty) followed by a line break or the end, the header is removed before the cut. Otherwise a long message would push every frame out of the cut. Under the cap the pure core drops the header itself (7.4 step 2).
    - The reference is `capInput` and `INPUT_LIMITS` in `reference/log-failure.mjs`. The shells are core `core/src/failures/index.ts`, iOS `SellwildFailures.capInput`, Android `SellwildFailures.capInput`, Flutter `SellwildFailures._bounded`, and the widget's `src/failures/index.ts`.
 
 ### 3.4 The shell
@@ -123,8 +132,8 @@ logFailure(input):
 
 1. `<area>.<operation>.<reason>`, at most 64 characters, matching the whole string:
    `^[a-z][a-z0-9]*\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$`
-2. Areas: `config`, `listings`, `localized`, `ad`, `house`, `feed`, `bridge`, `widget`, `video`, `growthcode`, `geo`, `storage`. `client` is reserved for `client.code.invalid`.
-3. Reasons: `network`, `timeout`, `http`, `parse`, `invalid`, `missing`, `exception`, `unsupported`.
+2. Areas: `config`, `listings`, `localized`, `ad`, `house`, `feed`, `bridge`, `widget`, `video`, `growthcode`, `geo`, `storage`, `sdk` (the SDK process as a whole: crashes, hangs, memory; fv 2). `client` is reserved for `client.code.invalid`.
+3. Reasons: `network`, `timeout`, `http`, `parse`, `invalid`, `missing`, `exception`, `unsupported`, and (fv 2) `slow` (a step over its time budget, section 18), `warning` (the OS warned, e.g. low memory), `killed` (the OS ended the process).
 4. The pure core replaces any code that fails the format with `client.code.invalid` (section 5). It checks only the format, not membership in the registry.
 
 ### 4.2 Registry (A4)
@@ -235,7 +244,7 @@ One element of the existing events array. No server change.
   "action": "listings.fetch.http",
   "label": "listings",
   "attributes": {
-    "code": "weatherbug", "client": "ios", "clientVersion": "1.7.7", "severity": "error", "fv": "1",
+    "code": "weatherbug", "client": "ios", "clientVersion": "1.7.7", "severity": "error", "fv": "2",
     "msg": "HTTP 503", "httpStatus": "503", "host": "cache.sellwild.com", "zoneId": "43", "seq": "1", "repeat": "1"
   },
   "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
@@ -253,13 +262,13 @@ One element of the existing events array. No server change.
 | field | source | rule |
 |---|---|---|
 | `action` | `input.code` | `normalizeCode`: exact format match (4.1), else `client.code.invalid`. |
-| `label` | `input.component` | Exact match of `configure`, `remoteConfig`, `listings`, `localized`, `feed`, `banner`, `native`, `video`, `house`, `bridge`, `webview`, `widget`, `shorts`, `tv`, `flipcard`, `growthcode`, `geo`, `storage`, else `unknown`. Case sensitive. |
+| `label` | `input.component` | Exact match of `configure`, `remoteConfig`, `listings`, `localized`, `feed`, `banner`, `native`, `video`, `house`, `bridge`, `webview`, `widget`, `shorts`, `tv`, `flipcard`, `growthcode`, `geo`, `storage`, `sdk`, else `unknown`. Case sensitive. |
 | `uid` | uid provider | The events queue uid, used as is. |
 | `createdTime` | clock | Epoch ms. |
 
 ### 6.3 Attributes
 
-Keys in this order; this list is also the allowlist. Every value is a string. At most 16 keys.
+Keys in this order; this list is also the allowlist, plus the call-site keys `ctx.<key>` (row 22). Every value is a string. At most 32 keys (21 fixed + 8 `ctx.*` fit).
 
 | # | key | source | rule |
 |---|---|---|---|
@@ -267,18 +276,24 @@ Keys in this order; this list is also the allowlist. Every value is a string. At
 | 2 | `client` | context.client | `core`, `react-native`, `ios`, `android`, `flutter`, `widget`, as set by the shell; missing or empty → `unknown`. |
 | 3 | `clientVersion` | context.clientVersion | cleanText, cut to 32; empty → `unknown`. |
 | 4 | `severity` | input.severity | `fatal`, `error`, `warn`; anything else → `error`. fatal = the surface could not render; error = the operation failed and a fallback was used; warn = degraded but handled. |
-| 5 | `fv` | constant | `"1"`. |
+| 5 | `fv` | constant | `"2"`. |
 | 6 | `errName` | input.errName | cleanText, cut to 64; empty → left out. |
 | 7 | `msg` | message + errMessage | Section 7.5; cut to 200; empty → left out. |
-| 8 | `stack` | input.stack | Section 7.4 (5 frames, 800); empty → left out. |
+| 8 | `stack` | input.stack | Section 7.4 (30 frames, 4000); empty → left out. |
 | 9 | `httpStatus` | input.httpStatus | Integer 100–999, or a string of exactly 3 digits after ASCII trim; else left out. |
 | 10 | `host` | input.url | `hostOf(url)` (7.3), cut to 253; null → left out. The URL itself is never sent. |
 | 11 | `zoneId` | input.zoneId | A string, or a safe integer written in decimal; cleanText, cut to 32; empty or other numbers → left out. |
 | 12 | `wrapper` | context.wrapper | `react-native` or `flutter`, else left out. |
 | 13 | `release` | context.release | Widget git sha; cleanText, cut to 64; empty → left out. |
-| 14 | `seq` | gate | Decimal. |
-| 15 | `repeat` | gate | Decimal, always present (`"1"` when nothing was folded in). |
-| 16 | `capped` | gate | `"1"` on the 20th event of the session, else left out. |
+| 14 | `appId` | context.appId | Host app bundle id or package name; cleanText, cut to 64; empty or not text → left out. |
+| 15 | `appVersion` | context.appVersion | Host app version; as row 14. |
+| 16 | `os` | context.os | `iOS 26.1`, `Android 15`; as row 14. |
+| 17 | `device` | context.device | Model identifier (`iPhone16,2`, Build.MODEL); as row 14. |
+| 18 | `slug` | context.slug | The remote-config slug in use; as row 14. |
+| 19 | `seq` | gate | Decimal. |
+| 20 | `repeat` | gate | Decimal, always present (`"1"` when nothing was folded in). |
+| 21 | `capped` | gate | `"1"` on the 20th event of the session, else left out. |
+| 22 | `ctx.<key>` | input.context | Section 7.7: at most 8, after row 21 in key order. |
 
 Nothing else from the input reaches the event: unknown input fields are ignored.
 
@@ -286,7 +301,7 @@ Nothing else from the input reaches the event: unknown input fields are ignored.
 
 1. The size is the UTF-8 byte length of the canonical JSON of the whole event (`event`, `action`, `label`, `attributes`, `uid`, `createdTime`).
 2. Canonical JSON: no whitespace; strings escape only `"` → `\"`, `\` → `\\`, U+0008 `\b`, U+000C `\f`, U+000A `\n`, U+000D `\r`, U+0009 `\t`, other U+0000–U+001F as `\u00xx` (lower-case hex); `/` and non-ASCII stay literal; `createdTime` as a decimal integer. Key order does not change the length. Do not measure with the platform JSON encoder (iOS escapes `/`).
-3. Over 2048 bytes: drop `stack`. Still over: cut `msg` to 80. Still over: drop `msg`. Still over: send it as is.
+3. Over 8192 bytes: drop every `ctx.*` key. Still over: drop `stack`. Still over: cut `msg` to 80. Still over: drop `msg`. Still over: send it as is.
 
 ## 7. Sanitizing
 
@@ -320,7 +335,7 @@ All lengths are Unicode code points (not UTF-16 units, not grapheme clusters).
 
 1. Split on U+000A, remove every U+000D, ASCII-trim each line, drop empty lines.
 2. If `errName` is set and the first line equals it or starts with `errName + ":"`, drop that line (V8 header).
-3. Keep the first 5 lines. Clean each with `cleanText`, then run this pattern once, left to right, first matching alternative wins, replaced text is not scanned again:
+3. Keep the first 30 lines. Cut each to its first 500 UTF-16 units (`capInput`; Swift appends U+FFFD for a split pair, as 3.3 item 4), clean it with `cleanText`, then run this pattern once, left to right, first matching alternative wins, replaced text is not scanned again:
 
    ```
    ([A-Za-z][A-Za-z0-9+.-]*://[^ "'<>()]*)|(//[A-Za-z0-9-]+\.[^ "'<>()]*)|([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})|([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})|([^ ():]*/)|(\?[^ :()]*)
@@ -335,7 +350,7 @@ All lengths are Unicode code points (not UTF-16 units, not grapheme clusters).
    | 6 directory prefix | removed (paths become basenames) |
    | 7 query | removed |
 
-4. Drop lines that end up empty. Join with U+000A. Cut to 800 (7.2). Nothing left → no stack.
+4. Drop lines that end up empty. Join with U+000A. Cut to 4000 (7.2). Nothing left → no stack.
 5. Digit runs are not masked in stacks (they are line and column numbers).
 
 ### 7.5 Message
@@ -357,6 +372,19 @@ All lengths are Unicode code points (not UTF-16 units, not grapheme clusters).
 2. `a = sanitizeMessage(input.message)`, `b = sanitizeMessage(input.errMessage)` (non-strings give `''`).
 3. `msgFull` = the non-empty values of `[a, b]` joined with `": "`, where `b` is left out when it equals `a`.
 4. `msg` = `truncateUnicode(msgFull, 200)`; left out when `msgFull` is empty.
+
+### 7.7 Call-site context: `normalizeCtx(context)`
+
+1. Only a plain object (TS), `[String: Any]` (Swift) or `Map`/`JSONObject` (Kotlin); anything else (a string, an array, null) → no `ctx.*` keys.
+2. Keys must match `^[a-z][a-zA-Z0-9_]{0,31}$`; others are dropped. The rest are sorted by key (code points).
+3. Each value (`normalizeCtxValue`):
+   - a string: cut to its first 1000 UTF-16 units (`capInput`), then `sanitizeMessage` (7.5);
+   - a number that is a safe integer (|v| ≤ 2^53 − 1): written in decimal;
+   - another finite number with |v| < 1e15: rounded to 6 decimals half away from zero on its exact value (JS `toFixed(6)`; Swift does not use printf, which rounds an exact tie such as 0.0078125 to even), trailing zeros and a bare point removed, `-0` → `0`;
+   - anything else (booleans, null, NaN, infinities, |v| ≥ 1e15 non-integers, objects) → dropped.
+   Empty → dropped. Cut to 200 code points (7.2).
+4. The first 8 keys left are sent, each as `ctx.<key>`.
+5. The context is not part of the dedupe key (5.6): the same failure from two call-site contexts folds into one.
 
 ### 7.6 PII never sent
 
@@ -485,7 +513,7 @@ The proposal and amendments left these open. The reference implements them and t
 1. IPv4 addresses (in messages, stacks and URL hosts) become `<ip>`, and IPv6 URL hosts too. This enforces "never send IP".
 2. Protocol-relative URLs (`//host/path`, the widget's default listings URL form) are treated as URLs. A URL with no host (`file:///…`) becomes `<url>` in messages and its basename in stacks.
 3. `message` and the error message are both kept, joined with `": "`.
-4. Context strings are bounded: partner code 64, clientVersion 32, release 64, host 253. After the three budget steps an event that is still over 2048 bytes is sent as is.
+4. Context strings are bounded: partner code 64, clientVersion 32, release 64, host 253. After the budget steps an event that is still over 8192 bytes is sent as is.
 5. Step order inside the gate: the session cap is checked before dedupe, and the per-key cap before the dedupe window. Only bookkeeping differs from the proposal's listing order; the emitted events are the same.
 6. Sampling is recomputed from uid and rate on every call instead of cached, so a rate that arrives with the remote config applies from then on.
 7. Stacks drop the engine header line, reduce paths to basenames, remove query strings, and do not mask digit runs.
@@ -494,3 +522,24 @@ The proposal and amendments left these open. The reference implements them and t
 10. Registry severity is a recommendation; logFailure defaults to `error`.
 11. Every shell caps message and error message at 1000 UTF-16 units and the stack at 2000 before the pure core (3.3 item 4); TS drops the V8 header first when the stack is over the cap.
 12. SDK queues never overwrite a clientFailure's `attributes.code` (6.1 item 4).
+
+## 18. Timings, slow steps, crashes, hangs and memory (fv 2)
+
+### 18.1 sdkTiming
+
+1. Each shell times these steps with a monotonic clock (`performance.now()` where it exists, else `Date.now()`; `SystemClock.elapsedRealtime`; `ProcessInfo.systemUptime`): `config.fetch`, `listings.fetch`, `listings.decode`, `feed.firstListing` (first listing on screen in a feed), `ad.firstLoad` (first ad of each zone, per process). core and React Native JS time only their own fetches; the native SDKs time theirs.
+2. Each measurement goes through `decideTiming` (`reference/sdk-timing.mjs`): dropped when `EVENTS_ENABLED` or `TIMING_ENABLED` is off (`coerceFlag`, unset is on), for an unknown step, for ms that is not a finite number in 0..600000, when the session is not sampled (`fnv1a32(uid + ":timing") / 2^32 < TIMING_SAMPLE_RATE`, default 0.1, its own salt so it is independent of failure sampling), and after 50 timings in the session.
+3. The event: `{ event: "sdkTiming", action: <step>, label: "timing", attributes, uid, createdTime }` through the same events queue. Attributes in this order, all strings: `code` (partner), `client`, `clientVersion`, `tv` (`"1"`), `step`, `ms` (rounded), `zoneId` (ad.firstLoad), `appId`, `appVersion`, `os`, `device`, `net` (optional, not set today), `seq`. Schema: `schemas/sdk-timing-event.schema.json`. Vectors: `golden/sdk-timing.vectors.json`.
+4. Slow steps: independently of timing sampling, a step over its budget logs a warn clientFailure with `context: { ms, budgetMs }`: `config.fetch` over 3000 ms → `config.fetch.slow`, `listings.fetch` over 4000 → `listings.fetch.slow`, `ad.firstLoad` over 6000 → `ad.load.slow`. Remote overrides, a positive whole number of ms: `TIMING_BUDGET_CONFIG_MS`, `TIMING_BUDGET_LISTINGS_MS`, `TIMING_BUDGET_AD_MS` (`budgetFor`, `isSlow`). Other steps have no budget.
+
+### 18.2 Crashes and hangs, from the OS's own reports
+
+No SDK installs an uncaught-exception or signal handler: it would fight the host app's crash reporter. Each report is read on a later launch.
+
+1. iOS (14+): a MetricKit `MXMetricManager` subscriber. Each `MXDiagnosticPayload` is read from its `jsonRepresentation()` by a pure parser: crash, hang, CPU-exception and disk-write-exception diagnostics whose call stack tree has a frame in a binary named `SellwildSDK` or `SellwildPrebid*` are reported as `sdk.crash.exception` (fatal), `sdk.hang.timeout`, `sdk.cpu.exception` and `sdk.disk_write.exception`, with the attributed thread's frames as the stack (`<binary> +<offset>`, at most 30) and the exception type, code, signal or hang duration in `msg`. MetricKit frames are not symbolicated and name the binary only, so a Sellwild SDK linked statically into the app binary (SwiftPM's default) is not recognized; a dynamic framework (CocoaPods `use_frameworks!`, an XCFramework) is.
+2. Android (API 30+): on the first `attach(Context)` of a process, `ActivityManager.getHistoricalProcessExitReasons` for this package, only exits newer than the last one seen (kept in SharedPreferences). `REASON_CRASH` and `REASON_CRASH_NATIVE` whose description or trace mentions `com.sellwild` → `sdk.crash.exception`; `REASON_ANR` whose trace (`getTraceInputStream`, first 256 KB) mentions `com.sellwild` → `sdk.hang.timeout`, with the trace's `com.sellwild` frames as the stack; `REASON_LOW_MEMORY` → `sdk.memory.killed`, always. The decision is the pure `ExitReasons.decide`.
+
+### 18.3 Memory
+
+1. iOS `UIApplication.didReceiveMemoryWarningNotification` and Android `ComponentCallbacks2.onTrimMemory` at `TRIM_MEMORY_RUNNING_LOW` or worse log `sdk.memory.warning` (warn) once per process, with `context: { footprintMb, adViews, feedViews }`: the app's footprint in MB (iOS `task_vm_info.phys_footprint`; Android `Debug.MemoryInfo.getTotalPss`), and how many Sellwild ad and feed views are attached to a window.
+2. MetricKit `MXMetricPayload` peak memory is for the whole app, with no Sellwild share, so it is not sent.

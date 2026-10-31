@@ -41,4 +41,48 @@ class SellwildS2SConfigLiteralTest {
             .put("timeout", "x")
         assertEquals(SellwildS2SConfig(null, "https://n.example/a", null), SellwildS2SConfig.parse(partial))
     }
+
+    private fun json(text: String) = SellwildS2SConfig.jsLiteralToJson(text)
+
+    @Test
+    fun `escapes inside text carry over, and an escaped single quote becomes a plain one`() {
+        assertEquals("""{"a": "q\"x", "b": "it's"}""", json("""{a: "q\"x", b: 'it\'s'}"""))
+        assertEquals("""{"a": "say \"hi\""}""", json("""{a: 'say "hi"'}"""))
+    }
+
+    @Test
+    fun `unterminated text and comments end at the end of the input`() {
+        assertEquals("\"abc\"", json("'abc"))
+        assertEquals("\"a\\\"", json("'a\\"))
+        assertEquals("{}", json("{}/* open"))
+        assertEquals("{}", json("{}// trailing"))
+    }
+
+    @Test
+    fun `a slash that starts no comment is copied`() {
+        assertEquals("1/2", json("1/2"))
+        assertEquals("[/]", json("[/]"))
+        assertEquals("/", json("/"))
+    }
+
+    @Test
+    fun `only a comma before a closing bracket is dropped`() {
+        assertEquals("[1]", json("[1,]"))
+        assertEquals("{\"a\": 1 }", json("{a: 1, }"))
+        assertEquals("[1,2]", json("[1,2]"))
+        assertEquals("[1,", json("[1,"))
+    }
+
+    @Test
+    fun `numbers keep exponent signs, and a sign elsewhere ends the number`() {
+        assertEquals("[1e-3, 2E+4]", json("[1e-3, 2E+4]"))
+        assertEquals("1-2", json("1-2"))
+    }
+
+    @Test
+    fun `a bare word is a key only before a colon`() {
+        assertEquals("true", json("true"))
+        assertEquals("[null, false]", json("[undefined, false]"))
+        assertEquals("{\"\$a_1\" : 1}", json("{\$a_1 : 1}"))
+    }
 }

@@ -48,6 +48,14 @@
     "created-seconds.json": {
       "instancePath": "/createdTime",
       "keyword": "minimum"
+    },
+    "ctx-key-not-allowed.json": {
+      "instancePath": "/attributes",
+      "keyword": "additionalProperties"
+    },
+    "fv-1.json": {
+      "instancePath": "/attributes/fv",
+      "keyword": "const"
     }
   }
 }

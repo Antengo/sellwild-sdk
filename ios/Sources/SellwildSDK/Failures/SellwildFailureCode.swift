@@ -30,6 +30,11 @@ public enum SellwildFailureCode: String, CaseIterable {
     /// Usually `banner`, `warn`.
     case adGpidException = "ad.gpid.exception"
 
+    /// The first ad of a zone took longer than its time budget to load (6 s unless
+    /// TIMING_BUDGET_AD_MS says otherwise).
+    /// Usually `banner`, `warn`.
+    case adLoadSlow = "ad.load.slow"
+
     /// A native bid won but the cache id was missing or the native ad could not be created.
     /// No-fill stays on adError.
     /// Usually `native`, `error`.
@@ -129,6 +134,11 @@ public enum SellwildFailureCode: String, CaseIterable {
     /// The remote config body is not valid JSON.
     /// Usually `remoteConfig`, `error`.
     case configFetchParse = "config.fetch.parse"
+
+    /// The remote config fetch took longer than its time budget (3 s unless
+    /// TIMING_BUDGET_CONFIG_MS says otherwise).
+    /// Usually `remoteConfig`, `warn`.
+    case configFetchSlow = "config.fetch.slow"
 
     /// The remote config request did not answer within the client timeout.
     /// Usually `remoteConfig`, `error`.
@@ -236,6 +246,11 @@ public enum SellwildFailureCode: String, CaseIterable {
     /// Usually `listings`, `error`.
     case listingsFetchParse = "listings.fetch.parse"
 
+    /// The listings fetch took longer than its time budget (4 s unless
+    /// TIMING_BUDGET_LISTINGS_MS says otherwise).
+    /// Usually `listings`, `warn`.
+    case listingsFetchSlow = "listings.fetch.slow"
+
     /// Listings GET did not answer within the client timeout.
     /// Usually `listings`, `error`.
     case listingsFetchTimeout = "listings.fetch.timeout"
@@ -285,6 +300,29 @@ public enum SellwildFailureCode: String, CaseIterable {
     /// The localized cache URL could not be built from baseUrl and urlTemplate.
     /// Usually `localized`, `warn`.
     case localizedUrlInvalid = "localized.url.invalid"
+
+    /// MetricKit reported a CPU-usage exception whose stack has a Sellwild SDK frame.
+    /// Usually `sdk`, `warn`.
+    case sdkCpuException = "sdk.cpu.exception"
+
+    /// The app crashed with a Sellwild SDK frame on the crashing stack, as the OS reported
+    /// it on the next launch (MetricKit, ApplicationExitInfo).
+    /// Usually `sdk`, `fatal`.
+    case sdkCrashException = "sdk.crash.exception"
+
+    /// MetricKit reported a disk-write exception whose stack has a Sellwild SDK frame.
+    /// Usually `sdk`, `warn`.
+    case sdkDiskWriteException = "sdk.disk_write.exception"
+
+    /// The main thread hung (iOS hang, Android ANR) with a Sellwild SDK frame on its stack,
+    /// as the OS reported it on the next launch.
+    /// Usually `sdk`, `error`.
+    case sdkHangTimeout = "sdk.hang.timeout"
+
+    /// The OS warned the app that memory is low (once per session), with the app footprint
+    /// and the live Sellwild views.
+    /// Usually `sdk`, `warn`.
+    case sdkMemoryWarning = "sdk.memory.warning"
 
     /// Creating the on-disk cache directory failed.
     /// Usually `storage`, `warn`.

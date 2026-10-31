@@ -24,6 +24,8 @@ internal data class FailureInput(
     val httpStatus: Any? = null,
     val url: Any? = null,
     val zoneId: Any? = null,
+    /** Call-site context: a Map (or JSONObject) of strings and finite numbers, sent as `ctx.<key>`. */
+    val context: Any? = null,
 )
 
 /**
@@ -36,6 +38,11 @@ internal data class FailureContext(
     val clientVersion: Any? = null,
     val wrapper: Any? = null,
     val release: Any? = null,
+    val appId: Any? = null,
+    val appVersion: Any? = null,
+    val os: Any? = null,
+    val device: Any? = null,
+    val slug: Any? = null,
     val eventsEnabled: Any? = null,
     val failuresEnabled: Any? = null,
     val failuresSampleRate: Any? = null,
@@ -75,7 +82,7 @@ internal data class FailureDecision(
 )
 
 internal object FailuresCore {
-    const val CONTRACT_VERSION = "1"
+    const val CONTRACT_VERSION = "2"
     const val EVENT_NAME = "clientFailure"
     const val INVALID_CODE = "client.code.invalid"
     const val UNKNOWN = "unknown"
@@ -83,30 +90,45 @@ internal object FailuresCore {
     val COMPONENTS = listOf(
         "configure", "remoteConfig", "listings", "localized", "feed", "banner", "native",
         "video", "house", "bridge", "webview", "widget", "shorts", "tv", "flipcard",
-        "growthcode", "geo", "storage",
+        "growthcode", "geo", "storage", "sdk",
     )
     val SEVERITIES = listOf("fatal", "error", "warn")
     val WRAPPERS = listOf("react-native", "flutter")
 
-    /** Wire order of attribute keys. This is also the allowlist: nothing else is sent. */
+    /**
+     * Wire order of attribute keys. This is also the allowlist: nothing else is sent,
+     * except the call-site context keys `ctx.<key>` ([CTX_KEY_RE]), which follow these
+     * in key order.
+     */
     val ATTRIBUTE_KEYS = listOf(
         "code", "client", "clientVersion", "severity", "fv", "errName", "msg", "stack",
-        "httpStatus", "host", "zoneId", "wrapper", "release", "seq", "repeat", "capped",
+        "httpStatus", "host", "zoneId", "wrapper", "release",
+        "appId", "appVersion", "os", "device", "slug",
+        "seq", "repeat", "capped",
     )
+
+    /** Call-site context keys, sent as `ctx.<key>`. */
+    val CTX_KEY_RE = Regex("[a-z][a-zA-Z0-9_]{0,31}")
+    const val CTX_PREFIX = "ctx."
 
     const val CODE_MAX = 64
     const val ERR_NAME_MAX = 64
     const val MSG_MAX = 200
     const val MSG_BUDGET = 80
     const val MSG_KEY = 64
-    const val STACK_MAX = 800
-    const val STACK_FRAMES = 5
+    const val STACK_MAX = 4000
+    const val STACK_FRAMES = 30
+    const val FRAME_INPUT = 500
     const val ZONE_ID_MAX = 32
     const val HOST_MAX = 253
     const val PARTNER_CODE_MAX = 64
     const val CLIENT_VERSION_MAX = 32
     const val RELEASE_MAX = 64
-    const val EVENT_BYTES = 2048
+    const val APP_FIELD_MAX = 64
+    const val CTX_KEYS = 8
+    const val CTX_VALUE_MAX = 200
+    const val CTX_INPUT = 1000
+    const val EVENT_BYTES = 8192
     const val DEDUPE_WINDOW_MS = 60_000L
     const val LRU_SIZE = 50
     const val PER_KEY_EMITS = 3
@@ -136,7 +158,15 @@ internal object FailuresCore {
     private const val QUERY_ALT = "(\\?[^ :()]*)"
 
     val MESSAGE_PATTERN = listOf(URL_ALT, PROTO_REL_ALT, EMAIL_ALT, UUID_ALT, IPV4_ALT, DIGITS_ALT).joinToString("|")
-    val FRAME_PATTERN = listOf(URL_ALT, PROTO_REL_ALT, EMAIL_ALT, UUID_ALT, IPV4_ALT, PATH_ALT, QUERY_ALT).joinToString("|")
+    val FRAME_PATTERN = listOf(
+        URL_ALT,
+        PROTO_REL_ALT,
+        EMAIL_ALT,
+        UUID_ALT,
+        IPV4_ALT,
+        PATH_ALT,
+        QUERY_ALT
+    ).joinToString("|")
     private val MESSAGE_RE = Regex(MESSAGE_PATTERN)
     private val FRAME_RE = Regex(FRAME_PATTERN)
 
@@ -327,9 +357,10 @@ internal object FailuresCore {
         }
 
     /**
-     * First 5 frames of a stack, one per line: the engine header line
-     * ([errName] or `errName: …`) is dropped, URLs become hosts, directories and
-     * query strings are removed, emails/UUIDs/IPs are masked. Max 800 code points.
+     * First 30 frames of a stack, one per line: the engine header line
+     * ([errName] or `errName: …`) is dropped, each frame is cut to its first 500
+     * UTF-16 units, URLs become hosts, directories and query strings are removed,
+     * emails/UUIDs/IPs are masked. Max 4000 code points.
      * Null when nothing is left.
      */
     fun sanitizeStack(stack: Any?, errName: String?): String? {
@@ -340,7 +371,9 @@ internal object FailuresCore {
         ) {
             lines = lines.drop(1)
         }
-        val frames = lines.take(STACK_FRAMES).map(::sanitizeFrame).filter { it.isNotEmpty() }
+        val frames = lines.take(
+            STACK_FRAMES
+        ).map { sanitizeFrame(capInput(it, FRAME_INPUT)) }.filter { it.isNotEmpty() }
         if (frames.isEmpty()) return null
         return truncateUnicode(frames.joinToString("\n"), STACK_MAX)
     }
@@ -387,6 +420,71 @@ internal object FailuresCore {
     }
 
     private const val MAX_SAFE_INTEGER = 9007199254740991.0
+    private const val CTX_DECIMAL_LIMIT = 1e15
+
+    /**
+     * The file name at the end of a URL's path, without its query or fragment, e.g.
+     * `listings-weatherbug.json`: call-site context that names the resource without
+     * sending the URL. Empty when the path ends in `/`.
+     */
+    fun urlFileName(url: String): String {
+        val path = url.split('?', '#', limit = 2)[0]
+        return path.substring(path.lastIndexOf('/') + 1)
+    }
+
+    /** The first [max] UTF-16 units of [s] (FAILURES.md 3.3 item 4). */
+    fun capInput(s: String, max: Int): String = if (s.length > max) s.substring(0, max) else s
+
+    /** Up to 6 decimals, trailing zeros and a bare point removed; "-0" → "0" (JS toFixed(6)). */
+    fun formatDecimal(v: Double): String {
+        val s = java.math.BigDecimal(v).setScale(6, java.math.RoundingMode.HALF_UP).toPlainString()
+            .trimEnd('0').trimEnd('.')
+        return if (s == "-0") "0" else s
+    }
+
+    /**
+     * A call-site context value as text: a string is cut to 1000 UTF-16 units and
+     * sanitized like msg; a safe integer is written in decimal; another finite
+     * number with |v| < 1e15 is written with up to 6 decimals. Cut to 200 code
+     * points. Anything else, or empty, → null.
+     */
+    fun normalizeCtxValue(v: Any?): String? {
+        val s = when (v) {
+            is String -> sanitizeMessage(capInput(v, CTX_INPUT))
+            is Number -> {
+                val d = v.toDouble()
+                when {
+                    !d.isFinite() -> null
+                    d == Math.floor(d) && Math.abs(d) <= MAX_SAFE_INTEGER -> d.toLong().toString()
+                    Math.abs(d) < CTX_DECIMAL_LIMIT -> formatDecimal(d)
+                    else -> null
+                }
+            }
+            else -> null
+        }
+        return if (s.isNullOrEmpty()) null else truncateUnicode(s, CTX_VALUE_MAX)
+    }
+
+    /**
+     * The call-site context as attributes: String keys matching [CTX_KEY_RE] whose
+     * value normalizes to text, sorted by key, the first 8 kept, each as `ctx.<key>`.
+     * Anything but a Map or a JSONObject → none.
+     */
+    fun normalizeCtx(context: Any?): List<Pair<String, String>> {
+        val entries: Map<*, *> = when (context) {
+            is Map<*, *> -> context
+            is org.json.JSONObject -> context.keys().asSequence().associateWith { context.opt(it) }
+            else -> return emptyList()
+        }
+        return entries.keys.filterIsInstance<String>().filter { CTX_KEY_RE.matches(it) }.sorted()
+            .mapNotNull { k ->
+                normalizeCtxValue(
+                    entries[k]?.takeIf { it != org.json.JSONObject.NULL }
+                )?.let { k to it }
+            }
+            .take(CTX_KEYS)
+            .map { (k, v) -> "$CTX_PREFIX$k" to v }
+    }
 
     private fun cleanBounded(v: Any?, max: Int): String? {
         if (v !is String) return null
@@ -500,7 +598,7 @@ internal object FailuresCore {
     /**
      * Canonical JSON of the event (fixed key order, no whitespace, minimal
      * escaping, "/" and non-ASCII left literal). Its UTF-8 length is the size the
-     * 2048-byte budget is measured against. Never the platform JSON encoder.
+     * 8192-byte budget is measured against. Never the platform JSON encoder.
      */
     fun canonicalJson(event: FailureEvent): String {
         val out = StringBuilder()
@@ -512,7 +610,8 @@ internal object FailuresCore {
         jsonString(event.label, out)
         out.append(",\"attributes\":{")
         var first = true
-        for (k in ATTRIBUTE_KEYS) {
+        val ctxKeys = event.attributes.keys.filter { it.startsWith(CTX_PREFIX) }.sorted()
+        for (k in ATTRIBUTE_KEYS + ctxKeys) {
             val v = event.attributes[k] ?: continue
             if (!first) out.append(',')
             first = false
@@ -529,6 +628,8 @@ internal object FailuresCore {
     fun eventByteSize(event: FailureEvent): Int = utf8Length(canonicalJson(event))
 
     /** Normalized fields [buildFailureEvent] turns into attributes. */
+    // one field per attribute the event can carry
+    @Suppress("LongParameterList")
     class Fields(
         val action: String,
         val label: String,
@@ -540,14 +641,15 @@ internal object FailuresCore {
         val host: String?,
         val zoneId: String?,
         val seq: Int,
+        val ctx: List<Pair<String, String>> = emptyList(),
         val repeat: Int,
         val capped: Boolean,
     )
 
     /**
      * Build the wire event from normalized fields and apply the size budget:
-     * over 2048 bytes → drop stack; still over → cut msg to 80; still over → drop
-     * msg; still over → send as is.
+     * over 8192 bytes → drop every ctx.* key; still over → drop stack; still over →
+     * cut msg to 80; still over → drop msg; still over → send as is.
      */
     fun buildFailureEvent(fields: Fields, ctx: FailureContext, uid: String?, now: Long): FailureEvent {
         val a = mapOf(
@@ -564,14 +666,21 @@ internal object FailuresCore {
             "zoneId" to fields.zoneId,
             "wrapper" to (ctx.wrapper as? String)?.takeIf { it in WRAPPERS },
             "release" to cleanBounded(ctx.release, RELEASE_MAX),
+            "appId" to cleanBounded(ctx.appId, APP_FIELD_MAX),
+            "appVersion" to cleanBounded(ctx.appVersion, APP_FIELD_MAX),
+            "os" to cleanBounded(ctx.os, APP_FIELD_MAX),
+            "device" to cleanBounded(ctx.device, APP_FIELD_MAX),
+            "slug" to cleanBounded(ctx.slug, APP_FIELD_MAX),
             "seq" to fields.seq.toString(),
             "repeat" to fields.repeat.toString(),
             "capped" to (if (fields.capped) "1" else null),
         )
         val attributes = LinkedHashMap<String, String>()
         for (k in ATTRIBUTE_KEYS) a[k]?.let { attributes[k] = it }
+        for ((k, v) in fields.ctx) attributes[k] = v
         // The event reads [attributes] live, so each step re-measures what is left.
         val event = FailureEvent(fields.action, fields.label, attributes, uid.orEmpty(), now)
+        if (eventByteSize(event) > EVENT_BYTES) attributes.keys.removeAll { it.startsWith(CTX_PREFIX) }
         if (eventByteSize(event) > EVENT_BYTES) attributes.remove("stack")
         val msg = attributes["msg"]
         if (msg != null && eventByteSize(event) > EVENT_BYTES) {
@@ -660,6 +769,7 @@ internal object FailuresCore {
                 seq = seq,
                 repeat = repeat,
                 capped = seq == SESSION_EMITS,
+                ctx = normalizeCtx(inp.context),
             ),
             ctx,
             uid,

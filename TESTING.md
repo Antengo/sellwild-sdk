@@ -77,7 +77,7 @@ How it runs:
 | `core-coverage` | `npm --prefix core run coverage:summary` (core and RN) | 18s |
 | `ios-coverage` | `bash scripts/coverage/ios.sh` | 70s |
 | `swift-warnings` | Swift compiler-warnings ratchet, from the log `ios.sh` just wrote | 0.2s |
-| `coverage-thresholds` | `node tools/coverage-gate.mjs`: every `coverage-summary/*.json` gate at 95% lines, branches (regions for iOS) and functions | 0.2s |
+| `coverage-thresholds` | `node tools/coverage-gate.mjs`: every `coverage-summary/*.json` gate at its minimums in `tools/coverage-thresholds.json` (lines, branches or iOS regions, functions) | 0.2s |
 | total, with `--fast` | | 277s (26 steps) |
 
 ### Baselines
@@ -136,6 +136,25 @@ What each check leaves to another (all found by mutation checks, 2026-09-24):
 2. Swift: `Swift.print`, `Foundation.NSLog` and `os.os_log` fail SwiftLint's
    `no_print` and the print gate. Kotlin: `kotlin.io.println` fails the print
    gate.
+
+### CI
+
+`.github/workflows/ci.yml` runs every platform's full unit suite with coverage on
+every pull request, with the same scripts as `--full`, and fails a job whose
+fresh `coverage-summary/<platform>.json` is under its minimums in
+`tools/coverage-thresholds.json` (`node tools/coverage-gate.mjs --only <platform>`):
+
+| Job | Runs |
+|---|---|
+| `contracts` | `validate.mjs`, `npm --prefix contracts test` (node --test), the print gate, the coverage-gate tool's tests |
+| `core` | typecheck, `test:smoke`, `scripts/coverage/ts.mjs --run --only core` |
+| `react-native` | tsc, `scripts/coverage/ts.mjs --run --only react-native` |
+| `android` | `scripts/coverage/android.sh` (Gradle unit tests + Kover) |
+| `ios` | `scripts/coverage/ios.sh`: one `xcodebuild test -enableCodeCoverage YES` (no separate build), derived data cached on the package manifest and Swift sources, the simulator booted while the build runs |
+
+core and react-native's `vitest.config.ts` thresholds must equal
+`tools/coverage-thresholds.json`; `ts.mjs` fails when they differ. Raise a
+number when coverage rises; lowering one needs a reason in COVERAGE.md.
 
 ## E2E
 

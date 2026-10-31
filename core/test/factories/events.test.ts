@@ -60,7 +60,7 @@ describe('clientFailureEvent factory', () => {
 
   it('fails the schema when an override breaks it, and for each invalid contract fixture', () => {
     expectInvalid('client-failure-event', clientFailureEvent({ attributes: { seq: '21' } }), { instancePath: '/attributes/seq', keyword: 'pattern' })
-    expectInvalid('client-failure-event', clientFailureEvent({ attributes: { stack: 'x'.repeat(801) } }), { instancePath: '/attributes/stack', keyword: 'maxLength' })
+    expectInvalid('client-failure-event', clientFailureEvent({ attributes: { stack: 'x'.repeat(4001) } }), { instancePath: '/attributes/stack', keyword: 'maxLength' })
     expectInvalidCases('client-failure-event', invalidClientFailureEvents())
   })
 })

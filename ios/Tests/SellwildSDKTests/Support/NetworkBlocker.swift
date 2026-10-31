@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+@testable import SellwildSDK
 
 /// Fails every real network request made while this test bundle runs.
 ///
@@ -239,6 +240,10 @@ final class NetworkBlocker: URLProtocol {
             NetworkBlocker.locked { NetworkBlocker.currentTest = testCase.name }
             StubURLProtocol.reset()
             SharedEventsQueue.drain()
+            // Process-wide timing and guard state (fv 2) starts fresh per test too.
+            SellwildTiming.resetForTests()
+            SellwildGuards.resetForTests()
+            SellwildViews.resetForTests()
             // Registered first, so it runs after the test's own teardown
             // blocks, and before its tearDown().
             testCase.addTeardownBlock {

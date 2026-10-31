@@ -348,8 +348,10 @@ function flags() {
 }
 
 function budget() {
-  const bigStack = Array.from({ length: 5 }, (_, i) => `at f${i} (${rep('\u{1F600}', 170)}.js:1:1)`).join('\n')
+  // 30 frames of 1 emoji-heavy line each: about 30 x 150 x 4 bytes, far over 8192 once sent.
+  const bigStack = Array.from({ length: 30 }, (_, i) => `at f${i} (${rep('\u{1F600}', 120)}.js:1:1)`).join('\n')
   const accented = rep('\u00e9', 200)
+  const ctxBig = { attempt: 2, file: rep('k', 199), slot: rep('s', 199), size: '300x250' }
   const b = (name, uidLen, extra = {}) => ({
     name,
     input: inp({ message: accented, errName: 'SellwildError', httpStatus: 503, zoneId: '43', ...extra }),
@@ -359,20 +361,47 @@ function budget() {
   return [
     {
       name: 'budget.under-limit-keeps-everything',
-      input: inp({ message: 'HTTP 503', errName: 'SellwildError', stack: 'at a (x.js:1:1)\nat b (y.js:2:2)' }),
+      input: inp({ message: 'HTTP 503', errName: 'SellwildError', stack: 'at a (x.js:1:1)\nat b (y.js:2:2)', context: { attempt: 1 } }),
       context: ctx({ client: 'android' }),
       stateBefore: S0,
     },
     {
-      name: 'budget.stack-dropped-first',
-      input: inp({ message: 'HTTP 503', errName: 'SellwildError', stack: bigStack }),
+      name: 'budget.stack-dropped-after-ctx',
+      input: inp({ message: 'HTTP 503', errName: 'SellwildError', stack: bigStack, context: ctxBig }),
       context: ctx({ client: 'android' }),
       stateBefore: S0,
     },
-    b('budget.msg-cut-to-80', 1450),
-    b('budget.msg-dropped', 1700),
-    b('budget.still-over-sent-without-msg', 2600),
-    b('budget.stack-and-msg-cut', 1450, { stack: bigStack }),
+    b('budget.ctx-dropped-first', 7300, { context: ctxBig }),
+    b('budget.msg-cut-to-80', 7600),
+    b('budget.msg-dropped', 7850),
+    b('budget.still-over-sent-without-msg', 8700),
+    b('budget.stack-and-msg-cut', 7600, { stack: bigStack }),
+  ]
+}
+
+function appContext() {
+  const a = (name, over, input = inp()) => ({ name, input, context: ctx(over), stateBefore: S0 })
+  return [
+    a('app.all-five-keys', { appId: 'com.aws.weatherbug', appVersion: '6.12.0 (1234)', os: 'iOS 26.1', device: 'iPhone16,2', slug: 'weatherbug-main' }),
+    a('app.cleaned-and-cut', { appId: '  com.example\napp ', device: rep('d', 80), os: 'Android 15' }),
+    a('app.blank-or-not-text-omitted', { appId: '   ', appVersion: 12, os: null, device: '', slug: {} }),
+  ]
+}
+
+function callSiteContext() {
+  const c = (name, context, extra = {}) => ({ name, input: inp({ message: 'HTTP 503', context, ...extra }), context: ctx(), stateBefore: S0 })
+  return [
+    c('ctx.strings-and-numbers', { file: 'listings-weatherbug.json', attempt: 2, ratio: 0.25, size: '300x250' }),
+    c('ctx.sorted-by-key', { zeta: 'z', alpha: 'a', mid: 'm' }),
+    c('ctx.bad-keys-dropped', { Upper: 'x', '1st': 'x', 'a-b': 'x', ok_key: 'y', [rep('k', 33)]: 'x', [rep('k', 32)]: 'kept' }),
+    c('ctx.bad-values-dropped', { nan: Number.NaN, inf: Number.POSITIVE_INFINITY, big: 1e20, obj: { a: 1 }, arr: [1], bool: true, nul: null, blank: '  ', ok: 'v' }),
+    c('ctx.at-most-8', Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`k${String(i).padStart(2, '0')}`, i]))),
+    c('ctx.values-scrubbed-like-msg', { url: 'https://cache.sellwild.com/listings?q=secret', email: 'jane@example.com', id: '2d0f7a0a-9d1f-4c35-9d8b-0a1f2f9a8c11', ip: '10.1.2.3', long: '1234567' }),
+    c('ctx.value-cut-to-200', { file: rep('f', 260) }),
+    c('ctx.decimals', { a: 1.5, b: -2.0000004, c: 0.1 + 0.2, d: 123456.7890123, e: -0.0000001, f: 9007199254740993 }),
+    c('ctx.not-an-object-ignored', 'file=x'),
+    c('ctx.array-ignored', ['a', 'b']),
+    c('ctx.not-in-dedupe-key', { attempt: 3 }, { message: 'HTTP 503' }),
   ]
 }
 
@@ -427,7 +456,10 @@ function stacks() {
     s('stack.v8-header-dropped-and-basenamed',
       'TypeError: boom\n    at fetchListings (/Users/jane/app/node_modules/@sellwild/sdk-core/dist/api.js:37:11)\n    at async load (/Users/jane/app/src/Feed.tsx:12:3)',
       'TypeError', 'core'),
-    s('stack.first-5-frames', ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((f, i) => `at ${f} (x.js:${i + 1}:1)`).join('\n'), 'Error', 'core'),
+    s('stack.first-30-frames', Array.from({ length: 34 }, (_, i) => `at f${i} (x.js:${i + 1}:1)`).join('\n'), 'Error', 'core'),
+    s('stack.long-frame-cut-to-500-units', `at ${rep('n', 600)} (x.js:1:1)\nat next (y.js:2:2)`, 'Error', 'core'),
+    s('stack.java-caused-by-chain', 'com.sellwild.sdk.SellwildAPIClient.fetchListings(SellwildAPI.kt:122)\nCaused by: SocketTimeoutException\njava.net.Socket.connect(Socket.java:633)', 'SellwildException'),
+    s('stack.ios-call-stack-symbols', '3   SellwildSDK                         0x0000000104a2c3e4 $s11SellwildSDK0A9APIClientC13fetchListingsyyF + 412\n4   SellwildSDK                         0x0000000104a2d000 $s11SellwildSDK0A8FeedViewC4loadyyF + 88\n5   UIKitCore                           0x00000001850f4a10 -[UIView layoutSubviews] + 140', 'URLError', 'ios'),
     s('stack.query-removed', 'at load (/static/js/main.js?v=12:1:99)', 'Error', 'widget'),
     s('stack.url-becomes-host', 'at render (https://widget.sellwild.com/partner.js?cb=1:1:234567)', 'Error', 'widget'),
     s('stack.jsc-at-sign-format', 'render@https://widget.sellwild.com/partner.js:1:2\nglobal code@https://example.com/page.html:3:4', 'Error', 'widget'),
@@ -437,7 +469,7 @@ function stacks() {
     s('stack.only-header-omitted', 'TypeError: boom', 'TypeError', 'core'),
     s('stack.blank-omitted', '\n \n', 'TypeError', 'core'),
     s('stack.pii-masked', 'at login (jane@example.com)\nat order (a/2d0f7a0a-9d1f-4c35-9d8b-0a1f2f9a8c11.js:1:1)\nat net (10.1.2.3)', 'Error', 'core'),
-    s('stack.truncated-800', Array.from({ length: 5 }, (_, i) => `at fn${i} (${rep('m', 190)}.js:1:1)`).join('\n'), 'Error', 'core'),
+    s('stack.truncated-4000', Array.from({ length: 30 }, (_, i) => `at fn${i} (${rep('m', 190)}.js:1:1)`).join('\n'), 'Error', 'core'),
     s('stack.crlf-lines', 'Error: boom\r\n   at a (x.js:1:1)\r\n   at b (y.js:2:2)\r\n', 'Error', 'core'),
   ]
 }
@@ -457,6 +489,8 @@ export function buildCases() {
     ...sampling(),
     ...flags(),
     ...budget(),
+    ...appContext(),
+    ...callSiteContext(),
     ...attributes(),
     ...stacks(),
   ]
@@ -484,6 +518,7 @@ export const UNIT_INPUTS = {
   coerceRate: [0, 1, 0.25, 2, -1, '0.5', ' .5 ', '+0.5', '1.', '', '50%', 'abc', '1e-1', null, true, {}],
   normalizeCode: ['config.fetch.http', 'CONFIG.fetch.http', 'config.fetch', 'config.fetch.http\n', 'a.b.c', 'a.b_.c_', 'a1.b2.c3'],
   normalizeHttpStatus: [503, '503', ' 404 ', 42, 1000, 503.5, '5xx', '0503', null],
+  normalizeCtxValue: ['x', '  ', 'https://a.b/c', 3, -4, 1.5, 0.1, 2.0000004, -0.0000001, 0.0078125, -0.0078125, 0.0000005, 999999.9999995, 0.9999996, 9.9999996, -9.9999996, 1e15, 1e20, Number.NaN, true, null],
 }
 
 // Lone surrogates cannot live in a Swift String, and Foundation's JSON parser

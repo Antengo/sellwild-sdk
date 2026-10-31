@@ -66,6 +66,13 @@ class FailuresRule : ExternalResource() {
         SellwildFailures.resetForTests()
         SellwildEventQueue.resetSharedForTests()
         resetRemoteObjectReportsForTests()
+        com.sellwild.sdk.timing.SellwildTiming.resetForTests()
+        // Timing samples 10% of sessions by the queue's uid, so a test that attaches the real
+        // queue would send one at random. Tests that check timing set their own sink, or null.
+        com.sellwild.sdk.timing.SellwildTiming.push = {}
+        com.sellwild.sdk.guards.SellwildGuards.resetForTests()
+        // The guards' exit-reason scan runs inline, so a test sees what it logs.
+        com.sellwild.sdk.guards.SellwildGuards.runner = { it.run() }
     }
 }
 
@@ -156,6 +163,8 @@ internal fun inputOf(json: JSONObject) = FailureInput(
     httpStatus = json.value("httpStatus"),
     url = json.value("url"),
     zoneId = json.value("zoneId"),
+    // Raw org.json values: a BigInteger beyond Long must reach the core as itself.
+    context = json.value("context"),
 )
 
 internal fun contextOf(json: JSONObject) = FailureContext(
@@ -164,6 +173,11 @@ internal fun contextOf(json: JSONObject) = FailureContext(
     clientVersion = json.value("clientVersion"),
     wrapper = json.value("wrapper"),
     release = json.value("release"),
+    appId = json.value("appId"),
+    appVersion = json.value("appVersion"),
+    os = json.value("os"),
+    device = json.value("device"),
+    slug = json.value("slug"),
     eventsEnabled = json.value("eventsEnabled"),
     failuresEnabled = json.value("failuresEnabled"),
     failuresSampleRate = json.value("failuresSampleRate"),

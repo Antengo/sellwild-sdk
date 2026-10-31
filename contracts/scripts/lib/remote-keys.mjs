@@ -27,6 +27,8 @@ export const NOT_CONFIG_KEYS = {
   SUCCESS: 'Prebid Mobile ResultCode enum name, compared by name in android core/AdDecisions.kt.',
   TIMEOUT: 'Prebid Mobile ResultCode enum name, compared by name in android core/AdDecisions.kt.',
   SUCCEEDED: 'Prebid Mobile InitializationStatus enum name, compared by name in android core/PrebidSetup.kt.',
+  DEPRECATION: 'Kotlin @Suppress argument.',
+  SIMULATOR_MODEL_IDENTIFIER: 'Process environment variable the iOS simulator sets (the simulated model), read by SellwildAppInfo.',
 }
 
 function walk(dir, out = []) {

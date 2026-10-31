@@ -181,6 +181,18 @@
     "description": "The Boltive script failed to load (blocked), so its protection is off."
   },
   {
+    "code": "ad.boltive_terminate.exception",
+    "area": "ad",
+    "operation": "boltive_terminate",
+    "reason": "exception",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "android"
+    ],
+    "description": "Boltive's monitor threw while being terminated, so its timer may keep polling a creative the ad view has dropped."
+  },
+  {
     "code": "ad.consent_cmp.network",
     "area": "ad",
     "operation": "consent_cmp",
@@ -385,6 +397,19 @@
       "widget"
     ],
     "description": "The ad iframe had no contentWindow, so nothing was written into it."
+  },
+  {
+    "code": "ad.load.slow",
+    "area": "ad",
+    "operation": "load",
+    "reason": "slow",
+    "component": "banner",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The first ad of a zone took longer than its time budget to load (6 s unless TIMING_BUDGET_AD_MS says otherwise)."
   },
   {
     "code": "ad.lotame_init.exception",
@@ -1021,6 +1046,21 @@
     "description": "The remote config body is not valid JSON."
   },
   {
+    "code": "config.fetch.slow",
+    "area": "config",
+    "operation": "fetch",
+    "reason": "slow",
+    "component": "remoteConfig",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android"
+    ],
+    "description": "The remote config fetch took longer than its time budget (3 s unless TIMING_BUDGET_CONFIG_MS says otherwise)."
+  },
+  {
     "code": "config.fetch.timeout",
     "area": "config",
     "operation": "fetch",
@@ -1592,6 +1632,21 @@
     "description": "The listings body is not valid JSON (for example an HTML error page)."
   },
   {
+    "code": "listings.fetch.slow",
+    "area": "listings",
+    "operation": "fetch",
+    "reason": "slow",
+    "component": "listings",
+    "severity": "warn",
+    "clients": [
+      "core",
+      "react-native",
+      "ios",
+      "android"
+    ],
+    "description": "The listings fetch took longer than its time budget (4 s unless TIMING_BUDGET_LISTINGS_MS says otherwise)."
+  },
+  {
     "code": "listings.fetch.timeout",
     "area": "listings",
     "operation": "fetch",
@@ -1909,6 +1964,93 @@
       "android"
     ],
     "description": "The localized cache URL could not be built from baseUrl and urlTemplate."
+  },
+  {
+    "code": "sdk.cpu.exception",
+    "area": "sdk",
+    "operation": "cpu",
+    "reason": "exception",
+    "component": "sdk",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "MetricKit reported a CPU-usage exception whose stack has a Sellwild SDK frame."
+  },
+  {
+    "code": "sdk.crash.exception",
+    "area": "sdk",
+    "operation": "crash",
+    "reason": "exception",
+    "component": "sdk",
+    "severity": "fatal",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The app crashed with a Sellwild SDK frame on the crashing stack, as the OS reported it on the next launch (MetricKit, ApplicationExitInfo)."
+  },
+  {
+    "code": "sdk.disk_write.exception",
+    "area": "sdk",
+    "operation": "disk_write",
+    "reason": "exception",
+    "component": "sdk",
+    "severity": "warn",
+    "clients": [
+      "ios"
+    ],
+    "description": "MetricKit reported a disk-write exception whose stack has a Sellwild SDK frame."
+  },
+  {
+    "code": "sdk.exit_reasons.exception",
+    "area": "sdk",
+    "operation": "exit_reasons",
+    "reason": "exception",
+    "component": "sdk",
+    "severity": "warn",
+    "clients": [
+      "android"
+    ],
+    "description": "Reading the OS record of how earlier processes ended (ApplicationExitInfo) threw, so their crashes, ANRs and low-memory kills are not reported."
+  },
+  {
+    "code": "sdk.hang.timeout",
+    "area": "sdk",
+    "operation": "hang",
+    "reason": "timeout",
+    "component": "sdk",
+    "severity": "error",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The main thread hung (iOS hang, Android ANR) with a Sellwild SDK frame on its stack, as the OS reported it on the next launch."
+  },
+  {
+    "code": "sdk.memory.killed",
+    "area": "sdk",
+    "operation": "memory",
+    "reason": "killed",
+    "component": "sdk",
+    "severity": "error",
+    "clients": [
+      "android"
+    ],
+    "description": "The OS ended the previous process for low memory while the Sellwild SDK was in it (ApplicationExitInfo LOW_MEMORY)."
+  },
+  {
+    "code": "sdk.memory.warning",
+    "area": "sdk",
+    "operation": "memory",
+    "reason": "warning",
+    "component": "sdk",
+    "severity": "warn",
+    "clients": [
+      "ios",
+      "android"
+    ],
+    "description": "The OS warned the app that memory is low (once per session), with the app footprint and the live Sellwild views."
   },
   {
     "code": "storage.cache_dir.exception",

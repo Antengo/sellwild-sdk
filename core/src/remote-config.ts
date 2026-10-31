@@ -3,6 +3,7 @@ import { WIDGET_BASE_URL, SDK_VERSION } from './config'
 import { logFailure, logFailuresWithFlags, type LogFailureInput } from './failures'
 import { coerceFlag, coerceRate, parseRate } from './failures/core'
 import { jsonKind, parseErrorName } from './json-kind'
+import { monotonicMs } from './timing'
 
 /**
  * Remote config — fetches app config JSON from the CDN.
@@ -148,6 +149,12 @@ export function mapRemoteConfig(raw: Record<string, unknown>): Partial<SellwildC
 /** A mapped remote config and the failures found while mapping it. */
 export interface RemoteConfigMapping {
   config: Partial<SellwildConfig>
+  /**
+   * How long the fetch took to answer (ms, monotonic), when it answered:
+   * configure() records it as the config.fetch timing once the config's own
+   * TIMING_* values apply (FAILURES.md 18.1).
+   */
+  fetchMs?: number
   /**
    * One report per CDN key whose value was ignored or coerced:
    * config.adstack.invalid (AD_STACK, AD_STACK_BY_ZONE) and
@@ -415,9 +422,9 @@ export async function fetchRemoteConfigWithIssues(
   const failed = (failure: { code: 'config.fetch.network' | 'config.fetch.parse'; error: unknown; message?: string }): void => {
     const code = classifyFetchError(failure.code, timedOut, options.signal?.aborted === true)
     if (code === 'config.fetch.timeout') {
-      logFailure({ code, component: 'remoteConfig', message: `no answer in ${timeout} ms`, url })
+      logFailure({ code, component: 'remoteConfig', message: `no answer in ${timeout} ms`, url, context: { slug, timeoutMs: timeout } })
     } else if (code !== null) {
-      logFailure({ ...failure, code, component: 'remoteConfig', url })
+      logFailure({ ...failure, code, component: 'remoteConfig', url, context: { slug } })
     }
   }
   const empty = (): RemoteConfigMapping => ({ config: {}, issues: [] })
@@ -429,6 +436,7 @@ export async function fetchRemoteConfigWithIssues(
     // custom UA; browsers ignore it (web is out of scope for app census). No
     // query params — that would fragment the CloudFront cache.
     let res: Response
+    const started = monotonicMs()
     try {
       res = await fetch(url, {
         signal: controller.signal,
@@ -441,7 +449,7 @@ export async function fetchRemoteConfigWithIssues(
     }
     if (!res.ok) {
       // A missing config answers 403 AccessDenied XML (contracts/samples).
-      logFailure({ code: 'config.fetch.http', component: 'remoteConfig', message: `HTTP ${res.status}`, httpStatus: res.status, url })
+      logFailure({ code: 'config.fetch.http', component: 'remoteConfig', message: `HTTP ${res.status}`, httpStatus: res.status, url, context: { slug, status: res.status } })
       return empty()
     }
 
@@ -454,7 +462,7 @@ export async function fetchRemoteConfigWithIssues(
       return empty()
     }
     if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-      logFailure({ code: 'config.parse.invalid', component: 'remoteConfig', message: `config JSON is ${jsonKind(raw)}`, url })
+      logFailure({ code: 'config.parse.invalid', component: 'remoteConfig', message: `config JSON is ${jsonKind(raw)}`, url, context: { slug } })
       // mapRemoteConfig(null) throws, which always fell back to {}. Other
       // values still map as they always have.
       if (raw === null) return empty()
@@ -463,7 +471,7 @@ export async function fetchRemoteConfigWithIssues(
     // Values the CMS sent that had to be ignored or coerced, for the caller
     // to report. Once per fetch: the mapped config is cached.
     remoteConfigCache.set(cacheKey, config)
-    return { config, issues: issues.map((issue) => ({ ...issue, url })) }
+    return { config, issues: issues.map((issue) => ({ ...issue, url })), fetchMs: monotonicMs() - started }
   } finally {
     clearTimeout(timer)
   }

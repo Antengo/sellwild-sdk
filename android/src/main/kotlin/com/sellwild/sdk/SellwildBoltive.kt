@@ -31,7 +31,6 @@ import com.boltive.api.AdNetwork
 import com.boltive.api.AdViewConfiguration
 import com.boltive.api.BoltiveConfiguration
 import com.boltive.api.BoltiveListener
-import com.boltive.api.BoltiveMonitor
 import com.boltive.api.BoltiveTagDetails
 import com.sellwild.sdk.failures.SellwildFailureCode
 import com.sellwild.sdk.failures.SellwildFailureComponent
@@ -60,9 +59,15 @@ internal object SellwildBoltive {
 
     /** Whether Boltive is enabled for this placement. See the file header. */
     fun isEnabled(remoteJson: String?, zoneId: String?): Boolean {
-        val obj = parse(remoteJson) ?: return false
+        val obj = remoteObject(remoteJson) ?: return false
+        return isEnabled(obj, zoneId)
+    }
+
+    @Suppress("ReturnCount") // the key precedence, one return per switch (file header)
+    private fun isEnabled(obj: JSONObject, zoneId: String?): Boolean {
         val platform = obj.opt("MOBILE_BOLTIVE_ENABLED_ANDROID")
-        if (platform != null && platform != JSONObject.NULL && !(platform is String && platform.isBlank())) {
+        val platformSet = platform != null && platform != JSONObject.NULL
+        if (platformSet && !(platform is String && platform.isBlank())) {
             return truthy(platform)
         }
         if (truthy(obj.opt("MOBILE_BOLTIVE_ENABLED"))) return true
@@ -75,9 +80,10 @@ internal object SellwildBoltive {
 
     /** The monitoring policy for this placement, or null when Boltive is off
      *  (disabled, or no client id). */
+    @Suppress("ReturnCount") // guard clauses: off, no client id
     fun policy(remoteJson: String?, zoneId: String?): Policy? {
-        if (!isEnabled(remoteJson, zoneId)) return null
-        val obj = parse(remoteJson) ?: return null
+        val obj = remoteObject(remoteJson) ?: return null
+        if (!isEnabled(obj, zoneId)) return null
         val clientId = obj.optString("MOBILE_BOLTIVE_CLIENT_ID", "").trim()
         if (clientId.isEmpty()) return null
         val rate = number(obj.opt("MOBILE_BOLTIVE_SAMPLE_RATE")) ?: 1.0
@@ -91,14 +97,12 @@ internal object SellwildBoltive {
 
     /** Whether this render gets a monitor. Caps are checked before the sample
      *  roll; [roll] is in [0, 1). */
+    @Suppress("ReturnCount") // the caps, then the sample roll
     fun shouldMonitor(policy: Policy, slotCount: Int, sessionCount: Int, roll: Double): Boolean {
         if (policy.maxPerSlot > 0 && slotCount >= policy.maxPerSlot) return false
         if (policy.maxPerSession > 0 && sessionCount >= policy.maxPerSession) return false
         return roll < policy.sampleRate
     }
-
-    private fun parse(remoteJson: String?): JSONObject? =
-        remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() }
 
     private fun truthy(v: Any?): Boolean = when (v) {
         is Boolean -> v
@@ -115,8 +119,20 @@ internal object SellwildBoltive {
 }
 
 /**
+ * One Boltive monitor: the two calls the controller makes on Boltive's
+ * BoltiveMonitor. The real one comes from [SellwildAdNetwork.boltiveMonitor].
+ */
+internal interface BoltiveSession {
+    /** BoltiveMonitor.capture: start watching the creative inside [view]. */
+    fun capture(view: View, configuration: AdViewConfiguration, listener: BoltiveListener)
+
+    /** BoltiveMonitor.terminate: stop the monitor's polling timer. */
+    fun terminate()
+}
+
+/**
  * Per-ad-view Boltive monitor. Created once per [SellwildAdView]; holds at most
- * one live [BoltiveMonitor]. Each monitored render gets a fresh monitor and the
+ * one live Boltive monitor ([BoltiveSession]). Each monitored render gets a fresh monitor and the
  * previous one is terminated first: a monitor's timer keeps polling the
  * creative WebView it captured, which a refresh destroys. A render that isn't
  * monitored terminates it too, so a sampled-out render costs nothing. Main
@@ -137,7 +153,10 @@ internal class SellwildBoltiveController {
     var slotCount = 0
         private set
 
-    private var monitor: BoltiveMonitor? = null
+    private var monitor: BoltiveSession? = null
+
+    /** The zone the live monitor watches, for a failure report from [stop]. */
+    private var monitorZoneId: String? = null
 
     /** Monitors created by this controller (for tests). */
     internal var monitorsCreated = 0
@@ -149,6 +168,9 @@ internal class SellwildBoltiveController {
      * [onBlocked] runs on the main thread with the view that was blocked.
      * Returns whether a monitor was attached.
      */
+    // Boltive's inputs plus the test seams roll and onBlocked; three outcomes (off, capture failed,
+    // monitored); BoltiveListener is a Kotlin interface, so no lambda.
+    @Suppress("LongParameterList", "ReturnCount", "ObjectLiteralToLambda")
     fun renderDidSucceed(
         bannerView: View,
         widthDp: Int,
@@ -171,8 +193,9 @@ internal class SellwildBoltiveController {
         // End the previous render's monitor before capturing the new creative.
         stop()
         val adNetwork = if (network == SellwildBoltive.Network.GAM) AdNetwork.GAM else AdNetwork.custom("Prebid")
-        val m = BoltiveMonitor(BoltiveConfiguration(policy.clientId, adNetwork))
+        val m = SellwildPrebidMobile.network.boltiveMonitor(BoltiveConfiguration(policy.clientId, adNetwork))
         monitor = m
+        monitorZoneId = zoneId
         monitorsCreated++
         val details = BoltiveTagDetails(tag.adUnitId).apply {
             tag.advertiserId?.let { advertiserId = it }
@@ -182,11 +205,15 @@ internal class SellwildBoltiveController {
         }
         val blocked = java.lang.ref.WeakReference(bannerView)
         val captured = runCatching {
-            m.capture(bannerView, AdViewConfiguration(widthDp, heightDp, details), object : BoltiveListener {
-                override fun onAdBlocked() {
-                    main.post { blocked.get()?.let(onBlocked) }
+            m.capture(
+                bannerView,
+                AdViewConfiguration(widthDp, heightDp, details),
+                object : BoltiveListener {
+                    override fun onAdBlocked() {
+                        main.post { blocked.get()?.let(onBlocked) }
+                    }
                 }
-            })
+            )
         }
         captured.exceptionOrNull()?.let { e ->
             SellwildFailures.log(
@@ -201,13 +228,33 @@ internal class SellwildBoltiveController {
         }
         slotCount++
         val session = SellwildBoltive.sessionCount.incrementAndGet()
-        if (debug) SellwildLog.debug { "[SellwildBoltive] monitoring render — zone ${zoneId.orEmpty()}, $network, slot #$slotCount, session #$session" }
+        if (debug) {
+            SellwildLog.debug {
+                "[SellwildBoltive] monitoring render — zone ${zoneId.orEmpty()}, $network, " +
+                    "slot #$slotCount, session #$session"
+            }
+        }
         return true
     }
 
-    /** Terminate the live monitor (if any). */
+    /**
+     * Terminate the live monitor (if any). A monitor that throws while
+     * terminating is reported (ad.boltive_terminate.exception) and dropped
+     * all the same.
+     */
     fun stop() {
-        monitor?.let { runCatching { it.terminate() } }
+        val live = monitor ?: return
+        val zoneId = monitorZoneId
         monitor = null
+        monitorZoneId = null
+        runCatching { live.terminate() }.onFailure { e ->
+            SellwildFailures.log(
+                code = SellwildFailureCode.AD_BOLTIVE_TERMINATE_EXCEPTION,
+                component = SellwildFailureComponent.BANNER,
+                severity = SellwildFailureSeverity.WARN,
+                error = e,
+                zoneId = zoneId,
+            )
+        }
     }
 }

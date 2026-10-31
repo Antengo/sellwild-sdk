@@ -20,6 +20,7 @@ export type SchemaName =
   | 'localized-listings-config'
   | 'localized-listings-response'
   | 'rn-native-config'
+  | 'sdk-timing-event'
 
 const ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true })
 addFormats(ajv)

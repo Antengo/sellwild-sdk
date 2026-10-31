@@ -243,15 +243,30 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
             if (map.hasKey("pbsDebug")) config = config.copy(pbsDebug = map.getBoolean("pbsDebug"))
             if (map.hasKey("geo") && !map.isNull("geo")) config = config.copy(geo = RnGeo.readableMapToGeo(map.getMap("geo")))
             if (map.hasKey("adRefreshMax")) config = config.copy(adRefreshMax = map.getInt("adRefreshMax"))
-            if (map.hasKey("adRefreshMaxMobile")) config = config.copy(adRefreshMaxMobile = map.getInt("adRefreshMaxMobile"))
-            if (map.hasKey("adRefreshIntervalMs")) config = config.copy(adRefreshIntervalMs = map.getDouble("adRefreshIntervalMs").toLong())
+            if (map.hasKey(
+                    "adRefreshMaxMobile"
+                )
+            ) {
+                config = config.copy(adRefreshMaxMobile = map.getInt("adRefreshMaxMobile"))
+            }
+            if (map.hasKey(
+                    "adRefreshIntervalMs"
+                )
+            ) {
+                config = config.copy(adRefreshIntervalMs = map.getDouble("adRefreshIntervalMs").toLong())
+            }
 
             // Flat identity/display/zone fields — mirror the iOS feed bridge so
             // static buildConfig() and overrides land identically. SellwildSDK.apply
             // (above) resolves these from `remote` when present; these overlay on top.
             if (map.hasKey("slug")) config = config.copy(slug = map.getString("slug") ?: config.slug)
             if (map.hasKey("listingsUrl")) config = config.copy(listingsUrl = map.getString("listingsUrl"))
-            if (map.hasKey("priceColor")) config = config.copy(priceColor = map.getString("priceColor") ?: config.priceColor)
+            if (map.hasKey(
+                    "priceColor"
+                )
+            ) {
+                config = config.copy(priceColor = map.getString("priceColor") ?: config.priceColor)
+            }
             readZoneId(map, "bannerZid", problems) { config = config.copy(bannerZid = it) }
             readZoneId(map, "bottomBannerZid", problems) { config = config.copy(bottomBannerZid = it) }
             // mobileZids / mobileBannerZid are OS-suffix-resolved by SellwildSDK.apply
@@ -324,25 +339,16 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
         }
 
         /**
-         * Reads [key] as text into [set]: text as it is, and null for a JSON
-         * null (it clears the field, as before). A value of another type is
-         * dropped and added to [problems]. Nothing happens when the key is absent.
-         */
-        private inline fun readText(map: ReadableMap, key: String, problems: MutableList<String>, set: (String?) -> Unit) {
-            if (!map.hasKey(key)) return
-            when (val type = map.getType(key)) {
-                ReadableType.Null -> set(null)
-                ReadableType.String -> set(map.getString(key))
-                else -> problems += RnBridgeRules.wrongType(key, type.name, "text")
-            }
-        }
-
-        /**
          * Reads the zone id [key] into [set] through [zoneIdOrNull]: text or a number,
          * and nothing for missing, null, empty or `0` (core's unset default). A value of
          * another type is dropped and added to [problems].
          */
-        private inline fun readZoneId(map: ReadableMap, key: String, problems: MutableList<String>, set: (String) -> Unit) {
+        private inline fun readZoneId(
+            map: ReadableMap,
+            key: String,
+            problems: MutableList<String>,
+            set: (String) -> Unit
+        ) {
             if (!map.hasKey(key) || map.isNull(key)) return
             when (val type = map.getType(key)) {
                 ReadableType.String, ReadableType.Number -> zoneIdOrNull(map, key)?.let(set)
@@ -356,7 +362,13 @@ class SellwildFeedViewManager : SimpleViewManager<SellwildFeedView>() {
          * is dropped and added to [problems]. Nothing happens when it is absent
          * or null.
          */
-        private inline fun readTextList(map: ReadableMap, key: String, problems: MutableList<String>, set: (List<String>) -> Unit) {
+        @Suppress("ReturnCount") // absent or null, the wrong type, read
+        private inline fun readTextList(
+            map: ReadableMap,
+            key: String,
+            problems: MutableList<String>,
+            set: (List<String>) -> Unit
+        ) {
             if (!map.hasKey(key) || map.isNull(key)) return
             val type = map.getType(key)
             val arr = if (type == ReadableType.Array) map.getArray(key) else null

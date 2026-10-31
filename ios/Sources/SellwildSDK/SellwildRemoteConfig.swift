@@ -62,7 +62,7 @@ public enum SellwildSDK {
 
         static var live: ConfigureEnvironment {
             ConfigureEnvironment(
-                session: .shared,
+                session: SellwildNetwork.session,
                 makeURL: { URL(string: $0) },
                 events: .shared,
                 bootstrap: SellwildPrebidMobile.bootstrap(with:)
@@ -81,13 +81,20 @@ public enum SellwildSDK {
 
         // Partner attribution first, so a failure of the fetch below carries
         // the partner, and so does every event sent before any ad view exists.
-        SellwildFailures.setContext { $0.partnerCode = partnerCode }
+        SellwildFailures.setContext {
+            $0.partnerCode = partnerCode
+            $0.slug = slug
+        }
         environment.events.partnerCode = partnerCode
 
         let urlString = configURLString(partnerCode: partnerCode, slug: slug)
+        // The fetch's own time, recorded below once this config's TIMING_* values apply.
+        var fetchMs: Double?
         if let url = environment.makeURL(urlString) {
             let request = configRequest(url: url, timeout: timeout)
+            let started = SellwildTiming.monotonic()
             if let fetched = await fetchRemoteConfig(request, session: environment.session) {
+                fetchMs = (SellwildTiming.monotonic() - started) * 1000
                 config = apply(fetched.raw, to: config)
                 // Stash the raw payload so unmapped CDN keys (new bidders,
                 // forward-compatible settings) stay readable via remoteValues
@@ -103,6 +110,9 @@ public enum SellwildSDK {
 
         overrides?(&config)
         applyRuntimeFlags(config, events: environment.events)
+        SellwildTiming.remote = config.remoteValues
+        if let fetchMs { SellwildTiming.record(step: "config.fetch", ms: fetchMs) }
+        await MainActor.run { SellwildGuards.install() }
 
         // Bootstrap PrebidMobile + GMA SDK as soon as we have a config. This
         // is idempotent — only the first call performs initialization, every
@@ -157,7 +167,8 @@ public enum SellwildSDK {
             let status = (response as? HTTPURLResponse)?.statusCode
             SellwildFailures.log(code: .configFetchHttp, component: .remoteConfig,
                                  message: status.map { "HTTP \($0)" } ?? "not an HTTP response",
-                                 httpStatus: status, url: url)
+                                 httpStatus: status, url: url,
+                                 context: ["timeoutSeconds": request.timeoutInterval])
             return nil
         }
         let json: Any

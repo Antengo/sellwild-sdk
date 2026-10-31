@@ -547,9 +547,12 @@ describe('fetchRemoteConfigWithIssues', () => {
           url: 'https://widget.sellwild.com/app/minimal/minimal.json',
         },
       ],
+      fetchMs: first.fetchMs,
     })
+    expect(first.fetchMs).toBeGreaterThanOrEqual(0)
     expect(second.config).toBe(first.config)
     expect(second.issues).toEqual([])
+    expect(second.fetchMs).toBeUndefined()
     expect(fetchMock).toHaveBeenCalledOnce()
     expect(takeFailureEvents()).toEqual([])
   })

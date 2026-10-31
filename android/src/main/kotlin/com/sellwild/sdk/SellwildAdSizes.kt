@@ -33,6 +33,7 @@ import com.sellwild.prebid.AdSize as PrebidAdSize
 import com.sellwild.prebid.BannerAdUnit
 import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView
 
+@Suppress("TooManyFunctions") // one small pure helper per size rule, tested one by one
 object SellwildAdSizes {
 
     /** A banner size in dp. */

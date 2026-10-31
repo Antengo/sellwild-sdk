@@ -8,7 +8,7 @@
 // Units: string lengths are Unicode code points, sizes are UTF-8 bytes, times
 // are epoch milliseconds.
 
-export const CONTRACT_VERSION = '1'
+export const CONTRACT_VERSION = '2'
 export const EVENT_NAME = 'clientFailure'
 export const INVALID_CODE = 'client.code.invalid'
 export const UNKNOWN = 'unknown'
@@ -16,17 +16,28 @@ export const UNKNOWN = 'unknown'
 export const COMPONENTS = Object.freeze([
   'configure', 'remoteConfig', 'listings', 'localized', 'feed', 'banner', 'native',
   'video', 'house', 'bridge', 'webview', 'widget', 'shorts', 'tv', 'flipcard',
-  'growthcode', 'geo', 'storage',
+  'growthcode', 'geo', 'storage', 'sdk',
 ])
 export const SEVERITIES = Object.freeze(['fatal', 'error', 'warn'])
 export const CLIENTS = Object.freeze(['core', 'react-native', 'ios', 'android', 'flutter', 'widget'])
 export const WRAPPERS = Object.freeze(['react-native', 'flutter'])
 
-// Wire order of attribute keys. This is also the allowlist: nothing else is sent.
+// Wire order of attribute keys. This is also the allowlist: nothing else is
+// sent, except the call-site context keys `ctx.<key>` (CTX_KEY_RE), which
+// follow these in key order.
 export const ATTRIBUTE_KEYS = Object.freeze([
   'code', 'client', 'clientVersion', 'severity', 'fv', 'errName', 'msg', 'stack',
-  'httpStatus', 'host', 'zoneId', 'wrapper', 'release', 'seq', 'repeat', 'capped',
+  'httpStatus', 'host', 'zoneId', 'wrapper', 'release',
+  'appId', 'appVersion', 'os', 'device', 'slug',
+  'seq', 'repeat', 'capped',
 ])
+
+// The app context the shell sets once: context field → attribute, each cut to LIMITS.appField.
+export const APP_CONTEXT_KEYS = Object.freeze(['appId', 'appVersion', 'os', 'device', 'slug'])
+
+// Call-site context: input.context keys, sent as `ctx.<key>`.
+export const CTX_KEY_RE = /^[a-z][a-zA-Z0-9_]{0,31}$/
+export const CTX_PREFIX = 'ctx.'
 
 export const LIMITS = Object.freeze({
   codeMax: 64,
@@ -34,15 +45,20 @@ export const LIMITS = Object.freeze({
   msg: 200,
   msgBudget: 80,
   msgKey: 64,
-  stack: 800,
-  stackFrames: 5,
+  stack: 4000,
+  stackFrames: 30,
+  frameInput: 500,
   zoneId: 32,
   host: 253,
   partnerCode: 64,
   clientVersion: 32,
   release: 64,
-  maxAttributes: 16,
-  eventBytes: 2048,
+  appField: 64,
+  ctxKeys: 8,
+  ctxValue: 200,
+  ctxInput: 1000,
+  maxAttributes: 32,
+  eventBytes: 8192,
   dedupeWindowMs: 60000,
   lruSize: 50,
   perKeyEmits: 3,
@@ -275,10 +291,11 @@ function sanitizeFrame(line) {
 }
 
 /**
- * First 5 frames of a stack, one per line: the engine header line
- * (`errName` or `errName: …`) is dropped, URLs become hosts, directories and
- * query strings are removed, emails/UUIDs/IPs are masked. Max 800 code points.
- * Returns null when nothing is left.
+ * First 30 frames of a stack, one per line: the engine header line
+ * (`errName` or `errName: …`) is dropped, each frame is cut to its first 500
+ * UTF-16 units (so the patterns never see a long line), URLs become hosts,
+ * directories and query strings are removed, emails/UUIDs/IPs are masked.
+ * Max 4000 code points. Returns null when nothing is left.
  */
 export function sanitizeStack(stack, errName) {
   if (typeof stack !== 'string') return null
@@ -286,7 +303,9 @@ export function sanitizeStack(stack, errName) {
   if (errName && lines.length > 0 && (lines[0] === errName || lines[0].startsWith(errName + ':'))) {
     lines = lines.slice(1)
   }
-  const frames = lines.slice(0, LIMITS.stackFrames).map(sanitizeFrame).filter((l) => l !== '')
+  const frames = lines.slice(0, LIMITS.stackFrames)
+    .map((l) => sanitizeFrame(capInput(l, LIMITS.frameInput)))
+    .filter((l) => l !== '')
   if (frames.length === 0) return null
   return truncateUnicode(frames.join('\n'), LIMITS.stack)
 }
@@ -333,6 +352,49 @@ export function normalizeZoneId(v) {
   if (s === null) return null
   const t = cleanText(s)
   return t === '' ? null : truncateUnicode(t, LIMITS.zoneId)
+}
+
+/**
+ * A call-site context value as text: a string is cut to its first 1000 UTF-16
+ * units (capInput) and sanitized like msg (7.5);
+ * a safe integer is written in decimal; another finite number with
+ * |v| < 1e15 is written with up to 6 decimals, trailing zeros removed. Cut to
+ * 200 code points. Anything else, or empty, → null.
+ */
+export function normalizeCtxValue(v) {
+  let s = null
+  if (typeof v === 'string') {
+    s = sanitizeMessage(capInput(v, LIMITS.ctxInput))
+  } else if (typeof v === 'number' && Number.isFinite(v)) {
+    if (Number.isSafeInteger(v)) s = String(v)
+    else if (Math.abs(v) < 1e15) s = formatDecimal(v)
+  }
+  if (s === null || s === '') return null
+  return truncateUnicode(s, LIMITS.ctxValue)
+}
+
+
+/** Up to 6 decimals, trailing zeros and a bare point removed; "-0" → "0". */
+export function formatDecimal(v) {
+  let s = v.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')
+  if (s === '-0') s = '0'
+  return s
+}
+
+/**
+ * The call-site context as attributes: keys matching CTX_KEY_RE whose value
+ * normalizes to text, sorted by key, the first 8 kept, each as `ctx.<key>`.
+ * Anything that is not a plain object → none.
+ */
+export function normalizeCtx(context) {
+  if (context === null || typeof context !== 'object' || Array.isArray(context)) return []
+  return Object.keys(context)
+    .filter((k) => CTX_KEY_RE.test(k))
+    .sort()
+    .map((k) => [k, normalizeCtxValue(context[k])])
+    .filter(([, v]) => v !== null)
+    .slice(0, LIMITS.ctxKeys)
+    .map(([k, v]) => [CTX_PREFIX + k, v])
 }
 
 function cleanBounded(v, max) {
@@ -403,7 +465,7 @@ export function isSampled(uid, rate) {
 // start after it.
 
 /** UTF-16 code units of each text input a shell hands to the pure core. */
-export const INPUT_LIMITS = Object.freeze({ message: 1000, errMessage: 1000, stack: 2000 })
+export const INPUT_LIMITS = Object.freeze({ message: 1000, errMessage: 1000, stack: 16000 })
 
 /**
  * The first `max` UTF-16 units of a string; anything else unchanged. A split
@@ -450,7 +512,8 @@ function jsonString(s) {
  * 2048-byte budget is measured against.
  */
 export function canonicalJson(event) {
-  const attrs = ATTRIBUTE_KEYS.filter((k) => event.attributes[k] !== undefined)
+  const ctxKeys = Object.keys(event.attributes).filter((k) => k.startsWith(CTX_PREFIX)).sort()
+  const attrs = [...ATTRIBUTE_KEYS.filter((k) => event.attributes[k] !== undefined), ...ctxKeys]
     .map((k) => jsonString(k) + ':' + jsonString(event.attributes[k]))
     .join(',')
   return '{"event":' + jsonString(event.event) +
@@ -467,8 +530,8 @@ export function eventByteSize(event) {
 
 /**
  * Build the wire event from normalized fields and apply the size budget:
- * over 2048 bytes → drop stack; still over → cut msg to 80; still over → drop
- * msg; still over → send as is.
+ * over 8192 bytes → drop every ctx.* key; still over → drop stack; still over
+ * → cut msg to 80; still over → drop msg; still over → send as is.
  */
 export function buildFailureEvent(fields, context, uid, now) {
   const ctx = context ?? {}
@@ -486,12 +549,18 @@ export function buildFailureEvent(fields, context, uid, now) {
     zoneId: fields.zoneId ?? undefined,
     wrapper: WRAPPERS.includes(ctx.wrapper) ? ctx.wrapper : undefined,
     release: cleanBounded(ctx.release, LIMITS.release) ?? undefined,
+    appId: cleanBounded(ctx.appId, LIMITS.appField) ?? undefined,
+    appVersion: cleanBounded(ctx.appVersion, LIMITS.appField) ?? undefined,
+    os: cleanBounded(ctx.os, LIMITS.appField) ?? undefined,
+    device: cleanBounded(ctx.device, LIMITS.appField) ?? undefined,
+    slug: cleanBounded(ctx.slug, LIMITS.appField) ?? undefined,
     seq: String(fields.seq),
     repeat: String(fields.repeat),
     capped: fields.capped ? '1' : undefined,
   }
   const attributes = {}
   for (const k of ATTRIBUTE_KEYS) if (a[k] !== undefined) attributes[k] = a[k]
+  for (const [k, v] of fields.ctx ?? []) attributes[k] = v
   const event = {
     event: EVENT_NAME,
     action: fields.action,
@@ -499,6 +568,9 @@ export function buildFailureEvent(fields, context, uid, now) {
     attributes,
     uid: typeof uid === 'string' ? uid : '',
     createdTime: now,
+  }
+  if (eventByteSize(event) > LIMITS.eventBytes) {
+    for (const k of Object.keys(attributes)) if (k.startsWith(CTX_PREFIX)) delete attributes[k]
   }
   if (eventByteSize(event) > LIMITS.eventBytes && attributes.stack !== undefined) delete attributes.stack
   if (eventByteSize(event) > LIMITS.eventBytes && attributes.msg !== undefined) {
@@ -518,8 +590,9 @@ function touch(keys, entry) {
  * The whole decision as a pure function.
  *
  * input:   { code, component, severity?, errName?, errMessage?, message?, stack?,
- *            httpStatus?, url?, zoneId? }  (other fields are ignored)
+ *            httpStatus?, url?, zoneId?, context? }  (other fields are ignored)
  * context: { partnerCode, client, clientVersion, wrapper?, release?,
+ *            appId?, appVersion?, os?, device?, slug?,
  *            eventsEnabled?, failuresEnabled?, failuresSampleRate? }
  * state:   { sessionCount, keys: [{ key, lastEmitAt, suppressed, emits }] }
  *          keys are ordered least → most recently used.
@@ -581,6 +654,7 @@ export function decideFailure(state, input, context, uid, now) {
     httpStatus: normalizeHttpStatus(inp.httpStatus),
     host: host === null ? null : truncateUnicode(host, LIMITS.host),
     zoneId: normalizeZoneId(inp.zoneId),
+    ctx: normalizeCtx(inp.context),
     seq,
     repeat,
     capped: seq === LIMITS.sessionEmits,

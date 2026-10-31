@@ -56,7 +56,10 @@ final class SellwildFailuresCoreTests: XCTestCase {
             "msgBudget": Core.Limits.msgBudget, "msgKey": Core.Limits.msgKey, "stack": Core.Limits.stack,
             "stackFrames": Core.Limits.stackFrames, "zoneId": Core.Limits.zoneId, "host": Core.Limits.host,
             "partnerCode": Core.Limits.partnerCode, "clientVersion": Core.Limits.clientVersion,
-            "release": Core.Limits.release, "maxAttributes": Core.attributeKeys.count,
+            "release": Core.Limits.release, "maxAttributes": Core.Limits.maxAttributes,
+                "frameInput": Core.Limits.frameInput,
+            "appField": Core.Limits.appField, "ctxKeys": Core.Limits.ctxKeys, "ctxValue": Core.Limits.ctxValue,
+            "ctxInput": Core.Limits.ctxInput,
             "eventBytes": Core.Limits.eventBytes, "dedupeWindowMs": Int(Core.Limits.dedupeWindowMs),
             "lruSize": Core.Limits.lruSize, "perKeyEmits": Core.Limits.perKeyEmits,
             "sessionEmits": Core.Limits.sessionEmits,
@@ -66,7 +69,7 @@ final class SellwildFailuresCoreTests: XCTestCase {
 
     // MARK: Unit tables
 
-    private func units(_ name: String) throws -> [[String: Any]] {
+    func units(_ name: String) throws -> [[String: Any]] {
         let units = try XCTUnwrap(try goldenFile()["units"] as? [String: Any])
         let table = try XCTUnwrap(units[name] as? [[String: Any]], name)
         XCTAssertFalse(table.isEmpty, name)
@@ -123,7 +126,8 @@ final class SellwildFailuresCoreTests: XCTestCase {
 
     func testUnitNormalizeHttpStatus() throws {
         for row in try units("normalizeHttpStatus") {
-            XCTAssertEqual(Core.normalizeHttpStatus(row["input"]), row["expected"] as? String, "\(row["input"] ?? "nil")")
+            XCTAssertEqual(Core.normalizeHttpStatus(row["input"]), row["expected"] as? String,
+                           "\(row["input"] ?? "nil")")
         }
     }
 
@@ -180,6 +184,76 @@ final class SellwildFailuresCoreTests: XCTestCase {
         XCTAssertNil(event.attributes["release"])
     }
 
+    func testEchoLine() {
+        let input = Core.Input(code: "config.fetch.http", component: "remoteConfig", severity: "warn",
+                               message: "HTTP 403 for jane@example.com")
+        let sent = Core.Decision(state: .init(), event: nil, flushNow: false, reason: nil)
+        XCTAssertEqual(Core.echoLine(input: input, decision: sent),
+                       "[Sellwild] failure config.fetch.http remoteConfig warn sent HTTP 403 for <email>")
+        let dropped = Core.Decision(state: .init(), event: nil, flushNow: false, reason: .sampledOut)
+        XCTAssertEqual(Core.echoLine(input: .init(code: "Bad", component: nil), decision: dropped),
+                       "[Sellwild] failure client.code.invalid unknown error sampled_out")
+    }
+
+    // MARK: JSON helpers
+
+    static func input(_ d: [String: Any]) -> Core.Input {
+        Core.Input(code: d["code"], component: d["component"], severity: d["severity"], errName: d["errName"],
+                   errMessage: d["errMessage"], message: d["message"], stack: d["stack"],
+                   httpStatus: d["httpStatus"], url: d["url"], zoneId: d["zoneId"], context: d["context"])
+    }
+
+    static func context(_ d: [String: Any]) -> Core.Context {
+        Core.Context(partnerCode: d["partnerCode"], client: d["client"], clientVersion: d["clientVersion"],
+                     wrapper: d["wrapper"], release: d["release"], appId: d["appId"], appVersion: d["appVersion"],
+                     os: d["os"], device: d["device"], slug: d["slug"], eventsEnabled: d["eventsEnabled"],
+                     failuresEnabled: d["failuresEnabled"], failuresSampleRate: d["failuresSampleRate"])
+    }
+
+    static func state(_ any: Any?) throws -> Core.State {
+        let d = try XCTUnwrap(any as? [String: Any])
+        let keys = try XCTUnwrap(d["keys"] as? [[String: Any]]).map { k in
+            Core.KeyEntry(key: try XCTUnwrap(k["key"] as? String),
+                          lastEmitAt: try XCTUnwrap((k["lastEmitAt"] as? NSNumber)?.int64Value),
+                          suppressed: try XCTUnwrap(k["suppressed"] as? Int),
+                          emits: try XCTUnwrap(k["emits"] as? Int))
+        }
+        return Core.State(sessionCount: try XCTUnwrap(d["sessionCount"] as? Int), keys: keys)
+    }
+
+    static func json(_ event: Core.Event) -> [String: Any] {
+        ["event": event.event, "action": event.action, "label": event.label, "attributes": event.attributes,
+         "uid": event.uid, "createdTime": event.createdTime]
+    }
+
+    static func json(_ state: Core.State) -> [String: Any] {
+        ["sessionCount": state.sessionCount,
+         "keys": state.keys.map { ["key": $0.key, "lastEmitAt": $0.lastEmitAt, "suppressed": $0.suppressed,
+                                   "emits": $0.emits] }]
+    }
+
+    /// Sorted-key JSON text, so two values compare equal exactly when their
+    /// JSON is the same.
+    static func canonical(_ value: Any) throws -> String {
+        let data = try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys, .fragmentsAllowed])
+        return String(decoding: data, as: UTF8.self)
+    }
+}
+
+// fv 2: the call-site context values (FAILURES.md 7.7).
+extension SellwildFailuresCoreTests {
+
+    func testTheCtxValueTable() throws {
+        for row in try units("normalizeCtxValue") {
+            let input = row["input"] is NSNull ? nil : row["input"]
+            XCTAssertEqual(Core.normalizeCtxValue(input), row["expected"] as? String, "\(input ?? "nil")")
+        }
+    }
+}
+
+// Helpers the golden tables do not reach.
+extension SellwildFailuresCoreTests {
+
     func testTokenMatchersFollowTheRegexSemantics() {
         func matched(_ token: Core.Token, _ s: String) -> String? {
             let scalars = Array(s.unicodeScalars)
@@ -225,7 +299,8 @@ final class SellwildFailuresCoreTests: XCTestCase {
         XCTAssertNil(Core.sanitizeStack(" \n\r\n", errName: nil))
         XCTAssertNil(Core.sanitizeStack(42, errName: nil))
         XCTAssertEqual(Core.sanitizeStack("at file:///", errName: nil), "at <url>", "no host and no basename")
-        XCTAssertEqual(Core.sanitizeStack("at u@example.com 123e4567-e89b-12d3-a456-426614174000 10.1.2.3", errName: nil),
+        XCTAssertEqual(Core.sanitizeStack("at u@example.com 123e4567-e89b-12d3-a456-426614174000 10.1.2.3",
+                                          errName: nil),
                        "at <email> <id> <ip>")
     }
 
@@ -244,58 +319,5 @@ final class SellwildFailuresCoreTests: XCTestCase {
         XCTAssertFalse(Core.same("e\u{301}", "é"))
         XCTAssertFalse(Core.same("\u{212A}", "K"))
         XCTAssertTrue(Core.same("K", "K"))
-    }
-
-    func testEchoLine() {
-        let input = Core.Input(code: "config.fetch.http", component: "remoteConfig", severity: "warn",
-                               message: "HTTP 403 for jane@example.com")
-        let sent = Core.Decision(state: .init(), event: nil, flushNow: false, reason: nil)
-        XCTAssertEqual(Core.echoLine(input: input, decision: sent),
-                       "[Sellwild] failure config.fetch.http remoteConfig warn sent HTTP 403 for <email>")
-        let dropped = Core.Decision(state: .init(), event: nil, flushNow: false, reason: .sampledOut)
-        XCTAssertEqual(Core.echoLine(input: .init(code: "Bad", component: nil), decision: dropped),
-                       "[Sellwild] failure client.code.invalid unknown error sampled_out")
-    }
-
-    // MARK: JSON helpers
-
-    static func input(_ d: [String: Any]) -> Core.Input {
-        Core.Input(code: d["code"], component: d["component"], severity: d["severity"], errName: d["errName"],
-                   errMessage: d["errMessage"], message: d["message"], stack: d["stack"],
-                   httpStatus: d["httpStatus"], url: d["url"], zoneId: d["zoneId"])
-    }
-
-    static func context(_ d: [String: Any]) -> Core.Context {
-        Core.Context(partnerCode: d["partnerCode"], client: d["client"], clientVersion: d["clientVersion"],
-                     wrapper: d["wrapper"], release: d["release"], eventsEnabled: d["eventsEnabled"],
-                     failuresEnabled: d["failuresEnabled"], failuresSampleRate: d["failuresSampleRate"])
-    }
-
-    static func state(_ any: Any?) throws -> Core.State {
-        let d = try XCTUnwrap(any as? [String: Any])
-        let keys = try XCTUnwrap(d["keys"] as? [[String: Any]]).map { k in
-            Core.KeyEntry(key: try XCTUnwrap(k["key"] as? String),
-                          lastEmitAt: try XCTUnwrap((k["lastEmitAt"] as? NSNumber)?.int64Value),
-                          suppressed: try XCTUnwrap(k["suppressed"] as? Int),
-                          emits: try XCTUnwrap(k["emits"] as? Int))
-        }
-        return Core.State(sessionCount: try XCTUnwrap(d["sessionCount"] as? Int), keys: keys)
-    }
-
-    static func json(_ event: Core.Event) -> [String: Any] {
-        ["event": event.event, "action": event.action, "label": event.label, "attributes": event.attributes,
-         "uid": event.uid, "createdTime": event.createdTime]
-    }
-
-    static func json(_ state: Core.State) -> [String: Any] {
-        ["sessionCount": state.sessionCount,
-         "keys": state.keys.map { ["key": $0.key, "lastEmitAt": $0.lastEmitAt, "suppressed": $0.suppressed, "emits": $0.emits] }]
-    }
-
-    /// Sorted-key JSON text, so two values compare equal exactly when their
-    /// JSON is the same.
-    static func canonical(_ value: Any) throws -> String {
-        let data = try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys, .fragmentsAllowed])
-        return String(decoding: data, as: UTF8.self)
     }
 }

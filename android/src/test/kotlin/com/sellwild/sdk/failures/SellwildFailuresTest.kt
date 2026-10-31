@@ -57,7 +57,7 @@ class SellwildFailuresTest {
                 "client" to "android",
                 "clientVersion" to SellwildSDK.SDK_VERSION,
                 "severity" to "error",
-                "fv" to "1",
+                "fv" to "2",
                 "msg" to "HTTP 503",
                 "httpStatus" to "503",
                 "host" to "cache.sellwild.com",
@@ -88,7 +88,7 @@ class SellwildFailuresTest {
     }
 
     @Test
-    fun `an error gives errName, message and its first frames without a header`() {
+    fun `an error gives errName, message and its frames without a header`() {
         attached()
         val error = IOException("boom at https://cache.sellwild.com/x?q=1").apply {
             stackTrace = arrayOf(
@@ -101,7 +101,12 @@ class SellwildFailuresTest {
             )
         }
 
-        SellwildFailures.log(code = "listings.fetch.network", component = "listings", error = error, message = "fetch failed")
+        SellwildFailures.log(
+            code = "listings.fetch.network",
+            component = "listings",
+            error = error,
+            message = "fetch failed"
+        )
 
         val attributes = sink.pushed.single().attributes
         assertEquals("IOException", attributes["errName"])
@@ -113,9 +118,70 @@ class SellwildFailuresTest {
                 "java.lang.Thread.run(Unknown Source)",
                 "a.B.c(B.kt:1)",
                 "a.B.d(B.kt:2)",
+                "a.B.sixth(B.kt:6)",
             ).joinToString("\n"),
             attributes["stack"],
         )
+    }
+
+    @Test
+    fun `the stack follows the cause chain, names each cause without its message, and stops at 30 lines`() {
+        attached()
+        val root = java.net.SocketTimeoutException("connect to 10.1.2.3 timed out").apply {
+            stackTrace = arrayOf(StackTraceElement("java.net.Socket", "connect", "Socket.java", 633))
+        }
+        val error = IOException("fetch failed", root).apply {
+            stackTrace = arrayOf(
+                StackTraceElement("com.sellwild.sdk.SellwildAPIClient", "fetchListings", "SellwildAPI.kt", 122),
+            )
+        }
+        assertEquals(
+            "com.sellwild.sdk.SellwildAPIClient.fetchListings(SellwildAPI.kt:122)\n" +
+                "Caused by: SocketTimeoutException\n" +
+                "java.net.Socket.connect(Socket.java:633)",
+            SellwildFailures.stackOf(error),
+        )
+
+        val deep = IOException("deep").apply {
+            stackTrace = Array(40) { StackTraceElement("a.B", "f$it", "B.kt", it) }
+        }
+        assertEquals(30, SellwildFailures.stackOf(deep).lines().size)
+
+        // A cause cycle ends the chain instead of looping.
+        val a = IllegalStateException("a")
+        val b = IllegalArgumentException("b", a)
+        a.initCause(b)
+        a.stackTrace = arrayOf(StackTraceElement("a.A", "x", "A.kt", 1))
+        b.stackTrace = arrayOf(StackTraceElement("b.B", "y", "B.kt", 2))
+        assertEquals("a.A.x(A.kt:1)\nCaused by: IllegalArgumentException\nb.B.y(B.kt:2)", SellwildFailures.stackOf(a))
+    }
+
+    @Test
+    fun `log sends the call-site context as ctx keys and the app context set once`() {
+        attached()
+        SellwildFailures.setContext {
+            it.copy(
+                appId = "com.example",
+                appVersion = "2.0",
+                os = "Android 15",
+                device = "Pixel 8",
+                slug = "weatherbug-main"
+            )
+        }
+
+        SellwildFailures.log(
+            code = "listings.fetch.http",
+            component = "listings",
+            message = "HTTP 503",
+            context = mapOf("file" to "listings-weatherbug.json", "attempt" to 2, "Bad" to "x"),
+        )
+
+        val attributes = sink.pushed.single().attributes
+        assertEquals("listings-weatherbug.json", attributes["ctx.file"])
+        assertEquals("2", attributes["ctx.attempt"])
+        assertNull(attributes["ctx.Bad"])
+        val app = listOf("appId", "appVersion", "os", "device", "slug").map { attributes[it] }
+        assertEquals(listOf("com.example", "2.0", "Android 15", "Pixel 8", "weatherbug-main"), app)
     }
 
     // Input cap (FAILURES.md 3.3 item 4): message and errMessage are cut to 1000 UTF-16
@@ -127,7 +193,12 @@ class SellwildFailuresTest {
         // 998 digits sanitize to "<n>", so whatever follows them would be sent.
         val long = "1".repeat(998) + "ABCDEFG"
 
-        SellwildFailures.log(code = "listings.fetch.http", component = "listings", error = IllegalStateException(long), message = long)
+        SellwildFailures.log(
+            code = "listings.fetch.http",
+            component = "listings",
+            error = IllegalStateException(long),
+            message = long
+        )
 
         val attributes = sink.pushed.single().attributes
         assertEquals("<n>AB", attributes["msg"])
@@ -140,38 +211,26 @@ class SellwildFailuresTest {
 
         SellwildFailures.log(code = "listings.fetch.http", component = "listings", message = "1".repeat(996) + "WXYZ")
         SellwildFailures.log(code = "listings.fetch.http", component = "listings", message = "1".repeat(997) + "WXYZ")
-        SellwildFailures.log(code = "listings.fetch.http", component = "listings", message = "1".repeat(999) + "\uD83D\uDE00tail")
+        SellwildFailures.log(
+            code = "listings.fetch.http",
+            component = "listings",
+            message = "1".repeat(999) + "\uD83D\uDE00tail"
+        )
 
         assertEquals(listOf("<n>WXYZ", "<n>WXY", "<n>\uFFFD"), sink.pushed.map { it.attributes["msg"] })
     }
 
     @Test
-    fun `the stack handed to the core is cut to exactly 2000 units`() {
-        attached()
-        // Each first frame's directory prefix sanitizes away, so the sent stack shows
-        // where the cut fell. A 2000-unit first frame is kept whole (a cut at 1999
-        // would lose its ")"); a 1999-unit first frame keeps its newline but not the
-        // second frame's first letter (a cut at 2001 would send "b" as a frame).
-        val exact = IOException("x").apply {
-            stackTrace = arrayOf(
-                StackTraceElement("x/".repeat(995), "m", "F.kt", 1),
-                StackTraceElement("b", "c", "G.kt", 2),
-            )
+    fun `the stack handed to the core is cut to exactly 16000 units`() {
+        // 30 lines of 2000+ units each: far over the cap.
+        val long = IOException("x").apply {
+            stackTrace = Array(40) { StackTraceElement("x/".repeat(995), "m$it", "F.kt", 1) }
         }
-        // Another message, so the dedupe window does not drop the second call.
-        val oneShort = IOException("y").apply {
-            stackTrace = arrayOf(
-                StackTraceElement("x/".repeat(994), "mm", "F.kt", 1),
-                StackTraceElement("b", "c", "G.kt", 2),
-            )
-        }
-        assertEquals(2000, SellwildFailures.stackOf(exact).indexOf('\n'))
-        assertEquals(1999, SellwildFailures.stackOf(oneShort).indexOf('\n'))
 
-        SellwildFailures.log(code = "listings.fetch.network", component = "listings", error = exact)
-        SellwildFailures.log(code = "listings.fetch.network", component = "listings", error = oneShort)
+        val input = SellwildFailures.toInput("listings.fetch.network", "listings", null, long, null, null, null, null)
 
-        assertEquals(listOf(".m(F.kt:1)", ".mm(F.kt:1)"), sink.pushed.map { it.attributes["stack"] })
+        assertEquals(16000, (input.stack as String).length)
+        assertEquals(SellwildFailures.stackOf(long).substring(0, 16000), input.stack)
     }
 
     @Test
@@ -186,7 +245,11 @@ class SellwildFailuresTest {
     fun `an anonymous error class sends no errName`() {
         attached()
 
-        SellwildFailures.log(code = "config.fetch.network", component = "remoteConfig", error = object : RuntimeException("x") {})
+        SellwildFailures.log(
+            code = "config.fetch.network",
+            component = "remoteConfig",
+            error = object : RuntimeException("x") {}
+        )
 
         assertFalse(sink.pushed.single().attributes.containsKey("errName"))
     }
@@ -298,12 +361,20 @@ class SellwildFailuresTest {
     fun `remote flags reach the gate raw`() {
         attached()
         SellwildFailures.setContext { it.copy(eventsEnabled = 0) }
-        SellwildFailures.log(code = "config.fetch.http", component = "remoteConfig", severity = SellwildFailureSeverity.FATAL)
+        SellwildFailures.log(
+            code = "config.fetch.http",
+            component = "remoteConfig",
+            severity = SellwildFailureSeverity.FATAL
+        )
         SellwildFailures.setContext { it.copy(eventsEnabled = null, failuresSampleRate = "0") }
         SellwildFailures.log(code = "config.fetch.http", component = "remoteConfig")
         assertTrue(sink.pushed.isEmpty())
 
-        SellwildFailures.log(code = "config.fetch.http", component = "remoteConfig", severity = SellwildFailureSeverity.FATAL)
+        SellwildFailures.log(
+            code = "config.fetch.http",
+            component = "remoteConfig",
+            severity = SellwildFailureSeverity.FATAL
+        )
         assertEquals(listOf("fatal"), sink.pushed.map { it.attributes["severity"] })
     }
 
@@ -434,7 +505,8 @@ class SellwildFailuresTest {
 
         SellwildFailures.attach(context)
 
-        assertEquals(1, SellwildFailures.internalErrorCount)
+        // Once each for the app context, the queue and the guards.
+        assertEquals(3, SellwildFailures.internalErrorCount)
         SellwildFailures.log(code = "config.fetch.http", component = "remoteConfig")
         assertEquals("still held: nothing was attached", 1, SellwildFailures.pendingCount)
     }
@@ -458,7 +530,10 @@ class SellwildFailuresTest {
         }
 
         assertEquals(FailuresCore.SESSION_EMITS, sink.pushed.size)
-        assertEquals((1..FailuresCore.SESSION_EMITS).map { "$it" }.toSet(), sink.pushed.map { it.attributes["seq"] }.toSet())
+        assertEquals(
+            (1..FailuresCore.SESSION_EMITS).map { "$it" }.toSet(),
+            sink.pushed.map { it.attributes["seq"] }.toSet()
+        )
     }
 
     @Test

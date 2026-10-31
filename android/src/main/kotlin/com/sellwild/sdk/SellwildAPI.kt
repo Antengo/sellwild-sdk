@@ -9,6 +9,7 @@ import com.sellwild.sdk.failures.SellwildFailureCode
 import com.sellwild.sdk.failures.SellwildFailureComponent
 import com.sellwild.sdk.failures.SellwildFailureSeverity
 import com.sellwild.sdk.failures.SellwildFailures
+import com.sellwild.sdk.timing.SellwildTiming
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -160,6 +161,7 @@ class SellwildAPIClient internal constructor(
                 logListings(SellwildFailureCode.LISTINGS_URL_INVALID, error = e)
                 return@withContext Result.failure(e)
             }
+            val fetchTimer = SellwildTiming.start("listings.fetch")
             val reply = runCatching { get(url, accept = null) }.getOrElse { e ->
                 logListings(Fetch.codeFor(e, Fetch.LISTINGS), error = e, url = listingsUrl)
                 return@withContext Result.failure(e)
@@ -173,6 +175,7 @@ class SellwildAPIClient internal constructor(
                 )
                 return@withContext Result.failure(SellwildException("HTTP ${reply.status} from $listingsUrl"))
             }
+            fetchTimer()
 
             // Seed the geo state from CloudFront's viewer-country-region header when the
             // partner hasn't supplied one, so the localized-listings path can key a
@@ -192,8 +195,12 @@ class SellwildAPIClient internal constructor(
                 }
             }
 
+            val decodeTimer = SellwildTiming.start("listings.decode")
             runCatching { ListingsParser.parse(reply.body) }
-                .onSuccess { listingCache[listingsUrl] = it }
+                .onSuccess {
+                    decodeTimer()
+                    listingCache[listingsUrl] = it
+                }
                 .onFailure { e -> logListings(Fetch.codeFor(e, Fetch.LISTINGS), error = e, url = listingsUrl) }
         }
 
@@ -266,6 +273,7 @@ class SellwildAPIClient internal constructor(
         message = message,
         httpStatus = httpStatus,
         url = url,
+        context = url?.let { mapOf("file" to FailuresCore.urlFileName(it)) },
     )
 
     private fun logLocalized(
@@ -282,6 +290,7 @@ class SellwildAPIClient internal constructor(
         message = message,
         httpStatus = httpStatus,
         url = url,
+        context = url?.let { mapOf("file" to FailuresCore.urlFileName(it)) },
     )
 }
 
@@ -349,25 +358,27 @@ internal object HttpEventSender : SellwildEventSender {
 internal fun buildBatchJson(batch: List<SellwildEvent>, partnerCode: String?, sdkVersion: String): String =
     JSONArray().apply {
         batch.forEach { e ->
-            put(JSONObject().apply {
-                put("event", e.event)
-                e.action?.let { put("action", it) }
-                e.label?.let { put("label", it) }
-                put("uid", e.uid)
-                put("createdTime", e.createdTime)
-                put(
-                    "attributes",
-                    JSONObject().apply {
-                        e.attributes?.forEach { (k, v) -> put(k, v) }
-                        put("type", "android")
-                        put("sdkVersion", sdkVersion)
-                        // logFailure sets a clientFailure's code itself, cleaned and cut to 64:
-                        // never stamp over it (FAILURES.md 6.1 item 4).
-                        val ownCode = e.event == FailuresCore.EVENT_NAME && has("code")
-                        if (!ownCode) partnerCode?.takeIf { it.isNotEmpty() }?.let { put("code", it) }
-                    },
-                )
-            })
+            put(
+                JSONObject().apply {
+                    put("event", e.event)
+                    e.action?.let { put("action", it) }
+                    e.label?.let { put("label", it) }
+                    put("uid", e.uid)
+                    put("createdTime", e.createdTime)
+                    put(
+                        "attributes",
+                        JSONObject().apply {
+                            e.attributes?.forEach { (k, v) -> put(k, v) }
+                            put("type", "android")
+                            put("sdkVersion", sdkVersion)
+                            // logFailure sets a clientFailure's code itself, cleaned and cut to 64:
+                            // never stamp over it (FAILURES.md 6.1 item 4).
+                            val ownCode = e.event == FailuresCore.EVENT_NAME && has("code")
+                            if (!ownCode) partnerCode?.takeIf { it.isNotEmpty() }?.let { put("code", it) }
+                        },
+                    )
+                }
+            )
         }
     }.toString()
 
@@ -431,7 +442,14 @@ class SellwildEventQueue internal constructor(
     }
 
     private fun newEvent(event: String, action: String?, label: String?, attributes: Map<String, Any?>?) =
-        SellwildEvent(event = event, action = action, label = label, attributes = attributes, uid = uid, createdTime = clock())
+        SellwildEvent(
+            event = event,
+            action = action,
+            label = label,
+            attributes = attributes,
+            uid = uid,
+            createdTime = clock()
+        )
 
     private fun enqueue(e: SellwildEvent) {
         // track() pushes on the caller (main) thread while flush() drains on an

@@ -3,6 +3,7 @@ import { fetchRemoteConfigWithIssues, type RemoteConfigOptions } from './remote-
 import { eventQueue } from './event-queue'
 import { logFailure, setFailureContext, type LogFailureInput } from './failures'
 import { coerceFlag } from './failures/core'
+import { recordTiming, setTimingContext } from './timing'
 
 export const WIDGET_BASE_URL = 'https://widget.sellwild.com'
 export const SELLWILD_URL = 'https://sellwild.com'
@@ -139,9 +140,9 @@ export function buildConfig(partial: PartialSellwildConfig): SellwildConfig {
 }
 
 // Partner first, before any fetch, so a failed config fetch is still
-// attributed to the partner (contracts/FAILURES.md 3.2).
-function setRuntimePartner(partnerCode: string): void {
-  setFailureContext({ partnerCode })
+// attributed to the partner and its slug (contracts/FAILURES.md 3.2).
+function setRuntimePartner(partnerCode: string, slug: string): void {
+  setFailureContext({ partnerCode, slug })
   eventQueue.setPartnerCode(partnerCode)
 }
 
@@ -150,8 +151,13 @@ function setRuntimePartner(partnerCode: string): void {
 // overrides are not type-checked at runtime (an `undefined` would otherwise
 // turn events off). Then the CMS values the fetch had to ignore or coerce are
 // reported, so they honor this config's kill switches (FAILURES.md 10.1).
-function applyRuntimeFlags(config: SellwildConfig, issues: readonly LogFailureInput[]): void {
+function applyRuntimeFlags(config: SellwildConfig, issues: readonly LogFailureInput[], fetchMs?: number): void {
   eventQueue.setEnabled(coerceFlag(config.eventsEnabled, true))
+  setTimingContext({
+    timingEnabled: config.remote?.TIMING_ENABLED,
+    timingSampleRate: config.remote?.TIMING_SAMPLE_RATE,
+    remote: config.remote,
+  })
   setFailureContext({
     debug: config.debug,
     eventsEnabled: config.eventsEnabled,
@@ -159,6 +165,7 @@ function applyRuntimeFlags(config: SellwildConfig, issues: readonly LogFailureIn
     failuresSampleRate: config.failuresSampleRate,
   })
   for (const issue of issues) logFailure(issue)
+  if (fetchMs !== undefined) recordTiming('config.fetch', fetchMs)
 }
 
 /**
@@ -180,10 +187,10 @@ export async function buildConfigWithRemote(
   remoteSlug: string,
   options?: RemoteConfigOptions,
 ): Promise<SellwildConfig> {
-  setRuntimePartner(partial.partnerCode)
-  const { config: remote, issues } = await fetchRemoteConfigWithIssues(partial.partnerCode, remoteSlug, options)
+  setRuntimePartner(partial.partnerCode, remoteSlug)
+  const { config: remote, issues, fetchMs } = await fetchRemoteConfigWithIssues(partial.partnerCode, remoteSlug, options)
   const config = mergeConfig(defaultConfig, partial, remote)
-  applyRuntimeFlags(config, issues)
+  applyRuntimeFlags(config, issues, fetchMs)
   return config
 }
 
@@ -234,10 +241,10 @@ export async function configure(
   options: ConfigureOptions = {},
 ): Promise<SellwildConfig> {
   const { overrides, ...remoteOptions } = options
-  setRuntimePartner(partnerCode)
-  const { config: remote, issues } = await fetchRemoteConfigWithIssues(partnerCode, slug, remoteOptions)
+  setRuntimePartner(partnerCode, slug)
+  const { config: remote, issues, fetchMs } = await fetchRemoteConfigWithIssues(partnerCode, slug, remoteOptions)
   const config = mergeConfig(defaultConfig, { partnerCode, slug }, remote, overrides)
-  applyRuntimeFlags(config, issues)
+  applyRuntimeFlags(config, issues, fetchMs)
   return config
 }
 

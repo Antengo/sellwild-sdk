@@ -27,11 +27,13 @@ extension SellwildFeedView {
             imageSession: .shared
         )
 
+        // sellwild-coverage:exclude-begin(network-call) Safari loads the page; tests replace the environment.
         /// SFSafariViewController over the app. It loads the page from the
         /// network, so it never runs in tests.
         static let presentSafari: (URL, UIViewController) -> Void = { url, viewController in
             viewController.present(SFSafariViewController(url: url), animated: true)
         }
+        // sellwild-coverage:exclude-end
     }
 
     static var environment = Environment.live

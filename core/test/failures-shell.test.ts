@@ -9,6 +9,7 @@ import {
   resetFailuresForTests,
   setFailureContext,
   strictestFailureFlags,
+  urlFileName,
   type ClientFailureEvent,
   type FailureSink,
   type LogFailureInput,
@@ -35,6 +36,57 @@ const http503: LogFailureInput = {
   zoneId: 43,
 }
 
+describe('fv 2 context', () => {
+  beforeEach(fixedDeps)
+
+  it('sends the app context the shell set once on every event, cleaned, and leaves out what is unset', () => {
+    setFailureContext({ appId: 'com.aws.weatherbug', appVersion: ' 6.12.0 ', os: 'iOS 26.1', device: 'iPhone16,2', slug: 'weatherbug-main' })
+    logFailure(http503)
+    setFailureContext({ appVersion: undefined, device: '' })
+    logFailure({ ...http503, code: 'config.fetch.http' })
+
+    const [first, second] = takeFailureEvents()
+    expect(first.attributes).toMatchObject({ appId: 'com.aws.weatherbug', appVersion: '6.12.0', os: 'iOS 26.1', device: 'iPhone16,2', slug: 'weatherbug-main' })
+    expect(second.attributes.appVersion).toBeUndefined()
+    expect(second.attributes.device).toBeUndefined()
+    expect(second.attributes.slug).toBe('weatherbug-main')
+    for (const event of [first, second]) {
+      const check = validate('client-failure-event', event)
+      expect(check.ok, check.text).toBe(true)
+    }
+  })
+
+  it('sends the call-site context as ctx.<key>, scrubbed, sorted and at most 8', () => {
+    logFailure({ ...http503, context: { file: 'listings-weatherbug.json', attempt: 2, url: 'https://cache.sellwild.com/x?q=1', Bad: 'x' } })
+
+    const [event] = takeFailureEvents()
+    const ctxKeys = Object.keys(event.attributes).filter((k) => k.startsWith('ctx.'))
+    expect(ctxKeys).toEqual(['ctx.attempt', 'ctx.file', 'ctx.url'])
+    expect(event.attributes).toMatchObject({ 'ctx.attempt': '2', 'ctx.file': 'listings-weatherbug.json', 'ctx.url': 'cache.sellwild.com' })
+    const check = validate('client-failure-event', event)
+    expect(check.ok, check.text).toBe(true)
+  })
+
+  it('counts a context it cannot read as an internal error and still reports', () => {
+    const before = getFailureInternalErrors()
+    const input = { ...http503 }
+    Object.defineProperty(input, 'context', { get: () => { throw new Error('getter') } })
+
+    logFailure(input)
+
+    expect(takeFailureEvents()).toHaveLength(1)
+    expect(getFailureInternalErrors() - before).toBe(1)
+  })
+
+  it.each([
+    ['https://cache.sellwild.com/listings-weatherbug.json?v=2#top', 'listings-weatherbug.json'],
+    ['https://cache.sellwild.com/a/b/', ''],
+    ['listings.json', 'listings.json'],
+  ])('urlFileName(%s) is %j', (url, file) => {
+    expect(urlFileName(url)).toBe(file)
+  })
+})
+
 describe('logFailure context', () => {
   beforeEach(fixedDeps)
 
@@ -52,7 +104,7 @@ describe('logFailure context', () => {
             client: 'core',
             clientVersion: SDK_VERSION,
             severity: 'error',
-            fv: '1',
+            fv: '2',
             msg: 'HTTP 503',
             httpStatus: '503',
             host: 'cache.sellwild.com',
@@ -470,7 +522,7 @@ describe('logFailure never throws', () => {
     const [event] = takeFailureEvents()
     expect(event.attributes.msg).toBe('x'.repeat(199) + '…')
     // The V8 header repeats the huge message; it is dropped before the cut, so frames survive.
-    expect(event.attributes.stack).toBe(Array(5).fill('at f (a.js:1:1)').join('\n'))
+    expect(event.attributes.stack).toBe(Array(30).fill('at f (a.js:1:1)').join('\n'))
     logFailure({ code: 'config.fetch.parse', component: 'remoteConfig', error: huge })
     expect(takeFailureEvents()[0].attributes.msg).toBe('x'.repeat(199) + '…')
   })
@@ -601,7 +653,7 @@ describe('logFailure through the shared events queue', () => {
 })
 
 // FAILURES.md 3.3 item 4: the shell cuts message and errMessage to 1000
-// UTF-16 units and the stack to 2000 before the pure core.
+// UTF-16 units and the stack to 16000 before the pure core.
 describe('logFailure input cap', () => {
   beforeEach(fixedDeps)
 
@@ -651,16 +703,16 @@ describe('logFailure input cap', () => {
 
   // A two-line message makes a two-line V8 header. The pure core drops only
   // its first line; the shell drops all of it, but only over the cap.
-  it('leaves a stack of exactly 2000 units to the pure core, and strips the header from one of 2001', () => {
+  it('leaves a stack of exactly 16000 units to the pure core, and strips the header from one of 16001', () => {
     const frame = '\n    at mk (a.js:4:25)'
     const stackFor = (padding: number) => {
       const error = new Error(`${'m'.repeat(padding)}\nsecond`)
       error.stack = `Error: ${error.message}${frame}`
       return error
     }
-    const atCap = stackFor(1964)
-    const overCap = stackFor(1965)
-    expect([atCap.stack!.length, overCap.stack!.length]).toEqual([2000, 2001])
+    const atCap = stackFor(15964)
+    const overCap = stackFor(15965)
+    expect([atCap.stack!.length, overCap.stack!.length]).toEqual([16000, 16001])
 
     logFailure({ code: 'listings.fetch.network', component: 'listings', error: atCap })
     logFailure({ code: 'config.fetch.network', component: 'remoteConfig', error: overCap })
@@ -670,7 +722,7 @@ describe('logFailure input cap', () => {
 
   it('drops a header that is the name alone when the message is empty', () => {
     const error = new Error('')
-    error.name = 'E'.repeat(2100)
+    error.name = 'E'.repeat(16100)
     error.stack = `${error.name}\n    at mk (a.js:4:25)`
 
     logFailure({ code: 'listings.fetch.network', component: 'listings', error })
@@ -694,30 +746,30 @@ describe('logFailure input cap', () => {
   })
 
   it('does not strip text that only starts like the header', () => {
-    const message = 'm'.repeat(2418)
+    const message = 'm'.repeat(16418)
     const error = new Error(message)
     error.stack = `Error: ${message}zzz\n    at mk (a.js:4:25)`
 
     logFailure({ code: 'listings.fetch.network', component: 'listings', error })
 
-    // Cut as is: the frame is past 2000 units, and the core drops the header line.
+    // Cut as is: the frame is past 16000 units, and the core drops the header line.
     expect(takeFailureEvents()[0].attributes.stack).toBeUndefined()
   })
 
   it('still cuts the stack when the error name is not text', () => {
     const error = new Error('x')
     Object.defineProperty(error, 'name', { value: 42 })
-    error.stack = `${' '.repeat(1995)}\na (x.js:1:1)`
+    error.stack = `${' '.repeat(15995)}\na (x.js:1:1)`
 
     logFailure({ code: 'listings.fetch.network', component: 'listings', error })
 
     expect(takeFailureEvents()[0].attributes.stack).toBe('a (x')
   })
 
-  it('cuts a stack with no V8 header (JSC, Hermes) at exactly 2000 units', () => {
+  it('cuts a stack with no V8 header (JSC, Hermes) at exactly 16000 units', () => {
     const error = new Error('x')
     // The blank first line is dropped by the core; 4 units of the frame fit.
-    error.stack = `${' '.repeat(1995)}\na (x.js:1:1)`
+    error.stack = `${' '.repeat(15995)}\na (x.js:1:1)`
 
     logFailure({ code: 'listings.fetch.network', component: 'listings', error })
 

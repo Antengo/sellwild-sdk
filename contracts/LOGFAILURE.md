@@ -18,24 +18,26 @@ The house rule (FAILURES.md sections 1 and 2):
 
 ## 2. How to call it
 
-The parameters are the same everywhere: `code`, `component`, `severity`, `error`, `message`, `httpStatus`, `url`, `zoneId`. Only `code` and `component` are required. Severity defaults to `error`.
+The parameters are the same everywhere: `code`, `component`, `severity`, `error`, `message`, `httpStatus`, `url`, `zoneId`, `context`. Only `code` and `component` are required. Severity defaults to `error`.
 
 1. `severity`: `fatal` (the surface could not render), `error` (a fallback was used), `warn` (degraded but handled).
-2. `error`: the caught error. Its name, message and (TS, Android) first stack frames are sent, sanitized.
+2. `error`: the caught error. Its name, message and stack (up to 30 frames; Android with its `Caused by:` chain; iOS sends where `log` was called, since Swift errors have no stack) are sent, sanitized.
 3. `message`: short text. Never listing text, keywords or other user data.
 4. `url`: only the host is sent.
+5. `context`: up to 8 call-site values that help debug it, sent as `ctx.<key>`, e.g. `{ file: urlFileName(url), attempt: 2 }` (FAILURES.md 7.7). Pass a file name, never a URL or user data.
+6. The app context (`appId`, `appVersion`, `os`, `device`, `slug`) is set once by the SDK; call sites never pass it.
 
 ### Core (TS)
 
-`core/src/api.ts:85`:
+`core/src/api.ts:86`:
 
 ```ts
 import { logFailure } from './failures'
 
-logFailure({ code: 'listings.fetch.http', component: 'listings', message: `HTTP ${res.status}`, httpStatus: res.status, url })
+logFailure({ code: 'listings.fetch.http', component: 'listings', message: `HTTP ${res.status}`, httpStatus: res.status, url, context })
 ```
 
-Pass the caught error as `error` (`core/src/api.ts:79`):
+Pass the caught error as `error` (`core/src/api.ts:80`):
 
 ```ts
 logFailure({ code: 'listings.fetch.network', component: 'listings', error, url })
@@ -118,7 +120,7 @@ FAILURES.md 6. One element of the events array:
   "action": "listings.fetch.http",
   "label": "listings",
   "attributes": {
-    "code": "weatherbug", "client": "ios", "clientVersion": "1.7.7", "severity": "error", "fv": "1",
+    "code": "weatherbug", "client": "ios", "clientVersion": "1.7.7", "severity": "error", "fv": "2",
     "msg": "HTTP 503", "httpStatus": "503", "host": "cache.sellwild.com", "zoneId": "43", "seq": "1", "repeat": "1"
   },
   "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
@@ -128,9 +130,9 @@ FAILURES.md 6. One element of the events array:
 
 1. `action` is the failure code. `label` is the component.
 2. `attributes.code` is the partner code, not the failure code.
-3. Every attribute value is a string. The allowlist is 16 keys (FAILURES.md 6.3). Empty optional ones are left out.
+3. Every attribute value is a string. The allowlist is 21 keys plus up to 8 `ctx.<key>` keys, 32 at most (FAILURES.md 6.3). Empty optional ones are left out.
 4. The URL is never sent, only `host`. Emails, UUIDs, IPs and long digit runs in `msg` are masked (FAILURES.md 7).
-5. An event over 2048 bytes loses `stack`, then gets a shorter `msg` (FAILURES.md 6.4).
+5. An event over 8192 bytes loses its `ctx.*` keys, then `stack`, then gets a shorter `msg` (FAILURES.md 6.4).
 
 The limits (FAILURES.md 5):
 

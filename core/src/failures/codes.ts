@@ -60,6 +60,12 @@ export const FAILURE_CODES = [
    */
   'config.fetch.parse',
   /**
+   * The remote config fetch took longer than its time budget (3 s unless TIMING_BUDGET_CONFIG_MS
+   * says otherwise).
+   * Usually `remoteConfig`, `warn`.
+   */
+  'config.fetch.slow',
+  /**
    * The remote config request did not answer within the client timeout.
    * Usually `remoteConfig`, `error`.
    */
@@ -109,6 +115,12 @@ export const FAILURE_CODES = [
    * Usually `listings`, `error`.
    */
   'listings.fetch.parse',
+  /**
+   * The listings fetch took longer than its time budget (4 s unless TIMING_BUDGET_LISTINGS_MS says
+   * otherwise).
+   * Usually `listings`, `warn`.
+   */
+  'listings.fetch.slow',
   /**
    * Listings GET did not answer within the client timeout.
    * Usually `listings`, `error`.

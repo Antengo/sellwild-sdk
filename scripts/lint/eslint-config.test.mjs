@@ -35,6 +35,8 @@ const EXEMPT_SITES = {
   core: {
     // 8.4: transport never reports itself (EventQueue.flush's .catch, the uid guard).
     'src/event-queue.ts': ['sellwild/catch-reports-failure', 'sellwild/catch-reports-failure'],
+    // 3.4 and 18.1: recordTiming counts its own failure, as logFailure does.
+    'src/timing/index.ts': ['sellwild/catch-reports-failure'],
   },
   'react-native': {
     // 9.2: log once (core's fetchListings already logged it).

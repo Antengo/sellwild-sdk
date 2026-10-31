@@ -196,6 +196,23 @@ class SellwildFeedViewTest {
     }
 
     @Test
+    fun `the first listing on screen, the listings fetch and decode are timed once per process`() {
+        val pushed = mutableListOf<com.sellwild.sdk.timing.TimingEvent>()
+        com.sellwild.sdk.timing.SellwildTiming.push = { pushed += it }
+        com.sellwild.sdk.timing.SellwildTiming.remote = JSONObject().put("TIMING_SAMPLE_RATE", 1)
+        val feed = feed(config("COL1" to "LL"))
+
+        load(feed, StubResponse(200, body(listing("l1"), listing("l2"))))
+        show(feed)
+        load(feed, StubResponse(200, body(listing("l3"), listing("l4"))))
+
+        val steps = pushed.map { it.action }.distinct()
+        assertEquals(listOf("listings.fetch", "listings.decode", "feed.firstListing"), steps)
+        assertEquals(1, pushed.count { it.action == "feed.firstListing" })
+        assertEquals(emptyList<String>(), events.codes)
+    }
+
+    @Test
     fun `an empty listings response renders the header only and is reported`() {
         val feed = feed()
 

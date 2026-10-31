@@ -312,3 +312,25 @@ final class SellwildEventQueueTests: XCTestCase {
         XCTAssertEqual(client.eventClock.now(), clock.nowMs)
     }
 }
+
+// A batch that cannot be encoded (JSONEncoder never fails on SellwildEvent).
+extension SellwildEventQueueTests {
+
+    func testABatchThatCannotBeEncodedIsDroppedWithADebugLineAndNoPost() {
+        enum Encode: Error { case failed }
+        client.encodeEvents = { _ in throw Encode.failed }
+        var lines: [String] = []
+        SellwildLog.isEnabled = true
+        SellwildLog.setOutput { lines.append($0) }
+        defer {
+            SellwildLog.isEnabled = false
+            SellwildLog.setOutput(nil)
+        }
+
+        client.sendEvent(SellwildEvent(event: "adRenderSucceeded", label: "43"))
+        client.waitForEventQueue()
+
+        XCTAssertTrue(transport.requests.isEmpty)
+        XCTAssertTrue(lines.contains { $0.contains("events batch could not be encoded and was dropped") }, "\(lines)")
+    }
+}

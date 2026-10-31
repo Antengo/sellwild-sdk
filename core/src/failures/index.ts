@@ -58,6 +58,23 @@ export interface LogFailureInput {
   /** The request URL. Only its host is sent. */
   url?: string
   zoneId?: number | string
+  /**
+   * What the call site knows that helps debug it, e.g. `{ file: 'listings-weatherbug.json', attempt: 2 }`.
+   * At most 8 keys matching `^[a-z][a-zA-Z0-9_]{0,31}$`; values are strings
+   * (scrubbed like message, cut to 200) or finite numbers. Sent as `ctx.<key>`.
+   * Never listing text, keywords or other PII.
+   */
+  context?: Readonly<Record<string, string | number>>
+}
+
+/**
+ * The file name at the end of a URL's path, without its query or fragment,
+ * e.g. `listings-weatherbug.json`: call-site context that names the resource
+ * without sending the URL. Empty when the path ends in `/`.
+ */
+export function urlFileName(url: string): string {
+  const path = url.split(/[?#]/, 1)[0]
+  return path.slice(path.lastIndexOf('/') + 1)
 }
 
 /** Where emitted events go. The default is the SDK's shared eventQueue. */
@@ -86,6 +103,16 @@ export interface FailureContextInput {
   failuresSampleRate?: unknown
   /** `react-native` or `flutter` when the SDK runs under a wrapper. */
   wrapper?: string
+  /** Host app bundle id or package name, set once by the shell. */
+  appId?: string
+  /** Host app version. */
+  appVersion?: string
+  /** OS and version, e.g. `iOS 26.1`, `Android 15`. */
+  os?: string
+  /** Device model identifier, e.g. `iPhone16,2`. */
+  device?: string
+  /** The remote-config slug in use; configure() sets it. */
+  slug?: string
   now?: () => number
   uid?: () => string
   sink?: FailureSink
@@ -100,10 +127,11 @@ const DEFAULT_CLIENT = 'core'
 // backtrack superlinearly on long runs of letters and digits (10,000
 // characters take about 0.35 s in V8, more on Hermes), and logFailure must
 // never block the thread (FAILURES.md 3.4). Only 200 code points of message
-// and 5 stack frames are ever sent, so the cut changes nothing but
-// pathological input.
+// and 30 stack frames are ever sent, so the cut changes nothing but
+// pathological input. The core also cuts each stack line to 500 units before
+// its patterns run (FAILURES.md 7.4), so the stack cap only bounds the work.
 const MESSAGE_INPUT_MAX = 1000
-const STACK_INPUT_MAX = 2000
+const STACK_INPUT_MAX = 16000
 
 // The shared queue, pushed as FAILURES.md 8.1 says: push, then flush for the
 // first event of the session and for fatal ones.
@@ -116,6 +144,33 @@ let context: StoredContext = {}
 let state: FailureState = initialState()
 let reentrant = false
 let internalErrors = 0
+
+/**
+ * The partner and app context every report carries, for the sdkTiming shell
+ * (../timing), which sends the same fields.
+ */
+export function getReportContext(): {
+  partnerCode?: string
+  client: string
+  clientVersion: string
+  appId?: string
+  appVersion?: string
+  os?: string
+  device?: string
+  eventsEnabled?: unknown
+} {
+  const c = context
+  return {
+    partnerCode: c.partnerCode,
+    client: c.client ?? DEFAULT_CLIENT,
+    clientVersion: c.clientVersion ?? SDK_VERSION,
+    appId: c.appId,
+    appVersion: c.appVersion,
+    os: c.os,
+    device: c.device,
+    eventsEnabled: c.eventsEnabled,
+  }
+}
 
 /** Merge `partial` into the failure context. */
 export function setFailureContext(partial: FailureContextInput): void {
@@ -188,6 +243,7 @@ function toCoreInput(input: LogFailureInput): CoreFailureInput {
     httpStatus: read(() => src.httpStatus),
     url: read(() => src.url),
     zoneId: read(() => src.zoneId),
+    context: read(() => src.context),
   }
   if (read(() => error instanceof Error)) {
     const err = error as Error
@@ -286,6 +342,11 @@ export function logFailure(input: LogFailureInput): void {
       client: ctx.client ?? DEFAULT_CLIENT,
       clientVersion: ctx.clientVersion ?? SDK_VERSION,
       wrapper: ctx.wrapper,
+      appId: ctx.appId,
+      appVersion: ctx.appVersion,
+      os: ctx.os,
+      device: ctx.device,
+      slug: ctx.slug,
       eventsEnabled: ctx.eventsEnabled,
       failuresEnabled: ctx.failuresEnabled,
       failuresSampleRate: ctx.failuresSampleRate,

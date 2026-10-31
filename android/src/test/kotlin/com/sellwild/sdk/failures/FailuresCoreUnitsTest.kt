@@ -58,4 +58,7 @@ class FailuresCoreUnitsTest {
 
     @Test
     fun normalizeHttpStatus() = check("normalizeHttpStatus") { FailuresCore.normalizeHttpStatus(it) }
+
+    @Test
+    fun normalizeCtxValue() = check("normalizeCtxValue") { FailuresCore.normalizeCtxValue(it) }
 }

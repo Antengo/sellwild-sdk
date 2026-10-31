@@ -110,8 +110,29 @@ ${body.join('\n\n')}
 `
 }
 
+/**
+ * A KDoc for one constant: one line when it fits detekt's 120 columns, else a
+ * block wrapped at word boundaries (detekt's MaxLineLength).
+ */
+export function kdoc(text) {
+  const one = `    /** ${text} */`
+  if (one.length <= 120) return one
+  const lines = []
+  let line = ''
+  for (const word of text.split(' ')) {
+    if (line && `     * ${line} ${word}`.length > 120) {
+      lines.push(line)
+      line = word
+    } else {
+      line = line ? `${line} ${word}` : word
+    }
+  }
+  if (line) lines.push(line)
+  return ['    /**', ...lines.map((l) => `     * ${l}`), '     */'].join('\n')
+}
+
 function renderKotlin(entries) {
-  const constants = entries.map((e) => `    /** ${e.description} */\n    const val ${constName(e.code)} = "${e.code}"`)
+  const constants = entries.map((e) => `${kdoc(e.description)}\n    const val ${constName(e.code)} = "${e.code}"`)
   const all = entries.map((e) => `        ${constName(e.code)},`)
   return `// ${GENERATED_NOTE}
 
@@ -125,7 +146,7 @@ package com.sellwild.sdk.failures
  * this file.
  */
 object SellwildFailureCode {
-${constants.join('\n')}
+${constants.join('\n\n')}
 
     /** Every code above, in code order. */
     val ALL: List<String> = listOf(
@@ -150,6 +171,7 @@ object SellwildFailureComponent {
     const val GROWTHCODE = "growthcode"
     const val GEO = "geo"
     const val STORAGE = "storage"
+    const val SDK = "sdk"
 }
 
 /**

@@ -1,6 +1,6 @@
 {
   "platform": "android",
-  "generatedAt": "2026-09-25T18:28:00.797Z",
+  "generatedAt": "2026-10-31T00:28:24.673Z",
   "tool": "kover 0.9.1 (IntelliJ coverage agent, JaCoCo-format XML) over testDebugUnitTest",
   "commands": [
     "bash scripts/coverage/android.sh",
@@ -10,45 +10,22 @@
   ],
   "gate": {
     "include": [
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildConfig.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildLocalizedListings.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildAdStack.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildGpid.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildNative.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildAdSizes.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildGeo.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildSafeUrl.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildVideo.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildSDK.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildGrowthCode.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildHouseAd.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildAdAudioGuard.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildPrebidMobile.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildNativeAdView.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildHouseAdView.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildFeed.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildS2SConfig.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/SellwildWebViewCompat.kt",
-      "android/src/main/kotlin/com/sellwild/sdk/failures/**",
-      "android/src/main/kotlin/com/sellwild/sdk/core/**"
+      "android/src/main/kotlin/com/sellwild/sdk/**"
     ],
     "lines": {
-      "covered": 3489,
-      "total": 3490,
-      "pct": 99.97
+      "covered": 4171,
+      "total": 4171,
+      "pct": 100
     },
     "branches": {
-      "covered": 2468,
-      "total": 2504,
-      "pct": 98.56
+      "covered": 2904,
+      "total": 2940,
+      "pct": 98.78
     },
     "regions": null,
     "functions": {
-      "covered": 691,
-      "total": 691,
+      "covered": 799,
+      "total": 799,
       "pct": 100
     },
     "unmeasured": []
@@ -58,20 +35,20 @@
       "android/src/main/**"
     ],
     "lines": {
-      "covered": 3489,
-      "total": 3505,
-      "pct": 99.54
+      "covered": 4171,
+      "total": 4193,
+      "pct": 99.48
     },
     "branches": {
-      "covered": 2468,
-      "total": 2506,
-      "pct": 98.48
+      "covered": 2904,
+      "total": 2942,
+      "pct": 98.71
     },
     "regions": null,
     "functions": {
-      "covered": 691,
-      "total": 706,
-      "pct": 97.88
+      "covered": 799,
+      "total": 818,
+      "pct": 97.68
     },
     "unmeasured": []
   },
@@ -85,7 +62,7 @@
       "classes": [
         "com/sellwild/sdk/LiveAdNetwork"
       ],
-      "reason": "A10 third-party SDK calls that need a device or the network: the real SellwildAdNetwork, one call each into MobileAds.initialize, SellwildPrebid.initializeSdk, AdManagerAdView.loadAd, BannerAdUnit.fetchDemand, BannerView.loadAd, NativeAdUnit.fetchDemand and PrebidNativeAd.create. Everything around those calls (bootstrap, runBannerAuction, applyEids, the auction and init results) stays in the gate and runs against a fake network."
+      "reason": "A10 third-party SDK calls that need a device or the network: the real SellwildAdNetwork, one call each into MobileAds.initialize, SellwildPrebid.initializeSdk, AdManagerAdView.loadAd, BannerAdUnit.fetchDemand, BannerView.loadAd, NativeAdUnit.fetchDemand, PrebidNativeAd.create and Boltive's BoltiveMonitor (new, capture, terminate: it polls a rendered creative WebView on a timer and reports flagged creatives to Boltive over the network). Everything around those calls (bootstrap, runBannerAuction, applyEids, the auction and init results, SellwildBoltiveController) stays in the gate and runs against a fake network."
     },
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildNativeAdView.kt",
@@ -112,12 +89,12 @@
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 59,
-      "linesTotal": 59,
-      "branchesCovered": 80,
-      "branchesTotal": 80,
-      "functionsCovered": 30,
-      "functionsTotal": 30,
+      "linesCovered": 58,
+      "linesTotal": 58,
+      "branchesCovered": 76,
+      "branchesTotal": 76,
+      "functionsCovered": 29,
+      "functionsTotal": 29,
       "missedLines": "",
       "missedBranchLines": ""
     },
@@ -272,19 +249,34 @@
       "missedBranchLines": ""
     },
     {
-      "path": "android/src/main/kotlin/com/sellwild/sdk/failures/FailuresCore.kt",
+      "path": "android/src/main/kotlin/com/sellwild/sdk/failures/AppInfo.kt",
       "lines": 100,
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 351,
-      "linesTotal": 351,
-      "branchesCovered": 474,
-      "branchesTotal": 474,
-      "functionsCovered": 58,
-      "functionsTotal": 58,
+      "linesCovered": 9,
+      "linesTotal": 9,
+      "branchesCovered": 4,
+      "branchesTotal": 4,
+      "functionsCovered": 3,
+      "functionsTotal": 3,
       "missedLines": "",
       "missedBranchLines": ""
+    },
+    {
+      "path": "android/src/main/kotlin/com/sellwild/sdk/failures/FailuresCore.kt",
+      "lines": 100,
+      "branches": 99.22,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 409,
+      "linesTotal": 409,
+      "branchesCovered": 506,
+      "branchesTotal": 510,
+      "functionsCovered": 65,
+      "functionsTotal": 65,
+      "missedLines": "",
+      "missedBranchLines": "442,457,482"
     },
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailureCode.kt",
@@ -292,8 +284,8 @@
       "branches": null,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 67,
-      "linesTotal": 67,
+      "linesCovered": 77,
+      "linesTotal": 77,
       "branchesCovered": 0,
       "branchesTotal": 0,
       "functionsCovered": 2,
@@ -304,17 +296,17 @@
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailures.kt",
       "lines": 100,
-      "branches": 100,
+      "branches": 95.83,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 129,
-      "linesTotal": 129,
-      "branchesCovered": 54,
-      "branchesTotal": 54,
-      "functionsCovered": 29,
-      "functionsTotal": 29,
+      "linesCovered": 173,
+      "linesTotal": 173,
+      "branchesCovered": 69,
+      "branchesTotal": 72,
+      "functionsCovered": 32,
+      "functionsTotal": 32,
       "missedLines": "",
-      "missedBranchLines": ""
+      "missedBranchLines": "201,217,414"
     },
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildLog.kt",
@@ -328,6 +320,36 @@
       "branchesTotal": 4,
       "functionsCovered": 6,
       "functionsTotal": 6,
+      "missedLines": "",
+      "missedBranchLines": ""
+    },
+    {
+      "path": "android/src/main/kotlin/com/sellwild/sdk/guards/ExitReasons.kt",
+      "lines": 100,
+      "branches": 96.15,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 46,
+      "linesTotal": 46,
+      "branchesCovered": 25,
+      "branchesTotal": 26,
+      "functionsCovered": 6,
+      "functionsTotal": 6,
+      "missedLines": "",
+      "missedBranchLines": "95"
+    },
+    {
+      "path": "android/src/main/kotlin/com/sellwild/sdk/guards/SellwildGuards.kt",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 73,
+      "linesTotal": 73,
+      "branchesCovered": 28,
+      "branchesTotal": 28,
+      "functionsCovered": 18,
+      "functionsTotal": 18,
       "missedLines": "",
       "missedBranchLines": ""
     },
@@ -352,12 +374,12 @@
       "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 42,
-      "linesTotal": 42,
-      "branchesCovered": 56,
-      "branchesTotal": 56,
-      "functionsCovered": 11,
-      "functionsTotal": 11,
+      "linesCovered": 43,
+      "linesTotal": 43,
+      "branchesCovered": 60,
+      "branchesTotal": 60,
+      "functionsCovered": 12,
+      "functionsTotal": 12,
       "missedLines": "",
       "missedBranchLines": ""
     },
@@ -379,32 +401,47 @@
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildAdView.kt",
       "lines": 100,
-      "branches": 98.79,
+      "branches": 97.17,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 438,
-      "linesTotal": 438,
-      "branchesCovered": 245,
-      "branchesTotal": 248,
-      "functionsCovered": 93,
-      "functionsTotal": 93,
+      "linesCovered": 536,
+      "linesTotal": 536,
+      "branchesCovered": 309,
+      "branchesTotal": 318,
+      "functionsCovered": 99,
+      "functionsTotal": 99,
       "missedLines": "",
-      "missedBranchLines": "383,410,972"
+      "missedBranchLines": "404,433,1053,1083,1091-1092,1164,1194-1195"
     },
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildAPI.kt",
       "lines": 100,
-      "branches": 98.55,
+      "branches": 98.59,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 266,
-      "linesTotal": 266,
-      "branchesCovered": 136,
-      "branchesTotal": 138,
+      "linesCovered": 281,
+      "linesTotal": 281,
+      "branchesCovered": 140,
+      "branchesTotal": 142,
       "functionsCovered": 53,
       "functionsTotal": 53,
       "missedLines": "",
-      "missedBranchLines": "463,503"
+      "missedBranchLines": "481,521"
+    },
+    {
+      "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildBoltive.kt",
+      "lines": 100,
+      "branches": 97.44,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 105,
+      "linesTotal": 105,
+      "branchesCovered": 76,
+      "branchesTotal": 78,
+      "functionsCovered": 19,
+      "functionsTotal": 19,
+      "missedLines": "",
+      "missedBranchLines": "213,233"
     },
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildConfig.kt",
@@ -439,17 +476,17 @@
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildFeedView.kt",
       "lines": 100,
-      "branches": 98.06,
+      "branches": 98.14,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 462,
-      "linesTotal": 462,
-      "branchesCovered": 152,
-      "branchesTotal": 155,
-      "functionsCovered": 90,
-      "functionsTotal": 90,
+      "linesCovered": 476,
+      "linesTotal": 476,
+      "branchesCovered": 158,
+      "branchesTotal": 161,
+      "functionsCovered": 91,
+      "functionsTotal": 91,
       "missedLines": "",
-      "missedBranchLines": "357,809,882"
+      "missedBranchLines": "376,843,916"
     },
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildGeo.kt",
@@ -527,6 +564,21 @@
       "missedBranchLines": ""
     },
     {
+      "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildInitProvider.kt",
+      "lines": 100,
+      "branches": 75,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 8,
+      "linesTotal": 8,
+      "branchesCovered": 3,
+      "branchesTotal": 4,
+      "functionsCovered": 7,
+      "functionsTotal": 7,
+      "missedLines": "",
+      "missedBranchLines": "16"
+    },
+    {
       "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildLocalizedListings.kt",
       "lines": 100,
       "branches": 100,
@@ -597,22 +649,23 @@
       "branches": 96.74,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 152,
-      "linesTotal": 152,
+      "linesCovered": 154,
+      "linesTotal": 154,
       "branchesCovered": 89,
       "branchesTotal": 92,
       "functionsCovered": 33,
       "functionsTotal": 33,
       "missedLines": "",
-      "missedBranchLines": "212,428,479",
+      "missedBranchLines": "235,455,506",
       "excludedClasses": [
-        "com/sellwild/sdk/LiveAdNetwork"
+        "com/sellwild/sdk/LiveAdNetwork",
+        "com/sellwild/sdk/LiveAdNetwork$boltiveMonitor$1"
       ],
       "wholeFile": {
         "lines": {
-          "covered": 152,
-          "total": 159,
-          "pct": 95.6
+          "covered": 154,
+          "total": 168,
+          "pct": 91.67
         },
         "branches": {
           "covered": 89,
@@ -621,25 +674,25 @@
         },
         "functions": {
           "covered": 33,
-          "total": 40,
-          "pct": 82.5
+          "total": 44,
+          "pct": 75
         }
       }
     },
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildS2SConfig.kt",
       "lines": 100,
-      "branches": 85.82,
+      "branches": 98.51,
       "functions": 100,
       "inGate": true,
       "linesCovered": 88,
       "linesTotal": 88,
-      "branchesCovered": 115,
+      "branchesCovered": 132,
       "branchesTotal": 134,
       "functionsCovered": 9,
       "functionsTotal": 9,
       "missedLines": "",
-      "missedBranchLines": "56,85,101,103,119-120,122,124,130,135-136"
+      "missedBranchLines": "56,124"
     },
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildSafeUrl.kt",
@@ -658,18 +711,18 @@
     },
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildSDK.kt",
-      "lines": 99.21,
-      "branches": 98.3,
+      "lines": 100,
+      "branches": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 126,
-      "linesTotal": 127,
-      "branchesCovered": 173,
-      "branchesTotal": 176,
-      "functionsCovered": 18,
-      "functionsTotal": 18,
-      "missedLines": "310",
-      "missedBranchLines": "296,306,309"
+      "linesCovered": 143,
+      "linesTotal": 143,
+      "branchesCovered": 180,
+      "branchesTotal": 180,
+      "functionsCovered": 20,
+      "functionsTotal": 20,
+      "missedLines": "",
+      "missedBranchLines": ""
     },
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/SellwildVideo.kt",
@@ -700,16 +753,46 @@
       "functionsTotal": 2,
       "missedLines": "",
       "missedBranchLines": "25,37"
+    },
+    {
+      "path": "android/src/main/kotlin/com/sellwild/sdk/timing/SellwildTiming.kt",
+      "lines": 100,
+      "branches": 93.18,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 87,
+      "linesTotal": 87,
+      "branchesCovered": 41,
+      "branchesTotal": 44,
+      "functionsCovered": 15,
+      "functionsTotal": 15,
+      "missedLines": "",
+      "missedBranchLines": "118-119,131"
+    },
+    {
+      "path": "android/src/main/kotlin/com/sellwild/sdk/timing/TimingCore.kt",
+      "lines": 100,
+      "branches": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 96,
+      "linesTotal": 96,
+      "branchesCovered": 114,
+      "branchesTotal": 114,
+      "functionsCovered": 21,
+      "functionsTotal": 21,
+      "missedLines": "",
+      "missedBranchLines": ""
     }
   ],
   "tests": {
     "exitCode": 0,
     "passed": true,
-    "tests": 986,
+    "tests": 1085,
     "failures": 0,
     "errors": 0,
     "skipped": 0,
-    "classes": 68
+    "classes": 77
   },
   "contracts": "passed",
   "notes": [

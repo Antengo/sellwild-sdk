@@ -70,6 +70,33 @@ class SellwildSDKConfigureTest {
     }
 
     @Test
+    fun `the config fetch is timed under the config's own TIMING values, and a slow one is reported`() {
+        val pushed = mutableListOf<com.sellwild.sdk.timing.TimingEvent>()
+        com.sellwild.sdk.timing.SellwildTiming.push = { pushed += it }
+        var t = 0L
+        com.sellwild.sdk.timing.SellwildTiming.monotonic = { t.also { t += 3_500 } }
+        val body = AppConfigFactory.checked(mapOf("TIMING_SAMPLE_RATE" to 1)).toString()
+
+        configure(StubResponse(200, body))
+
+        assertEquals(listOf("config.fetch" to "3500"), pushed.map { it.action to it.attributes["ms"] })
+        assertEquals(listOf(SellwildFailureCode.CONFIG_FETCH_SLOW), sink.pushed.map { it.action })
+        assertEquals("weatherbug-main", sink.pushed.single().attributes["slug"])
+    }
+
+    @Test
+    fun `a failed config fetch is not timed`() {
+        val pushed = mutableListOf<com.sellwild.sdk.timing.TimingEvent>()
+        com.sellwild.sdk.timing.SellwildTiming.push = { pushed += it }
+
+        configure(StubResponse(503, ""))
+
+        assertEquals(emptyList<Any>(), pushed)
+        assertEquals(listOf(SellwildFailureCode.CONFIG_FETCH_HTTP), sink.pushed.map { it.action })
+        assertEquals("503", sink.pushed.single().attributes["ctx.status"])
+    }
+
+    @Test
     fun `absent or JSON null flags leave the context unset`() {
         val body = AppConfigFactory.offSchema(mapOf("FAILURES_ENABLED" to JSONObject.NULL)).toString()
 

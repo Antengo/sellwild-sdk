@@ -50,7 +50,8 @@ class FailuresGoldenVectorsTest(private val name: String, private val vector: JS
         decision.event?.let { event ->
             assertEquals(
                 "$name attributes follow the wire order",
-                FailuresCore.ATTRIBUTE_KEYS.filter { it in event.attributes },
+                FailuresCore.ATTRIBUTE_KEYS.filter { it in event.attributes } +
+                    event.attributes.keys.filter { it.startsWith(FailuresCore.CTX_PREFIX) }.sorted(),
                 event.attributes.keys.toList(),
             )
             // Every emitted event must also be a valid client-failure-event, as Android builds it.

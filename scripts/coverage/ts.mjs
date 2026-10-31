@@ -41,6 +41,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const OUT_DIR = path.join(REPO, 'coverage-summary')
+const THRESHOLDS_FILE = path.join(REPO, 'tools/coverage-thresholds.json')
 const TARGET_PCT = 95
 const SOURCE_FILE = /\.(?:ts|tsx|js|jsx|mjs|cjs)$/
 const IGNORE_HINT = /(?:\/\/|\/\*)\s*(?:v8|c8|istanbul)\s+ignore\s+([a-z]+)(?:\s+\d+)?\s*(.*?)\s*(?:\*\/|$)/
@@ -201,6 +202,13 @@ async function summarize(pkg, run) {
   const userConfig = typeof config.default === 'function' ? await config.default({ mode: 'test', command: 'serve' }) : config.default
   const thresholds = userConfig?.test?.coverage?.thresholds ?? null
   if (!thresholds) fatal.push(`${pkg.dir}: vitest.config.ts sets no coverage thresholds for the gate run`)
+  // CI's minimums (tools/coverage-thresholds.json) and vitest's must agree.
+  const shared = readJson(THRESHOLDS_FILE)[pkg.platform]
+  for (const key of ['lines', 'branches', 'functions']) {
+    if (thresholds && shared?.[key] !== thresholds[key]) {
+      fatal.push(`${pkg.dir}: vitest.config.ts ${key} threshold ${thresholds[key]} differs from tools/coverage-thresholds.json (${shared?.[key]})`)
+    }
+  }
 
   const gateSummary = readJson(gateFile)
   const under = Object.entries(thresholds ?? {})

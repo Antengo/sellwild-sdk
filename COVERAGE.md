@@ -1,6 +1,6 @@
 # Coverage and verification
 
-Branch `feat/testing/2026-09-24-sample-apps-e2e`, measured 2026-09-25. Suite times and the fastest checks are in [TESTING.md](TESTING.md).
+Branch `chore/testing/2026-09-25-logfailure-coverage-e2e` (PR #84), last measured 2026-10-30 (the Coverage section). Suite times and the fastest checks are in [TESTING.md](TESTING.md).
 
 ## Merge of origin/main (2026-09-25)
 
@@ -23,53 +23,68 @@ A second merge brought in #82 (37d432b), which makes the React Native tsc a hard
 
 ## Coverage
 
-Gate = all runtime code minus the exclusions listed below. Each exclusion has a reason. Branches on iOS are llvm-cov regions, because Swift has no branch data.
+Gate = all runtime code minus the exclusions listed below. Each exclusion has a reason. Branches on iOS are llvm-cov regions, because Swift has no branch data. Measured 2026-10-30 on this branch (chore/testing/2026-09-25-logfailure-coverage-e2e) after the fv 2 contract and the guards (FAILURES.md 18), and enforced in CI.
+
+**CI enforces these numbers.** `.github/workflows/ci.yml` runs every platform's full unit suite with coverage on every pull request (core and react-native vitest, Android Gradle + Kover, iOS `xcodebuild test -enableCodeCoverage YES`, and contracts `node --test`, validate and the print gate), and each job fails when its fresh `coverage-summary/<platform>.json` is under its minimums in `tools/coverage-thresholds.json` (`node tools/coverage-gate.mjs --only <platform>`). Those minimums are the numbers below: lines and functions at 100 wherever reached, branches (regions on iOS) at what the tests reach. Raise a minimum when coverage rises; lowering one needs a reason here.
 
 | Platform | Gate lines | Gate branches | Gate functions | Whole lines | Whole branches | Whole functions | Exclusions |
 |---|---|---|---|---|---|---|---|
-| android | 99.97 | 98.56 | 100.00 | 99.54 | 98.48 | 97.88 | 3 |
+| android | 100.00 | 98.78 | 100.00 | 99.48 | 98.71 | 97.68 | 3 |
 | core | 100.00 | 100.00 | 100.00 | 100.00 | 100.00 | 100.00 | 1 |
-| ios | 99.65 | 99.30 | 99.04 | 98.71 | 98.37 | 97.08 | 13 |
+| ios | 100.00 | 99.50 | 99.47 | 98.93 | 98.49 | 97.31 | 17 |
 | react-native | 100.00 | 100.00 | 100.00 | 100.00 | 100.00 | 100.00 | 2 |
+
+What changed on 2026-10-30:
+
+1. The Android and iOS gates now cover every file of the SDK module (`GATE_INCLUDE` is `src/main/**` and `ios/Sources/SellwildSDK/**`). Before, they listed the files phases 1 and 3 had brought under test, so code merged from main in 1.8.1 (Boltive, the init provider, the feed environment) sat outside the gate.
+2. What is left below 100 is branches (Kotlin `?.`, `?:` and `when` arms that a test cannot reach, such as a `context.applicationContext` that is null on a real device) and, on iOS, regions and functions that are Swift autoclosures (`??` defaults and `&&` right-hand sides) the code never needs.
 
 Regenerate:
 
 ```bash
-npm --prefix core run coverage:summary   # core + react-native
+node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/coverage/ts.mjs --run   # core + react-native
 bash scripts/coverage/android.sh
 bash scripts/coverage/ios.sh
+node tools/coverage-gate.mjs --expect core,react-native,android,ios
 ```
 
 ## Exclusions
 
-### android
+New on 2026-10-30, each one code the tests may not or cannot run:
 
+1. Android `LiveAdNetwork` (the existing A10 class exclusion) now also holds Boltive's `BoltiveMonitor` (new, capture, terminate): it polls a rendered creative WebView on a timer and reports flagged creatives to Boltive over the network. `SellwildBoltiveController`, which decides when to monitor, what to capture and what to report when Boltive throws, stays in the gate and runs against a fake monitor.
+2. iOS `network-call` (a new range kind): `SellwildLiveAdNetwork.sendGAMRequest`, `sendPrebidRequest` and `openOutside`, and the feed's `presentSafari`. Each is one call that sends an ad request or opens a page outside the app; tests may not touch the network (A8) and reach these only through the environment they replace.
+3. iOS `third-party-object` (new): `SellwildLiveAdNetwork.summary(of:)`, which reads a Prebid winning bid. Only Prebid's auction creates one (no public initializer), and a banner's `lastBidResponse` cannot be set. The path that finds no bid is tested.
+4. iOS `os-report` (new): the one line of `SellwildMetricSubscriber.didReceive` that reads `MXDiagnosticPayload.jsonRepresentation()`. Only MetricKit creates a payload, on a device, on a later launch. What the JSON says is parsed by `SellwildDiagnostics`, which is tested on recorded payload shapes.
+
+### android
 1. `android/build/generated/**`: AGP-generated classes (R, BuildConfig, Manifest, data binding). Kover drops them before writing the XML (androidGeneratedClasses() in android/build.gradle.kts). This library compiles none into its own classes today.
-2. `android/src/main/kotlin/com/sellwild/sdk/SellwildPrebidMobile.kt`: A10 third-party SDK calls that need a device or the network: the real SellwildAdNetwork, one call each into MobileAds.initialize, SellwildPrebid.initializeSdk, AdManagerAdView.loadAd, BannerAdUnit.fetchDemand, BannerView.loadAd, NativeAdUnit.fetchDemand and PrebidNativeAd.create. Everything around those calls (bootstrap, runBannerAuction, applyEids, the auction and init results) stays in the gate and runs against a fake network.
-3. `android/src/main/kotlin/com/sellwild/sdk/SellwildNativeAdView.kt`: A10 third-party SDK calls that need a device or the network: the real NativeAdContent over the fork's PrebidNativeAd, which only the fork's auction cache can create (no public constructor) and whose registerView starts impression and click trackers that fire over the network. The native view binds and registers against a fake in tests.
+2. `android/src/main/kotlin/com/sellwild/sdk/SellwildPrebidMobile.kt` (com/sellwild/sdk/LiveAdNetwork): A10 third-party SDK calls that need a device or the network: the real SellwildAdNetwork, one call each into MobileAds.initialize, SellwildPrebid.initializeSdk, AdManagerAdView.loadAd, BannerAdUnit.fetchDemand, BannerView.loadAd, NativeAdUnit.fetchDemand, PrebidNativeAd.create and Boltive's BoltiveMonitor (new, capture, terminate: it polls a rendered creative WebView on a timer and reports flagged creatives to Boltive over the network). Everything around those calls (bootstrap, runBannerAuction, applyEids, the auction and init results, SellwildBoltiveController) stays in the gate and runs against a fake network.
+3. `android/src/main/kotlin/com/sellwild/sdk/SellwildNativeAdView.kt` (com/sellwild/sdk/PrebidNativeContent): A10 third-party SDK calls that need a device or the network: the real NativeAdContent over the fork's PrebidNativeAd, which only the fork's auction cache can create (no public constructor) and whose registerView starts impression and click trackers that fire over the network. The native view binds and registers against a fake in tests.
 
 ### core
-
 1. `src/types.ts`: type-only: interfaces and type aliases, compiles to an empty module
 
 ### ios
-
 1. `ios/Sources/SellwildSDK/Failures/SellwildFailureCode.swift`: type-only and generated: a String enum of registry raw values, written by contracts/scripts/gen-codes.mjs from contracts/failure-codes.json. No executable regions; SellwildFailureCodeTests checks it against the registry.
-2. `ios/Sources/SellwildSDK/SellwildFeedView.swift:134-134`: crash-guard: init(coder:) traps by design (storyboards are not supported).
-3. `ios/Sources/SellwildSDK/SellwildFeedView.swift:497-497`: crash-guard: init(coder:) traps by design; the feed registers this cell by class.
-4. `ios/Sources/SellwildSDK/SellwildFeedView.swift:590-590`: crash-guard: init(coder:) traps by design; the feed builds the card in code.
-5. `ios/Sources/SellwildSDK/SellwildFeedView.swift:701-701`: crash-guard: init(coder:) traps by design; the feed registers this cell by class.
-6. `ios/Sources/SellwildSDK/SellwildFeedView.swift:756-756`: crash-guard: init(coder:) traps by design; the feed registers this cell by class.
-7. `ios/Sources/SellwildSDK/SellwildHouseAdView.swift:93-93`: crash-guard: init(coder:) traps by design (storyboards are not supported).
-8. `ios/Sources/SellwildSDK/SellwildSwiftUI.swift:134-145`: preview: Xcode previews run this; the app and the tests never do.
-9. `ios/Sources/SellwildSDK/SellwildPrebidMobile.swift:66-81`: third-party-init: MobileAds.start and SellwildPrebid.initializeSDK need the app's GMA application id and the network; the outcome handlers below are tested.
-10. `ios/Sources/SellwildSDK/SellwildPrebidMobile.swift:85-88`: fetch-demand: BannerAdUnit.fetchDemand sends the Prebid Server request.
-11. `ios/Sources/SellwildSDK/SellwildNativeAdView.swift:61-61`: crash-guard: init(coder:) traps by design (storyboards are not supported).
-12. `ios/Sources/SellwildSDK/SellwildNativeAdView.swift:271-273`: fetch-demand: NativeRequest.fetchDemand sends the Prebid Server request.
-13. `ios/Sources/SellwildSDK/SellwildAdView.swift:204-207`: crash-guard: init(coder:) traps by design (storyboards are not supported); the report it sends first is tested through reportUnsupportedInit().
+2. `ios/Sources/SellwildSDK/SellwildAdNetwork.swift:58-61`: third-party-object: only Prebid's auction creates a winning bid.
+3. `ios/Sources/SellwildSDK/SellwildAdNetwork.swift:65-80`: network-call: GAM, Prebid Server, Safari; tests replace the environment.
+4. `ios/Sources/SellwildSDK/SellwildPrebidMobile.swift:66-81`: third-party-init: MobileAds.start and SellwildPrebid.initializeSDK need the app's GMA application id and the network; the outcome handlers below are tested.
+5. `ios/Sources/SellwildSDK/SellwildPrebidMobile.swift:85-88`: fetch-demand: BannerAdUnit.fetchDemand sends the Prebid Server request.
+6. `ios/Sources/SellwildSDK/SellwildListingCardView.swift:81-81`: crash-guard: init(coder:) traps by design; the feed builds the card in code.
+7. `ios/Sources/SellwildSDK/SellwildFeedEnvironment.swift:31-35`: network-call: Safari loads the page; tests replace the environment.
+8. `ios/Sources/SellwildSDK/SellwildHouseAdView.swift:93-93`: crash-guard: init(coder:) traps by design (storyboards are not supported).
+9. `ios/Sources/SellwildSDK/Guards/SellwildGuards.swift:124-124`: os-report: only MetricKit creates an MXDiagnosticPayload (no public init).
+10. `ios/Sources/SellwildSDK/SellwildNativeAdView.swift:61-61`: crash-guard: init(coder:) traps by design (storyboards are not supported).
+11. `ios/Sources/SellwildSDK/SellwildNativeAdView.swift:271-273`: fetch-demand: NativeRequest.fetchDemand sends the Prebid Server request.
+12. `ios/Sources/SellwildSDK/SellwildSwiftUI.swift:134-145`: preview: Xcode previews run this; the app and the tests never do.
+13. `ios/Sources/SellwildSDK/SellwildFeedView.swift:135-135`: crash-guard: init(coder:) traps by design (storyboards are not supported).
+14. `ios/Sources/SellwildSDK/SellwildFeedView.swift:519-519`: crash-guard: init(coder:) traps by design; the feed registers this cell by class.
+15. `ios/Sources/SellwildSDK/SellwildFeedView.swift:559-559`: crash-guard: init(coder:) traps by design; the feed registers this cell by class.
+16. `ios/Sources/SellwildSDK/SellwildFeedView.swift:614-614`: crash-guard: init(coder:) traps by design; the feed registers this cell by class.
+17. `ios/Sources/SellwildSDK/SellwildAdView.swift:205-208`: crash-guard: init(coder:) traps by design (storyboards are not supported); the report it sends first is tested through reportUnsupportedInit().
 
 ### react-native
-
 1. `ios/**`: RN native bridge glue: needs an RN host app build
 2. `android/**`: RN native bridge glue: needs an RN host app build
 

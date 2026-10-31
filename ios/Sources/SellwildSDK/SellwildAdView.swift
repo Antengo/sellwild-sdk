@@ -110,11 +110,6 @@ public final class SellwildAdView: UIView {
         )
     }
 
-    /// The zone as an event label: "" when there is none.
-    private var zoneLabel: String {
-        zoneId ?? ""
-    }
-
     /// The effective GPID for this placement: an explicit `gpidOverride` (the
     /// feed injects `base#n` for repeated bases) else the config-resolved base.
     /// nil ⇒ no gpid/pbadslot is sent.
@@ -125,21 +120,21 @@ public final class SellwildAdView: UIView {
 
     // MARK: Private
 
-    private let environment: Environment
+    let environment: Environment
 
     // House-ad backdrop. Sits behind the paid creative and shows through only
     // when the slot is empty (no-fill, or the transient .prebidOnly refresh gap).
-    private var houseView: SellwildHouseAdView?
+    var houseView: SellwildHouseAdView?
 
     // GAM render path (.both / .gamOnly). Created lazily on first GAM load.
-    private var gamBanner: AdManagerBannerView?
+    var gamBanner: AdManagerBannerView?
     // Prebid render path (.prebidOnly). Created lazily on first Prebid load.
-    private var prebidBanner: PrebidBannerView?
+    var prebidBanner: PrebidBannerView?
     // Prebid native render path (.prebidOnly + NATIVE_ENABLED). Lazily created.
     private var nativeAdView: SellwildNativeAdView?
 
-    private var refreshTimer: SellwildScheduled?
-    private var refreshCount = 0
+    var refreshTimer: SellwildScheduled?
+    var refreshCount = 0
     // .prebidOnly renders (initial + auto-refreshes). Caps Prebid's internal
     // auto-refresh at effectiveRefreshMax, which it otherwise ignores.
     private var prebidRefreshCount = 0
@@ -153,15 +148,15 @@ public final class SellwildAdView: UIView {
     private var prebidClickModalOpen = false
 
     // Boltive ad-quality monitor (remote-gated, default off). See SellwildBoltive.
-    private let boltive = SellwildBoltiveController()
+    let boltive = SellwildBoltiveController()
     // What the monitored creative was (bidder, or "gam") — the adBlocked action.
-    private var boltiveSource = ""
+    var boltiveSource = ""
 
     /// Effective mobile refresh cap: the mobile-specific `AD_REFRESH_MAX_MOBILE`
     /// when set, else the shared `AD_REFRESH_MAX` (matches Android + web). iOS
     /// previously honored only the mobile key, silently disabling refresh — and
     /// its refresh revenue — for partners who set only `AD_REFRESH_MAX`.
-    private var effectiveRefreshMax: Int {
+    var effectiveRefreshMax: Int {
         SellwildAdPolicy.refreshMax(mobile: config.adRefreshMaxMobile, shared: config.adRefreshMax)
     }
 
@@ -169,7 +164,7 @@ public final class SellwildAdView: UIView {
     /// the first render + up to effectiveRefreshMax refreshes; prebidRefreshCount
     /// counts renders, so it's spent once the count exceeds the max (the same
     /// point the render delegate calls stopRefresh()).
-    private var hasPrebidRefreshBudget: Bool {
+    var hasPrebidRefreshBudget: Bool {
         SellwildAdPolicy.hasPrebidRefreshBudget(renderCount: prebidRefreshCount, max: effectiveRefreshMax)
     }
 
@@ -197,6 +192,7 @@ public final class SellwildAdView: UIView {
         environment.events.partnerCode = config.partnerCode
         SellwildFailures.setContext { $0.partnerCode = config.partnerCode }
         super.init(frame: CGRect(origin: .zero, size: adSize.cgSize))
+        SellwildGuards.install()
         // Reserve the widest/tallest size the auction may return (primary + any
         // BANNER_SIZES fallbacks) so a wider/taller fallback creative doesn't
         // clip. Hosts using Auto Layout override this initial frame; frame-based
@@ -230,6 +226,7 @@ public final class SellwildAdView: UIView {
     /// Run the appropriate ad path for the resolved stack and load an ad. Safe
     /// to call multiple times; each call triggers a fresh load.
     public func load() {
+        startFirstLoadTimer()
         // Idempotent — first call wins, the rest are cheap.
         environment.network.bootstrap(config)
 
@@ -349,7 +346,7 @@ public final class SellwildAdView: UIView {
     // off-screen-but-attached refreshes. ON by default; set
     // MOBILE_PAUSE_REFRESH_DETACHED = false to opt out.
 
-    private var isPausedForDetach = false
+    var isPausedForDetach = false
     // Set when pause() interrupts an in-flight first auction (cold-start wait);
     // resume() then re-issues load() so the first impression isn't lost.
     private var needsReloadOnResume = false
@@ -360,6 +357,10 @@ public final class SellwildAdView: UIView {
 
     public override func didMoveToWindow() {
         super.didMoveToWindow()
+        if (window != nil) != countedInWindow {
+            countedInWindow = window != nil
+            SellwildViews.adView(attached: countedInWindow)
+        }
         let action = SellwildAdPolicy.detachAction(
             enabled: pausesRefreshWhenDetached, attached: window != nil, pausedForDetach: isPausedForDetach
         )
@@ -376,19 +377,6 @@ public final class SellwildAdView: UIView {
     }
 
     // MARK: GAM path (.both / .gamOnly)
-
-    /// Emit the per-render `adRenderSucceeded` (every render/refresh, unchanged)
-    /// plus — once per ad surface — the web-parity `firstAdViewed`. The latter
-    /// carries the same `attributes.code` (stamped in `sendEvent`) but no label,
-    /// matching the web widget, and is deduped by `firstAdViewedGuard`.
-    private func emitAdRender() {
-        let zone = zoneLabel
-        environment.events.sendEvent(SellwildEvent(event: "adRenderSucceeded", label: zone))
-        firstAdViewedGuard.fireOnce {
-            environment.events.sendEvent(SellwildEvent(event: "firstAdViewed"))
-            SellwildLog.debug("[SellwildEvents] firstAdViewed fired once for this ad surface (zone \(zone))")
-        }
-    }
 
     private func loadGAM(runAuction: Bool) {
         let banner = ensureGAMBanner()
@@ -715,12 +703,6 @@ public final class SellwildAdView: UIView {
         return v
     }
 
-    /// Fire the house-impression callback when the backdrop is actually visible.
-    private func recordHouseImpressionIfShowing() {
-        guard let houseView, !houseView.isHidden else { return }
-        delegate?.sellwildAdView?(self, didRecordHouseImpressionForZoneId: zoneLabel)
-    }
-
     /// Best-effort, SDK-surface mute of auto-playing creative audio in this
     /// slot's WebView(s). No Prebid-fork dependency. See `SellwildAdAudioGuard`.
     private func applyAudioGuard() {
@@ -787,47 +769,10 @@ public final class SellwildAdView: UIView {
         }
     }
 
-    // MARK: Boltive (ad quality)
-
-    /// Monitor this render with Boltive when the policy allows it.
-    private func monitorWithBoltive(_ bannerView: UIView, network: SellwildBoltive.Network,
-                                    tag: SellwildBoltiveController.Tag, source: String) {
-        let monitored = boltive.renderDidSucceed(
-            bannerView: bannerView,
-            network: network,
-            remoteValues: config.remoteValues,
-            zoneId: zoneId,
-            tag: tag
-        ) { [weak self] blocked in
-            self?.handleBoltiveBlock(blocked)
-        }
-        if monitored { boltiveSource = source }
-    }
-
-    /// Boltive blanked a flagged creative. Hide it, show the house backdrop
-    /// instead of a blank slot, report it, then re-auction if the refresh cap
-    /// has budget (the reload counts against the cap). The next successful
-    /// render un-hides the banner.
-    private func handleBoltiveBlock(_ blocked: UIView) {
-        // Ignore a late callback for a banner we've since torn down.
-        guard blocked === gamBanner || blocked === prebidBanner else { return }
-        SellwildLog.debug("[SellwildBoltive] creative blocked — zone \(zoneLabel), source \(boltiveSource)")
-        blocked.isHidden = true
-        houseView?.isHidden = false
-        delegate?.sellwildAdView?(self, didBlockAdForZoneId: zoneLabel)
-        environment.events.sendEvent(SellwildEvent(event: "adBlocked", action: boltiveSource, label: zoneLabel))
-        recordHouseImpressionIfShowing()
-        guard !isPausedForDetach else { return }
-        if blocked === gamBanner {
-            refreshTimer?.cancel()
-            refreshTimer = nil
-            guard effectiveRefreshMax > 0, refreshCount < effectiveRefreshMax else { return }
-            refreshCount += 1
-            load()
-        } else if hasPrebidRefreshBudget {
-            prebidBanner?.loadAd()
-        }
-    }
+    private var countedInWindow = false
+    /// ad.firstLoad (SellwildAdView+Boltive.swift).
+    var firstLoadTimer: (() -> Double)?
+    var firstLoadTimed = false
 
     // MARK: Refresh (GAM path only — Prebid path self-refreshes)
 
@@ -867,123 +812,6 @@ public final class SellwildAdView: UIView {
             responder = r.next
         }
         return nil
-    }
-}
-
-// MARK: - Environment
-
-/// GMA and Prebid, as `SellwildAdView` uses them. The live one goes through
-/// `SellwildPrebidMobile`, whose `calls` hold every third-party call that
-/// starts an SDK or reaches the network; tests pass a fake.
-protocol SellwildAdNetwork: AnyObject {
-    /// Starts GMA and Prebid once.
-    func bootstrap(_ config: SellwildConfig)
-    func isPrebidReady() -> Bool
-    /// Sends a plain GAM request.
-    func loadGAM(_ banner: AdManagerBannerView)
-    /// Runs the Prebid auction, then the GAM request.
-    func runBannerAuction(on banner: AdManagerBannerView, configId: String, adSizes: [CGSize], gpid: String?,
-                          video: Bool, completion: @escaping (ResultCode) -> Void)
-    /// Sends the Prebid rendering request.
-    func loadPrebid(_ banner: PrebidBannerView)
-    /// The winning bid of the last Prebid rendering request.
-    func winningBid(of banner: PrebidBannerView) -> SellwildAdPolicy.BidSummary?
-}
-
-/// The real GMA and Prebid.
-final class SellwildLiveAdNetwork: SellwildAdNetwork {
-    func bootstrap(_ config: SellwildConfig) {
-        SellwildPrebidMobile.bootstrap(with: config)
-    }
-
-    func isPrebidReady() -> Bool {
-        SellwildPrebidMobile.isReady()
-    }
-
-    func loadGAM(_ banner: AdManagerBannerView) {
-        SellwildPrebidMobile.calls.loadGAM(banner, AdManagerRequest())
-    }
-
-    func runBannerAuction(on banner: AdManagerBannerView, configId: String, adSizes: [CGSize], gpid: String?,
-                          video: Bool, completion: @escaping (ResultCode) -> Void) {
-        SellwildPrebidMobile.runBannerAuction(on: banner, configId: configId, adSizes: adSizes, gpid: gpid,
-                                              video: video, completion: completion)
-    }
-
-    func loadPrebid(_ banner: PrebidBannerView) {
-        SellwildPrebidMobile.calls.loadPrebid(banner)
-    }
-
-    func winningBid(of banner: PrebidBannerView) -> SellwildAdPolicy.BidSummary? {
-        guard let bid = banner.lastBidResponse?.winningBid else { return nil }
-        return SellwildAdPolicy.BidSummary(isVideoFormat: bid.adFormat == .video,
-                                           hasVideoConfig: bid.videoAdConfiguration != nil,
-                                           adm: bid.adm)
-    }
-
-    /// Sends a GAM ad request: the GMA network, which needs the app's GMA
-    /// application id. Never runs in tests.
-    static let sendGAMRequest: (AdManagerBannerView, AdManagerRequest) -> Void = { banner, request in
-        banner.load(request)
-    }
-
-    /// Sends a Prebid rendering request: the Prebid Server network. Never runs
-    /// in tests.
-    static let sendPrebidRequest: (PrebidBannerView) -> Void = { banner in
-        banner.loadAd()
-    }
-
-    /// Opens a URL outside the app (Safari). Never runs in tests.
-    static let openOutside: (URL) -> Void = { url in
-        UIApplication.shared.open(url)
-    }
-}
-
-extension SellwildAdView {
-    /// What `SellwildAdView` calls outside itself. Partners always get
-    /// `live`; tests set `SellwildAdView.environment` before they make views.
-    struct Environment {
-        /// The events queue.
-        var events: SellwildAPIClient
-        var network: SellwildAdNetwork
-        /// The refresh and cold-start timers.
-        var scheduler: SellwildScheduler
-        /// GrowthCode identity for the auction (once a launch, throttled).
-        var resolveGrowthCode: (SellwildConfig, String?) -> Void
-        /// Opens a house-ad click URL outside the app.
-        var openURL: (URL) -> Void
-
-        static let live = Environment(
-            events: .shared,
-            network: SellwildLiveAdNetwork(),
-            scheduler: SellwildRunLoopScheduler(),
-            resolveGrowthCode: SellwildGrowthCode.resolveIfNeeded,
-            openURL: SellwildLiveAdNetwork.openOutside
-        )
-    }
-
-    /// The environment each new view takes.
-    static var environment = Environment.live
-}
-
-// MARK: - Errors
-
-public enum SellwildAdError: Error, LocalizedError {
-    /// `.prebidOnly` was resolved for a placement with no `zoneId`, so no
-    /// Prebid configId is available and no ad can be requested.
-    case missingZoneIdForPrebidOnly
-
-    /// A native demand request returned no fill for the placement.
-    case nativeNoFill
-
-    public var errorDescription: String? {
-        switch self {
-        case .missingZoneIdForPrebidOnly:
-            return "SellwildAdView resolved to .prebidOnly but has no zoneId; "
-                + "Prebid rendering requires a configId."
-        case .nativeNoFill:
-            return "Native demand request returned no fill."
-        }
     }
 }
 
@@ -1072,10 +900,12 @@ extension SellwildAdView: PrebidBannerViewDelegate {
         let renderedSize = SellwildAdSizes.renderedSize(reported: adSize, primary: self.adSize.cgSize)
         if renderedSize != adSize {
             // A bid with no w/h. Report it so we can see which bidders send them.
-            SellwildLog.debug("[SellwildAdView][prebidOnly] bid has no size (reported \(adSize)) — bidder \(bidder ?? "?"), zone \(zoneLabel); using \(renderedSize)")
-            environment.events.sendEvent(SellwildEvent(event: "adSizeMissing", action: bidder ?? "unknown", label: zoneLabel))
+            let noSize = "bid has no size (reported \(adSize)) — bidder \(bidder ?? "?"), zone \(zoneLabel)"
+            SellwildLog.debug("[SellwildAdView][prebidOnly] \(noSize); using \(renderedSize)")
+            environment.events.sendEvent(SellwildEvent(event: "adSizeMissing", action: bidder ?? "unknown",
+                                                       label: zoneLabel))
         }
-        SellwildLog.debug("[SellwildAdView][prebidOnly] rendered — size \(renderedSize), bidder \(bidder ?? "?"), zone \(zoneLabel)")
+        SellwildLog.debug("[prebidOnly] rendered — size \(renderedSize), bidder \(bidder ?? "?"), zone \(zoneLabel)")
         // Paid creative rendered — hide the house backdrop so a transparent or
         // smaller-than-slot creative can't let it bleed through. NOTE: Prebid's
         // rendering banner self-refreshes with a teardown gap the backdrop used

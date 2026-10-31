@@ -79,7 +79,7 @@ describe('SellwildBanner: the native view', () => {
   })
 
   it('hands each native event to its host callback', () => {
-    const callbacks = { onImpression: vi.fn(), onHouseImpression: vi.fn(), onClick: vi.fn(), onError: vi.fn() }
+    const callbacks = { onImpression: vi.fn(), onHouseImpression: vi.fn(), onClick: vi.fn(), onBlocked: vi.fn(), onError: vi.fn() }
     const tree = render(banner(callbacks))
     const view = host(tree, 'SellwildBannerView')
 
@@ -89,12 +89,17 @@ describe('SellwildBanner: the native view', () => {
       view.props.onHouseAdImpression({ nativeEvent: { zoneId: '43' } })
       view.props.onHouseAdImpression({})
       view.props.onAdClicked({ nativeEvent: {} })
+      const blocked = view.props.onAdBlocked as (event: unknown) => void
+      blocked({ nativeEvent: { zoneId: '43' } })
+      blocked({})
       view.props.onAdFailed({ nativeEvent: { message: 'No fill' } })
     })
 
     expect(callbacks.onImpression).toHaveBeenCalledOnce()
     expect(callbacks.onHouseImpression.mock.calls).toEqual([['43'], [undefined]])
     expect(callbacks.onClick).toHaveBeenCalledOnce()
+    // Boltive blanked the creative: the host learns which zone.
+    expect(callbacks.onBlocked.mock.calls).toEqual([['43'], [undefined]])
     expect(callbacks.onError).toHaveBeenCalledWith(new Error('No fill'))
     // A native ad failure is the native SDK's to report (log once).
     expect(takeFailureEvents()).toEqual([])
@@ -111,6 +116,7 @@ describe('SellwildBanner: the native view', () => {
         view.props.onAdImpression({ nativeEvent: {} })
         view.props.onHouseAdImpression({ nativeEvent: { zoneId: '43' } })
         view.props.onAdClicked({ nativeEvent: {} })
+        ;(view.props.onAdBlocked as (event: unknown) => void)({ nativeEvent: { zoneId: '43' } })
         view.props.onAdFailed({ nativeEvent: {} })
       }),
     ).not.toThrow()

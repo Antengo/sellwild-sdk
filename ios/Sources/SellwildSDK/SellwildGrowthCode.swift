@@ -107,7 +107,7 @@ public enum SellwildGrowthCode {
 
         static var live: Environment {
             Environment(
-                send: sender(.shared),
+                send: sender(SellwildNetwork.session),
                 nowMs: { Date().timeIntervalSince1970 * 1000 },
                 defaults: .standard,
                 advertisingId: SellwildGrowthCode.liveAdvertisingId

@@ -40,9 +40,9 @@ final class SellwildFailuresTests: XCTestCase {
         XCTAssertEqual(event.createdTime, FailureCapture.now)
         XCTAssertEqual(event.attributes, [
             "code": "weatherbug", "client": "ios", "clientVersion": SellwildSDK.sdkVersion, "severity": "error",
-            "fv": "1", "msg": "HTTP 503", "httpStatus": "503", "host": "cache.sellwild.com", "zoneId": "43",
-            "seq": "1", "repeat": "1",
-        ])
+            "fv": "2", "msg": "HTTP 503", "httpStatus": "503", "host": "cache.sellwild.com", "zoneId": "43",
+            "seq": "1", "repeat": "1"
+        ].merging(FailureCapture.appAttributes) { $1 })
         XCTAssertTrue(capture.echoes.isEmpty, "no echo unless debug is on")
     }
 
@@ -172,7 +172,8 @@ final class SellwildFailuresTests: XCTestCase {
         SellwildFailures.log(code: .listingsFetchNetwork, component: .listings, message: "offline")
         XCTAssertTrue(capture.events.isEmpty)
         XCTAssertEqual(capture.flushes, 0)
-        XCTAssertEqual(capture.echoes, ["[Sellwild] failure listings.fetch.network listings error failures_disabled offline"])
+        XCTAssertEqual(capture.echoes,
+                       ["[Sellwild] failure listings.fetch.network listings error failures_disabled offline"])
 
         SellwildFailures.setContext {
             $0.failuresEnabledOverride = nil
@@ -198,7 +199,8 @@ final class SellwildFailuresTests: XCTestCase {
         SellwildFailures.setContext { $0.debug = true }
         SellwildFailures.log(code: .configFetchHttp, component: .remoteConfig, severity: .warn,
                              message: "HTTP 403 from https://widget.sellwild.com/app/x/y.json")
-        XCTAssertEqual(capture.echoes, ["[Sellwild] failure config.fetch.http remoteConfig warn sent HTTP 403 from widget.sellwild.com"])
+        XCTAssertEqual(capture.echoes,
+                       ["[Sellwild] failure config.fetch.http remoteConfig warn sent HTTP 403 from widget.sellwild.com"])
         XCTAssertEqual(capture.events.count, 1)
     }
 
@@ -247,7 +249,8 @@ final class SellwildFailuresTests: XCTestCase {
         SellwildFailures.log(code: .configUrlInvalid, component: .configure, severity: .fatal)
         XCTAssertEqual(SellwildFailures.internalErrorCount, 2)
         XCTAssertEqual(capture.echoes.count, 2)
-        XCTAssertEqual(capture.echoes.last?.hasPrefix("[Sellwild] failure internal Boom "), true, capture.echoes.last ?? "")
+        XCTAssertEqual(capture.echoes.last?.hasPrefix("[Sellwild] failure internal Boom "), true,
+                       capture.echoes.last ?? "")
 
         SellwildFailures.resetForTests()
         XCTAssertEqual(SellwildFailures.internalErrorCount, 0)
@@ -258,7 +261,8 @@ final class SellwildFailuresTests: XCTestCase {
             SellwildFailures.log(code: .feedImageNetwork, component: .feed, message: "image \(i)")
         }
         XCTAssertEqual(capture.events.count, SellwildFailuresCore.Limits.sessionEmits)
-        XCTAssertEqual(Set(capture.events.compactMap { $0.attributes["seq"] }).count, SellwildFailuresCore.Limits.sessionEmits)
+        XCTAssertEqual(Set(capture.events.compactMap { $0.attributes["seq"] }).count,
+                       SellwildFailuresCore.Limits.sessionEmits)
         XCTAssertEqual(capture.events.filter { $0.attributes["capped"] == "1" }.count, 1)
         XCTAssertEqual(SellwildFailures.coreState.sessionCount, SellwildFailuresCore.Limits.sessionEmits)
     }
@@ -276,7 +280,8 @@ final class SellwildFailuresTests: XCTestCase {
     // MARK: Live dependencies
 
     private func queueClient(_ transport: CapturingEventTransport, _ clock: ManualEventClock) -> SellwildAPIClient {
-        SellwildAPIClient(session: StubURLProtocol.makeSession(), eventTransport: transport.transport, eventClock: clock.clock)
+        SellwildAPIClient(session: StubURLProtocol.makeSession(), eventTransport: transport.transport,
+                          eventClock: clock.clock)
     }
 
     func testLiveDependenciesUseTheQueueClockTheSessionUidAndPrint() throws {
@@ -295,6 +300,85 @@ final class SellwildFailuresTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(now, before)
         XCTAssertLessThan(now - before, 60_000)
     }
+
+    func testQueueEventKeepsTheFailureUidAndTime() {
+        let failure = SellwildFailuresCore.Event(event: "clientFailure", action: "config.fetch.http",
+                                                 label: "remoteConfig",
+                                                 attributes: ["fv": "2"], uid: "u-1", createdTime: 42)
+        let event = SellwildEvent(failure: failure)
+        XCTAssertEqual(event.event, "clientFailure")
+        XCTAssertEqual(event.action, "config.fetch.http")
+        XCTAssertEqual(event.label, "remoteConfig")
+        XCTAssertEqual(event.attributes, ["fv": "2"])
+        XCTAssertEqual(event.uid, "u-1")
+        XCTAssertEqual(event.createdTime, 42)
+    }
+}
+
+// fv 2: the call-site stack, the app context and the call-site context.
+extension SellwildFailuresTests {
+
+    func testTheStackIsWhereLogWasCalledWithoutTheFailuresFrames() throws {
+        capture.stack = [
+            "0   SellwildSDK  0x0000000104a20000 $s11SellwildSDK0A8FailuresO3log4code + 120",
+            "1   SellwildSDK  0x0000000104a20100 $s11SellwildSDK0A8FailuresO3log4code + 64",
+            "2   SellwildSDK  0x0000000104a2c3e4 $s11SellwildSDK0A9APIClientC13fetchListingsyyF + 412",
+            "3   UIKitCore    0x00000001850f4a10 -[UIView layoutSubviews] + 140"
+        ]
+        SellwildFailures.log(code: .listingsFetchHttp, component: .listings, message: "HTTP 503")
+
+        XCTAssertEqual(capture.events.first?.attributes["stack"],
+                       "2 SellwildSDK 0x0000000104a2c3e4 $s11SellwildSDK0A9APIClientC13fetchListingsyyF + 412\n"
+                       + "3 UIKitCore 0x00000001850f4a10 -[UIView layoutSubviews] + 140")
+    }
+
+    func testCallerStackKeepsAtMost30FramesAndNothingWhenOnlyFailuresFramesAreLeft() {
+        XCTAssertNil(SellwildFailures.callerStack([]))
+        XCTAssertNil(SellwildFailures.callerStack(["0 capture", "1 SellwildFailures.log(code:)"]))
+        XCTAssertEqual(SellwildFailures.callerStack(["0 capture", "1 $s16SellwildSDKTests0a8FailuresC4testyyF"]),
+                       "1 $s16SellwildSDKTests0a8FailuresC4testyyF", "a caller named Failures is kept")
+        let many = (0..<40).map { "\($0) App 0x0 frame\($0)" }
+        XCTAssertEqual(SellwildFailures.callerStack(many)?.split(separator: "\n").count, 30)
+    }
+
+    func testTheCallSiteContextAndTheSlugAreSent() throws {
+        SellwildFailures.setContext { $0.slug = "weatherbug-main" }
+        SellwildFailures.log(code: .listingsFetchHttp, component: .listings, message: "HTTP 503",
+                             context: ["file": "listings-weatherbug.json", "attempt": 2, "Bad": "x"])
+
+        let attributes = try XCTUnwrap(capture.events.first?.attributes)
+        XCTAssertEqual(attributes["ctx.file"], "listings-weatherbug.json")
+        XCTAssertEqual(attributes["ctx.attempt"], "2")
+        XCTAssertNil(attributes["ctx.Bad"])
+        XCTAssertEqual(attributes["slug"], "weatherbug-main")
+    }
+
+    func testURLFileName() {
+        let listings = "https://cache.sellwild.com/listings-weatherbug.json?v=2#top"
+        XCTAssertEqual(SellwildFailures.urlFileName(listings), "listings-weatherbug.json")
+        XCTAssertEqual(SellwildFailures.urlFileName("https://cache.sellwild.com/a/b/"), "")
+        XCTAssertEqual(SellwildFailures.urlFileName("listings.json"), "listings.json")
+        XCTAssertEqual(SellwildFailures.urlFileName("?q"), "")
+    }
+
+    func testAppInfoFromTheBundleAndTheSimulator() {
+        let info = SellwildAppInfo(bundle: ["CFBundleIdentifier": "com.example", "CFBundleShortVersionString": "6.1"],
+                                   osVersion: OperatingSystemVersion(majorVersion: 26, minorVersion: 1,
+                                                                     patchVersion: 0),
+                                   environment: ["SIMULATOR_MODEL_IDENTIFIER": "iPhone17,1"], machine: "arm64")
+        XCTAssertEqual([info.appId, info.appVersion, info.os, info.device], ["com.example", "6.1", "iOS 26.1",
+                                                                             "iPhone17,1"])
+        let device = SellwildAppInfo(bundle: [:], osVersion: OperatingSystemVersion(majorVersion: 18,
+                                                                                    minorVersion: 4, patchVersion: 2),
+                                     environment: [:], machine: "iPhone16,2")
+        XCTAssertEqual([device.appId, device.appVersion, device.os, device.device], [nil, nil, "iOS 18.4.2",
+                                                                                     "iPhone16,2"])
+        XCTAssertNotNil(SellwildAppInfo.machineIdentifier())
+    }
+}
+
+// The live events queue path.
+extension SellwildFailuresTests {
 
     func testLoggedFailuresArePostedThroughTheEventsQueue() throws {
         let transport = CapturingEventTransport()
@@ -325,11 +409,16 @@ final class SellwildFailuresTests: XCTestCase {
         XCTAssertEqual(event["label"] as? String, "remoteConfig")
         XCTAssertEqual(event["uid"] as? String, SellwildSession.shared.uid)
         XCTAssertEqual((event["createdTime"] as? NSNumber)?.int64Value, clock.nowMs)
-        XCTAssertEqual(event["attributes"] as? [String: String], [
+        var sent = try XCTUnwrap(event["attributes"] as? [String: String])
+        // The live dependencies send where log was called: this test.
+        let stack = try XCTUnwrap(sent.removeValue(forKey: "stack"))
+        // The first frame is this test (mangled: SellwildSDKTests ... FailuresC).
+        XCTAssertTrue(stack.split(separator: "\n").first?.contains("SellwildSDKTests") == true, stack)
+        XCTAssertEqual(sent, [
             "code": "weatherbug", "client": "ios", "clientVersion": SellwildSDK.sdkVersion, "severity": "error",
-            "fv": "1", "msg": "HTTP 403", "httpStatus": "403", "host": "widget.sellwild.com", "seq": "1", "repeat": "1",
-            "type": "ios", "sdkVersion": SellwildSDK.sdkVersion,
-        ])
+            "fv": "2", "msg": "HTTP 403", "httpStatus": "403", "host": "widget.sellwild.com", "seq": "1", "repeat": "1",
+            "type": "ios", "sdkVersion": SellwildSDK.sdkVersion
+        ].merging(FailureCapture.appAttributes) { $1 })
         try ContractEmitter.emit(jsonData: try XCTUnwrap(request.httpBody), schema: "events-batch",
                                  variant: "ios-log-failure-first")
 
@@ -350,17 +439,5 @@ final class SellwildFailuresTests: XCTestCase {
         XCTAssertEqual(clock.pendingCount, 0)
         XCTAssertEqual(SellwildFailures.internalErrorCount, 0)
         XCTAssertTrue(NetworkBlocker.takeBlocked().isEmpty)
-    }
-
-    func testQueueEventKeepsTheFailureUidAndTime() {
-        let failure = SellwildFailuresCore.Event(event: "clientFailure", action: "config.fetch.http", label: "remoteConfig",
-                                                 attributes: ["fv": "1"], uid: "u-1", createdTime: 42)
-        let event = SellwildEvent(failure: failure)
-        XCTAssertEqual(event.event, "clientFailure")
-        XCTAssertEqual(event.action, "config.fetch.http")
-        XCTAssertEqual(event.label, "remoteConfig")
-        XCTAssertEqual(event.attributes, ["fv": "1"])
-        XCTAssertEqual(event.uid, "u-1")
-        XCTAssertEqual(event.createdTime, 42)
     }
 }

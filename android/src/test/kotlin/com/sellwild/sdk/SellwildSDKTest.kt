@@ -85,6 +85,22 @@ class SellwildSDKTest {
     }
 
     @Test
+    fun `IAB_CATS that is null or neither text nor a list keeps the base value`() {
+        val withCats = base.copy(iabCats = listOf("IAB1"))
+
+        assertEquals(listOf("IAB1"), SellwildSDK.apply(JSONObject().put("IAB_CATS", JSONObject.NULL), withCats).iabCats)
+        assertEquals(listOf("IAB1"), SellwildSDK.apply(JSONObject().put("IAB_CATS", 15), withCats).iabCats)
+        assertEquals(listOf("IAB1"), SellwildSDK.apply(JSONObject().put("IAB_CATS", JSONObject()), withCats).iabCats)
+    }
+
+    @Test
+    fun `a list key sent as text keeps the base value`() {
+        val withColors = base.copy(colors = listOf("#111111"))
+
+        assertEquals(listOf("#111111"), SellwildSDK.apply(JSONObject().put("COLORS", "#222222"), withColors).colors)
+    }
+
+    @Test
     fun `absent keys keep the base values`() {
         val custom = base.copy(listingsUrl = "https://cache.sellwild.com/listings-custom", title = "Deals", adRefreshIntervalMs = 60_000L)
 

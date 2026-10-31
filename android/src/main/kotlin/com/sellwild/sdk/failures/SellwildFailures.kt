@@ -20,6 +20,11 @@ import java.util.concurrent.atomic.AtomicInteger
  * @property failuresSampleRate the raw remote FAILURES_SAMPLE_RATE value. Null means 1.
  * @property failuresEnabledOverride a local switch that wins over [failuresEnabled].
  * @property wrapper `react-native` or `flutter` when the SDK is hosted by a wrapper.
+ * @property appId the host app's package name, set once by [SellwildFailures.attach].
+ * @property appVersion the host app's versionName.
+ * @property os `Android <release>`, e.g. `Android 15`.
+ * @property device Build.MODEL.
+ * @property slug the remote-config slug [SellwildSDK.configure] fetched.
  */
 data class SellwildFailureContext(
     val partnerCode: String? = null,
@@ -31,6 +36,11 @@ data class SellwildFailureContext(
     val failuresSampleRate: Any? = null,
     val failuresEnabledOverride: Boolean? = null,
     val wrapper: String? = null,
+    val appId: String? = null,
+    val appVersion: String? = null,
+    val os: String? = null,
+    val device: String? = null,
+    val slug: String? = null,
 )
 
 /** Where logFailure sends what it emits: the events queue, or a fake in tests. */
@@ -122,7 +132,13 @@ object SellwildFailures {
      * @param message a short, PII-free description. Never listing text, user data or URLs
      *   with query strings.
      * @param url only its host is sent.
+     * @param context what the call site knows that helps debug it, e.g.
+     *   `mapOf("file" to "listings-weatherbug.json", "attempt" to 2)`: at most 8 keys matching
+     *   `^[a-z][a-zA-Z0-9_]{0,31}$`, values String or a finite number, sent as `ctx.<key>`.
+     *   Never listing text or other PII.
      */
+    // the contract's call parameters (FAILURES.md 3.1), all named with defaults
+    @Suppress("LongParameterList")
     @JvmStatic
     fun log(
         code: String,
@@ -133,12 +149,13 @@ object SellwildFailures {
         httpStatus: Int? = null,
         url: String? = null,
         zoneId: String? = null,
+        context: Map<String, Any>? = null,
     ) {
         if (inLog.get() == true) return
         inLog.set(true)
         try {
             runCatching {
-                record(toInput(code, component, severity, error, message, httpStatus, url, zoneId))
+                record(toInput(code, component, severity, error, message, httpStatus, url, zoneId, context))
             }.onFailure(::internalError)
         } finally {
             inLog.set(false)
@@ -171,11 +188,52 @@ object SellwildFailures {
      */
     @JvmStatic
     fun attach(context: Context) {
+        runCatching { setAppContext(context) }.onFailure(::internalError)
         runCatching { attachQueue(SellwildEventQueue.shared(context)) }.onFailure(::internalError)
+        runCatching { com.sellwild.sdk.guards.SellwildGuards.install(context) }.onFailure(::internalError)
+    }
+
+    /**
+     * [log] with a stack text the SDK already has (an ANR trace from ApplicationExitInfo)
+     * instead of a Throwable's. Internal: call sites pass errors.
+     */
+    internal fun logStack(code: String, component: String, severity: String, message: String, stack: String?) {
+        if (inLog.get() == true) return
+        inLog.set(true)
+        try {
+            runCatching {
+                record(
+                    toInput(
+                        code,
+                        component,
+                        severity,
+                        null,
+                        message,
+                        null,
+                        null,
+                        null
+                    ).copy(stack = capInput(stack, STACK_INPUT_MAX))
+                )
+            }.onFailure(::internalError)
+        } finally {
+            inLog.set(false)
+        }
+    }
+
+    /**
+     * Sets the app context attributes once (FAILURES.md 6.3): package name, versionName,
+     * `Android <release>` and Build.MODEL. A later attach leaves them as they are.
+     */
+    internal fun setAppContext(context: Context) {
+        if (settings.appId != null) return
+        // Inside logFailure's own machinery: a failed lookup is counted, not reported (3.4).
+        val app = AppInfo.of(context, ::internalError)
+        setContext { it.copy(appId = app.appId, appVersion = app.appVersion, os = app.os, device = app.device) }
     }
 
     internal fun attachQueue(queue: SellwildEventQueue) {
         bind(QueueFailureSink(queue))
+        com.sellwild.sdk.timing.SellwildTiming.attachQueue(queue)
     }
 
     /**
@@ -279,6 +337,11 @@ object SellwildFailures {
         client = client,
         clientVersion = clientVersion,
         wrapper = wrapper,
+        appId = appId,
+        appVersion = appVersion,
+        os = os,
+        device = device,
+        slug = slug,
         eventsEnabled = eventsEnabled,
         failuresEnabled = failuresEnabledOverride ?: failuresEnabled,
         failuresSampleRate = failuresSampleRate,
@@ -290,6 +353,8 @@ object SellwildFailures {
     /** Echo outcome when the hold is full: the call is dropped. */
     internal const val HELD_FULL = "held_full"
 
+    // log's parameters, passed through
+    @Suppress("LongParameterList")
     internal fun toInput(
         code: String,
         component: String,
@@ -299,6 +364,7 @@ object SellwildFailures {
         httpStatus: Int?,
         url: String?,
         zoneId: String?,
+        context: Map<String, Any>? = null,
     ) = FailureInput(
         code = code,
         component = component,
@@ -310,6 +376,7 @@ object SellwildFailures {
         httpStatus = httpStatus,
         url = url,
         zoneId = zoneId,
+        context = context,
     )
 
     /**
@@ -320,8 +387,11 @@ object SellwildFailures {
      */
     internal const val MESSAGE_INPUT_MAX = 1000
 
-    /** Input cap for the stack text (5 frames of at most 800 code points are ever sent). */
-    internal const val STACK_INPUT_MAX = 2000
+    /**
+     * Input cap for the stack text: 30 frames of at most 500 units each (the core cuts each
+     * frame to 500 before its patterns run, and sends at most 4000 code points).
+     */
+    internal const val STACK_INPUT_MAX = 16000
 
     /**
      * The first [max] UTF-16 units of [text]. A surrogate pair the cut splits leaves a lone
@@ -331,17 +401,28 @@ object SellwildFailures {
         if (text != null && text.length > max) text.substring(0, max) else text
 
     /**
-     * The first frames of [error], one `Class.method(File.kt:line)` per line, with no
-     * header line (FAILURES.md 3.3). Built by hand: the JDK's StackTraceElement.toString
-     * adds module and loader prefixes that ART does not.
+     * The frames of [error] and of its causes, one `Class.method(File.kt:line)` per line,
+     * each cause introduced by `Caused by: <SimpleName>` (its message is left out: it may
+     * hold PII), 30 lines in all, with no header line (FAILURES.md 3.3). Built by hand:
+     * the JDK's StackTraceElement.toString adds module and loader prefixes that ART does
+     * not. A cause cycle ends the chain.
      */
-    internal fun stackOf(error: Throwable): String =
-        error.stackTrace.take(FailuresCore.STACK_FRAMES).joinToString("\n") { e ->
-            val where = when {
-                e.fileName == null -> "Unknown Source"
-                e.lineNumber >= 0 -> "${e.fileName}:${e.lineNumber}"
-                else -> e.fileName
+    internal fun stackOf(error: Throwable): String {
+        val lines = ArrayList<String>()
+        val seen = HashSet<Throwable>()
+        var current: Throwable? = error
+        while (current != null && seen.add(current) && lines.size < FailuresCore.STACK_FRAMES) {
+            if (current !== error) lines += "Caused by: ${current.javaClass.simpleName}"
+            current.stackTrace.forEach { e ->
+                val where = when {
+                    e.fileName == null -> "Unknown Source"
+                    e.lineNumber >= 0 -> "${e.fileName}:${e.lineNumber}"
+                    else -> e.fileName
+                }
+                lines += "${e.className}.${e.methodName}($where)"
             }
-            "${e.className}.${e.methodName}($where)"
+            current = current.cause
         }
+        return lines.take(FailuresCore.STACK_FRAMES).joinToString("\n")
+    }
 }

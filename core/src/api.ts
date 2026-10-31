@@ -1,6 +1,7 @@
 import { SellwildConfig, SellwildListingsResponse, SellwildListing } from './types'
 import { DEFAULT_LISTINGS_URL } from './config'
-import { logFailure } from './failures'
+import { logFailure, urlFileName } from './failures'
+import { monotonicMs, recordTiming, startTiming } from './timing'
 import { jsonKind, parseErrorName } from './json-kind'
 
 // The events queue lives in ./event-queue (it must not import logFailure).
@@ -69,34 +70,41 @@ export async function fetchListings(
 
 async function loadListings(url: string, options: FetchOptions): Promise<SellwildListingsResponse> {
   const aborted = () => options.signal?.aborted === true
+  const context = { file: urlFileName(url) }
   let res: Response
+  const fetchTimer = startTiming('listings.fetch')
   try {
     res = await fetch(url, {
       signal: options.signal,
       headers: options.headers,
     })
   } catch (error) {
-    if (!aborted()) logFailure({ code: 'listings.fetch.network', component: 'listings', error, url })
+    if (!aborted()) logFailure({ code: 'listings.fetch.network', component: 'listings', error, url, context })
     throw error
   }
   // A non-2xx answer is reported here and only here, even when its body
   // then fails to parse (S3 answers 403 with XML) or has no listings.
   if (!res.ok) {
-    logFailure({ code: 'listings.fetch.http', component: 'listings', message: `HTTP ${res.status}`, httpStatus: res.status, url })
+    logFailure({ code: 'listings.fetch.http', component: 'listings', message: `HTTP ${res.status}`, httpStatus: res.status, url, context })
   }
 
+  if (res.ok) fetchTimer()
+
   let data: unknown
+  const decodeStarted = monotonicMs()
   try {
     data = await res.json()
   } catch (error) {
     // Only the error's name is sent: its message quotes part of the body.
-    if (res.ok && !aborted()) logFailure({ code: 'listings.fetch.parse', component: 'listings', message: 'listings body is not JSON', error: parseErrorName(error), url })
+    if (res.ok && !aborted()) logFailure({ code: 'listings.fetch.parse', component: 'listings', message: 'listings body is not JSON', error: parseErrorName(error), url, context })
     throw error
   }
   if (res.ok && !hasListingsArray(data)) {
-    logFailure({ code: 'listings.parse.invalid', component: 'listings', message: 'no result.rs array', url })
+    logFailure({ code: 'listings.parse.invalid', component: 'listings', message: 'no result.rs array', url, context })
   }
-  return parseListingsResponse(data)
+  const parsed = parseListingsResponse(data)
+  if (res.ok) recordTiming('listings.decode', monotonicMs() - decodeStarted)
+  return parsed
 }
 
 /**

@@ -161,11 +161,9 @@ jobs:
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
           xcrun simctl list devices available | grep "$UDID"
           xcrun simctl boot "$UDID"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: contracts/package-lock.json
+      # The runner's own Node runs ios.sh's summary and the contract checks;
+      # setup-node took over 3 minutes here on macOS.
+      - run: node --version
       # ios.sh validates the payloads the tests emit with contracts/scripts/validate.mjs.
       - run: npm --prefix contracts ci --no-audit --no-fund
       # Derived data: the resolved packages and their build products. Keyed on

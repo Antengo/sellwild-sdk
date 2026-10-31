@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest'
-import type { SellwildEid } from '@sellwild/sdk-core'
-import { missingNativeCommand, prewarm, setExternalUserIds, setGeo } from '../src/commands'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { clearRemoteConfigCache, type SellwildEid } from '@sellwild/sdk-core'
+import { configure, missingNativeCommand, prewarm, setExternalUserIds, setGeo } from '../src/commands'
 import { toNativeConfig } from '../src/nativeConfig'
-import { eidBlob, rnGeo, rnNativeConfig, sellwildConfig, bridged } from './factories'
+import { appConfig, eidBlob, rnGeo, rnNativeConfig, sellwildConfig, bridged } from './factories'
 import { expectValid } from './support/schemas'
 import { countLogFailureCallsIn, freshModulesRecording, recordFailures, takeFailureEvents } from './support/failures'
 import { NativeModules } from './stubs/react-native'
@@ -60,6 +60,32 @@ describe('the native commands, with the native module linked', () => {
     setGeo(null)
     setExternalUserIds([])
     prewarm(sellwildConfig())
+    expect(takeFailureEvents()).toEqual([])
+  })
+})
+
+describe('configure', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    clearRemoteConfigCache()
+  })
+
+  it('returns the CDN config and pre-warms the native ad stack with it', async () => {
+    const raw = appConfig({ GAM: '/1/from-cdn', TITLE: 'From CDN' })
+    expectValid('app-config', raw)
+    const fetched: string[] = []
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      fetched.push(url)
+      return Promise.resolve(new Response(JSON.stringify(raw)))
+    }))
+
+    const config = await configure('weatherbug', 'weatherbug-weatherbug', { overrides: { appBundleId: 'com.aws.android' } })
+
+    expect(fetched).toEqual(['https://widget.sellwild.com/app/weatherbug/weatherbug-weatherbug.json'])
+    expect(config).toMatchObject({ partnerCode: 'weatherbug', slug: 'weatherbug-weatherbug', gamTag: '/1/from-cdn', appBundleId: 'com.aws.android' })
+    const calls = NativeModules.SellwildRNModule!.prewarm.mock.calls
+    expect(calls).toHaveLength(1)
+    expect(calls[0][0]).toEqual(toNativeConfig(config))
     expect(takeFailureEvents()).toEqual([])
   })
 })

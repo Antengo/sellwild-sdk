@@ -67,6 +67,7 @@ function makeStub() {
 
   const Platform = {
     OS: 'ios' as OS,
+    Version: '17.4' as string | number,
     select<T>(spec: { ios?: T; android?: T; native?: T; default?: T }): T | undefined {
       return spec[Platform.OS] ?? spec.native ?? spec.default
     },

@@ -156,7 +156,7 @@ public struct SellwildListingsResponse {
 public final class SellwildAPIClient {
 
     private let session: URLSession
-    private let listingCache = NSCache<NSString, ListingsCacheEntry>()
+    let listingCache = NSCache<NSString, ListingsCacheEntry>()
 
     /// Analytics kill switch. Defaults on; `SellwildSDK.configure` and
     /// `SellwildAdView` set this from the resolved remote config (EVENTS_ENABLED)
@@ -208,9 +208,14 @@ public final class SellwildAPIClient {
     /// `createdTime` (`SellwildFailures` reads it).
     let eventClock: SellwildEventClock
 
-    public static let shared = SellwildAPIClient()
+    public static let shared = SellwildAPIClient(session: SellwildNetwork.session)
 
-    public convenience init(session: URLSession = .shared) {
+    /// A client on the SDK's session (15 s request, 30 s resource timeouts).
+    public convenience init() {
+        self.init(session: SellwildNetwork.session)
+    }
+
+    public convenience init(session: URLSession) {
         self.init(session: session, eventTransport: .session(session), eventClock: .system)
     }
 
@@ -234,6 +239,8 @@ public final class SellwildAPIClient {
     /// for tests: the default cannot fail on the envelope it is given.
     var encodeListingsEnvelope: ([String: Any]) throws -> Data = { try JSONSerialization.data(withJSONObject: $0) }
 
+    /// Encodes an events batch. A seam for tests: JSONEncoder cannot fail on a SellwildEvent.
+    var encodeEvents: ([SellwildEvent]) throws -> Data = { try JSONEncoder().encode($0) }
     /// Runs one listings or localized-cache request on `session`. A seam for
     /// tests, which also hand back answers URLSession never gives (no body
     /// and no error).
@@ -282,55 +289,12 @@ public final class SellwildAPIClient {
             return
         }
 
-        let urlString = url.absoluteString
+        let pending = ListingsRequest(url: url.absoluteString, cacheKey: cacheKey,
+                                      fetchTimer: SellwildTiming.start("listings.fetch"))
         load(request) { [weak self] data, response, error in
-            let finish = { (result: Result<SellwildListingsResponse, Error>) in
+            Self.deliverListings(client: self, request: pending,
+                                 answer: .init(data: data, response: response, error: error)) { result in
                 DispatchQueue.main.async { completion(result) }
-            }
-            if let error = error {
-                Self.reportTransportError(error, component: .listings, url: urlString)
-                finish(.failure(error))
-                return
-            }
-            guard let data = data else {
-                SellwildFailures.log(code: .listingsFetchMissing, component: .listings,
-                                     message: "listings response has no body", url: urlString)
-                finish(.failure(SellwildError.noData))
-                return
-            }
-            // Seed the geo state from CloudFront's viewer-country-region header
-            // when the partner hasn't supplied one, so the localized-listings
-            // path can key a per-state cache. Mirrors the web widget's
-            // appendViewerHeaders seeding userLocation.state.
-            if let http = response as? HTTPURLResponse {
-                Self.seedGeoFromCloudFrontIfEmpty(from: http)
-            }
-            if let status = SellwildLoadFailure.httpFailureStatus(response) {
-                SellwildFailures.log(code: .listingsFetchHttp, component: .listings,
-                                     message: "HTTP \(status)", httpStatus: status, url: urlString)
-                finish(.failure(SellwildError.invalidResponse))
-                return
-            }
-            guard let self = self else {
-                // The client went away mid-request: nothing can cache or use
-                // the answer, so an empty feed is delivered, as before.
-                SellwildFailures.log(code: .listingsClientMissing, component: .listings, severity: .warn,
-                                     message: "listings client released while a request was in flight", url: urlString)
-                finish(.success(SellwildListingsCore.empty))
-                return
-            }
-            switch SellwildListingsCore.parse(data) {
-            case .failure(.notJSON(let parseError)):
-                SellwildFailures.log(code: .listingsFetchParse, component: .listings, error: parseError, url: urlString)
-                finish(.failure(parseError))
-            case .failure(.notAnObject):
-                SellwildFailures.log(code: .listingsParseInvalid, component: .listings,
-                                     message: "listings JSON is not an object", url: urlString)
-                finish(.failure(SellwildError.invalidResponse))
-            case .success(let parsed):
-                Self.reportParseProblems(parsed, component: .listings, url: urlString)
-                self.listingCache.setObject(ListingsCacheEntry(response: parsed.response), forKey: cacheKey)
-                finish(.success(parsed.response))
             }
         }
     }
@@ -407,71 +371,6 @@ public final class SellwildAPIClient {
         }
     }
 
-    /// A per-state cache that does not exist answers 403 (S3 AccessDenied) or
-    /// 404. That is a normal skip, not a failure.
-    static func isMissingStateCache(status: Int) -> Bool {
-        status == 403 || status == 404
-    }
-
-    /// Reports a transport error of a listings or localized fetch. A
-    /// cancelled load is the caller's choice, not a failure.
-    private static func reportTransportError(_ error: Error, component: SellwildFailureComponent, url: String) {
-        let localized = component == .localized
-        switch SellwildLoadFailure.transport(error) {
-        case .cancelled:
-            SellwildLog.debug("[SellwildAPIClient] \(component.rawValue) fetch cancelled")
-        case .timeout:
-            SellwildFailures.log(code: localized ? .localizedFetchTimeout : .listingsFetchTimeout,
-                                 component: component, error: error, url: url)
-        case .network:
-            SellwildFailures.log(code: localized ? .localizedFetchNetwork : .listingsFetchNetwork,
-                                 component: component, error: error, url: url)
-        }
-    }
-
-    /// Reports what was wrong inside a body that parsed: no `result.rs` list,
-    /// and items that could not be decoded (one report per body).
-    private static func reportParseProblems(_ parsed: SellwildListingsCore.Parsed, component: SellwildFailureComponent, url: String) {
-        if let problem = parsed.rsProblem {
-            SellwildFailures.log(code: .listingsParseInvalid, component: component, message: problem, url: url)
-        }
-        if parsed.dropped > 0 {
-            SellwildFailures.log(code: .listingsItemParse, component: component, error: parsed.firstDropError,
-                                 message: "\(parsed.dropped) listing(s) could not be decoded and were dropped", url: url)
-        }
-    }
-
-    /// Seed `SellwildGeoStore` region + country from the CloudFront viewer
-    /// headers when not already set, then re-emit so `device.geo` reaches the
-    /// auction. `applyGlobalORTB()` runs only at bootstrap + `setGeo(_:)` (not
-    /// per-auction), so a bare store write would never make it into a request —
-    /// `setGeo` persists the store AND re-emits. Never overwrites a
-    /// partner-supplied or previously-seeded value. Country is restricted to a
-    /// North America alpha-2 → alpha-3 map (oRTB wants alpha-3); anything outside
-    /// NA is skipped rather than sent unmapped.
-    private static func seedGeoFromCloudFrontIfEmpty(from response: HTTPURLResponse) {
-        var geo = SellwildGeoStore.current ?? SellwildGeo()
-        var changed = false
-
-        if (geo.state ?? "").isEmpty,
-           let region = response.value(forHTTPHeaderField: "CloudFront-Viewer-Country-Region")?
-               .trimmingCharacters(in: .whitespacesAndNewlines), !region.isEmpty {
-            geo.state = region
-            changed = true
-        }
-
-        if (geo.country ?? "").isEmpty,
-           let alpha2 = response.value(forHTTPHeaderField: "CloudFront-Viewer-Country")?
-               .trimmingCharacters(in: .whitespacesAndNewlines), !alpha2.isEmpty,
-           let alpha3 = SellwildGeo.northAmericaAlpha3(alpha2: alpha2) {
-            geo.country = alpha3
-            changed = true
-        }
-
-        guard changed else { return }
-        SellwildPrebidMobile.setGeo(geo)
-    }
-
     // MARK: Send Analytics Event
 
     /// Queue an analytics event. The first event of the process is flushed
@@ -546,7 +445,7 @@ public final class SellwildAPIClient {
         eventBuffer.removeFirst(batch.count)
         let body: Data
         do {
-            body = try JSONEncoder().encode(batch)
+            body = try encodeEvents(batch)
         } catch {
             // Unreachable in practice: a SellwildEvent holds only text and an
             // Int64. Transport never reports itself (FAILURES.md 8.4, A7), so
@@ -730,7 +629,7 @@ public enum SellwildError: LocalizedError {
 
 // MARK: - Cache Entry
 
-private final class ListingsCacheEntry: NSObject {
+final class ListingsCacheEntry: NSObject {
     let response: SellwildListingsResponse
     init(response: SellwildListingsResponse) { self.response = response }
 }

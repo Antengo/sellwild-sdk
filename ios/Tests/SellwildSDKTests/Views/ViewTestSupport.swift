@@ -130,6 +130,9 @@ final class AdViewDelegateRecorder: NSObject, SellwildAdViewDelegate {
     func sellwildAdView(_ adView: SellwildAdView, didRecordHouseImpressionForZoneId zoneId: String) {
         calls.append("house \(zoneId)")
     }
+    func sellwildAdView(_ adView: SellwildAdView, didBlockAdForZoneId zoneId: String) {
+        calls.append("blocked \(zoneId)")
+    }
 }
 
 /// A view controller in a window, so views added to it find a presenter and

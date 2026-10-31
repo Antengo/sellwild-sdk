@@ -14,6 +14,11 @@ package com.sellwild.sdk
 
 import android.content.Context
 import android.os.Bundle
+import android.view.View
+import com.boltive.api.AdViewConfiguration
+import com.boltive.api.BoltiveConfiguration
+import com.boltive.api.BoltiveListener
+import com.boltive.api.BoltiveMonitor
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.admanager.AdManagerAdRequest
 import com.google.android.gms.ads.admanager.AdManagerAdView
@@ -28,7 +33,6 @@ import com.sellwild.prebid.SellwildPrebid
 import com.sellwild.prebid.Signals
 import com.sellwild.prebid.TargetingParams
 import com.sellwild.prebid.api.data.InitializationStatus
-import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView
 import com.sellwild.sdk.core.PrebidSetup
 import com.sellwild.sdk.failures.SellwildFailureCode
 import com.sellwild.sdk.failures.SellwildFailureComponent
@@ -36,6 +40,7 @@ import com.sellwild.sdk.failures.SellwildFailureSeverity
 import com.sellwild.sdk.failures.SellwildFailures
 import com.sellwild.sdk.failures.SellwildLog
 import org.json.JSONObject
+import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView
 
 /**
  * The GMA and Prebid fork calls that need a device or the network. Everything around them
@@ -64,10 +69,13 @@ internal interface SellwildAdNetwork {
 
     /** PrebidNativeAd.create: the won native ad for [cacheId], or null. */
     fun nativeAd(cacheId: String): NativeAdContent?
+
+    /** new BoltiveMonitor(configuration): one Boltive ad-quality monitor for one render. */
+    fun boltiveMonitor(configuration: BoltiveConfiguration): BoltiveSession
 }
 
 /**
- * The real [SellwildAdNetwork]: one call each into GMA or the Prebid fork. Excluded from the
+ * The real [SellwildAdNetwork]: one call each into GMA, the Prebid fork or Boltive. Excluded from the
  * coverage gate (A10: third-party SDK calls that need a device or the network), so it holds
  * nothing but those calls.
  */
@@ -97,7 +105,19 @@ internal object LiveAdNetwork : SellwildAdNetwork {
         unit.fetchDemand(adObject, OnCompleteListener { result -> onResult(result) })
     }
 
-    override fun nativeAd(cacheId: String): NativeAdContent? = PrebidNativeAd.create(cacheId)?.let(::PrebidNativeContent)
+    override fun nativeAd(cacheId: String): NativeAdContent? = PrebidNativeAd.create(
+        cacheId
+    )?.let(::PrebidNativeContent)
+
+    override fun boltiveMonitor(configuration: BoltiveConfiguration): BoltiveSession {
+        val monitor = BoltiveMonitor(configuration)
+        return object : BoltiveSession {
+            override fun capture(view: View, configuration: AdViewConfiguration, listener: BoltiveListener) =
+                monitor.capture(view, configuration, listener)
+
+            override fun terminate() = monitor.terminate()
+        }
+    }
 }
 
 /**
@@ -117,7 +137,9 @@ object SellwildPrebidMobile {
     private const val DEFAULT_TIMEOUT_MS = 1500
 
     private val lock = Any()
+
     @Volatile private var didBootstrap = false
+
     // Whether PrebidMobile.initializeSdk reached SUCCEEDED. If not, callers
     // should skip the auction and load GAM directly so ads still serve when
     // Prebid Server is unreachable.
@@ -126,6 +148,7 @@ object SellwildPrebidMobile {
     // Publisher id resolved at bootstrap + partner-supplied geo, retained so
     // applyGlobalOrtb() re-emits both in one combined config (setGeo updates geo).
     @Volatile private var resolvedPublisherId: String? = null
+
     @Volatile private var resolvedCats: List<String>? = null
 
     /** Where the GMA and Prebid calls that need a device or the network go. Tests install a fake. */
@@ -390,15 +413,19 @@ object SellwildPrebidMobile {
         val cats: List<String>? = null,
     ) {
         /** Fill fields this value leaves null from [base]. */
-        fun overlaying(base: PerConfigFields?): PerConfigFields = if (base == null) this else PerConfigFields(
-            serverUrl = serverUrl ?: base.serverUrl,
-            accountId = accountId ?: base.accountId,
-            timeout = timeout ?: base.timeout,
-            bundleName = bundleName ?: base.bundleName,
-            storeUrl = storeUrl ?: base.storeUrl,
-            publisherId = publisherId ?: base.publisherId,
-            cats = cats ?: base.cats,
-        )
+        fun overlaying(base: PerConfigFields?): PerConfigFields = if (base == null) {
+            this
+        } else {
+            PerConfigFields(
+                serverUrl = serverUrl ?: base.serverUrl,
+                accountId = accountId ?: base.accountId,
+                timeout = timeout ?: base.timeout,
+                bundleName = bundleName ?: base.bundleName,
+                storeUrl = storeUrl ?: base.storeUrl,
+                publisherId = publisherId ?: base.publisherId,
+                cats = cats ?: base.cats,
+            )
+        }
     }
 
     internal fun perConfigFields(config: SellwildConfig, remoteRoot: JSONObject?): PerConfigFields {

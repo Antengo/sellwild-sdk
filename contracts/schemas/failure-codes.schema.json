@@ -18,7 +18,7 @@
       },
       "area": {
         "description": "First segment of the code. 'client' is reserved for client.code.invalid.",
-        "enum": ["config", "listings", "localized", "ad", "house", "feed", "bridge", "widget", "video", "growthcode", "geo", "storage", "client"]
+        "enum": ["config", "listings", "localized", "ad", "house", "feed", "bridge", "widget", "video", "growthcode", "geo", "storage", "sdk", "client"]
       },
       "operation": {
         "description": "Second segment of the code: what was being done.",
@@ -27,11 +27,11 @@
       },
       "reason": {
         "description": "Third segment of the code: why it failed.",
-        "enum": ["network", "timeout", "http", "parse", "invalid", "missing", "exception", "unsupported"]
+        "enum": ["network", "timeout", "http", "parse", "invalid", "missing", "exception", "unsupported", "slow", "warning", "killed"]
       },
       "component": {
         "description": "Usual label for this code. A call site may pass another component. 'unknown' only for client.code.invalid.",
-        "enum": ["configure", "remoteConfig", "listings", "localized", "feed", "banner", "native", "video", "house", "bridge", "webview", "widget", "shorts", "tv", "flipcard", "growthcode", "geo", "storage", "unknown"]
+        "enum": ["configure", "remoteConfig", "listings", "localized", "feed", "banner", "native", "video", "house", "bridge", "webview", "widget", "shorts", "tv", "flipcard", "growthcode", "geo", "storage", "sdk", "unknown"]
       },
       "severity": {
         "description": "Recommended severity for call sites. logFailure itself defaults to error when none is passed.",

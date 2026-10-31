@@ -47,6 +47,10 @@ internal class AdEvents : SellwildAdView.Listener {
     override fun onHouseAdImpression(adView: SellwildAdView, zoneId: String) {
         calls += "house:$zoneId"
     }
+
+    override fun onAdBlocked(adView: SellwildAdView, zoneId: String) {
+        calls += "blocked:$zoneId"
+    }
 }
 
 /** Runs the main looper for [ms] of fake time: posted and delayed work runs. */

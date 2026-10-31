@@ -35,44 +35,12 @@ const MODULE = 'android';
 const SOURCE_DIRS = [`${MODULE}/src/main/kotlin`, `${MODULE}/src/main/java`];
 const SOURCE_ROOT = `${MODULE}/src/main/kotlin/com/sellwild/sdk`;
 
-// Phase 1 (phase1/sdk-android.json) classified the first nine files pure or
-// mostly pure. It also classified RnGeo.kt and RnPrebidServer.kt mostly pure,
-// but they sit in react-native/android, which no JVM test builds (OUTSIDE_MODULE
-// names them). failures/ holds logFailure (A2); core/ holds pure code extracted
-// from the View, WebView, GMA and Prebid glue. Phase 3 (unit sdk-android-logic)
-// added the logic shells it covers: configure, the listings and events client,
-// GrowthCode, house-ad images and the audio guard. Phase 3 (unit
-// sdk-android-views) added the view shells, tested under Robolectric with a fake
-// ad network: the ad, native, house-ad and feed views, the Compose feed
-// wrapper and the Prebid Mobile bridge (minus the classes in EXCLUDED_CLASSES).
-const GATE_INCLUDE = [
-  `${SOURCE_ROOT}/SellwildConfig.kt`,
-  `${SOURCE_ROOT}/SellwildLocalizedListings.kt`,
-  `${SOURCE_ROOT}/SellwildAdStack.kt`,
-  `${SOURCE_ROOT}/SellwildGpid.kt`,
-  `${SOURCE_ROOT}/SellwildNative.kt`,
-  `${SOURCE_ROOT}/SellwildAdSizes.kt`,
-  `${SOURCE_ROOT}/SellwildGeo.kt`,
-  `${SOURCE_ROOT}/SellwildSafeUrl.kt`,
-  `${SOURCE_ROOT}/SellwildVideo.kt`,
-  `${SOURCE_ROOT}/SellwildSDK.kt`,
-  `${SOURCE_ROOT}/SellwildAPI.kt`,
-  `${SOURCE_ROOT}/SellwildGrowthCode.kt`,
-  `${SOURCE_ROOT}/SellwildHouseAd.kt`,
-  `${SOURCE_ROOT}/SellwildAdAudioGuard.kt`,
-  `${SOURCE_ROOT}/SellwildAdView.kt`,
-  `${SOURCE_ROOT}/SellwildPrebidMobile.kt`,
-  `${SOURCE_ROOT}/SellwildNativeAdView.kt`,
-  `${SOURCE_ROOT}/SellwildHouseAdView.kt`,
-  `${SOURCE_ROOT}/SellwildFeedView.kt`,
-  `${SOURCE_ROOT}/SellwildFeed.kt`,
-  // origin/main: the tolerant S2S_CONFIG reader (c55efa0) and the multi-process
-  // WebView data directory, kept after the widget removal (d6aa615).
-  `${SOURCE_ROOT}/SellwildS2SConfig.kt`,
-  `${SOURCE_ROOT}/SellwildWebViewCompat.kt`,
-  `${SOURCE_ROOT}/failures/**`,
-  `${SOURCE_ROOT}/core/**`,
-];
+// The gate is every Kotlin file of the SDK module (2026-10-30: "full test
+// coverage", enforced in CI by tools/coverage-gate.mjs against
+// tools/coverage-thresholds.json), minus EXCLUDED and EXCLUDED_CLASSES below,
+// each with its reason. Before that it was a list of files phase 1 and 3 had
+// brought under test, which left new files (Boltive, the init provider) out.
+const GATE_INCLUDE = [`${SOURCE_ROOT}/**`];
 const WHOLE_INCLUDE = [`${MODULE}/src/main/**`];
 
 // A10 allows exclusions only for type-only files, generated output, tiny entry
@@ -93,7 +61,7 @@ const EXCLUDED_CLASSES = [
   {
     path: `${SOURCE_ROOT}/SellwildPrebidMobile.kt`,
     classes: ['com/sellwild/sdk/LiveAdNetwork'],
-    reason: 'A10 third-party SDK calls that need a device or the network: the real SellwildAdNetwork, one call each into MobileAds.initialize, SellwildPrebid.initializeSdk, AdManagerAdView.loadAd, BannerAdUnit.fetchDemand, BannerView.loadAd, NativeAdUnit.fetchDemand and PrebidNativeAd.create. Everything around those calls (bootstrap, runBannerAuction, applyEids, the auction and init results) stays in the gate and runs against a fake network.',
+    reason: 'A10 third-party SDK calls that need a device or the network: the real SellwildAdNetwork, one call each into MobileAds.initialize, SellwildPrebid.initializeSdk, AdManagerAdView.loadAd, BannerAdUnit.fetchDemand, BannerView.loadAd, NativeAdUnit.fetchDemand, PrebidNativeAd.create and Boltive\'s BoltiveMonitor (new, capture, terminate: it polls a rendered creative WebView on a timer and reports flagged creatives to Boltive over the network). Everything around those calls (bootstrap, runBannerAuction, applyEids, the auction and init results, SellwildBoltiveController) stays in the gate and runs against a fake network.',
   },
   {
     path: `${SOURCE_ROOT}/SellwildNativeAdView.kt`,

@@ -17,7 +17,7 @@ import Foundation
 /// with Swift's `==`, which treats canonically equivalent strings as equal.
 enum SellwildFailuresCore {
 
-    static let contractVersion = "1"
+    static let contractVersion = "2"
     static let eventName = "clientFailure"
     static let invalidCode = "client.code.invalid"
     static let unknown = "unknown"
@@ -25,16 +25,22 @@ enum SellwildFailuresCore {
     static let components = [
         "configure", "remoteConfig", "listings", "localized", "feed", "banner", "native",
         "video", "house", "bridge", "webview", "widget", "shorts", "tv", "flipcard",
-        "growthcode", "geo", "storage",
+        "growthcode", "geo", "storage", "sdk",
     ]
     static let severities = ["fatal", "error", "warn"]
     static let wrappers = ["react-native", "flutter"]
 
-    /// Wire order of attribute keys. This is also the allowlist.
+    /// Wire order of attribute keys. This is also the allowlist, except the
+    /// call-site context keys `ctx.<key>`, which follow these in key order.
     static let attributeKeys = [
         "code", "client", "clientVersion", "severity", "fv", "errName", "msg", "stack",
-        "httpStatus", "host", "zoneId", "wrapper", "release", "seq", "repeat", "capped",
+        "httpStatus", "host", "zoneId", "wrapper", "release",
+        "appId", "appVersion", "os", "device", "slug",
+        "seq", "repeat", "capped",
     ]
+
+    /// Prefix of the call-site context attributes.
+    static let ctxPrefix = "ctx."
 
     enum Limits {
         static let codeMax = 64
@@ -42,14 +48,20 @@ enum SellwildFailuresCore {
         static let msg = 200
         static let msgBudget = 80
         static let msgKey = 64
-        static let stack = 800
-        static let stackFrames = 5
+        static let stack = 4000
+        static let stackFrames = 30
+        static let frameInput = 500
         static let zoneId = 32
         static let host = 253
         static let partnerCode = 64
         static let clientVersion = 32
         static let release = 64
-        static let eventBytes = 2048
+        static let appField = 64
+        static let ctxKeys = 8
+        static let ctxValue = 200
+        static let ctxInput = 1000
+        static let maxAttributes = 32
+        static let eventBytes = 8192
         static let dedupeWindowMs: Int64 = 60_000
         static let lruSize = 50
         static let perKeyEmits = 3
@@ -70,6 +82,8 @@ enum SellwildFailuresCore {
         var httpStatus: Any?
         var url: Any?
         var zoneId: Any?
+        /// Call-site context: a `[String: Any]` of strings and finite numbers, sent as `ctx.<key>`.
+        var context: Any?
     }
 
     /// Context values as the shell holds them. The flags are raw remote values;
@@ -80,6 +94,11 @@ enum SellwildFailuresCore {
         var clientVersion: Any?
         var wrapper: Any?
         var release: Any?
+        var appId: Any?
+        var appVersion: Any?
+        var os: Any?
+        var device: Any?
+        var slug: Any?
         var eventsEnabled: Any?
         var failuresEnabled: Any?
         var failuresSampleRate: Any?
@@ -150,7 +169,7 @@ enum SellwildFailuresCore {
         }
     }
 
-    private static func string(_ v: Any?) -> String? {
+    static func string(_ v: Any?) -> String? {
         if case .string(let s) = value(v) { return s }
         return nil
     }
@@ -166,7 +185,7 @@ enum SellwildFailuresCore {
         return s
     }
 
-    private static func text<S: Sequence>(_ scalars: S) -> String where S.Element == Unicode.Scalar {
+    static func text<S: Sequence>(_ scalars: S) -> String where S.Element == Unicode.Scalar {
         var view = String.UnicodeScalarView()
         view.append(contentsOf: scalars)
         return String(view)
@@ -251,7 +270,7 @@ enum SellwildFailuresCore {
         return text(cps[first...last])
     }
 
-    private static func asciiLower(_ s: String) -> String {
+    static func asciiLower(_ s: String) -> String {
         text(s.unicodeScalars.map { c in
             ("A"..."Z").contains(c) ? Unicode.Scalar(UInt8(truncatingIfNeeded: c.value + 32)) : c
         })
@@ -261,7 +280,7 @@ enum SellwildFailuresCore {
         ("a"..."z").contains(c) || ("A"..."Z").contains(c)
     }
 
-    private static func isDigit(_ c: Unicode.Scalar) -> Bool {
+    static func isDigit(_ c: Unicode.Scalar) -> Bool {
         ("0"..."9").contains(c)
     }
 
@@ -473,10 +492,11 @@ enum SellwildFailuresCore {
         }
     }
 
-    /// First 5 frames, one per line: the engine header line (`errName` or
-    /// `errName: …`) is dropped, URLs become hosts, directories and query
-    /// strings are removed, emails, UUIDs and IPs are masked. At most 800 code
-    /// points; nil when nothing is left.
+    /// First 30 frames, one per line: the engine header line (`errName` or
+    /// `errName: …`) is dropped, each frame is cut to its first 500 UTF-16
+    /// units, URLs become hosts, directories and query strings are removed,
+    /// emails, UUIDs and IPs are masked. At most 4000 code points; nil when
+    /// nothing is left.
     static func sanitizeStack(_ stack: Any?, errName: String?) -> String? {
         guard let raw = string(stack) else { return nil }
         var lines = raw.unicodeScalars
@@ -487,7 +507,9 @@ enum SellwildFailuresCore {
            same(first, name) || first.unicodeScalars.starts(with: (name + ":").unicodeScalars) {
             lines.removeFirst()
         }
-        let frames = lines.prefix(Limits.stackFrames).map(sanitizeFrame).filter { !$0.isEmpty }
+        let frames = lines.prefix(Limits.stackFrames)
+            .map { sanitizeFrame(capInput($0, max: Limits.frameInput)) }
+            .filter { !$0.isEmpty }
         if frames.isEmpty { return nil }
         return truncateUnicode(frames.joined(separator: "\n"), Limits.stack)
     }
@@ -556,69 +578,6 @@ enum SellwildFailuresCore {
         return t.isEmpty ? nil : truncateUnicode(t, max)
     }
 
-    // MARK: Flags and sampling
-
-    private static let falseWords = ["false", "0", "no", "off"]
-
-    /// Kill-switch coercion (FAILURES.md 5.3): a boolean as is; a number is on
-    /// unless 0; a string is on unless false/0/no/off after ASCII trim and
-    /// ASCII lower case; anything else gives `dflt`.
-    static func coerceFlag(_ v: Any?, _ dflt: Bool = true) -> Bool {
-        switch value(v) {
-        case .bool(let b): return b
-        case .number(let d): return d != 0
-        case .string(let s): return !falseWords.contains { same($0, asciiLower(trimAscii(s))) }
-        case .other: return dflt
-        }
-    }
-
-    /// The digits of a rate that matches `^\+?([0-9]+(\.[0-9]*)?|\.[0-9]+)$`,
-    /// as "<int>.<frac>" with no sign and no empty side, else nil.
-    private static func rateText(_ s: String) -> String? {
-        var cps = Array(s.unicodeScalars)
-        if cps.first == "+" { cps.removeFirst() }
-        let parts = cps.split(separator: ".", omittingEmptySubsequences: false)
-        guard (1...2).contains(parts.count), parts.allSatisfy({ $0.allSatisfy(isDigit) }),
-              !parts[0].isEmpty || parts.count == 2 && !parts[1].isEmpty
-        else { return nil }
-        let whole = parts[0].isEmpty ? "0" : text(parts[0])
-        let fraction = parts.count == 2 && !parts[1].isEmpty ? text(parts[1]) : "0"
-        return whole + "." + fraction
-    }
-
-    /// FAILURES_SAMPLE_RATE (FAILURES.md 5.4): a finite number, or a plain
-    /// decimal string, clamped to [0, 1]. Anything else is 1.
-    static func coerceRate(_ v: Any?) -> Double {
-        var n: Double?
-        switch value(v) {
-        case .number(let d):
-            n = d.isFinite ? d : nil
-        case .string(let s):
-            n = rateText(trimAscii(s)).flatMap { Double($0) }
-        default:
-            n = nil
-        }
-        guard let rate = n else { return 1 }
-        return min(1, max(0, rate))
-    }
-
-    /// FNV-1a 32-bit over the UTF-8 bytes of a string ("" for non-strings).
-    static func fnv1a32(_ v: Any?) -> UInt32 {
-        var h: UInt32 = 0x811C_9DC5
-        for b in (string(v) ?? "").utf8 {
-            h ^= UInt32(b)
-            h = h &* 0x0100_0193
-        }
-        return h
-    }
-
-    /// Session sampling: fnv1a32(uid + ":failures") / 2^32 < rate.
-    static func isSampled(uid: Any?, rate: Double) -> Bool {
-        if rate >= 1 { return true }
-        if rate <= 0 { return false }
-        return Double(fnv1a32((string(uid) ?? "") + ":failures")) / 4_294_967_296 < rate
-    }
-
     // MARK: Dedupe
 
     /// action|label|errName|first 64 code points of the sanitized, uncut message.
@@ -659,10 +618,12 @@ enum SellwildFailuresCore {
 
     /// Canonical JSON of the event (fixed key order, no whitespace, minimal
     /// escaping, "/" and non-ASCII literal). Its UTF-8 length is what the
-    /// 2048-byte budget measures. Never use JSONSerialization for this: it
+    /// 8192-byte budget measures. Never use JSONSerialization for this: it
     /// escapes "/".
     static func canonicalJson(_ event: Event) -> String {
-        let attributes = attributeKeys.compactMap { key in
+        let ctxKeys = event.attributes.keys.filter { $0.hasPrefix(ctxPrefix) }
+            .sorted { $0.unicodeScalars.lexicographicallyPrecedes($1.unicodeScalars) }
+        let attributes = (attributeKeys + ctxKeys).compactMap { key in
             event.attributes[key].map { jsonString(key) + ":" + jsonString($0) }
         }
         return "{\"event\":" + jsonString(event.event)
@@ -691,10 +652,12 @@ enum SellwildFailuresCore {
         var seq: Int
         var repeatCount: Int
         var capped: Bool
+        var ctx: [(String, String)]
     }
 
-    /// Builds the wire event and applies the size budget: over 2048 bytes drop
-    /// the stack, then cut msg to 80, then drop msg, then send it as is.
+    /// Builds the wire event and applies the size budget: over 8192 bytes drop
+    /// every ctx.* key, then the stack, then cut msg to 80, then drop msg, then
+    /// send it as is.
     static func buildFailureEvent(_ fields: Fields, context: Context, uid: Any?, now: Int64) -> Event {
         var a: [String: String] = [
             "code": cleanBounded(context.partnerCode, Limits.partnerCode) ?? unknown,
@@ -713,11 +676,18 @@ enum SellwildFailuresCore {
         a["zoneId"] = fields.zoneId
         a["wrapper"] = member(context.wrapper, of: wrappers)
         a["release"] = cleanBounded(context.release, Limits.release)
+        a["appId"] = cleanBounded(context.appId, Limits.appField)
+        a["appVersion"] = cleanBounded(context.appVersion, Limits.appField)
+        a["os"] = cleanBounded(context.os, Limits.appField)
+        a["device"] = cleanBounded(context.device, Limits.appField)
+        a["slug"] = cleanBounded(context.slug, Limits.appField)
         a["capped"] = fields.capped ? "1" : nil
+        for (key, value) in fields.ctx { a[key] = value }
 
         var event = Event(event: eventName, action: fields.action, label: fields.label,
                           attributes: a, uid: string(uid) ?? "", createdTime: now)
         let over = { eventByteSize(event) > Limits.eventBytes }
+        if over() { event.attributes = event.attributes.filter { !$0.key.hasPrefix(ctxPrefix) } }
         if over() && event.attributes["stack"] != nil { event.attributes["stack"] = nil }
         if over(), let msg = event.attributes["msg"] { event.attributes["msg"] = truncateUnicode(msg, Limits.msgBudget) }
         if over() && event.attributes["msg"] != nil { event.attributes["msg"] = nil }
@@ -781,7 +751,8 @@ enum SellwildFailuresCore {
             zoneId: normalizeZoneId(input.zoneId),
             seq: seq,
             repeatCount: (existing?.suppressed ?? 0) + 1,
-            capped: seq == Limits.sessionEmits
+            capped: seq == Limits.sessionEmits,
+            ctx: normalizeCtx(input.context)
         )
         return Decision(
             state: State(sessionCount: seq, keys: keys),

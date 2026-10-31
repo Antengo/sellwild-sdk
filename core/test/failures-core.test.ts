@@ -38,6 +38,7 @@ const units: Record<string, (input: never) => unknown> = {
   coerceRate: (v: unknown) => core.coerceRate(v),
   normalizeCode: (v: unknown) => core.normalizeCode(v),
   normalizeHttpStatus: (v: unknown) => core.normalizeHttpStatus(v),
+  normalizeCtxValue: (v: unknown) => core.normalizeCtxValue(v),
 }
 
 describe.each(Object.entries(files))('%s', (_file, golden) => {
@@ -115,6 +116,12 @@ describe('parseRate', () => {
 describe('pure core edges', () => {
   const NOW = 1790000000000
 
+  it('capInput leaves anything but text as it is', () => {
+    expect(core.capInput(42, 1)).toBe(42)
+    expect(core.capInput('abc', 2)).toBe('ab')
+    expect(core.normalizeCtx(null)).toEqual([])
+  })
+
   it('treats null state, input and context as empty', () => {
     const r = core.decideFailure(null, null, null, 'u', NOW)
     expect(r.reason).toBeNull()
@@ -132,7 +139,7 @@ describe('pure core edges', () => {
       event: 'clientFailure',
       action: 'a.b.c',
       label: 'listings',
-      attributes: { code: 'unknown', client: 'unknown', clientVersion: 'unknown', severity: 'warn', fv: '1', seq: '2', repeat: '1' },
+      attributes: { code: 'unknown', client: 'unknown', clientVersion: 'unknown', severity: 'warn', fv: '2', seq: '2', repeat: '1' },
       uid: '',
       createdTime: NOW,
     })

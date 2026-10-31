@@ -337,7 +337,7 @@ final class SellwildConfigureTests: XCTestCase {
 
     func testLiveEnvironmentUsesTheSharedClientAndSession() {
         let live = SellwildSDK.ConfigureEnvironment.live
-        XCTAssertTrue(live.session === URLSession.shared)
+        XCTAssertTrue(live.session === SellwildNetwork.session, "the SDK session with explicit timeouts")
         XCTAssertTrue(live.events === SellwildAPIClient.shared)
         XCTAssertEqual(live.makeURL("https://widget.sellwild.com/app/a/b.json")?.host, "widget.sellwild.com")
         XCTAssertNil(live.makeURL(""))
@@ -359,5 +359,26 @@ private final class NonHTTPURLProtocol: URLProtocol {
 
     override func stopLoading() {
         // Nothing to cancel: startLoading answers before returning.
+    }
+}
+
+// The config fetch's timing (FAILURES.md 18.1).
+extension SellwildConfigureTests {
+
+    func testTheConfigFetchIsTimedUnderTheConfigsOwnTimingValues() async throws {
+        var pushed: [SellwildTimingCore.Event] = []
+        var clock: TimeInterval = 10
+        SellwildTiming.setDependencies(SellwildTiming.Dependencies(
+            push: { pushed.append($0) }, now: { 1 }, uid: { "u" },
+            monotonic: { defer { clock += 3.5 }; return clock }
+        ))
+        respond(try AppConfigFactory.make(["TIMING_SAMPLE_RATE": 1]))
+
+        _ = await configure()
+
+        XCTAssertEqual(pushed.map(\.action), ["config.fetch"])
+        XCTAssertEqual(pushed.first?.attributes["ms"], "3500")
+        XCTAssertEqual(capture.events.map(\.action), ["config.fetch.slow"])
+        XCTAssertEqual(capture.events.first?.attributes["slug"], "weatherbug-weatherbug")
     }
 }

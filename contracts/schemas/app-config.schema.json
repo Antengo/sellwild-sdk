@@ -722,6 +722,47 @@
       "description": "Android feed layout self-heal.",
       "$ref": "#/$defs/flag"
     },
+    "MOBILE_BOLTIVE_ENABLED": {
+      "description": "Boltive ad-quality monitoring of rendered banners, master switch. Absent = off.",
+      "$ref": "#/$defs/flag"
+    },
+    "MOBILE_BOLTIVE_ENABLED_IOS": {
+      "description": "iOS override of MOBILE_BOLTIVE_ENABLED: off is a hard kill, on turns it on for every iOS placement. Blank = unset.",
+      "$ref": "#/$defs/flag"
+    },
+    "MOBILE_BOLTIVE_ENABLED_ANDROID": {
+      "description": "Android override of MOBILE_BOLTIVE_ENABLED: off is a hard kill, on turns it on for every Android placement. Blank = unset.",
+      "$ref": "#/$defs/flag"
+    },
+    "MOBILE_BOLTIVE_ENABLED_BY_ZONE": {
+      "description": "Per-zone MOBILE_BOLTIVE_ENABLED, used when the global switch is off.",
+      "$ref": "#/$defs/zoneMap"
+    },
+    "MOBILE_BOLTIVE_CLIENT_ID": {
+      "description": "Boltive client id. Empty = Boltive off.",
+      "type": "string"
+    },
+    "MOBILE_BOLTIVE_SAMPLE_RATE": {
+      "description": "Share of renders Boltive monitors, 0..1 (default 1). A number or a decimal string; clamped by the client.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "MOBILE_BOLTIVE_MAX_PER_SESSION": {
+      "description": "Monitored renders per app process. 0 or absent = unlimited.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "MOBILE_BOLTIVE_MAX_PER_SLOT": {
+      "description": "Monitored renders per ad view. 0 or absent = unlimited.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
     "DEBUG": {
       "description": "SDK debug mode (enables the logFailure debug echo).",
       "type": "boolean"
@@ -740,6 +781,38 @@
     },
     "FAILURES_SAMPLE_RATE": {
       "description": "clientFailure session sample rate 0..1 (default 1). A number or a decimal string; '' or anything else means 1. Values outside 0..1 are clamped by the client.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "TIMING_ENABLED": {
+      "description": "sdkTiming kill switch. Absent = on. See FAILURES.md 18.",
+      "$ref": "#/$defs/flag"
+    },
+    "TIMING_SAMPLE_RATE": {
+      "description": "Share of sessions that send sdkTiming events, 0..1 (default 0.1). A number or a decimal string.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "TIMING_BUDGET_CONFIG_MS": {
+      "description": "Remote config fetch budget in ms (default 3000); over it logs config.fetch.slow.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "TIMING_BUDGET_LISTINGS_MS": {
+      "description": "Listings fetch budget in ms (default 4000); over it logs listings.fetch.slow.",
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "TIMING_BUDGET_AD_MS": {
+      "description": "First-ad-per-zone budget in ms (default 6000); over it logs ad.load.slow.",
       "type": [
         "number",
         "string"

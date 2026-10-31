@@ -9,6 +9,7 @@ import com.sellwild.sdk.core.Issue
 import com.sellwild.sdk.failures.SellwildFailureCode
 import com.sellwild.sdk.failures.SellwildFailureComponent
 import com.sellwild.sdk.failures.SellwildFailures
+import com.sellwild.sdk.timing.SellwildTiming
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -70,12 +71,21 @@ object SellwildSDK {
         // are unset until this fetch loads them (FAILURES.md 3.2.4), so a second configure()
         // is not gated by the last config's kill switch or sample rate.
         SellwildFailures.setContext {
-            it.copy(partnerCode = partnerCode, eventsEnabled = null, failuresEnabled = null, failuresSampleRate = null)
+            it.copy(
+                partnerCode = partnerCode,
+                slug = slug,
+                eventsEnabled = null,
+                failuresEnabled = null,
+                failuresSampleRate = null
+            )
         }
         var config = SellwildConfig(partnerCode = partnerCode)
         var remote: JSONObject? = null
         var fieldIssues: List<Issue> = emptyList()
         val url = configUrl(partnerCode, slug)
+        // The fetch's own time, recorded below once this config's TIMING_* values apply.
+        var fetchMs: Long? = null
+        val fetchStarted = SellwildTiming.monotonic()
 
         runCatching {
             val connection = URL(url).openConnection() as HttpURLConnection
@@ -92,6 +102,7 @@ object SellwildSDK {
                 // Stash the raw payload so unmapped CDN keys (new bidders,
                 // forward-compatible settings) stay readable via remoteJson
                 // without an SDK release.
+                fetchMs = SellwildTiming.monotonic() - fetchStarted
                 val raw = JSONObject(body)
                 config = apply(raw, config).copy(remoteJson = body)
                 remote = raw
@@ -106,6 +117,7 @@ object SellwildSDK {
                     message = "HTTP $status",
                     httpStatus = status,
                     url = url,
+                    context = mapOf("slug" to slug, "status" to status),
                 )
             }
         }.onFailure { e ->
@@ -114,13 +126,37 @@ object SellwildSDK {
                 component = SellwildFailureComponent.REMOTE_CONFIG,
                 error = e,
                 url = url,
+                context = mapOf("slug" to slug, "timeoutMs" to timeoutMs),
             )
         }
         // Either way config keeps the defaults it could not replace, so ads still
         // render; that fallback is not a second failure.
 
         overrides?.let { config = it(config) }
-        val flags = remote
+        applyRuntimeContext(config, remote, fieldIssues, fetchMs)
+
+        // Pre-warm Prebid Mobile + GMA as soon as we have a config, matching iOS
+        // configure(). Idempotent (the first bootstrap initializes; later ones are
+        // cheap), so an explicit prewarm() or the first ad load is harmless. Posted
+        // to the main thread: SDK init and Targeting mutations are main-sensitive.
+        appContext?.let { ctx ->
+            val resolved = config
+            Handler(Looper.getMainLooper()).post { SellwildPrebidMobile.bootstrap(ctx, resolved) }
+        }
+        config
+    }
+
+    /**
+     * After configure()'s fetch: the remote kill switches and debug, then the CMS values it
+     * had to ignore or coerce (under those switches), the partner, and the config fetch's
+     * timing under this config's own TIMING_* values.
+     */
+    private fun applyRuntimeContext(
+        config: SellwildConfig,
+        flags: JSONObject?,
+        fieldIssues: List<Issue>,
+        fetchMs: Long?,
+    ) {
         SellwildFailures.setContext {
             it.copy(
                 debug = config.debug,
@@ -134,16 +170,8 @@ object SellwildSDK {
         // core's configure() does the same). It still carries the partner configure() got.
         fieldIssues.report()
         SellwildFailures.setContext { it.copy(partnerCode = config.partnerCode) }
-
-        // Pre-warm Prebid Mobile + GMA as soon as we have a config, matching iOS
-        // configure(). Idempotent (the first bootstrap initializes; later ones are
-        // cheap), so an explicit prewarm() or the first ad load is harmless. Posted
-        // to the main thread: SDK init and Targeting mutations are main-sensitive.
-        appContext?.let { ctx ->
-            val resolved = config
-            Handler(Looper.getMainLooper()).post { SellwildPrebidMobile.bootstrap(ctx, resolved) }
-        }
-        config
+        SellwildTiming.remote = flags
+        fetchMs?.let { SellwildTiming.record("config.fetch", it) }
     }
 
     internal fun configUrl(partnerCode: String, slug: String) =

@@ -1,11 +1,4 @@
-import { readFileSync } from 'node:fs'
 import { coverageConfigDefaults, defineConfig } from 'vitest/config'
-
-// The gate's minimums: tools/coverage-thresholds.json is the one source, also
-// read by tools/coverage-gate.mjs in CI. Statements follow lines.
-const gateMinimum = JSON.parse(
-  readFileSync(decodeURIComponent(new URL('../tools/coverage-thresholds.json', import.meta.url).pathname), 'utf8'),
-)['react-native'] as { lines: number; branches: number; functions: number }
 
 const here = (path: string) => decodeURIComponent(new URL(path, import.meta.url).pathname)
 
@@ -28,7 +21,7 @@ export const coverageExclusions: Array<{ path: string; reason: string }> = [
   },
 ]
 
-// `vitest run --coverage` is the gate: exclusions applied, the thresholds above.
+// `vitest run --coverage` is the gate: exclusions applied, 100% thresholds.
 // `vitest run --coverage --mode whole` measures every source file with no
 // thresholds, into coverage/whole, for the `whole` block of the summary.
 export default defineConfig(({ mode }) => {
@@ -68,12 +61,8 @@ export default defineConfig(({ mode }) => {
         reportOnFailure: true,
         thresholds: whole
           ? undefined
-          : {
-              lines: gateMinimum.lines,
-              branches: gateMinimum.branches,
-              functions: gateMinimum.functions,
-              statements: gateMinimum.lines,
-            },
+          : // tools/coverage-thresholds.json; scripts/coverage/ts.mjs fails when they differ.
+            { lines: 100, branches: 100, functions: 100, statements: 100 },
       },
     },
   }

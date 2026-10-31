@@ -58,41 +58,12 @@ const TARGET_PCT = 95;
 const TARGET_NAME = 'SellwildSDK';
 const SOURCE_ROOT = 'ios/Sources/SellwildSDK';
 
-// Phase 1 (phase1/sdk-ios.json) classified the first nine files pure or mostly
-// pure. Failures/ holds logFailure (A2); Core/ holds pure code extracted from
-// the UIKit, Prebid and GMA glue. Phase 3 (sdk-ios-logic) added the logic files
-// it brought to 95%: the API client and remote config shells, eids, house ads,
-// GrowthCode and the audio guard, each with its I/O behind an injected seam.
-const GATE_INCLUDE = [
-  `${SOURCE_ROOT}/SellwildAdStack.swift`,
-  `${SOURCE_ROOT}/SellwildGpid.swift`,
-  `${SOURCE_ROOT}/SellwildSafeURL.swift`,
-  `${SOURCE_ROOT}/SellwildLocalizedListings.swift`,
-  `${SOURCE_ROOT}/SellwildGeo.swift`,
-  `${SOURCE_ROOT}/SellwildConfig.swift`,
-  `${SOURCE_ROOT}/SellwildAdSizes.swift`,
-  `${SOURCE_ROOT}/SellwildNative.swift`,
-  `${SOURCE_ROOT}/SellwildVideo.swift`,
-  `${SOURCE_ROOT}/SellwildAPI.swift`,
-  `${SOURCE_ROOT}/SellwildRemoteConfig.swift`,
-  `${SOURCE_ROOT}/SellwildEids.swift`,
-  `${SOURCE_ROOT}/SellwildHouseAd.swift`,
-  `${SOURCE_ROOT}/SellwildGrowthCode.swift`,
-  `${SOURCE_ROOT}/SellwildAdAudioGuard.swift`,
-  // Phase 3 (sdk-ios-views): the view shells. GMA, Prebid, timers,
-  // images and URL opening sit behind injected environments, so the shells run
-  // in XCTest with fakes; their decisions moved into Core/.
-  `${SOURCE_ROOT}/SellwildAdView.swift`,
-  `${SOURCE_ROOT}/SellwildPrebidMobile.swift`,
-  `${SOURCE_ROOT}/SellwildNativeAdView.swift`,
-  `${SOURCE_ROOT}/SellwildHouseAdView.swift`,
-  `${SOURCE_ROOT}/SellwildFeedView.swift`,
-  `${SOURCE_ROOT}/SellwildSwiftUI.swift`,
-  // origin/main (c55efa0): the tolerant S2S_CONFIG reader.
-  `${SOURCE_ROOT}/SellwildS2SConfig.swift`,
-  `${SOURCE_ROOT}/Failures/**`,
-  `${SOURCE_ROOT}/Core/**`,
-];
+// The gate is every Swift file of the SellwildSDK target (2026-10-30: "full
+// test coverage", enforced in CI by tools/coverage-gate.mjs against
+// tools/coverage-thresholds.json), minus EXCLUDED and the A10 range comments,
+// each with its reason. Before that it was a list of files phase 1 and 3 had
+// brought under test, which left new files (Boltive, the feed environment) out.
+const GATE_INCLUDE = [`${SOURCE_ROOT}/**`];
 const WHOLE_INCLUDE = [`${SOURCE_ROOT}/**`];
 
 // A10 allows exclusions only for type-only files, generated output, tiny entry
@@ -111,6 +82,9 @@ const EXCLUDED = [
 const RANGE_KINDS = {
   'third-party-init': 'third-party SDK init that needs a device or the network (A10)',
   'fetch-demand': 'a Prebid fetchDemand network call and its closure (A10)',
+  'os-report': 'a read of an OS report object that only the OS creates, on a device, on a later launch (MetricKit payloads have no public initializer); what the report says is parsed by tested code (A10)',
+  'third-party-object': 'reads an object only a third-party SDK creates from its own network response (a Prebid winning bid has no public initializer, and a banner\'s lastBidResponse cannot be set) (A10)',
+  'network-call': 'one call that sends an ad request or leaves the app (GMA load, Prebid loadAd, UIApplication.open, SFSafariViewController), which tests may not make (A8: tests never touch the network) (A10)',
   preview: 'a SwiftUI preview (A10)',
   'crash-guard': 'a fatalError crash guard: running it ends the test process (A10)',
   dead: 'dead code (A10)',

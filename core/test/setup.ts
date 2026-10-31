@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeEach, vi } from 'vitest'
 import { eventQueue } from '../src/event-queue'
 import { resetFailures, takeRecordedFailures } from './support/failures'
+import { resetTiming } from './support/timing'
 
 // Contract A8: tests never touch the network. fetch, XMLHttpRequest,
 // WebSocket and navigator.sendBeacon (when present) are replaced with
@@ -122,6 +123,7 @@ installNetworkBlock()
 
 beforeEach(() => {
   resetFailures()
+  resetTiming()
 })
 
 // After every test: real timers, mocks reset to their original

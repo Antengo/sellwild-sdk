@@ -66,7 +66,7 @@ test('hand: first failure of the session is a full event and flushes', () => {
       action: 'listings.fetch.http',
       label: 'listings',
       attributes: {
-        code: 'weatherbug', client: 'ios', clientVersion: '1.7.7', severity: 'error', fv: '1',
+        code: 'weatherbug', client: 'ios', clientVersion: '1.7.7', severity: 'error', fv: '2',
         msg: 'HTTP 503', httpStatus: '503', host: 'cache.sellwild.com', zoneId: '43', seq: '1', repeat: '1',
       },
       uid: UID,
@@ -160,15 +160,36 @@ test('hand: kill switch coercion', () => {
   assert.notEqual(vec('flags.unresolved-all-default-on').event, null)
 })
 
-test('hand: size budget drops stack, then cuts msg to 80, then drops msg', () => {
-  const stackDropped = vec('budget.stack-dropped-first').event.attributes
+test('hand: size budget drops ctx.*, then stack, then cuts msg to 80, then drops msg', () => {
+  const ctxDropped = vec('budget.ctx-dropped-first').event.attributes
+  assert.deepEqual(Object.keys(ctxDropped).filter((k) => k.startsWith('ctx.')), [])
+  assert.equal([...ctxDropped.msg].length, 200, 'msg is kept whole once ctx.* is gone')
+  const stackDropped = vec('budget.stack-dropped-after-ctx').event.attributes
   assert.equal(stackDropped.stack, undefined)
+  assert.equal(stackDropped['ctx.attempt'], undefined)
   assert.equal(stackDropped.msg, 'HTTP 503')
   const cut = vec('budget.msg-cut-to-80').event.attributes.msg
   assert.equal([...cut].length, 80)
   assert.equal(cut, 'é'.repeat(79) + '…')
   assert.equal(vec('budget.msg-dropped').event.attributes.msg, undefined)
   assert.equal(vec('budget.under-limit-keeps-everything').event.attributes.stack, 'at a (x.js:1:1)\nat b (y.js:2:2)')
+  assert.equal(vec('budget.under-limit-keeps-everything').event.attributes['ctx.attempt'], '1')
+})
+
+test('hand: fv 2 app context and call-site context', () => {
+  assert.deepEqual(
+    ['appId', 'appVersion', 'os', 'device', 'slug'].map((k) => vec('app.all-five-keys').event.attributes[k]),
+    ['com.aws.weatherbug', '6.12.0 (1234)', 'iOS 26.1', 'iPhone16,2', 'weatherbug-main'],
+  )
+  assert.equal(vec('app.cleaned-and-cut').event.attributes.appId, 'com.example app')
+  const ctx = vec('ctx.strings-and-numbers').event.attributes
+  assert.deepEqual(Object.keys(ctx).filter((k) => k.startsWith('ctx.')), ['ctx.attempt', 'ctx.file', 'ctx.ratio', 'ctx.size'])
+  assert.equal(ctx['ctx.ratio'], '0.25')
+  assert.equal(Object.keys(vec('ctx.at-most-8').event.attributes).filter((k) => k.startsWith('ctx.')).length, 8)
+  assert.equal(vec('ctx.values-scrubbed-like-msg').event.attributes['ctx.email'], '<email>')
+  assert.equal(vec('ctx.decimals').event.attributes['ctx.e'], '0')
+  assert.equal(L.normalizeCtxValue(0.0078125), '0.007813', 'an exact tie rounds away from zero')
+  assert.equal(L.formatDecimal(-0.0000001), '0')
 })
 
 test('hand: all 16 attributes are strings and unknown input fields never appear', () => {
@@ -187,11 +208,13 @@ test('hand: all 16 attributes are strings and unknown input fields never appear'
   assert.equal(vec('attrs.partnerCode-empty-unknown').event.attributes.code, 'unknown')
 })
 
-test('hand: stacks keep 5 frames with basenames and hosts only', () => {
+test('hand: stacks keep 30 frames with basenames and hosts only', () => {
   assert.equal(vec('stack.v8-header-dropped-and-basenamed').event.attributes.stack, 'at fetchListings (api.js:37:11)\nat async load (Feed.tsx:12:3)')
   assert.equal(vec('stack.query-removed').event.attributes.stack, 'at load (main.js:1:99)')
   assert.equal(vec('stack.url-becomes-host').event.attributes.stack, 'at render (widget.sellwild.com)')
-  assert.equal(vec('stack.first-5-frames').event.attributes.stack.split('\n').length, 5)
+  assert.equal(vec('stack.first-30-frames').event.attributes.stack.split('\n').length, 30)
+  assert.equal(vec('stack.long-frame-cut-to-500-units').event.attributes.stack.split('\n')[0].length, 500)
+  assert.equal(vec('stack.java-caused-by-chain').event.attributes.stack.split('\n')[1], 'Caused by: SocketTimeoutException')
   assert.equal(vec('stack.only-header-omitted').event.attributes.stack, undefined)
 })
 
@@ -239,8 +262,8 @@ test('hand: edge inputs every port must also accept', () => {
   assert.deepEqual([r.event.action, r.event.label, r.reason, r.state.sessionCount], ['client.code.invalid', 'unknown', null, 1])
 })
 
-test('the shell input cap: first 1000 units of message, 2000 of stack, a split pair becomes U+FFFD', () => {
-  assert.deepEqual(L.INPUT_LIMITS, { message: 1000, errMessage: 1000, stack: 2000 })
+test('the shell input cap: first 1000 units of message, 16000 of stack, a split pair becomes U+FFFD', () => {
+  assert.deepEqual(L.INPUT_LIMITS, { message: 1000, errMessage: 1000, stack: 16000 })
   assert.equal(L.capInput('abc', 3), 'abc')
   assert.equal(L.capInput('abcd', 3), 'abc')
   assert.equal(L.capInput(null, 3), null)

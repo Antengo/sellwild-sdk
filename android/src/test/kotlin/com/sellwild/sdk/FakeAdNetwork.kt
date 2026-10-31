@@ -3,6 +3,9 @@ package com.sellwild.sdk
 import android.content.Context
 import android.os.Bundle
 import android.view.View
+import com.boltive.api.AdViewConfiguration
+import com.boltive.api.BoltiveConfiguration
+import com.boltive.api.BoltiveListener
 import com.google.android.gms.ads.admanager.AdManagerAdRequest
 import com.google.android.gms.ads.admanager.AdManagerAdView
 import com.sellwild.prebid.BannerAdUnit
@@ -72,6 +75,16 @@ internal class FakeAdNetwork : SellwildAdNetwork {
 
     override fun nativeAd(cacheId: String): NativeAdContent? = nativeAds[cacheId]
 
+    /** Every Boltive monitor created, in order. */
+    val boltiveSessions = CopyOnWriteArrayList<FakeBoltiveSession>()
+
+    /** Thrown by the next monitors' capture / terminate, when set. */
+    var boltiveCaptureError: Throwable? = null
+    var boltiveTerminateError: Throwable? = null
+
+    override fun boltiveMonitor(configuration: BoltiveConfiguration): BoltiveSession =
+        FakeBoltiveSession(configuration, boltiveCaptureError, boltiveTerminateError).also { boltiveSessions += it }
+
     /** Finishes Prebid init the way the fork does, with [status]. */
     fun finishPrebidInit(status: InitializationStatus? = InitializationStatus.SUCCEEDED) {
         checkNotNull(prebidStatus) { "Prebid init was never started" }.invoke(status)
@@ -99,6 +112,36 @@ internal class FakeNativeContent(
 }
 
 /**
+ * A Boltive monitor as a test sees it: what it captured, how often it was terminated, and a
+ * [block] that fires the listener the way Boltive does when it flags the creative.
+ */
+internal class FakeBoltiveSession(
+    val configuration: BoltiveConfiguration,
+    private val captureError: Throwable? = null,
+    private val terminateError: Throwable? = null,
+) : BoltiveSession {
+    var captured: View? = null
+    var adView: AdViewConfiguration? = null
+    var listener: BoltiveListener? = null
+    var terminated = 0
+
+    override fun capture(view: View, configuration: AdViewConfiguration, listener: BoltiveListener) {
+        captureError?.let { throw it }
+        captured = view
+        adView = configuration
+        this.listener = listener
+    }
+
+    override fun terminate() {
+        terminated++
+        terminateError?.let { throw it }
+    }
+
+    /** Boltive flagged and blanked the creative (it calls back off the main thread). */
+    fun block() = checkNotNull(listener) { "nothing captured" }.onAdBlocked()
+}
+
+/**
  * Installs a [FakeAdNetwork] and resets every process-wide seam the view shells use, before
  * and after each test: the Prebid bootstrap latch and readiness, the house and feed image
  * loaders, GrowthCode, the feed's API client factory and the stored geo. Use with
@@ -123,6 +166,7 @@ class AdNetworkRule : ExternalResource() {
         SellwildGrowthCode.resetForTesting()
         SellwildFeedView.apiClient = ::SellwildAPIClient
         SellwildGeoStore.current = null
+        SellwildBoltive.sessionCount.set(0)
     }
 
     /** Bootstraps Prebid against the fake and finishes its init, so auctions run at once. */

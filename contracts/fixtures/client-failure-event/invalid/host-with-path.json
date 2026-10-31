@@ -8,7 +8,7 @@
     "client": "ios",
     "clientVersion": "1.7.7",
     "severity": "error",
-    "fv": "1",
+    "fv": "2",
     "msg": "HTTP 503",
     "httpStatus": "503",
     "host": "cache.sellwild.com/listings-sm",

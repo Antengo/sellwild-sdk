@@ -106,8 +106,41 @@ enum SellwildBoltive {
     }
 }
 
+/// One Boltive monitor for one render. The live one wraps Boltive's
+/// `BoltiveMonitor`, which stops monitoring when it is released.
+protocol SellwildBoltiveSession: AnyObject {
+    /// `BoltiveMonitor.capture`: watch the creative inside `bannerView`;
+    /// `adBlocked` runs (on any thread) when Boltive blanks it.
+    func capture(bannerView: UIView, tag: SellwildBoltiveController.Tag, adBlocked: @escaping (UIView) -> Void)
+}
+
+#if canImport(Boltive)
+/// The real monitor: one call each into Boltive.
+final class SellwildLiveBoltiveSession: SellwildBoltiveSession {
+    private let monitor: BoltiveMonitor
+
+    init(clientId: String, network: SellwildBoltive.Network) {
+        let adNetwork: BoltiveAdNetwork = network == .gam
+            ? .GoogleAdManager
+            : .customAdNetwork(adNetworkName: "Prebid")
+        monitor = BoltiveMonitor(configuration: BoltiveConfiguration(clientId: clientId, adNetwork: adNetwork))
+    }
+
+    func capture(bannerView: UIView, tag: SellwildBoltiveController.Tag, adBlocked: @escaping (UIView) -> Void) {
+        let details = BoltiveTagDetails(
+            adUnitId: tag.adUnitId,
+            advertiserId: tag.advertiserId,
+            campaignId: tag.campaignId,
+            creativeId: tag.creativeId,
+            sspRefreshCode: tag.sspRefreshCode
+        )
+        monitor.capture(bannerView: bannerView, tagDetails: details, adBlocked: adBlocked)
+    }
+}
+#endif
+
 /// Per-ad-view Boltive monitor. Created once per `SellwildAdView`; holds at most
-/// one live `BoltiveMonitor`. Each monitored render gets a fresh monitor and the
+/// one live monitor. Each monitored render gets a fresh monitor and the
 /// previous one is dropped first: a monitor keeps watching the creative WebView
 /// it captured, which a refresh tears down. A render that isn't monitored drops
 /// it too, so a sampled-out render costs nothing. Main thread only.
@@ -122,21 +155,33 @@ final class SellwildBoltiveController {
         var sspRefreshCode: String?
     }
 
+    /// Makes the monitor for one render, or nil where Boltive is not linked
+    /// (macOS). Tests replace it.
+    static var makeSession: (_ clientId: String, _ network: SellwildBoltive.Network) -> SellwildBoltiveSession? =
+        liveSession
+
+    static let liveSession: (String, SellwildBoltive.Network) -> SellwildBoltiveSession? = { clientId, network in
+        #if canImport(Boltive)
+        return SellwildLiveBoltiveSession(clientId: clientId, network: network)
+        #else
+        return nil
+        #endif
+    }
+
     /// Monitored renders for this ad view.
     private(set) var slotCount = 0
 
     /// Monitors created by this controller (for tests).
     private(set) var monitorsCreated = 0
 
-    #if canImport(Boltive)
-    private var monitor: BoltiveMonitor?
-    #endif
+    private var monitor: SellwildBoltiveSession?
 
     /// Decide whether to monitor this render and, if so, capture `bannerView`.
     /// `onBlocked` runs on the main thread with `bannerView` when it's blocked.
     /// Returns whether a monitor was attached.
     @discardableResult
-    func renderDidSucceed(
+    // swiftlint:disable:next function_parameter_count
+    func renderDidSucceed( // Boltive's own inputs plus the test seams roll and onBlocked (1.8.1 API).
         bannerView: UIView,
         network: SellwildBoltive.Network,
         remoteValues: [String: Any]?,
@@ -145,34 +190,23 @@ final class SellwildBoltiveController {
         roll: Double = Double.random(in: 0..<1),
         onBlocked: @escaping (UIView) -> Void
     ) -> Bool {
+        // End the previous render's monitor before deciding on this one.
+        stop()
         guard let policy = SellwildBoltive.policy(remoteValues: remoteValues, zoneId: zoneId),
               SellwildBoltive.shouldMonitor(
                 policy: policy,
                 slotCount: slotCount,
                 sessionCount: SellwildBoltive.sessionCount,
                 roll: roll
-              ) else {
-            stop()
+              ),
+              let session = Self.makeSession(policy.clientId, network) else {
             return false
         }
-        #if canImport(Boltive)
-        // End the previous render's monitor before capturing the new creative.
-        stop()
-        let adNetwork: BoltiveAdNetwork = network == .gam
-            ? .GoogleAdManager
-            : .customAdNetwork(adNetworkName: "Prebid")
-        monitor = BoltiveMonitor(configuration: BoltiveConfiguration(clientId: policy.clientId, adNetwork: adNetwork))
+        monitor = session
         monitorsCreated += 1
-        let details = BoltiveTagDetails(
-            adUnitId: tag.adUnitId,
-            advertiserId: tag.advertiserId,
-            campaignId: tag.campaignId,
-            creativeId: tag.creativeId,
-            sspRefreshCode: tag.sspRefreshCode
-        )
         // Report the view we captured, not whatever subview Boltive hands back,
         // so the ad view can match it against its current banner.
-        monitor?.capture(bannerView: bannerView, tagDetails: details) { [weak bannerView] _ in
+        session.capture(bannerView: bannerView, tag: tag) { [weak bannerView] _ in
             let deliver = { if let bannerView { onBlocked(bannerView) } }
             if Thread.isMainThread {
                 deliver()
@@ -182,17 +216,13 @@ final class SellwildBoltiveController {
         }
         slotCount += 1
         SellwildBoltive.sessionCount += 1
-        SellwildLog.debug("[SellwildBoltive] monitoring render — zone \(zoneId ?? "?"), \(network), slot #\(slotCount), session #\(SellwildBoltive.sessionCount)")
+        let launchCount = SellwildBoltive.sessionCount
+        SellwildLog.debug("[SellwildBoltive] zone \(zoneId ?? "?"), \(network), slot #\(slotCount), #\(launchCount)")
         return true
-        #else
-        return false
-        #endif
     }
 
     /// Drop the live monitor (if any). Boltive stops monitoring on deinit.
     func stop() {
-        #if canImport(Boltive)
         monitor = nil
-        #endif
     }
 }

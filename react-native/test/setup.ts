@@ -1,4 +1,5 @@
-import { afterAll, afterEach, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, vi } from 'vitest'
+import { resetTiming } from '../../core/test/support/timing'
 import { resetReactNativeStub } from './stubs/react-native'
 
 // Contract A8: tests never touch the network. fetch, XMLHttpRequest,
@@ -99,6 +100,12 @@ rnGlobals.__DEV__ = true
 rnGlobals.IS_REACT_ACT_ENVIRONMENT = true
 
 installNetworkBlock()
+
+// core's sdkTiming (FAILURES.md 18.1) records into a test record, not the
+// shared events queue, so a sampled session never tries the network.
+beforeEach(() => {
+  resetTiming()
+})
 
 // After every test: real timers, mocks reset to their original
 // implementations, spies and stubbed globals and env restored, blockers back.

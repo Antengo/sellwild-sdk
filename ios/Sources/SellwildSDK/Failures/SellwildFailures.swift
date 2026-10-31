@@ -13,7 +13,7 @@ public enum SellwildFailureSeverity: String, CaseIterable {
 /// The part of the SDK a failure belongs to. It is the event's `label`.
 public enum SellwildFailureComponent: String, CaseIterable {
     case configure, remoteConfig, listings, localized, feed, banner, native, video, house,
-         bridge, webview, widget, shorts, tv, flipcard, growthcode, geo, storage
+         bridge, webview, widget, shorts, tv, flipcard, growthcode, geo, storage, sdk
 }
 
 /// Reports SDK failures as `clientFailure` events through the existing events
@@ -57,6 +57,16 @@ public enum SellwildFailures {
         public internal(set) var wrapper: String?
         public internal(set) var client = "ios"
         public internal(set) var clientVersion = SellwildSDK.sdkVersion
+        /// The host app's bundle id, read once (fv 2 app context).
+        public internal(set) var appId = SellwildAppInfo.current.appId
+        /// The host app's CFBundleShortVersionString.
+        public internal(set) var appVersion = SellwildAppInfo.current.appVersion
+        /// `iOS <version>`, e.g. `iOS 26.1`.
+        public internal(set) var os = SellwildAppInfo.current.os
+        /// The model identifier, e.g. `iPhone16,2`.
+        public internal(set) var device = SellwildAppInfo.current.device
+        /// The remote-config slug `configure` fetched.
+        public internal(set) var slug: String?
 
         /// Whether failures are reported at all: `EVENTS_ENABLED` and the
         /// effective `FAILURES_ENABLED`, both with the contract coercion (5.3).
@@ -77,7 +87,8 @@ public enum SellwildFailures {
         var core: SellwildFailuresCore.Context {
             SellwildFailuresCore.Context(
                 partnerCode: partnerCode, client: client, clientVersion: clientVersion, wrapper: wrapper,
-                release: nil, eventsEnabled: eventsEnabled, failuresEnabled: effectiveFailuresEnabled,
+                release: nil, appId: appId, appVersion: appVersion, os: os, device: device, slug: slug,
+                eventsEnabled: eventsEnabled, failuresEnabled: effectiveFailuresEnabled,
                 failuresSampleRate: failuresSampleRate
             )
         }
@@ -96,6 +107,8 @@ public enum SellwildFailures {
         var flush: () throws -> Void
         /// Writes the debug echo.
         var echo: (String) -> Void
+        /// The call stack where `log` was called (`Thread.callStackSymbols`).
+        var callStack: () -> [String]
 
         /// The events queue of `client` (the shared one in the SDK; tests pass
         /// one built on a capturing transport) and `print`.
@@ -105,7 +118,8 @@ public enum SellwildFailures {
                 uid: { SellwildSession.shared.uid },
                 push: { client.sendEvent(SellwildEvent(failure: $0)) },
                 flush: { client.flushEvents() },
-                echo: { print($0) }
+                echo: { print($0) },
+                callStack: { Thread.callStackSymbols }
             )
         }
     }
@@ -154,6 +168,13 @@ public enum SellwildFailures {
     ///   - httpStatus: Sent when it is 100–999.
     ///   - url: Only its host is sent.
     ///   - zoneId: The ad zone, when there is one.
+    ///   - context: What the call site knows that helps debug it, e.g.
+    ///     `["file": "listings-weatherbug.json", "attempt": 2]`: at most 8 keys
+    ///     matching `^[a-z][a-zA-Z0-9_]{0,31}$`, values `String` or a finite
+    ///     number, sent as `ctx.<key>`. Never listing text or other PII.
+    ///
+    /// The stack sent is where `log` was called (`Thread.callStackSymbols`,
+    /// without the frames inside `SellwildFailures`): Swift errors carry none.
     public static func log(
         code: SellwildFailureCode,
         component: SellwildFailureComponent,
@@ -162,8 +183,32 @@ public enum SellwildFailures {
         message: String? = nil,
         httpStatus: Int? = nil,
         url: String? = nil,
-        zoneId: String? = nil
+        zoneId: String? = nil,
+        context callContext: [String: Any]? = nil
     ) {
+        let deps = locked { dependencies }
+        record(SellwildFailuresCore.Input(
+            code: code.rawValue, component: component.rawValue, severity: severity.rawValue,
+            errName: error.map(errorName), errMessage: capInput(error?.localizedDescription),
+            message: capInput(message), stack: callerStack(deps.callStack()), httpStatus: httpStatus, url: url,
+            zoneId: zoneId, context: callContext
+        ))
+    }
+
+    /// `log` with a stack the SDK already has (from an OS report such as a
+    /// MetricKit diagnostic) instead of where it was called. Internal: call
+    /// sites pass errors.
+    static func logReport(code: SellwildFailureCode, component: SellwildFailureComponent,
+                          severity: SellwildFailureSeverity, message: String, stack: String?,
+                          context callContext: [String: Any]? = nil) {
+        record(SellwildFailuresCore.Input(
+            code: code.rawValue, component: component.rawValue, severity: severity.rawValue,
+            message: capInput(message), stack: stack.map { SellwildFailuresCore.capInput($0, max: stackInputMax) },
+            context: callContext
+        ))
+    }
+
+    private static func record(_ input: SellwildFailuresCore.Input) {
         // A nested call from inside log (a sink that fails and reports it)
         // returns at once instead of recursing.
         let thread = Thread.current.threadDictionary
@@ -171,11 +216,6 @@ public enum SellwildFailures {
         thread[loggingKey] = true
         defer { thread.removeObject(forKey: loggingKey) }
 
-        let input = SellwildFailuresCore.Input(
-            code: code.rawValue, component: component.rawValue, severity: severity.rawValue,
-            errName: error.map(errorName), errMessage: capInput(error?.localizedDescription),
-            message: capInput(message), stack: nil, httpStatus: httpStatus, url: url, zoneId: zoneId
-        )
         let (context, deps) = locked { (current, dependencies) }
         do {
             let uid = deps.uid()
@@ -212,19 +252,34 @@ public enum SellwildFailures {
     /// high surrogate TS, Kotlin and Dart keep, and a Swift string cannot hold
     /// one. So every platform hands the core the same text.
     static func capInput(_ text: String?, max: Int = messageInputMax) -> String? {
-        guard let text, text.utf16.count > max else { return text }
-        var units = 0
-        var kept = String.UnicodeScalarView()
-        for scalar in text.unicodeScalars {
-            let width = scalar.utf16.count
-            guard units + width <= max else {
-                if units < max { kept.append("\u{FFFD}") }
-                break
-            }
-            kept.append(scalar)
-            units += width
-        }
-        return String(kept)
+        text.map { SellwildFailuresCore.capInput($0, max: max) }
+    }
+
+    /// The file name at the end of a URL's path, without its query or
+    /// fragment, e.g. `listings-weatherbug.json`: call-site context that names
+    /// the resource without sending the URL. Empty when the path ends in `/`.
+    static func urlFileName(_ url: String) -> String {
+        var path = Substring(url)
+        if let cut = url.firstIndex(where: { $0 == "?" || $0 == "#" }) { path = url[..<cut] }
+        if let slash = path.lastIndex(of: "/") { return String(path[path.index(after: slash)...]) }
+        return String(path)
+    }
+
+    /// Input cap for the stack text: 30 frames of at most 500 units each.
+    static let stackInputMax = 16000
+
+    /// The stack `log` sends (pure): `symbols` from `Thread.callStackSymbols`
+    /// without its first frame (the capture itself) and the frames inside
+    /// SellwildFailures that follow, so the first frame is the call site.
+    /// Those frames name the enum mangled (`SellwildSDK0A8FailuresO`) or
+    /// demangled (`SellwildFailures.`). Swift symbols stay mangled: there is no
+    /// public demangler. nil when nothing is left.
+    static func callerStack(_ symbols: [String]) -> String? {
+        let frames = symbols.dropFirst()
+            .drop { $0.contains("SellwildSDK0A8FailuresO") || $0.contains("SellwildFailures.") }
+        guard !frames.isEmpty else { return nil }
+        let lines = frames.prefix(SellwildFailuresCore.Limits.stackFrames)
+        return capInput(lines.joined(separator: "\n"), max: stackInputMax)
     }
 
     /// The `errName` of an error (FAILURES.md 3.3): the Swift type name, or

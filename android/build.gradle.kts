@@ -328,6 +328,21 @@ val detektDebugClasspath = Callable {
     tasks.named<io.gitlab.arturbosch.detekt.Detekt>("detektDebug").get().classpath
 }
 val detektRnBridgeBaseline = file("config/detekt/baseline-rnBridge.xml")
+// Fixes detekt's formatting findings (ktlint wrapper) in the files you name, and only
+// those, so untouched files keep their baselined formatting:
+//   ./gradlew detektFormat -PdetektFiles=src/main/kotlin/.../A.kt,src/test/kotlin/.../ATest.kt
+// No type resolution and no baseline: run detektAll afterwards for the real gate.
+tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektFormat") {
+    description = "Autocorrects detekt formatting findings in -PdetektFiles (comma-separated paths)."
+    group = "formatting"
+    val named = providers.gradleProperty("detektFiles").map { it.split(',').filter(String::isNotBlank) }
+    setSource(files(named.getOrElse(emptyList())))
+    config.setFrom(detekt.config)
+    buildUponDefaultConfig = true
+    autoCorrect = true
+    ignoreFailures = true
+}
+
 val detektRnBridge = tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektRnBridge") {
     description = "Runs detekt (all rules, no type resolution) on the React Native bridge Kotlin."
     group = "verification"

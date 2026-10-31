@@ -1,7 +1,23 @@
 {
   "_comment": "Minimum gate coverage per platform, enforced in CI by node tools/coverage-gate.mjs (one job per platform) and by gate.sh --full. iOS has regions, not branches (Swift has no branch data). Raise a number when coverage rises; never lower one without a reviewed reason in COVERAGE.md.",
-  "core": { "lines": 100, "branches": 100, "functions": 100 },
-  "react-native": { "lines": 100, "branches": 100, "functions": 100 },
-  "android": { "lines": 99.97, "branches": 98.56, "functions": 100 },
-  "ios": { "lines": 99.65, "regions": 99.3, "functions": 99.04 }
+  "core": {
+    "lines": 100,
+    "branches": 100,
+    "functions": 100
+  },
+  "react-native": {
+    "lines": 100,
+    "branches": 100,
+    "functions": 100
+  },
+  "android": {
+    "lines": 100,
+    "branches": 98.78,
+    "functions": 100
+  },
+  "ios": {
+    "lines": 100,
+    "regions": 99.5,
+    "functions": 99.47
+  }
 }

@@ -52,8 +52,22 @@ final class FailureCapture {
                 if let error = self.flushError { throw error }
                 self.locked { self.flushCount += 1 }
             },
-            echo: { [self] line in self.locked { self.lines.append(line) } }
+            echo: { [self] line in self.locked { self.lines.append(line) } },
+            callStack: { [self] in self.locked { self.stack } }
         )
+    }
+
+    /// What `Thread.callStackSymbols` returns to `log` (none by default, so no stack is sent).
+    var stack: [String] = []
+
+    /// The app context attributes every event carries (`SellwildAppInfo.current`).
+    static var appAttributes: [String: String] {
+        let info = SellwildAppInfo.current
+        let pairs: [(String, String?)] = [("appId", info.appId), ("appVersion", info.appVersion),
+                                          ("os", info.os), ("device", info.device)]
+        return Dictionary(uniqueKeysWithValues: pairs.compactMap { key, value in
+            value.flatMap { $0.isEmpty ? nil : (key, SellwildFailuresCore.cleanText($0)) }
+        })
     }
 
     func install() {

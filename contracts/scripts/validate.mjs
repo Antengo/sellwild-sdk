@@ -175,15 +175,17 @@ export function runValidation({ only = null, env = process.env } = {}) {
     }
   }
 
-  // Golden vectors: every emitted event is a valid clientFailure event.
+  // Golden vectors: every emitted event is a valid clientFailure event, or a
+  // valid sdkTiming event in the timing file.
   for (const f of listJson(GOLDEN_DIR)) {
     const doc = readJson(path.join(GOLDEN_DIR, f))
+    const schema = doc.contract === 'sdkTiming' ? 'sdk-timing-event' : 'client-failure-event'
     const bad = []
     let events = 0
     for (const v of doc.vectors) {
       if (!v.expected.event) continue
       events++
-      const r = validate('client-failure-event', v.expected.event)
+      const r = validate(schema, v.expected.event)
       if (!r.ok) bad.push(`${v.name}: ${r.detail}`)
     }
     add('golden', `golden/${f}`, bad.length === 0, bad.length ? bad.slice(0, 2).join(' | ') : `${events} events valid`)

@@ -1,6 +1,6 @@
 {
   "platform": "ios",
-  "generatedAt": "2026-09-25T18:30:30.694Z",
+  "generatedAt": "2026-10-31T00:13:31.806Z",
   "tool": "xccov+llvm-cov",
   "commands": [
     "bash scripts/coverage/ios.sh",
@@ -13,46 +13,23 @@
   ],
   "gate": {
     "include": [
-      "ios/Sources/SellwildSDK/SellwildAdStack.swift",
-      "ios/Sources/SellwildSDK/SellwildGpid.swift",
-      "ios/Sources/SellwildSDK/SellwildSafeURL.swift",
-      "ios/Sources/SellwildSDK/SellwildLocalizedListings.swift",
-      "ios/Sources/SellwildSDK/SellwildGeo.swift",
-      "ios/Sources/SellwildSDK/SellwildConfig.swift",
-      "ios/Sources/SellwildSDK/SellwildAdSizes.swift",
-      "ios/Sources/SellwildSDK/SellwildNative.swift",
-      "ios/Sources/SellwildSDK/SellwildVideo.swift",
-      "ios/Sources/SellwildSDK/SellwildAPI.swift",
-      "ios/Sources/SellwildSDK/SellwildRemoteConfig.swift",
-      "ios/Sources/SellwildSDK/SellwildEids.swift",
-      "ios/Sources/SellwildSDK/SellwildHouseAd.swift",
-      "ios/Sources/SellwildSDK/SellwildGrowthCode.swift",
-      "ios/Sources/SellwildSDK/SellwildAdAudioGuard.swift",
-      "ios/Sources/SellwildSDK/SellwildAdView.swift",
-      "ios/Sources/SellwildSDK/SellwildPrebidMobile.swift",
-      "ios/Sources/SellwildSDK/SellwildNativeAdView.swift",
-      "ios/Sources/SellwildSDK/SellwildHouseAdView.swift",
-      "ios/Sources/SellwildSDK/SellwildFeedView.swift",
-      "ios/Sources/SellwildSDK/SellwildSwiftUI.swift",
-      "ios/Sources/SellwildSDK/SellwildS2SConfig.swift",
-      "ios/Sources/SellwildSDK/Failures/**",
-      "ios/Sources/SellwildSDK/Core/**"
+      "ios/Sources/SellwildSDK/**"
     ],
     "lines": {
-      "covered": 4822,
-      "total": 4839,
-      "pct": 99.65
+      "covered": 5474,
+      "total": 5474,
+      "pct": 100
     },
     "branches": null,
     "regions": {
-      "covered": 2418,
-      "total": 2435,
-      "pct": 99.3
+      "covered": 2804,
+      "total": 2818,
+      "pct": 99.5
     },
     "functions": {
-      "covered": 930,
-      "total": 939,
-      "pct": 99.04
+      "covered": 1122,
+      "total": 1128,
+      "pct": 99.47
     },
     "unmeasured": []
   },
@@ -62,20 +39,20 @@
     ],
     "target": "SellwildSDK",
     "lines": {
-      "covered": 4824,
-      "total": 4887,
-      "pct": 98.71
+      "covered": 5475,
+      "total": 5534,
+      "pct": 98.93
     },
     "branches": null,
     "regions": {
-      "covered": 2420,
-      "total": 2460,
-      "pct": 98.37
+      "covered": 2804,
+      "total": 2847,
+      "pct": 98.49
     },
     "functions": {
-      "covered": 932,
-      "total": 960,
-      "pct": 97.08
+      "covered": 1122,
+      "total": 1153,
+      "pct": 97.31
     },
     "unmeasured": []
   },
@@ -85,40 +62,12 @@
       "reason": "type-only and generated: a String enum of registry raw values, written by contracts/scripts/gen-codes.mjs from contracts/failure-codes.json. No executable regions; SellwildFailureCodeTests checks it against the registry."
     },
     {
-      "path": "ios/Sources/SellwildSDK/SellwildAdView.swift:204-207",
-      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported); the report it sends first is tested through reportUnsupportedInit()."
+      "path": "ios/Sources/SellwildSDK/SellwildAdNetwork.swift:58-61",
+      "reason": "third-party-object: only Prebid's auction creates a winning bid."
     },
     {
-      "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift:134-134",
-      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported)."
-    },
-    {
-      "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift:497-497",
-      "reason": "crash-guard: init(coder:) traps by design; the feed registers this cell by class."
-    },
-    {
-      "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift:590-590",
-      "reason": "crash-guard: init(coder:) traps by design; the feed builds the card in code."
-    },
-    {
-      "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift:701-701",
-      "reason": "crash-guard: init(coder:) traps by design; the feed registers this cell by class."
-    },
-    {
-      "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift:756-756",
-      "reason": "crash-guard: init(coder:) traps by design; the feed registers this cell by class."
-    },
-    {
-      "path": "ios/Sources/SellwildSDK/SellwildHouseAdView.swift:93-93",
-      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported)."
-    },
-    {
-      "path": "ios/Sources/SellwildSDK/SellwildNativeAdView.swift:61-61",
-      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported)."
-    },
-    {
-      "path": "ios/Sources/SellwildSDK/SellwildNativeAdView.swift:271-273",
-      "reason": "fetch-demand: NativeRequest.fetchDemand sends the Prebid Server request."
+      "path": "ios/Sources/SellwildSDK/SellwildAdNetwork.swift:65-80",
+      "reason": "network-call: GAM, Prebid Server, Safari; tests replace the environment."
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildPrebidMobile.swift:66-81",
@@ -129,8 +78,52 @@
       "reason": "fetch-demand: BannerAdUnit.fetchDemand sends the Prebid Server request."
     },
     {
+      "path": "ios/Sources/SellwildSDK/SellwildListingCardView.swift:81-81",
+      "reason": "crash-guard: init(coder:) traps by design; the feed builds the card in code."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildFeedEnvironment.swift:31-35",
+      "reason": "network-call: Safari loads the page; tests replace the environment."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildHouseAdView.swift:93-93",
+      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported)."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/Guards/SellwildGuards.swift:124-124",
+      "reason": "os-report: only MetricKit creates an MXDiagnosticPayload (no public init)."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildNativeAdView.swift:61-61",
+      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported)."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildNativeAdView.swift:271-273",
+      "reason": "fetch-demand: NativeRequest.fetchDemand sends the Prebid Server request."
+    },
+    {
       "path": "ios/Sources/SellwildSDK/SellwildSwiftUI.swift:134-145",
       "reason": "preview: Xcode previews run this; the app and the tests never do."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift:135-135",
+      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported)."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift:519-519",
+      "reason": "crash-guard: init(coder:) traps by design; the feed registers this cell by class."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift:559-559",
+      "reason": "crash-guard: init(coder:) traps by design; the feed registers this cell by class."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift:614-614",
+      "reason": "crash-guard: init(coder:) traps by design; the feed registers this cell by class."
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildAdView.swift:205-208",
+      "reason": "crash-guard: init(coder:) traps by design (storyboards are not supported); the report it sends first is tested through reportUnsupportedInit()."
     }
   ],
   "outsideTarget": [
@@ -259,14 +252,25 @@
       "missedLines": ""
     },
     {
+      "path": "ios/Sources/SellwildSDK/Failures/SellwildAppInfo.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 88.89,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 15,
+      "linesTotal": 15,
+      "missedLines": ""
+    },
+    {
       "path": "ios/Sources/SellwildSDK/Failures/SellwildFailures.swift",
       "lines": 100,
       "branches": null,
       "regions": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 125,
-      "linesTotal": 125,
+      "linesCovered": 143,
+      "linesTotal": 143,
       "missedLines": ""
     },
     {
@@ -276,8 +280,30 @@
       "regions": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 512,
-      "linesTotal": 512,
+      "linesCovered": 479,
+      "linesTotal": 479,
+      "missedLines": ""
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/Failures/SellwildFailuresCore+Context.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 72,
+      "linesTotal": 72,
+      "missedLines": ""
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/Failures/SellwildFailuresCore+Flags.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 46,
+      "linesTotal": 46,
       "missedLines": ""
     },
     {
@@ -292,6 +318,36 @@
       "missedLines": ""
     },
     {
+      "path": "ios/Sources/SellwildSDK/Guards/SellwildDiagnostics.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 60,
+      "linesTotal": 60,
+      "missedLines": ""
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/Guards/SellwildGuards.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 97.5,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 73,
+      "linesTotal": 73,
+      "missedLines": "",
+      "excludedLines": "124",
+      "whole": {
+        "lines": 100,
+        "regions": 92.86,
+        "functions": 92.59,
+        "linesCovered": 74,
+        "linesTotal": 74
+      }
+    },
+    {
       "path": "ios/Sources/SellwildSDK/SellwildAdAudioGuard.swift",
       "lines": 100,
       "branches": null,
@@ -303,14 +359,33 @@
       "missedLines": ""
     },
     {
+      "path": "ios/Sources/SellwildSDK/SellwildAdNetwork.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 91.67,
+      "functions": 88.89,
+      "inGate": true,
+      "linesCovered": 29,
+      "linesTotal": 29,
+      "missedLines": "",
+      "excludedLines": "58-61,65-80",
+      "whole": {
+        "lines": 69.05,
+        "regions": 68.75,
+        "functions": 61.54,
+        "linesCovered": 29,
+        "linesTotal": 42
+      }
+    },
+    {
       "path": "ios/Sources/SellwildSDK/SellwildAdSizes.swift",
       "lines": 100,
       "branches": null,
       "regions": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 95,
-      "linesTotal": 95,
+      "linesCovered": 98,
+      "linesTotal": 98,
       "missedLines": ""
     },
     {
@@ -326,33 +401,66 @@
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildAdView.swift",
-      "lines": 98.25,
+      "lines": 100,
       "branches": null,
-      "regions": 97.69,
-      "functions": 96.81,
+      "regions": 99.51,
+      "functions": 100,
       "inGate": true,
-      "linesCovered": 674,
-      "linesTotal": 686,
-      "missedLines": "868-870,875-877,881-883,886-888",
-      "excludedLines": "204-207",
+      "linesCovered": 669,
+      "linesTotal": 669,
+      "missedLines": "",
+      "excludedLines": "205-208",
       "whole": {
-        "lines": 97.68,
-        "regions": 96.79,
-        "functions": 94.79,
-        "linesCovered": 674,
-        "linesTotal": 690
+        "lines": 99.41,
+        "regions": 98.56,
+        "functions": 97.75,
+        "linesCovered": 669,
+        "linesTotal": 673
       }
     },
     {
-      "path": "ios/Sources/SellwildSDK/SellwildAPI.swift",
-      "lines": 98.89,
+      "path": "ios/Sources/SellwildSDK/SellwildAdView+Boltive.swift",
+      "lines": 100,
       "branches": null,
-      "regions": 98.31,
-      "functions": 97.87,
+      "regions": 100,
+      "functions": 100,
       "inGate": true,
-      "linesCovered": 444,
-      "linesTotal": 449,
-      "missedLines": "546-550"
+      "linesCovered": 61,
+      "linesTotal": 61,
+      "missedLines": ""
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildAPI.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 98.99,
+      "functions": 98.85,
+      "inGate": true,
+      "linesCovered": 363,
+      "linesTotal": 363,
+      "missedLines": ""
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildAPIClient+Reports.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 105,
+      "linesTotal": 105,
+      "missedLines": ""
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/SellwildBoltive.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 102,
+      "linesTotal": 102,
+      "missedLines": ""
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildConfig.swift",
@@ -378,14 +486,22 @@
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildFeedEnvironment.swift",
-      "lines": 40,
+      "lines": 100,
       "branches": null,
-      "regions": 66.67,
-      "functions": 66.67,
-      "inGate": false,
+      "regions": 100,
+      "functions": 100,
+      "inGate": true,
       "linesCovered": 2,
-      "linesTotal": 5,
-      "missedLines": "32-34"
+      "linesTotal": 2,
+      "missedLines": "",
+      "excludedLines": "31-35",
+      "whole": {
+        "lines": 40,
+        "regions": 66.67,
+        "functions": 66.67,
+        "linesCovered": 2,
+        "linesTotal": 5
+      }
     },
     {
       "path": "ios/Sources/SellwildSDK/SellwildFeedView.swift",
@@ -394,16 +510,16 @@
       "regions": 100,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 585,
-      "linesTotal": 585,
+      "linesCovered": 478,
+      "linesTotal": 478,
       "missedLines": "",
-      "excludedLines": "134,497,590,701,756",
+      "excludedLines": "135,519,559,614",
       "whole": {
-        "lines": 99.15,
-        "regions": 96.65,
-        "functions": 93.91,
-        "linesCovered": 585,
-        "linesTotal": 590
+        "lines": 99.17,
+        "regions": 97.24,
+        "functions": 94.79,
+        "linesCovered": 478,
+        "linesTotal": 482
       }
     },
     {
@@ -470,6 +586,25 @@
       }
     },
     {
+      "path": "ios/Sources/SellwildSDK/SellwildListingCardView.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 125,
+      "linesTotal": 125,
+      "missedLines": "",
+      "excludedLines": "81",
+      "whole": {
+        "lines": 99.21,
+        "regions": 94.87,
+        "functions": 90.91,
+        "linesCovered": 125,
+        "linesTotal": 126
+      }
+    },
+    {
       "path": "ios/Sources/SellwildSDK/SellwildLocalizedListings.swift",
       "lines": 100,
       "branches": null,
@@ -511,6 +646,17 @@
       }
     },
     {
+      "path": "ios/Sources/SellwildSDK/SellwildNetwork.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 6,
+      "linesTotal": 6,
+      "missedLines": ""
+    },
+    {
       "path": "ios/Sources/SellwildSDK/SellwildPrebidMobile.swift",
       "lines": 100,
       "branches": null,
@@ -533,11 +679,11 @@
       "path": "ios/Sources/SellwildSDK/SellwildRemoteConfig.swift",
       "lines": 100,
       "branches": null,
-      "regions": 98.99,
-      "functions": 96,
+      "regions": 99.01,
+      "functions": 96.15,
       "inGate": true,
-      "linesCovered": 224,
-      "linesTotal": 224,
+      "linesCovered": 235,
+      "linesTotal": 235,
       "missedLines": ""
     },
     {
@@ -591,17 +737,39 @@
       "linesCovered": 57,
       "linesTotal": 57,
       "missedLines": ""
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/Timing/SellwildTiming.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 74,
+      "linesTotal": 74,
+      "missedLines": ""
+    },
+    {
+      "path": "ios/Sources/SellwildSDK/Timing/SellwildTimingCore.swift",
+      "lines": 100,
+      "branches": null,
+      "regions": 100,
+      "functions": 100,
+      "inGate": true,
+      "linesCovered": 76,
+      "linesTotal": 76,
+      "missedLines": ""
     }
   ],
   "tests": {
     "exitCode": 0,
     "passed": true,
     "result": "Passed",
-    "passedTests": 540,
+    "passedTests": 599,
     "failedTests": 0,
     "skippedTests": 0,
     "expectedFailures": 1,
-    "device": "iPhone 17 (iOS Simulator 26.5)"
+    "device": "iPhone 17 (iOS Simulator 27.0)"
   },
   "contracts": "passed",
   "networkLeftovers": "none",
