@@ -276,7 +276,7 @@ enum SellwildFailuresCore {
         })
     }
 
-    private static func isAsciiLetter(_ c: Unicode.Scalar) -> Bool {
+    static func isAsciiLetter(_ c: Unicode.Scalar) -> Bool {
         ("a"..."z").contains(c) || ("A"..."Z").contains(c)
     }
 
@@ -288,7 +288,7 @@ enum SellwildFailuresCore {
         isDigit(c) || ("a"..."f").contains(c) || ("A"..."F").contains(c)
     }
 
-    private static func hasPrefix(_ s: [Unicode.Scalar], _ prefix: String, at i: Int) -> Bool {
+    static func hasPrefix(_ s: [Unicode.Scalar], _ prefix: String, at i: Int) -> Bool {
         let p = Array(prefix.unicodeScalars)
         return i + p.count <= s.count && s[i..<(i + p.count)].elementsEqual(p)
     }
@@ -341,6 +341,8 @@ enum SellwildFailuresCore {
     ///
     ///     url       [A-Za-z][A-Za-z0-9+.-]*://[^ "'<>()]*
     ///     relative  //[A-Za-z0-9-]+\.[^ "'<>()]*
+    ///     jscFrame  [A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.(?:js)?bundle(?![A-Za-z0-9.-])(?::[0-9]+){0,2}
+    ///                                  (stack frames: React Native JavaScriptCore, kept as is)
     ///     email     [A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}
     ///     uuid      [0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}
     ///     ipv4      [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}
@@ -348,11 +350,11 @@ enum SellwildFailuresCore {
     ///     path      [^ ():]*/          (stack frames)
     ///     query     \?[^ :()]*         (stack frames)
     enum Token {
-        case url, relative, email, uuid, ipv4, digits, path, query
+        case url, relative, jscFrame, email, uuid, ipv4, digits, path, query
     }
 
     private static let messageTokens: [Token] = [.url, .relative, .email, .uuid, .ipv4, .digits]
-    private static let frameTokens: [Token] = [.url, .relative, .email, .uuid, .ipv4, .path, .query]
+    private static let frameTokens: [Token] = [.url, .relative, .jscFrame, .email, .uuid, .ipv4, .path, .query]
 
     private static func isURLChar(_ c: Unicode.Scalar) -> Bool {
         !" \"'<>()".unicodeScalars.contains(c)
@@ -386,23 +388,10 @@ enum SellwildFailuresCore {
             guard i > label, take(".") else { return nil }
             run(isURLChar)
             return i
+        case .jscFrame:
+            return matchJSCFrame(s, at: start)
         case .email:
-            run { isAsciiLetter($0) || isDigit($0) || "._%+-".unicodeScalars.contains($0) }
-            guard i > start, take("@") else { return nil }
-            let domain = i
-            run { isAsciiLetter($0) || isDigit($0) || $0 == "." || $0 == "-" }
-            // Backtrack to the last "." that has a domain character before it
-            // and two letters after it; the letters then run on greedily.
-            var dot = i - 3
-            while dot > domain {
-                if s[dot] == ".", isAsciiLetter(s[dot + 1]), isAsciiLetter(s[dot + 2]) {
-                    i = dot + 1
-                    run(isAsciiLetter)
-                    return i
-                }
-                dot -= 1
-            }
-            return nil
+            return matchEmail(s, at: start)
         case .uuid:
             for (n, width) in [8, 4, 4, 4, 12].enumerated() {
                 if n > 0 && !take("-") { return nil }
@@ -533,6 +522,7 @@ enum SellwildFailuresCore {
                 if let host = hostOf(m) { return isOurHost(host) ? keepOurURL(m, host: host) : host }
                 let base = basenameOfURL(m)
                 return base.isEmpty ? "<url>" : base
+            case .jscFrame: return m
             case .email: return "<email>"
             case .uuid: return "<id>"
             case .ipv4: return "<ip>"

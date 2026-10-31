@@ -70,6 +70,19 @@ describe('src/failures.ts', () => {
     expect(rnFailures.osLabel(os, version)).toBe(label)
   })
 
+  it('keeps JavaScriptCore bundle frames of an error stack and masks real emails', async () => {
+    const fresh = await freshCore()
+    await import('../src/failures')
+    const error = new TypeError('undefined is not an object')
+    error.stack = 'onPress@main.jsbundle:1:2345\nanonymous@index.ios.bundle\nlogin@jane@example.com:3:4'
+
+    fresh.logFailure({ code: 'listings.fetch.network', component: 'listings', error })
+
+    const [event] = takeFailureEvents()
+    expect(event.attributes.stack).toBe('onPress@main.jsbundle:1:2345\nanonymous@index.ios.bundle\nlogin@<email>:3:4')
+    expect(event.attributes.client).toBe('react-native')
+  })
+
   it('is loaded by the package index', async () => {
     const fresh = await freshCore()
     await import('../src/index')

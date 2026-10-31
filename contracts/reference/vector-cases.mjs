@@ -469,6 +469,8 @@ function stacks() {
     s('stack.our-url-userinfo-port-fragment-pii-removed', 'at load (HTTPS://user:pw@Embed.Sellwild.ORG:443/p/jane@example.com/2d0f7a0a-9d1f-4c35-9d8b-0a1f2f9a8c11/10.1.2.3/c.js?cb=123#frag:10:20)\nat rel (//widget.sellwild.com/w.js#x:1:2)\nat bare (https://sellwild.com)', 'Error', 'core'),
     s('stack.our-url-without-path', 'at q (https://widget.sellwild.com?cb=1:3:4)\nat f (https://widget.sellwild.com#top:5:6)\nat o (https://widget.sellwild.com\\odd/a.js:7:8)', 'Error', 'core'),
     s('stack.rn-bundle-frames-kept', 'at anonymous (address at index.android.bundle:1:2345)\nat render (index.android.bundle:1:2345)\nat load (address at /data/app/com.example/base.apk!/assets/index.android.bundle:1:9)', 'Error', 'core'),
+    s('stack.rn-jsc-bundle-frames-kept', 'onPress@main.jsbundle:1:2345\nrender@index.ios.bundle:12:5\nanonymous@main.jsbundle\nglobal code@index.bundle', 'Error', 'react-native'),
+    s('stack.rn-jsc-emails-still-masked', 'at login (jane@example.com)\nsend@jane@example.com:1:2\nx@evil.com.bundle.example.com:3:4\ny@evil.jsbundlex:5:6\nz@mail.example.com', 'Error', 'react-native'),
     s('stack.dart-file-url-basename', '#0      SellwildAPIClient.fetchListings (package:sellwild_sdk/src/sellwild_api.dart:19:7)\n#1      main (file:///Users/jane/app/lib/main.dart:3:5)', 'SellwildException', 'flutter'),
     s('stack.kotlin-frames-kept', 'com.sellwild.sdk.SellwildAPIClient.fetchListings(SellwildAPI.kt:122)\ncom.sellwild.sdk.SellwildFeedView.load(SellwildFeedView.kt:252)', 'SellwildException'),
     s('stack.header-kept-when-name-differs', 'Error: boom\n    at f (a.js:1:1)', 'TypeError', 'core'),

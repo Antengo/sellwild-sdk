@@ -266,6 +266,17 @@ extension SellwildFailuresCoreTests {
         XCTAssertNil(matched(.relative, "//.x"))
         XCTAssertNil(matched(.relative, "//abc"))
         XCTAssertNil(matched(.relative, "/x"))
+        XCTAssertEqual(matched(.jscFrame, "onPress@main.jsbundle:1:2345)"), "onPress@main.jsbundle:1:2345")
+        XCTAssertEqual(matched(.jscFrame, "f@index.ios.bundle:7:x"), "f@index.ios.bundle:7")
+        XCTAssertEqual(matched(.jscFrame, "f@a.bundle:"), "f@a.bundle")
+        XCTAssertEqual(matched(.jscFrame, "f@a.bundle:1:2:3"), "f@a.bundle:1:2")
+        XCTAssertNil(matched(.jscFrame, "x@evil.com.bundle.example.com"), "bundle must end the domain run")
+        XCTAssertNil(matched(.jscFrame, "x@a.bundlex"))
+        XCTAssertNil(matched(.jscFrame, "x@.bundle"), "the file needs a character before the dot")
+        XCTAssertNil(matched(.jscFrame, "x@.jsbundle"))
+        XCTAssertNil(matched(.jscFrame, "x@ajsbundle"))
+        XCTAssertNil(matched(.jscFrame, "@a.bundle"))
+        XCTAssertNil(matched(.jscFrame, "ab"))
         XCTAssertEqual(matched(.email, "a.b@c.d.ef9"), "a.b@c.d.ef")
         XCTAssertEqual(matched(.email, "a@b.cc.d"), "a@b.cc", "backtracks to the last dot with two letters after it")
         XCTAssertNil(matched(.email, "a@.cc"), "the domain needs a character before the dot")
@@ -302,6 +313,15 @@ extension SellwildFailuresCoreTests {
         XCTAssertEqual(Core.sanitizeStack("at u@example.com 123e4567-e89b-12d3-a456-426614174000 10.1.2.3",
                                           errName: nil),
                        "at <email> <id> <ip>")
+    }
+
+    func testJSCBundleFramesStayWholeInStacksButNotInMessages() {
+        let stack = ["onPress@main.jsbundle:1:2345", "f@index.bundle:7",
+                     "x@a.bundle.example.com", "login@jane@example.com:3:4"].joined(separator: "\n")
+        XCTAssertEqual(Core.sanitizeStack(stack, errName: nil),
+                       ["onPress@main.jsbundle:1:2345", "f@index.bundle:7",
+                        "<email>", "login@<email>:3:4"].joined(separator: "\n"))
+        XCTAssertEqual(Core.sanitizeMessage("at onPress@main.jsbundle:1:2"), "at <email>:1:2")
     }
 
     func testCanonicalJsonEscapesLikeTheReference() {

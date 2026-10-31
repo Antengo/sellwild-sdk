@@ -341,6 +341,11 @@ export function hostOf(url: unknown): string | null {
 const URL_ALT = '([A-Za-z][A-Za-z0-9+.-]*://[^ "\'<>()]*)'
 const PROTO_REL_ALT = '(//[A-Za-z0-9-]+\\.[^ "\'<>()]*)'
 const EMAIL_ALT = '([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,})'
+// React Native JavaScriptCore frame `name@<file>.bundle` or `name@<file>.jsbundle`,
+// optionally with `:line` or `:line:col`. Stacks only, tried before the email
+// alternative so the frame is kept; `.bundle` must end the host-like run, so
+// `x@evil.com.bundle.example.com` is still an email.
+const JSC_FRAME_ALT = '([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.(?:js)?bundle(?![A-Za-z0-9.-])(?::[0-9]+){0,2})'
 const UUID_ALT = '([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})'
 const IPV4_ALT = '([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})'
 const DIGITS_ALT = '([0-9]{6,})'
@@ -348,7 +353,7 @@ const PATH_ALT = '([^ ():]*/)'
 const QUERY_ALT = '(\\?[^ :()]*)'
 
 export const MESSAGE_PATTERN = [URL_ALT, PROTO_REL_ALT, EMAIL_ALT, UUID_ALT, IPV4_ALT, DIGITS_ALT].join('|')
-export const FRAME_PATTERN = [URL_ALT, PROTO_REL_ALT, EMAIL_ALT, UUID_ALT, IPV4_ALT, PATH_ALT, QUERY_ALT].join('|')
+export const FRAME_PATTERN = [URL_ALT, PROTO_REL_ALT, JSC_FRAME_ALT, EMAIL_ALT, UUID_ALT, IPV4_ALT, PATH_ALT, QUERY_ALT].join('|')
 
 const MESSAGE_RE = new RegExp(MESSAGE_PATTERN, 'g')
 const FRAME_RE = new RegExp(FRAME_PATTERN, 'g')
@@ -416,13 +421,14 @@ function keepOurUrl(m: string, host: string): string {
 
 function sanitizeFrame(line: string): string {
   const text = cleanText(line)
-  return text.replace(FRAME_RE, (m: string, url: Group, rel: Group, email: Group, uuid: Group, ip: Group) => {
+  return text.replace(FRAME_RE, (m: string, url: Group, rel: Group, jsc: Group, email: Group, uuid: Group, ip: Group) => {
     if (url !== undefined || rel !== undefined) {
       const host = hostOf(m)
       if (host !== null) return isOurHost(host) ? keepOurUrl(m, host) : host
       const base = basenameOfUrl(m)
       return base === '' ? '<url>' : base
     }
+    if (jsc !== undefined) return m
     if (email !== undefined) return '<email>'
     if (uuid !== undefined) return '<id>'
     if (ip !== undefined) return '<ip>'

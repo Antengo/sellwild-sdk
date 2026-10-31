@@ -220,6 +220,10 @@ test('hand: stacks keep 30 frames, basenames, our script URLs whole and other ho
     'at load (https://embed.sellwild.org/p/<email>/<id>/<ip>/c.js:10:20)\nat rel (//widget.sellwild.com/w.js:1:2)\nat bare (https://sellwild.com)')
   assert.equal(vec('stack.rn-bundle-frames-kept').event.attributes.stack,
     'at anonymous (address at index.android.bundle:1:2345)\nat render (index.android.bundle:1:2345)\nat load (address at index.android.bundle:1:9)')
+  assert.equal(vec('stack.rn-jsc-bundle-frames-kept').event.attributes.stack,
+    'onPress@main.jsbundle:1:2345\nrender@index.ios.bundle:12:5\nanonymous@main.jsbundle\nglobal code@index.bundle')
+  assert.equal(vec('stack.rn-jsc-emails-still-masked').event.attributes.stack,
+    'at login (<email>)\nsend@<email>:1:2\n<email>:3:4\n<email>:5:6\n<email>')
   assert.equal(vec('stack.first-30-frames').event.attributes.stack.split('\n').length, 30)
   assert.equal(vec('stack.long-frame-cut-to-500-units').event.attributes.stack.split('\n')[0].length, 500)
   assert.equal(vec('stack.java-caused-by-chain').event.attributes.stack.split('\n')[1], 'Caused by: SocketTimeoutException')

@@ -1,6 +1,6 @@
 {
   "platform": "react-native",
-  "generatedAt": "2026-10-31T00:29:44.935Z",
+  "generatedAt": "2026-10-31T05:42:58.664Z",
   "tool": "vitest 3.2.7 + @vitest/coverage-v8 3.2.7 (experimentalAstAwareRemapping)",
   "commands": [
     "cd react-native && node_modules/.bin/vitest run --coverage",

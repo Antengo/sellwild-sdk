@@ -1,6 +1,6 @@
 {
   "platform": "android",
-  "generatedAt": "2026-10-31T01:59:08.528Z",
+  "generatedAt": "2026-10-31T05:44:09.588Z",
   "tool": "kover 0.9.1 (IntelliJ coverage agent, JaCoCo-format XML) over testDebugUnitTest",
   "commands": [
     "bash scripts/coverage/android.sh",
@@ -13,14 +13,14 @@
       "android/src/main/kotlin/com/sellwild/sdk/**"
     ],
     "lines": {
-      "covered": 4192,
-      "total": 4192,
+      "covered": 4194,
+      "total": 4194,
       "pct": 100
     },
     "branches": {
-      "covered": 2926,
-      "total": 2962,
-      "pct": 98.78
+      "covered": 2928,
+      "total": 2964,
+      "pct": 98.79
     },
     "regions": null,
     "functions": {
@@ -35,13 +35,13 @@
       "android/src/main/**"
     ],
     "lines": {
-      "covered": 4192,
-      "total": 4214,
+      "covered": 4194,
+      "total": 4216,
       "pct": 99.48
     },
     "branches": {
-      "covered": 2926,
-      "total": 2964,
+      "covered": 2928,
+      "total": 2966,
       "pct": 98.72
     },
     "regions": null,
@@ -269,14 +269,14 @@
       "branches": 99.25,
       "functions": 100,
       "inGate": true,
-      "linesCovered": 430,
-      "linesTotal": 430,
-      "branchesCovered": 528,
-      "branchesTotal": 532,
+      "linesCovered": 432,
+      "linesTotal": 432,
+      "branchesCovered": 530,
+      "branchesTotal": 534,
       "functionsCovered": 70,
       "functionsTotal": 70,
       "missedLines": "",
-      "missedBranchLines": "483,498,523"
+      "missedBranchLines": "492,507,532"
     },
     {
       "path": "android/src/main/kotlin/com/sellwild/sdk/failures/SellwildFailureCode.kt",
@@ -788,7 +788,7 @@
   "tests": {
     "exitCode": 0,
     "passed": true,
-    "tests": 1091,
+    "tests": 1094,
     "failures": 0,
     "errors": 0,
     "skipped": 0,

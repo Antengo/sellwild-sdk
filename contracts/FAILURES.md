@@ -1,6 +1,6 @@
 # clientFailure contract, fv 2
 
-fv 2 (2026-10-30): stacks up to 30 frames and 4000 code points (Android with the `Caused by:` chain, iOS from `Thread.callStackSymbols` at the log call), the app context attributes `appId`, `appVersion`, `os`, `device` and `slug` set once by each shell, the call-site context `logFailure({ context })` sent as `ctx.<key>`, at most 32 attributes and an 8192-byte budget that sheds `ctx.*` first, and stack frames that keep the path and `:line:col` of a URL on our own hosts (sellwild.com, sellwild.org) so they can be source-mapped (7.4). The event name, wire shape and server path did not change.
+fv 2 (2026-10-30): stacks up to 30 frames and 4000 code points (Android with the `Caused by:` chain, iOS from `Thread.callStackSymbols` at the log call), the app context attributes `appId`, `appVersion`, `os`, `device` and `slug` set once by each shell, the call-site context `logFailure({ context })` sent as `ctx.<key>`, at most 32 attributes and an 8192-byte budget that sheds `ctx.*` first, and stack frames that keep the path and `:line:col` of a URL on our own hosts (sellwild.com, sellwild.org) so they can be source-mapped (7.4), and React Native JavaScriptCore frames `name@<file>.bundle` / `name@<file>.jsbundle` kept whole instead of masked as emails (7.4). The event name, wire shape and server path did not change.
 
 This is the formal failure-reporting contract for all six clients: core, react-native, ios, android, flutter and widget. It merges the phase-1 proposal and the orchestrator amendments A1–A10 into one document. Where they differed, the amendments won. Section 17 lists every decision this document adds on top of both.
 
@@ -338,26 +338,29 @@ All lengths are Unicode code points (not UTF-16 units, not grapheme clusters).
 3. Keep the first 30 lines. Cut each to its first 500 UTF-16 units (`capInput`; Swift appends U+FFFD for a split pair, as 3.3 item 4), clean it with `cleanText`, then run this pattern once, left to right, first matching alternative wins, replaced text is not scanned again:
 
    ```
-   ([A-Za-z][A-Za-z0-9+.-]*://[^ "'<>()]*)|(//[A-Za-z0-9-]+\.[^ "'<>()]*)|([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})|([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})|([^ ():]*/)|(\?[^ :()]*)
+   ([A-Za-z][A-Za-z0-9+.-]*://[^ "'<>()]*)|(//[A-Za-z0-9-]+\.[^ "'<>()]*)|([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.(?:js)?bundle(?![A-Za-z0-9.-])(?::[0-9]+){0,2})|([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})|([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})|([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})|([^ ():]*/)|(\?[^ :()]*)
    ```
 
    | group | replacement |
    |---|---|
    | 1, 2 URL | `h = hostOf(match)`. When `h` is one of ours (below): the URL kept for source maps (below). Other non-null `h`: `h`. Null: the text after the last `/` of the path (before `?`/`#`); when that is empty, `<url>` |
-   | 3 email | `<email>` |
-   | 4 UUID | `<id>` |
-   | 5 IPv4 | `<ip>` |
-   | 6 directory prefix | removed (paths become basenames) |
-   | 7 query | removed |
+   | 3 JSC bundle frame | kept as is |
+   | 4 email | `<email>` |
+   | 5 UUID | `<id>` |
+   | 6 IPv4 | `<ip>` |
+   | 7 directory prefix | removed (paths become basenames) |
+   | 8 query | removed |
+
+   Group 3 is a React Native JavaScriptCore frame, `name@<file>.bundle` or `name@<file>.jsbundle` with an optional `:line` or `:line:col`: `onPress@main.jsbundle:1:2345` and `anonymous@index.ios.bundle` stay whole. It is tried before the email group at the same position, and `bundle` must end the run of host characters (`(?![A-Za-z0-9.-])`), so `x@evil.com.bundle.example.com:1:2` → `<email>:1:2` and `y@a.jsbundlex` → `<email>`. A real email in a frame is still masked (`at login (jane@example.com)` → `at login (<email>)`). This group exists only in stacks; messages (7.5) mask `name@main.jsbundle` as an email as before.
 
    Our hosts are `sellwild.com`, `sellwild.org` and any subdomain of either (`h` equals the domain or ends with `.` + domain; `notsellwild.com` and `sellwild.com.evil.io` are not ours). A URL on our host is kept so next-sellwild can source-map the frame (it needs `https://widget.sellwild.com/<path>.js:<line>:<col>`):
    1. `prefix` = the scheme in ASCII lower case + `://`, or `//` for a protocol-relative match.
    2. `after` = the match after the prefix and after the authority (the longest prefix of the rest made of authority characters, 7.3 step 3, stopping at `/`, `?` or `#`). Userinfo and port are thereby gone; the host is `h`.
    3. `lc` = the trailing `(:[0-9]+){1,2}$` of `after` (`:line` or `:line:col`, which V8 and Firefox put after any query), else empty. Remove it from `after`.
-   4. `path` = the rest of `after` up to its first `?` or `#` (query and fragment removed). In `path`, one left-to-right pass masks emails → `<email>`, UUIDs → `<id>`, IPv4s → `<ip>` (groups 3, 4, 5 above).
+   4. `path` = the rest of `after` up to its first `?` or `#` (query and fragment removed). In `path`, one left-to-right pass masks emails → `<email>`, UUIDs → `<id>`, IPv4s → `<ip>` (groups 4, 5, 6 above; group 3 does not apply inside a URL path).
    5. Replacement: `prefix + h + path + lc`. Example: `at Ve (https://widget.sellwild.com/fandom/fandom-fandom.js?cb=1:2:48211)` → `at Ve (https://widget.sellwild.com/fandom/fandom-fandom.js:2:48211)`; Firefox `Ve@https://widget.sellwild.com/a.js:2:5` keeps its URL the same way. A third-party URL still becomes its host: `at f (https://cdn.example.com/x.js:1:2)` → `at f (cdn.example.com)`.
 
-   React Native bundle frames carry no URL and pass through as before: Hermes `at f (address at index.android.bundle:1:2345)` stays whole, and `address at /data/app/…/index.android.bundle:1:9` loses only its directories (group 6).
+   React Native bundle frames carry no URL and pass through as before: Hermes `at f (address at index.android.bundle:1:2345)` stays whole, and `address at /data/app/…/index.android.bundle:1:9` loses only its directories (group 7).
 
 4. Drop lines that end up empty. Join with U+000A. Cut to 4000 (7.2). Nothing left → no stack.
 5. Digit runs are not masked in stacks (they are line and column numbers).

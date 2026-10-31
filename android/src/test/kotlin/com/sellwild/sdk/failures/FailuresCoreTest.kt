@@ -56,6 +56,16 @@ class FailuresCoreTest {
     }
 
     @Test
+    fun `React Native JSC bundle frames stay whole in stacks, emails do not`() {
+        val stack = "onPress@main.jsbundle:1:2345\nf@index.bundle:7\nx@a.bundle.example.com\nlogin@jane@example.com:3:4"
+        assertEquals(
+            "onPress@main.jsbundle:1:2345\nf@index.bundle:7\n<email>\nlogin@<email>:3:4",
+            FailuresCore.sanitizeStack(stack, null),
+        )
+        assertEquals("at <email>:1:2", FailuresCore.sanitizeMessage("at onPress@main.jsbundle:1:2"))
+    }
+
+    @Test
     fun `a cut drops the base with every kind of extender, and keeps it before a neighbour`() {
         val extenders = listOf(0x0301, 0x1ab0, 0x1dc0, 0x20d0, 0xfe0f, 0xfe20, 0x200d, 0x1f3fb, 0xe0020, 0xe0100)
         val neighbours = listOf(

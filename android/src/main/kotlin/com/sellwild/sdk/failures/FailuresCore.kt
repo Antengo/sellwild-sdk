@@ -150,6 +150,13 @@ internal object FailuresCore {
     private const val URL_ALT = "([A-Za-z][A-Za-z0-9+.-]*://[^ \"'<>()]*)"
     private const val PROTO_REL_ALT = "(//[A-Za-z0-9-]+\\.[^ \"'<>()]*)"
     private const val EMAIL_ALT = "([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,})"
+
+    // React Native JavaScriptCore frame `name@<file>.bundle` or `name@<file>.jsbundle`,
+    // optionally with `:line` or `:line:col`. Stacks only, tried before the email
+    // alternative so the frame is kept; `.bundle` must end the host-like run, so
+    // `x@evil.com.bundle.example.com` is still an email.
+    private const val JSC_FRAME_ALT =
+        "([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.(?:js)?bundle(?![A-Za-z0-9.-])(?::[0-9]+){0,2})"
     private const val UUID_ALT =
         "([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})"
     private const val IPV4_ALT = "([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})"
@@ -161,6 +168,7 @@ internal object FailuresCore {
     val FRAME_PATTERN = listOf(
         URL_ALT,
         PROTO_REL_ALT,
+        JSC_FRAME_ALT,
         EMAIL_ALT,
         UUID_ALT,
         IPV4_ALT,
@@ -389,9 +397,10 @@ internal object FailuresCore {
             val g = m.groups
             when {
                 g[1] != null || g[2] != null -> frameUrl(m.value)
-                g[3] != null -> "<email>"
-                g[4] != null -> "<id>"
-                g[5] != null -> "<ip>"
+                g[3] != null -> m.value
+                g[4] != null -> "<email>"
+                g[5] != null -> "<id>"
+                g[6] != null -> "<ip>"
                 else -> ""
             }
         }

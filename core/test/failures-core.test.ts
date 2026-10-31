@@ -192,6 +192,12 @@ describe('pure core edges', () => {
     expect(core.sanitizeStack('at a (file:///app/main.js?v=2:1:1)\nat b (file:///)', null)).toBe('at a (main.js)\nat b (<url>)')
   })
 
+  it('keeps React Native JSC bundle frames in stacks but masks them as emails in messages', () => {
+    expect(core.sanitizeStack('onPress@main.jsbundle:1:2345\nf@index.bundle:7\nx@a.bundle.example.com', null))
+      .toBe('onPress@main.jsbundle:1:2345\nf@index.bundle:7\n<email>')
+    expect(core.sanitizeMessage('at onPress@main.jsbundle:1:2')).toBe('at <email>:1:2')
+  })
+
   it('builds a dedupe key without an error name or message', () => {
     expect(core.dedupeKey('a.b.c', 'listings', null, null)).toBe('a.b.c|listings||')
   })

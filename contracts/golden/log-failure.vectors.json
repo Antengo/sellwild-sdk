@@ -12379,6 +12379,116 @@
       }
     },
     {
+      "name": "stack.rn-jsc-bundle-frames-kept",
+      "input": {
+        "code": "listings.fetch.http",
+        "component": "listings",
+        "errName": "Error",
+        "errMessage": "boom",
+        "stack": "onPress@main.jsbundle:1:2345\nrender@index.ios.bundle:12:5\nanonymous@main.jsbundle\nglobal code@index.bundle"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "react-native",
+        "clientVersion": "1.7.7",
+        "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0,
+        "keys": []
+      },
+      "expected": {
+        "event": {
+          "event": "clientFailure",
+          "action": "listings.fetch.http",
+          "label": "listings",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "react-native",
+            "clientVersion": "1.7.7",
+            "severity": "error",
+            "fv": "2",
+            "errName": "Error",
+            "msg": "boom",
+            "stack": "onPress@main.jsbundle:1:2345\nrender@index.ios.bundle:12:5\nanonymous@main.jsbundle\nglobal code@index.bundle",
+            "seq": "1",
+            "repeat": "1"
+          },
+          "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+          "createdTime": 1790000000000
+        },
+        "flushNow": true,
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1,
+          "keys": [
+            {
+              "key": "listings.fetch.http|listings|Error|boom",
+              "lastEmitAt": 1790000000000,
+              "suppressed": 0,
+              "emits": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "stack.rn-jsc-emails-still-masked",
+      "input": {
+        "code": "listings.fetch.http",
+        "component": "listings",
+        "errName": "Error",
+        "errMessage": "boom",
+        "stack": "at login (jane@example.com)\nsend@jane@example.com:1:2\nx@evil.com.bundle.example.com:3:4\ny@evil.jsbundlex:5:6\nz@mail.example.com"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "react-native",
+        "clientVersion": "1.7.7",
+        "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0,
+        "keys": []
+      },
+      "expected": {
+        "event": {
+          "event": "clientFailure",
+          "action": "listings.fetch.http",
+          "label": "listings",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "react-native",
+            "clientVersion": "1.7.7",
+            "severity": "error",
+            "fv": "2",
+            "errName": "Error",
+            "msg": "boom",
+            "stack": "at login (<email>)\nsend@<email>:1:2\n<email>:3:4\n<email>:5:6\n<email>",
+            "seq": "1",
+            "repeat": "1"
+          },
+          "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+          "createdTime": 1790000000000
+        },
+        "flushNow": true,
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1,
+          "keys": [
+            {
+              "key": "listings.fetch.http|listings|Error|boom",
+              "lastEmitAt": 1790000000000,
+              "suppressed": 0,
+              "emits": 1
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "stack.dart-file-url-basename",
       "input": {
         "code": "listings.fetch.http",
