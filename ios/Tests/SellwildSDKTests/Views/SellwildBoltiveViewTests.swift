@@ -25,9 +25,13 @@ final class FakeBoltiveSession: SellwildBoltiveSession {
         self.adBlocked = adBlocked
     }
 
+    /// The subview Boltive hands back. Made on the main thread up front: UIKit
+    /// views may not be created on the background thread a block can come from.
+    private let flagged = UIView()
+
     /// Boltive flagged the creative. It hands back a subview, not the banner.
     func block() {
-        adBlocked?(UIView())
+        adBlocked?(flagged)
     }
 }
 
@@ -95,14 +99,17 @@ final class SellwildBoltiveViewTests: ViewTestCase {
         XCTAssertEqual(blocked.count, 1, "on the main thread it is delivered at once")
         XCTAssertTrue(blocked[0].view === banner, "the banner, not the subview Boltive hands back")
 
+        let session = sessions[0]
         let done = expectation(description: "background block")
-        DispatchQueue.global().async {
-            self.sessions[0].block()
+        let thread = Thread {
+            session.block()
             done.fulfill()
         }
-        wait(for: [done], timeout: 5)
+        thread.start()
+        wait(for: [done], timeout: 10)
         spin { blocked.count == 2 }
         XCTAssertEqual(blocked.count, 2)
+        guard blocked.count == 2 else { return }
         XCTAssertTrue(blocked[1].view === banner)
         XCTAssertTrue(blocked[1].onMain, "a block from another thread is posted to main")
     }

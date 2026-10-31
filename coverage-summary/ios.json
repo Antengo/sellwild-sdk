@@ -1,6 +1,6 @@
 {
   "platform": "ios",
-  "generatedAt": "2026-10-31T00:13:31.806Z",
+  "generatedAt": "2026-10-31T00:43:02.181Z",
   "tool": "xccov+llvm-cov",
   "commands": [
     "bash scripts/coverage/ios.sh",
