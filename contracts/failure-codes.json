@@ -174,11 +174,11 @@
     "operation": "boltive_script",
     "reason": "network",
     "component": "banner",
-    "severity": "error",
+    "severity": "warn",
     "clients": [
       "widget"
     ],
-    "description": "The Boltive script failed to load (blocked), so its protection is off."
+    "description": "The Boltive script failed to load (blocked), so the bid renders without its protection."
   },
   {
     "code": "ad.boltive_terminate.exception",
