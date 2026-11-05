@@ -48,3 +48,25 @@ docs-site/.vitepress/dist
 .mastracode/
 android/.kotlin/
 samples/feed-demo-android/app/libs/
+
+# Generated test and coverage output (coverage-summary/ is committed)
+contracts/out/
+contracts/node_modules/
+core/coverage/
+react-native/coverage/
+*.xcresult
+*.profraw
+*.profdata
+.coverage-tmp/
+.nyc_output/
+
+# Local suite timing log (tools/timed.mjs)
+.timings/
+.mutation-journal/
+
+# Pinned lint binaries (scripts/lint/install-swiftlint.sh)
+tools/bin/
+
+# Sample app e2e output and build caches (scripts/e2e/run.sh)
+e2e/artifacts/
+e2e/.cache/

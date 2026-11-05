@@ -1,0 +1,11 @@
+{
+  "platform": "core",
+  "description": "Known cross-platform drift for core (A9.2: recorded, not changed, in this program). `expectations` maps each expectations file (by name) and case file to text that names every field that differs, as \"field: why\". A conformance test passes a case when core matches `expected`, or differs only in a field its entry names; the entry is removed in the change that fixes the drift. `other` records verified drift no expectations case pins. Only the core unit edits this file.",
+  "expectations": {
+    "app-config": {},
+    "listings-response": {}
+  },
+  "other": {
+    "debug.remote": "configure() and buildConfigWithRemote() never read the remote DEBUG key: KEY_MAP has no DEBUG, so config.debug comes only from the defaults (false) or overrides, and a CMS DEBUG: true does not turn on the logFailure debug echo. iOS (SellwildRemoteConfig.swift, raw[\"DEBUG\"] as? Bool), Android (SellwildSDK.kt, optBooleanOrNull(\"DEBUG\")) and Flutter (remote_config.dart, r.boolean('DEBUG')) map a boolean DEBUG to config.debug. No expectations field holds it; core/test/config.test.ts pins it."
+  }
+}

@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/rn-native-config.schema.json",
+  "title": "React Native native config",
+  "description": "The `config` prop the React Native layer passes to the native feed and banner views (react-native/src/nativeConfig.ts toNativeConfig and SellwildFeed.tsx). Our code produces it. On Android the bridge re-serializes `remote` through toHashMap, which turns every integer into a double (known drift).",
+  "type": "object",
+  "required": [
+    "partnerCode"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "zid": {
+      "description": "Zone id; the TS default is the number 0.",
+      "type": [
+        "string",
+        "number"
+      ]
+    },
+    "geo": {
+      "description": "Partner-supplied location (OpenRTB device.geo).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "country": {
+          "description": "ISO-3166-1 alpha-3 country.",
+          "type": "string"
+        },
+        "state": {
+          "description": "State or region; also keys localized caches.",
+          "type": "string"
+        },
+        "city": {
+          "description": "City.",
+          "type": "string"
+        },
+        "zip": {
+          "description": "Postal code.",
+          "type": "string"
+        },
+        "metro": {
+          "description": "DMA.",
+          "type": "string"
+        },
+        "lat": {
+          "description": "Latitude.",
+          "type": "number"
+        },
+        "lon": {
+          "description": "Longitude.",
+          "type": "number"
+        },
+        "type": {
+          "description": "OpenRTB geo.type: 1 GPS, 2 IP, 3 user.",
+          "type": "integer"
+        }
+      }
+    },
+    "prebidServer": {
+      "description": "Local Prebid Server (S2S) settings.",
+      "type": "object",
+      "required": [
+        "accountId",
+        "endpoint",
+        "bidders"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "accountId": {
+          "description": "Prebid Server account id.",
+          "type": "string"
+        },
+        "endpoint": {
+          "description": "Auction endpoint URL.",
+          "type": "string"
+        },
+        "bidders": {
+          "description": "Bidders routed through Prebid Server.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "timeout": {
+          "description": "Timeout in ms.",
+          "type": "number"
+        },
+        "syncEndpoint": {
+          "description": "Cookie sync endpoint.",
+          "type": "string"
+        }
+      }
+    },
+    "growthCode": {
+      "description": "Local GrowthCode overrides (each wins over the GROWTHCODE_* remote key).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "description": "Master switch.",
+          "type": "boolean"
+        },
+        "partnerId": {
+          "description": "GrowthCode partner id.",
+          "type": "string"
+        },
+        "endpoint": {
+          "description": "Sync endpoint.",
+          "type": "string"
+        },
+        "syncUrl": {
+          "description": "Publisher domain.",
+          "type": "string"
+        },
+        "sendMaid": {
+          "description": "Send the advertising id.",
+          "type": "boolean"
+        },
+        "ttlHours": {
+          "description": "Minimum hours between syncs.",
+          "type": "number"
+        }
+      }
+    }
+  },
+  "properties": {
+    "_synthetic": {
+      "description": "Fixture marker. Present only in hand-made fixtures, never on the wire.",
+      "const": true
+    },
+    "partnerCode": {
+      "description": "Partner code.",
+      "type": "string",
+      "minLength": 1
+    },
+    "slug": {
+      "description": "Config slug (feed only).",
+      "type": "string"
+    },
+    "appBundleId": {
+      "description": "Resolved per platform from remote APP_BUNDLE_ID[_IOS|_ANDROID].",
+      "type": "string"
+    },
+    "appStoreUrl": {
+      "description": "Resolved per platform from remote APP_STORE_URL[_IOS|_ANDROID].",
+      "type": "string"
+    },
+    "geo": {
+      "description": "Partner-supplied location.",
+      "$ref": "#/$defs/geo"
+    },
+    "gamTag": {
+      "description": "GAM ad unit path.",
+      "type": "string"
+    },
+    "debug": {
+      "description": "Debug mode.",
+      "type": "boolean"
+    },
+    "pbsDebug": {
+      "description": "Prebid Server debug.",
+      "type": "boolean"
+    },
+    "adRefreshMax": {
+      "description": "Max refreshes (web).",
+      "type": "integer"
+    },
+    "adRefreshMaxMobile": {
+      "description": "Max refreshes on mobile.",
+      "type": "integer"
+    },
+    "adRefreshIntervalMs": {
+      "description": "Refresh interval in ms (TS adRefreshInterval).",
+      "type": "number"
+    },
+    "prebidServer": {
+      "description": "Local S2S settings.",
+      "$ref": "#/$defs/prebidServer"
+    },
+    "growthCode": {
+      "description": "Local GrowthCode overrides.",
+      "$ref": "#/$defs/growthCode"
+    },
+    "localizedListings": {
+      "description": "Local localized-listings overrides.",
+      "$ref": "localized-listings-config.schema.json"
+    },
+    "remote": {
+      "description": "The raw CDN app config, for native re-apply and bidder passthrough.",
+      "$ref": "app-config.schema.json"
+    },
+    "listingsUrl": {
+      "description": "Listings URL (feed only).",
+      "type": "string"
+    },
+    "priceColor": {
+      "description": "Price color (feed only).",
+      "type": "string"
+    },
+    "bannerZid": {
+      "description": "Top banner zone (feed only).",
+      "$ref": "#/$defs/zid"
+    },
+    "bottomBannerZid": {
+      "description": "Bottom banner zone (feed only).",
+      "$ref": "#/$defs/zid"
+    },
+    "mobileBannerZid": {
+      "description": "Mobile banner zone (feed only).",
+      "$ref": "#/$defs/zid"
+    },
+    "mobileZids": {
+      "description": "Feed ad zones (feed only).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/zid"
+      }
+    }
+  }
+}

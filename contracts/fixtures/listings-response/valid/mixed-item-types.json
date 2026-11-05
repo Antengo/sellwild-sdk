@@ -1,0 +1,84 @@
+{
+  "_synthetic": true,
+  "result": {
+    "rs": [
+      {
+        "id": "105140231",
+        "photos": [
+          {
+            "url": "https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231.jpg"
+          }
+        ],
+        "title": "2021 Lexus UX UX 200",
+        "price": "19315",
+        "status": "1",
+        "user": {
+          "id": "95090098",
+          "trustLevel": "3",
+          "firstName": "Lotlinx",
+          "lastName": "A"
+        },
+        "shippable": true,
+        "categoryGroupId": "12",
+        "dataSourceId": "31",
+        "remote_url": "https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&pubId=234000&url=1"
+      },
+      {
+        "id": "105140232",
+        "photos": [
+          {
+            "url": "https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231.jpg"
+          }
+        ],
+        "title": "2021 Lexus UX UX 200",
+        "price": "19315",
+        "status": "1",
+        "user": {
+          "id": "95090098",
+          "trustLevel": "3",
+          "firstName": "Lotlinx",
+          "lastName": "A"
+        },
+        "shippable": true,
+        "categoryGroupId": "12",
+        "dataSourceId": "31",
+        "remote_url": null
+      },
+      {
+        "id": "104874856",
+        "title": "NCAA Tee",
+        "photos": [
+          {
+            "url": "https://listings-static1.sellwild.com/supply_listings/26/437/856_320x320.webp"
+          }
+        ],
+        "url": "https://sportserver.com/products/ncaa-tee?utm_source=sellwild",
+        "price": "15",
+        "currency": "USD",
+        "status": "1",
+        "user": {
+          "id": "95092688",
+          "trustLevel": "2",
+          "firstName": "SportServer",
+          "lastName": "Partner"
+        },
+        "shippable": "1",
+        "categoryGroupId": "17",
+        "dataSourceId": "35",
+        "remote_url": "https://sportserver.com/products/ncaa-tee?utm_source=sellwild"
+      },
+      {
+        "id": "90391",
+        "url": "https://o.bttn.io/19BIp9F5cLj?tag=marketplace-usw-20",
+        "title": "5QT Enameled Cast Iron Dutch Oven with Lid",
+        "strikePrice": 70,
+        "price": 38,
+        "photos": [
+          {
+            "url": "https://www.bargainhunter.com/wp-content/uploads/sites/5/2025/01/dutch-oven.jpg"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,2 @@
+# Fails the test task for any http/https attempt a test did not expect (contract A8).
+com.sellwild.sdk.support.NetworkBlockAuditListener

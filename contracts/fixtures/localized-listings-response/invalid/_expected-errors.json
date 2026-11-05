@@ -1,0 +1,13 @@
+{
+  "description": "For each invalid fixture: an ajv error that must be among the failures (instancePath, and keyword when given). Proves the fixture fails for the intended reason.",
+  "errors": {
+    "missing-state.json": {
+      "instancePath": "/result",
+      "keyword": "required"
+    },
+    "state-lower-case.json": {
+      "instancePath": "/result/state",
+      "keyword": "pattern"
+    }
+  }
+}

@@ -82,13 +82,29 @@ enum SellwildEidRegistry {
         push()
     }
 
-    private static func push() {
+    /// The two buckets as Prebid eids: consumer first, then GrowthCode's
+    /// entries for sources the consumer does not set.
+    static var current: [ExternalUserId] {
         lock.lock()
-        let consumerSources = Set(consumer.map { $0.source })
-        let merged = consumer + growthCode.filter { !consumerSources.contains($0.source) }
+        let merged = merge(consumer: consumer, growthCode: growthCode)
         lock.unlock()
+        return prebidEids(merged)
+    }
 
-        let mapped: [ExternalUserId] = merged.map { eid in
+    private static func push() {
+        Targeting.shared.setExternalUserIds(current)
+    }
+
+    /// Consumer eids, then each GrowthCode eid whose source the consumer does
+    /// not set (pure).
+    static func merge(consumer: [SellwildEid], growthCode: [SellwildEid]) -> [SellwildEid] {
+        let consumerSources = Set(consumer.map { $0.source })
+        return consumer + growthCode.filter { !consumerSources.contains($0.source) }
+    }
+
+    /// The Prebid form of `eids` (pure).
+    static func prebidEids(_ eids: [SellwildEid]) -> [ExternalUserId] {
+        eids.map { eid in
             ExternalUserId(
                 source: eid.source,
                 uids: eid.uids.map {
@@ -100,6 +116,5 @@ enum SellwildEidRegistry {
                 }
             )
         }
-        Targeting.shared.setExternalUserIds(mapped)
     }
 }

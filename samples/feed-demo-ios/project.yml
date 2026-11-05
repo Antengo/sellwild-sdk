@@ -1,14 +1,19 @@
-name: FeedDemo
+# Sellwild Sample (iOS): the native sample app and the target of the iOS
+# Maestro flows (e2e/maestro/ios). Regenerate the committed project after
+# editing this file:
+#
+#   cd samples/feed-demo-ios && xcodegen generate
+name: SellwildSample
 options:
-  bundleIdPrefix: com.sellwild.feeddemo
+  bundleIdPrefix: com.sellwild
   deploymentTarget:
     iOS: "15.0"
   createIntermediateGroups: true
 settings:
   base:
-    SWIFT_VERSION: "5.9"
+    SWIFT_VERSION: "5.0"
     IPHONEOS_DEPLOYMENT_TARGET: "15.0"
-    TARGETED_DEVICE_FAMILY: "1,2"
+    TARGETED_DEVICE_FAMILY: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: NO
     CODE_SIGN_IDENTITY: ""
     CODE_SIGNING_REQUIRED: NO
@@ -17,18 +22,19 @@ packages:
   SellwildSDK:
     path: ../../
 targets:
-  FeedDemo:
+  SellwildSample:
     type: application
     platform: iOS
     sources:
-      - path: FeedDemo
+      - path: SellwildSample
     dependencies:
       - package: SellwildSDK
         product: SellwildSDK
     info:
-      path: FeedDemo/Info.plist
+      path: SellwildSample/Info.plist
       properties:
-        CFBundleDisplayName: FeedDemo
+        CFBundleDisplayName: Sellwild Sample
+        CFBundleShortVersionString: "1.0"
         UILaunchScreen:
           UIColorName: ""
         UISupportedInterfaceOrientations:
@@ -39,5 +45,15 @@ targets:
         SKAdNetworkItems: []
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.sellwild.feeddemo
+        PRODUCT_BUNDLE_IDENTIFIER: com.sellwild.sample
+        PRODUCT_NAME: SellwildSample
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: NO
+schemes:
+  SellwildSample:
+    build:
+      targets:
+        SellwildSample: all
+    run:
+      config: Debug
+    archive:
+      config: Release

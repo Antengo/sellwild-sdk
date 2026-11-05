@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/events-batch.schema.json",
+  "title": "Events batch",
+  "description": "Body of POST https://events.sellwild.com/events/queue: a JSON array of events (web sends it with sendBeacon as text/plain). Tests must never send it.",
+  "type": "array",
+  "minItems": 1,
+  "maxItems": 100,
+  "items": {
+    "if": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "description": "Selects the clientFailure branch.",
+          "const": "clientFailure"
+        }
+      },
+      "required": [
+        "event"
+      ]
+    },
+    "then": {
+      "$ref": "client-failure-event.schema.json#/$defs/wireEvent"
+    },
+    "else": {
+      "$ref": "#/$defs/event"
+    }
+  },
+  "$defs": {
+    "event": {
+      "description": "Any existing analytics event (adError, adRenderSucceeded, click, ...).",
+      "type": "object",
+      "required": [
+        "event",
+        "uid",
+        "createdTime"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "_synthetic": {
+          "description": "Fixture marker. Present only in hand-made fixtures, never on the wire.",
+          "const": true
+        },
+        "event": {
+          "description": "Event name.",
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "description": "Event action (for adError the error text).",
+          "type": "string"
+        },
+        "label": {
+          "description": "Event label (often a zone id).",
+          "type": "string"
+        },
+        "amount": {
+          "description": "Numeric value (TS core and web only).",
+          "type": "number"
+        },
+        "uid": {
+          "description": "Device or page uid ('unkown' on web when storage fails).",
+          "type": "string",
+          "minLength": 1
+        },
+        "createdTime": {
+          "description": "Epoch milliseconds.",
+          "type": "integer",
+          "minimum": 1000000000000
+        },
+        "attributes": {
+          "description": "Event attributes. iOS sends strings only.",
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "properties": {
+            "type": {
+              "description": "Platform stamped by the SDK queue.",
+              "enum": [
+                "ios",
+                "android",
+                "flutter",
+                "react-native",
+                "web"
+              ]
+            },
+            "sdkVersion": {
+              "description": "SDK version stamped by the SDK queue.",
+              "type": "string"
+            },
+            "code": {
+              "description": "Partner code. The server marks a row Invalid without it.",
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

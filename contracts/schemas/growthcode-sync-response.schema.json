@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/growthcode-sync-response.schema.json",
+  "title": "GrowthCode sync response",
+  "description": "Response of POST https://ids.api.gcprivacy.id/v4/sync/api?pid=…&u=… (form body gcid, h, ref, maid, maid_type). Produced by GrowthCode; every field is optional and unknown fields are allowed. Never sampled live (POST); fixtures are synthetic.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "_synthetic": {
+      "description": "Fixture marker. Present only in hand-made fixtures, never on the wire.",
+      "const": true
+    },
+    "gc_id": {
+      "description": "GrowthCode id to persist and replay. JSON null reads as the text \"null\" through Android org.json on device.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "eb": {
+      "description": "Serialized EID blob: JSON text of an eid-blob array.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "contentMediaType": "application/json"
+    },
+    "idi": {
+      "description": "Whether id injection is on for this response.",
+      "type": "boolean"
+    },
+    "version": {
+      "description": "Response schema version.",
+      "type": "number"
+    },
+    "cookies": {
+      "description": "Web-only field, ignored by the SDKs."
+    },
+    "kv": {
+      "description": "Web-only field, ignored by the SDKs."
+    },
+    "dl": {
+      "description": "Web-only field, ignored by the SDKs."
+    },
+    "ls": {
+      "description": "Web-only field, ignored by the SDKs."
+    },
+    "bucket": {
+      "description": "Web-only field, ignored by the SDKs."
+    },
+    "gctest": {
+      "description": "Web-only field, ignored by the SDKs."
+    },
+    "persistent": {
+      "description": "Web-only field, ignored by the SDKs."
+    }
+  }
+}

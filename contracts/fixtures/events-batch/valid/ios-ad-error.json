@@ -1,0 +1,15 @@
+[
+  {
+    "_synthetic": true,
+    "event": "adError",
+    "action": "No fill",
+    "label": "43",
+    "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+    "createdTime": 1790000000000,
+    "attributes": {
+      "type": "ios",
+      "sdkVersion": "1.7.7",
+      "code": "weatherbug"
+    }
+  }
+]

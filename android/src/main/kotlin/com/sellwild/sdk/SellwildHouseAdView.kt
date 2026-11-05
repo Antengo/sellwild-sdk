@@ -23,6 +23,8 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.sellwild.sdk.core.AdDecisions
+import com.sellwild.sdk.core.Format
 
 internal class SellwildHouseAdView(context: Context) : FrameLayout(context) {
 
@@ -111,7 +113,7 @@ internal class SellwildHouseAdView(context: Context) : FrameLayout(context) {
         imageView.scaleType = ImageView.ScaleType.CENTER_CROP
         imageView.setBackgroundColor(Color.parseColor("#EEEEEE"))
         titleView.text = listing.title
-        priceView.text = formatPrice(listing.currency, listing.price)
+        priceView.text = Format.price(listing.currency, listing.price)
         loadImage(listing.primaryPhotoUrl)
     }
 
@@ -126,16 +128,5 @@ internal class SellwildHouseAdView(context: Context) : FrameLayout(context) {
         }
     }
 
-    private fun dp(value: Int): Int =
-        (value * context.resources.displayMetrics.density).toInt()
-
-    private fun formatPrice(currency: String?, price: String?): String {
-        val value = price?.toDoubleOrNull() ?: return ""
-        val sym = when (currency?.uppercase()) {
-            "EUR" -> "€"
-            "GBP" -> "£"
-            else -> "$"
-        }
-        return if (value % 1.0 == 0.0) "$sym${value.toInt()}" else "$sym${"%.2f".format(value)}"
-    }
+    private fun dp(value: Int): Int = AdDecisions.px(value, context.resources.displayMetrics.density)
 }

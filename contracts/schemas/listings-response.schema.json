@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/listings-response.schema.json",
+  "title": "Listings response",
+  "description": "GET https://cache.sellwild.com/listings-* (gzip JSON) and the legacy JSON-RPC getFeaturedListingsForPartnerWidget response (iOS only). The listings live in result.rs.",
+  "type": "object",
+  "required": [
+    "result"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "_synthetic": {
+      "description": "Fixture marker. Present only in hand-made fixtures, never on the wire.",
+      "const": true
+    },
+    "jsonrpc": {
+      "description": "JSON-RPC version ('2.0'), RPC responses only.",
+      "const": "2.0"
+    },
+    "id": {
+      "description": "JSON-RPC request id, RPC responses only.",
+      "type": [
+        "integer",
+        "string"
+      ]
+    },
+    "result": {
+      "description": "Listings payload.",
+      "type": "object",
+      "required": [
+        "rs"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "rs": {
+          "description": "The listings.",
+          "type": "array",
+          "items": {
+            "$ref": "listing.schema.json"
+          }
+        },
+        "config": {
+          "description": "Cache config (partner caches only).",
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "browse": {
+              "description": "Browse mode flag (0 = off).",
+              "type": "number"
+            }
+          }
+        },
+        "widgetCacheVersionId": {
+          "description": "Cache version id (partner caches only; clients default to '0').",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

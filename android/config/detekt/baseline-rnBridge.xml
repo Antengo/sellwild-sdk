@@ -1,0 +1,51 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ArgumentListWrapping:RnPrebidServer.kt$RnPrebidServer$("syncEndpoint")</ID>
+    <ID>ArgumentListWrapping:RnPrebidServer.kt$RnPrebidServer$(hasAccountId = accountId != null, hasEndpoint = endpoint != null)</ID>
+    <ID>ArgumentListWrapping:RnPrebidServer.kt$RnPrebidServer$(null, RnBridgeRules.prebidServerProblem(hasAccountId = accountId != null, hasEndpoint = endpoint != null))</ID>
+    <ID>ArgumentListWrapping:SellwildBannerViewManager.kt$SellwildBannerViewManager.Companion$("adRefreshIntervalMs")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$("adRefreshIntervalMs")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$("adRefreshMaxMobile")</ID>
+    <ID>ArgumentListWrapping:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$("priceColor")</ID>
+    <ID>CyclomaticComplexMethod:RnPrebidServer.kt$RnPrebidServer$fun fromConfig(config: ReadableMap): Parsed</ID>
+    <ID>CyclomaticComplexMethod:SellwildBannerViewManager.kt$SellwildBannerViewManager.Companion$internal fun configFromMap(map: ReadableMap): SellwildConfig</ID>
+    <ID>CyclomaticComplexMethod:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$internal fun configFromMap(map: ReadableMap): SellwildConfig</ID>
+    <ID>CyclomaticComplexMethod:SellwildModule.kt$SellwildModule$private fun toEids(arr: ReadableArray?): ParsedEids</ID>
+    <ID>LongMethod:SellwildBannerViewManager.kt$SellwildBannerViewManager.Companion$internal fun configFromMap(map: ReadableMap): SellwildConfig</ID>
+    <ID>LongMethod:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$internal fun configFromMap(map: ReadableMap): SellwildConfig</ID>
+    <ID>MagicNumber:RnPrebidServer.kt$RnPrebidServer$1500</ID>
+    <ID>MagicNumber:SellwildBannerViewManager.kt$SellwildBannerViewManager.Companion$30_000L</ID>
+    <ID>MaxLineLength:RnBridgeRules.kt$RnBridgeRules$/** A `prebidServer` config value that is not an object: the default Prebid Server is used (`bridge.config.invalid`). */</ID>
+    <ID>MaxLineLength:RnPrebidServer.kt$RnPrebidServer$return Parsed(null, RnBridgeRules.prebidServerProblem(hasAccountId = accountId != null, hasEndpoint = endpoint != null))</ID>
+    <ID>MaxLineLength:RnPrebidServer.kt$RnPrebidServer$val syncEndpoint = if (map.hasKey("syncEndpoint") &amp;&amp; !map.isNull("syncEndpoint")) map.getString("syncEndpoint") else null</ID>
+    <ID>MaxLineLength:SellwildBannerViewManager.kt$SellwildBannerViewManager.Companion$val adRefreshIntervalMs = if (map.hasKey("adRefreshIntervalMs")) map.getDouble("adRefreshIntervalMs").toLong() else 30_000L</ID>
+    <ID>MaxLineLength:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$if (map.hasKey("adRefreshIntervalMs")) config = config.copy(adRefreshIntervalMs = map.getDouble("adRefreshIntervalMs").toLong())</ID>
+    <ID>MaxLineLength:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$if (map.hasKey("adRefreshMaxMobile")) config = config.copy(adRefreshMaxMobile = map.getInt("adRefreshMaxMobile"))</ID>
+    <ID>MaxLineLength:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$if (map.hasKey("geo") &amp;&amp; !map.isNull("geo")) config = config.copy(geo = RnGeo.readableMapToGeo(map.getMap("geo")))</ID>
+    <ID>MaxLineLength:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$if (map.hasKey("priceColor")) config = config.copy(priceColor = map.getString("priceColor") ?: config.priceColor)</ID>
+    <ID>MaxLineLength:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$private inline</ID>
+    <ID>MaximumLineLength:RnPrebidServer.kt$RnPrebidServer$ </ID>
+    <ID>MaximumLineLength:SellwildBannerViewManager.kt$SellwildBannerViewManager.Companion$ </ID>
+    <ID>MaximumLineLength:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$ </ID>
+    <ID>MultiLineIfElse:RnBridgeRules.kt$RnBridgeRules$"prebidServer has no ${missing.joinToString(" or ")} text, so the default Prebid Server is used"</ID>
+    <ID>MultiLineIfElse:RnBridgeRules.kt$RnBridgeRules$"skipped $skippedEntries of $total eids without source or a uids list, and $skippedUids uids without id"</ID>
+    <ID>MultiLineIfElse:RnBridgeRules.kt$RnBridgeRules$key to wrongType("geo.$key", type, if (want == "Number") "a number" else "text")</ID>
+    <ID>MultiLineIfElse:RnBridgeRules.kt$RnBridgeRules$null</ID>
+    <ID>MultiLineIfElse:SellwildModule.kt$SellwildModule$null</ID>
+    <ID>MultiLineIfElse:SellwildModule.kt$SellwildModule$try { RnGeo.parse(geo) } catch (e: Exception) { // A map the bridge could not read at all. Geo is cleared, as iOS // clears it for a payload that is not an object. SellwildFailures.log( code = SellwildFailureCode.BRIDGE_GEO_INVALID, component = SellwildFailureComponent.BRIDGE, severity = SellwildFailureSeverity.WARN, error = e, message = "geo could not be read, so geo was cleared", ) RnGeo.Parsed(null, emptyList()) }</ID>
+    <ID>MultiLineIfElse:SellwildModule.kt$SellwildModule$u.getMap("ext")?.toHashMap() as? Map&lt;String, Any&gt;</ID>
+    <ID>ParameterListWrapping:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$(List&lt;String&gt;)</ID>
+    <ID>ParameterListWrapping:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$(String?)</ID>
+    <ID>ParameterListWrapping:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$(map: ReadableMap, key: String, problems: MutableList&lt;String&gt;, set: (List&lt;String&gt;) -&gt; Unit)</ID>
+    <ID>ParameterListWrapping:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$(map: ReadableMap, key: String, problems: MutableList&lt;String&gt;, set: (String?) -&gt; Unit)</ID>
+    <ID>ReturnCount:RnBridgeRules.kt$RnBridgeRules$fun bannerPropsProblem( hasConfig: Boolean, size: String?, zoneId: String?, nativeSupports: (String) -&gt; Boolean, ): String?</ID>
+    <ID>ReturnCount:RnPrebidServer.kt$RnPrebidServer$fun fromConfig(config: ReadableMap): Parsed</ID>
+    <ID>ReturnCount:SellwildBannerViewManager.kt$BannerProps$fun nextSetUp(): SetUp?</ID>
+    <ID>ReturnCount:SellwildFeedViewManager.kt$FeedProps$fun nextConfig(): SellwildConfig?</ID>
+    <ID>ReturnCount:SellwildFeedViewManager.kt$SellwildFeedViewManager.Companion$private inline fun readTextList(map: ReadableMap, key: String, problems: MutableList&lt;String&gt;, set: (List&lt;String&gt;) -&gt; Unit)</ID>
+    <ID>SpacingBetweenDeclarationsWithAnnotations:SellwildModule.kt$SellwildModule$@Suppress("UNCHECKED_CAST") val ext = if (u.hasKey("ext") &amp;&amp; !u.isNull("ext")) u.getMap("ext")?.toHashMap() as? Map&lt;String, Any&gt; else null</ID>
+    <ID>TooManyFunctions:SellwildBannerViewManager.kt$SellwildBannerViewManager : SimpleViewManager</ID>
+  </CurrentIssues>
+</SmellBaseline>

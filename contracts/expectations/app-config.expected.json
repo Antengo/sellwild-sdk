@@ -1,0 +1,2628 @@
+{
+  "description": "Typed result every platform must produce from each app-config sample and valid fixture. `fields` says what each value means and which platforms are held to it. Where a platform differs today, the difference is recorded in expectations/drift/<platform>.json (A9.2: drift is recorded, not changed, in this program). A conformance test passes a case when the platform matches `expected`, or when it differs only in a field its drift entry for that case names. Remove a drift entry in the same change that fixes it.",
+  "zones": [
+    "43",
+    "280",
+    "999"
+  ],
+  "fields": {
+    "partnerCode": {
+      "platforms": [
+        "core",
+        "ios",
+        "android"
+      ],
+      "meaning": "CODE, the partner code, unchanged."
+    },
+    "slug": {
+      "platforms": [
+        "core",
+        "ios",
+        "android"
+      ],
+      "meaning": "SLUG, the config slug, unchanged."
+    },
+    "mobileZids": {
+      "platforms": [
+        "core",
+        "react-native",
+        "ios",
+        "android"
+      ],
+      "meaning": "Feed ad zones. ios/android: MOBILE_ZID_<OS> when non-empty, else [MOBILE_ZID_ALL_<OS>] when non-empty, else MOBILE_ZID. shared: MOBILE_ZID. core has no OS and must produce shared; react-native, ios and android must produce the value for the OS they run on."
+    },
+    "mobileBannerZid": {
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "meaning": "Mobile banner zone. <OS>: MOBILE_BANNER_ZID_<OS> when not '', else MOBILE_ZID_ALL_<OS> when not '', else MOBILE_BANNER_ZID when it is text; null = unset (platform default)."
+    },
+    "adRefreshIntervalMs": {
+      "platforms": [
+        "core",
+        "ios",
+        "android"
+      ],
+      "meaning": "AD_REFRESH_INTERVAL in milliseconds; null = unset (platform default 30000). iOS stores seconds (adRefreshInterval = ms / 1000)."
+    },
+    "iabCats": {
+      "platforms": [
+        "core",
+        "ios",
+        "android"
+      ],
+      "meaning": "IAB_CATS as a list: a list stays as is; text is split on commas, trimmed, empties dropped."
+    },
+    "adStack": {
+      "platforms": [
+        "core",
+        "ios",
+        "android"
+      ],
+      "meaning": "Parsed AD_STACK (null when unset or unknown), parsed AD_STACK_BY_ZONE (unknown modes dropped), and the resolved stack for zones 43, 280, 999 (global wins, then per zone, then both)."
+    },
+    "eventsEnabled": {
+      "platforms": [
+        "core",
+        "ios",
+        "android"
+      ],
+      "meaning": "coerceFlag(EVENTS_ENABLED), FAILURES.md section 5.3. Absent = true."
+    },
+    "failuresEnabled": {
+      "platforms": [
+        "core",
+        "react-native",
+        "ios",
+        "android"
+      ],
+      "meaning": "coerceFlag(FAILURES_ENABLED); absent = true. A local failuresEnabled override would win."
+    },
+    "failuresSampleRate": {
+      "platforms": [
+        "core",
+        "react-native",
+        "ios",
+        "android"
+      ],
+      "meaning": "coerceRate(FAILURES_SAMPLE_RATE), FAILURES.md section 5.4."
+    },
+    "appBundleId": {
+      "platforms": [
+        "react-native",
+        "ios",
+        "android"
+      ],
+      "meaning": "APP_BUNDLE_ID_<OS> when it is text (even empty), else APP_BUNDLE_ID; null = unset."
+    },
+    "appStoreUrl": {
+      "platforms": [
+        "react-native",
+        "ios",
+        "android"
+      ],
+      "meaning": "APP_STORE_URL_<OS> when it is text (even empty), else APP_STORE_URL; null = unset."
+    },
+    "publisherId": {
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "meaning": "OpenRTB app.publisher.id: PUBLISHER_ID when not '' (numbers as text), else SELLER_ID; null = none."
+    },
+    "s2sConfigText": {
+      "platforms": [
+        "core"
+      ],
+      "meaning": "S2S_CONFIG text passed through unchanged (core s2sConfig); null when '' or absent."
+    },
+    "bannerSizesByZone": {
+      "platforms": [
+        "react-native",
+        "ios",
+        "android"
+      ],
+      "meaning": "Extra banner sizes (after the primary) per zone 43, 280, 999: BANNER_SIZES_BY_ZONE[zone] when that map has the zone, else BANNER_SIZES. Entries that do not parse or are not positive are dropped, duplicates removed, sizes as [width, height] integers."
+    },
+    "houseAd": {
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "meaning": "House-ad backfill for zone 43 at 300x250: enabled flag (absent = on; false/0/no/off = off) and the candidate creatives the random pick chooses from (BY_ZONE, then BY_SIZE, then IMAGE/URL; blank images skipped; url paired by index or shared)."
+    },
+    "localizedListings": {
+      "platforms": [
+        "core",
+        "ios",
+        "android"
+      ],
+      "meaning": "Resolved remote LOCALIZED_LISTINGS (object or JSON text): null when absent, disabled or missing baseUrl/urlTemplate; else source, baseUrl, urlTemplate, frequency (number, text parsed, default 0), forceState (upper case), the cache URL for forceState or AL, and everyNth (round(100 / frequency); 0 off; 1 at 100+)."
+    },
+    "auctionBidderParams": {
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "meaning": "Bidder params forwarded to the native Prebid auction: the BIDDERS object."
+    }
+  },
+  "cases": [
+    {
+      "file": "samples/app-config/antengo_antengo-sellwild-tv.json",
+      "expected": {
+        "partnerCode": "antengo",
+        "slug": "antengo-sellwild-tv",
+        "mobileZids": {
+          "shared": [],
+          "ios": [],
+          "android": []
+        },
+        "mobileBannerZid": {
+          "shared": "",
+          "ios": "",
+          "android": ""
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": "",
+          "android": ""
+        },
+        "appStoreUrl": {
+          "ios": "",
+          "android": ""
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "samples/app-config/antengo_antengo-sellwild-tv.local-build.json",
+      "expected": {
+        "partnerCode": "antengo",
+        "slug": "antengo-sellwild-tv",
+        "mobileZids": {
+          "shared": [],
+          "ios": [],
+          "android": []
+        },
+        "mobileBannerZid": {
+          "shared": "",
+          "ios": "",
+          "android": ""
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": "",
+          "android": ""
+        },
+        "appStoreUrl": {
+          "ios": "",
+          "android": ""
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "samples/app-config/weatherbug_weatherbug-weatherbug.json",
+      "expected": {
+        "partnerCode": "weatherbug",
+        "slug": "weatherbug-weatherbug",
+        "mobileZids": {
+          "shared": [
+            "weatherbug-mobile-300x250"
+          ],
+          "ios": [
+            "weatherbug-mobile-ios"
+          ],
+          "android": [
+            "weatherbug-mobile-android"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": "",
+          "ios": "",
+          "android": ""
+        },
+        "adRefreshIntervalMs": 30000,
+        "iabCats": [
+          "IAB15"
+        ],
+        "adStack": {
+          "global": "prebidOnly",
+          "byZone": {
+            "43": "gamOnly",
+            "280": "prebidOnly"
+          },
+          "resolved": {
+            "43": "prebidOnly",
+            "280": "prebidOnly",
+            "999": "prebidOnly"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": "281940292",
+          "android": "com.aws.android"
+        },
+        "appStoreUrl": {
+          "ios": "https://apps.apple.com/us/app/weatherbug-weather-forecast/id281940292",
+          "android": "https://play.google.com/store/apps/details?id=com.aws.android"
+        },
+        "publisherId": "123",
+        "s2sConfigText": "[{\n  accountId: 'weatherbug',\n  bidders: ['ix', 'medianet'],\n  adapter: 'prebidServer',\n  enabled: true,\n  endpoint: {\n    p1Consent: 'https://prebid.sellwild.com/openrtb2/auction',\n    noP1Consent: 'https://prebid.sellwild.com/openrtb2/auction'\n  },\n  syncEndpoint: {\n    p1Consent: 'https://prebid.sellwild.com/cookie_sync',\n    noP1Consent: 'https://prebid.sellwild.com/cookie_sync'\n  },\n  timeout: 1300\n}]",
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {
+          "pubmatic": {
+            "publisherId": "160587",
+            "adSlot": "7723132"
+          },
+          "amx": {
+            "tagId": "weatherbug_app_300x250"
+          },
+          "appnexus": {
+            "placement_id": 37905686
+          },
+          "rubicon": {
+            "accountId": 23260,
+            "siteId": 641411,
+            "zoneId": 4146367
+          },
+          "sovrn": {
+            "tagid": "1315317"
+          },
+          "onetag": {
+            "pubId": "8921327bd831e35"
+          }
+        }
+      }
+    },
+    {
+      "file": "samples/app-config/weatherbug_weatherbug-weatherbug.local-build.json",
+      "expected": {
+        "partnerCode": "weatherbug",
+        "slug": "weatherbug-weatherbug",
+        "mobileZids": {
+          "shared": [
+            "weatherbug-mobile-300x250"
+          ],
+          "ios": [
+            "weatherbug-mobile-ios"
+          ],
+          "android": [
+            "weatherbug-mobile-android"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": "",
+          "ios": "",
+          "android": ""
+        },
+        "adRefreshIntervalMs": 30000,
+        "iabCats": [
+          "IAB15"
+        ],
+        "adStack": {
+          "global": "prebidOnly",
+          "byZone": {
+            "43": "gamOnly",
+            "280": "prebidOnly"
+          },
+          "resolved": {
+            "43": "prebidOnly",
+            "280": "prebidOnly",
+            "999": "prebidOnly"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": "281940292",
+          "android": "com.aws.android"
+        },
+        "appStoreUrl": {
+          "ios": "https://apps.apple.com/us/app/weatherbug-weather-forecast/id281940292",
+          "android": "https://play.google.com/store/apps/details?id=com.aws.android"
+        },
+        "publisherId": "123",
+        "s2sConfigText": "[{\n  accountId: 'weatherbug',\n  bidders: ['ix', 'medianet'],\n  adapter: 'prebidServer',\n  enabled: true,\n  endpoint: {\n    p1Consent: 'https://prebid.sellwild.com/openrtb2/auction',\n    noP1Consent: 'https://prebid.sellwild.com/openrtb2/auction'\n  },\n  syncEndpoint: {\n    p1Consent: 'https://prebid.sellwild.com/cookie_sync',\n    noP1Consent: 'https://prebid.sellwild.com/cookie_sync'\n  },\n  timeout: 1300\n}]",
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {
+          "pubmatic": {
+            "publisherId": "160587",
+            "adSlot": "7723132"
+          },
+          "amx": {
+            "tagId": "weatherbug_app_300x250"
+          },
+          "appnexus": {
+            "placement_id": 37905686
+          },
+          "rubicon": {
+            "accountId": 23260,
+            "siteId": 641411,
+            "zoneId": 4146367
+          },
+          "sovrn": {
+            "tagid": "1315317"
+          },
+          "onetag": {
+            "pubId": "8921327bd831e35"
+          }
+        }
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/ad-stack-global-wins.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": "gamOnly",
+          "byZone": {
+            "43": "prebidOnly"
+          },
+          "resolved": {
+            "43": "gamOnly",
+            "280": "gamOnly",
+            "999": "gamOnly"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/banner-sizes-json-text.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [
+            [
+              300,
+              250
+            ],
+            [
+              320,
+              50
+            ]
+          ],
+          "280": [
+            [
+              300,
+              250
+            ],
+            [
+              320,
+              50
+            ]
+          ],
+          "999": [
+            [
+              300,
+              250
+            ],
+            [
+              320,
+              50
+            ]
+          ]
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/banner-sizes-pairs.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [
+            [
+              300,
+              250
+            ],
+            [
+              728,
+              90
+            ],
+            [
+              320,
+              50
+            ]
+          ],
+          "280": [
+            [
+              300,
+              250
+            ],
+            [
+              728,
+              90
+            ],
+            [
+              320,
+              50
+            ]
+          ],
+          "999": [
+            [
+              300,
+              250
+            ],
+            [
+              728,
+              90
+            ],
+            [
+              320,
+              50
+            ]
+          ]
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/banner-sizes-single-string.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [
+            [
+              300,
+              250
+            ]
+          ],
+          "280": [
+            [
+              300,
+              250
+            ]
+          ],
+          "999": [
+            [
+              300,
+              250
+            ]
+          ]
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/banner-sizes-string-list.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [
+            [
+              300,
+              250
+            ],
+            [
+              320,
+              50
+            ],
+            [
+              728,
+              90
+            ]
+          ],
+          "280": [
+            [
+              300,
+              250
+            ],
+            [
+              320,
+              50
+            ],
+            [
+              728,
+              90
+            ]
+          ],
+          "999": [
+            [
+              300,
+              250
+            ],
+            [
+              320,
+              50
+            ],
+            [
+              728,
+              90
+            ]
+          ]
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/by-zone-maps-empty.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/by-zone-maps-objects.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {
+            "43": "gamOnly",
+            "280": "prebidOnly"
+          },
+          "resolved": {
+            "43": "gamOnly",
+            "280": "prebidOnly",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [
+            [
+              300,
+              250
+            ],
+            [
+              320,
+              50
+            ]
+          ],
+          "280": [
+            [
+              300,
+              600
+            ],
+            [
+              300,
+              250
+            ]
+          ],
+          "999": [
+            [
+              300,
+              250
+            ]
+          ]
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/events-fraction.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/events-off-text.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": false,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/failures-off-sampled.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": false,
+        "failuresSampleRate": 0.25,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/failures-rate-empty-and-out-of-range.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/failures-text-values.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 0.5,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/flags-mixed-types.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/forward-compat-unknown-keys.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/house-disabled-string.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": false,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/house-image-arrays.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": [
+            {
+              "image": "https://cache.sellwild.com/house/z1.png",
+              "click": "https://sellwild.com/z"
+            },
+            {
+              "image": "https://cache.sellwild.com/house/z2.png",
+              "click": "https://sellwild.com/z"
+            }
+          ]
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/house-image-string.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": [
+            {
+              "image": "https://cache.sellwild.com/house/fixture-300x250.png",
+              "click": "https://sellwild.com/?p=fixture"
+            }
+          ]
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/iab-cats-array.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [
+          "IAB2",
+          "IAB2-15"
+        ],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/iab-cats-csv-string.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [
+          "IAB15",
+          "IAB15-10",
+          "IAB7"
+        ],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/localized-disabled.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/localized-empty.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/localized-json-text.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": {
+          "source": null,
+          "baseUrl": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com",
+          "urlTemplate": "sports-img-data-sm-webp-{state}.json",
+          "frequency": 20,
+          "forceState": "AL",
+          "cacheUrlForState": {
+            "state": "AL",
+            "url": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/sports-img-data-sm-webp-al.json"
+          },
+          "everyNth": 5
+        },
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/localized-object.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": {
+          "source": "sportserver",
+          "baseUrl": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/",
+          "urlTemplate": "sports-img-data-sm-webp-{state}.json",
+          "frequency": 25,
+          "forceState": null,
+          "cacheUrlForState": {
+            "state": "AL",
+            "url": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/sports-img-data-sm-webp-al.json"
+          },
+          "everyNth": 4
+        },
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/minimal.json",
+      "expected": {
+        "partnerCode": "minimal",
+        "slug": "minimal",
+        "mobileZids": {
+          "shared": [],
+          "ios": [],
+          "android": []
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/per-os-all-fallback.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "shared-feed"
+          ],
+          "ios": [
+            "ios-all"
+          ],
+          "android": [
+            "android-all"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": "shared-banner",
+          "ios": "ios-all",
+          "android": "android-all"
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/per-os-zids.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "shared-feed"
+          ],
+          "ios": [
+            "ios-feed-1",
+            "ios-feed-2"
+          ],
+          "android": [
+            "android-feed"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": "shared-banner",
+          "ios": "ios-banner",
+          "android": "shared-banner"
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/publisher-id-empty-seller-fallback.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": "999",
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/publisher-id-number.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": "123",
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/refresh-interval-seconds-style.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": 30,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/s2s-config-empty.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/s2s-config-js-literal.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": "[{\n  accountId: 'weatherbug',\n  bidders: ['ix', 'medianet'],\n  adapter: 'prebidServer',\n  enabled: true,\n  endpoint: {\n    p1Consent: 'https://prebid.sellwild.com/openrtb2/auction',\n    noP1Consent: 'https://prebid.sellwild.com/openrtb2/auction'\n  },\n  syncEndpoint: {\n    p1Consent: 'https://prebid.sellwild.com/cookie_sync',\n    noP1Consent: 'https://prebid.sellwild.com/cookie_sync'\n  },\n  timeout: 1300\n}]",
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/weatherbug-like.json",
+      "expected": {
+        "partnerCode": "weatherbug",
+        "slug": "weatherbug-like",
+        "mobileZids": {
+          "shared": [
+            "weatherbug-mobile-300x250"
+          ],
+          "ios": [
+            "weatherbug-mobile-ios"
+          ],
+          "android": [
+            "weatherbug-mobile-android"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": "",
+          "ios": "",
+          "android": ""
+        },
+        "adRefreshIntervalMs": 30000,
+        "iabCats": [
+          "IAB15"
+        ],
+        "adStack": {
+          "global": "prebidOnly",
+          "byZone": {
+            "43": "gamOnly",
+            "280": "prebidOnly"
+          },
+          "resolved": {
+            "43": "prebidOnly",
+            "280": "prebidOnly",
+            "999": "prebidOnly"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": "281940292",
+          "android": "com.aws.android"
+        },
+        "appStoreUrl": {
+          "ios": "https://apps.apple.com/us/app/weatherbug-weather-forecast/id281940292",
+          "android": "https://play.google.com/store/apps/details?id=com.aws.android"
+        },
+        "publisherId": "123",
+        "s2sConfigText": "[{\n  accountId: 'weatherbug',\n  bidders: ['ix', 'medianet'],\n  adapter: 'prebidServer',\n  enabled: true,\n  endpoint: {\n    p1Consent: 'https://prebid.sellwild.com/openrtb2/auction',\n    noP1Consent: 'https://prebid.sellwild.com/openrtb2/auction'\n  },\n  syncEndpoint: {\n    p1Consent: 'https://prebid.sellwild.com/cookie_sync',\n    noP1Consent: 'https://prebid.sellwild.com/cookie_sync'\n  },\n  timeout: 1300\n}]",
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {
+          "pubmatic": {
+            "publisherId": "160587",
+            "adSlot": "7723132"
+          },
+          "amx": {
+            "tagId": "weatherbug_app_300x250"
+          },
+          "appnexus": {
+            "placement_id": 37905686
+          },
+          "rubicon": {
+            "accountId": 23260,
+            "siteId": 641411,
+            "zoneId": 4146367
+          },
+          "sovrn": {
+            "tagid": "1315317"
+          },
+          "onetag": {
+            "pubId": "8921327bd831e35"
+          }
+        }
+      }
+    },
+    {
+      "file": "fixtures/app-config/valid/web-passthrough-keys.json",
+      "expected": {
+        "partnerCode": "fixture",
+        "slug": "fixture-app",
+        "mobileZids": {
+          "shared": [
+            "fixture-mobile-300x250"
+          ],
+          "ios": [
+            "fixture-mobile-300x250"
+          ],
+          "android": [
+            "fixture-mobile-300x250"
+          ]
+        },
+        "mobileBannerZid": {
+          "shared": null,
+          "ios": null,
+          "android": null
+        },
+        "adRefreshIntervalMs": null,
+        "iabCats": [],
+        "adStack": {
+          "global": null,
+          "byZone": {},
+          "resolved": {
+            "43": "both",
+            "280": "both",
+            "999": "both"
+          }
+        },
+        "eventsEnabled": true,
+        "failuresEnabled": true,
+        "failuresSampleRate": 1,
+        "appBundleId": {
+          "ios": null,
+          "android": null
+        },
+        "appStoreUrl": {
+          "ios": null,
+          "android": null
+        },
+        "publisherId": null,
+        "s2sConfigText": null,
+        "bannerSizesByZone": {
+          "43": [],
+          "280": [],
+          "999": []
+        },
+        "houseAd": {
+          "enabled": true,
+          "zone": "43",
+          "size": "300x250",
+          "candidates": []
+        },
+        "localizedListings": null,
+        "auctionBidderParams": {}
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "description": "For each invalid fixture: an ajv error that must be among the failures (instancePath, and keyword when given). Proves the fixture fails for the intended reason.",
+  "errors": {
+    "template-without-state.json": {
+      "instancePath": "/urlTemplate",
+      "keyword": "pattern"
+    },
+    "frequency-negative.json": {
+      "instancePath": "/frequency"
+    },
+    "force-state-long.json": {
+      "instancePath": "/forceState",
+      "keyword": "pattern"
+    },
+    "unknown-key.json": {
+      "instancePath": "",
+      "keyword": "additionalProperties"
+    },
+    "enabled-text.json": {
+      "instancePath": "/enabled",
+      "keyword": "type"
+    }
+  }
+}

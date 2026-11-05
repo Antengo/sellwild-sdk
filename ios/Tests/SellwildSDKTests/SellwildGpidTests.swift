@@ -8,35 +8,38 @@ final class SellwildGpidTests: XCTestCase {
 
     // MARK: resolveBase
 
-    func testResolveBasePerZoneOverrideWins() {
-        let remote: [String: Any] = [
+    func testResolveBasePerZoneOverrideWins() throws {
+        let remote = try AppConfigFactory.remote([
             "GPID_BASE": "/global/base",
             "GPID_BASE_BY_ZONE": ["43": "/zone/43", "99": "/zone/99"],
-        ]
+        ])
         XCTAssertEqual(SellwildGpid.resolveBase(remoteValues: remote, zoneId: "43"), "/zone/43")
         XCTAssertEqual(SellwildGpid.resolveBase(remoteValues: remote, zoneId: "99"), "/zone/99")
     }
 
-    func testResolveBaseFallsBackToGlobal() {
-        let remote: [String: Any] = [
+    func testResolveBaseFallsBackToGlobal() throws {
+        let remote = try AppConfigFactory.remote([
             "GPID_BASE": "/global/base",
             "GPID_BASE_BY_ZONE": ["43": "/zone/43"],
-        ]
+        ])
         // Zone with no per-zone entry → global.
         XCTAssertEqual(SellwildGpid.resolveBase(remoteValues: remote, zoneId: "7"), "/global/base")
         // No zone → global.
         XCTAssertEqual(SellwildGpid.resolveBase(remoteValues: remote, zoneId: nil), "/global/base")
     }
 
-    func testResolveBaseAbsentIsNil() {
+    func testResolveBaseAbsentIsNil() throws {
         XCTAssertNil(SellwildGpid.resolveBase(remoteValues: nil, zoneId: "43"))
-        XCTAssertNil(SellwildGpid.resolveBase(remoteValues: ["CODE": "weatherbug"], zoneId: "43"))
+        XCTAssertNil(SellwildGpid.resolveBase(remoteValues: try AppConfigFactory.remote(["CODE": "weatherbug"]), zoneId: "43"))
         // Present-but-empty base string doesn't count.
-        XCTAssertNil(SellwildGpid.resolveBase(remoteValues: ["GPID_BASE": "   "], zoneId: nil))
+        XCTAssertNil(SellwildGpid.resolveBase(remoteValues: try AppConfigFactory.remote(["GPID_BASE": "   "]), zoneId: nil))
     }
 
-    func testResolveBaseAcceptsNumber() {
-        XCTAssertEqual(SellwildGpid.resolveBase(remoteValues: ["GPID_BASE": 12345], zoneId: nil), "12345")
+    func testResolveBaseAcceptsNumber() throws {
+        let number = try Factory.offSchema(because: "GPID_BASE must be text; the SDK still reads a number") {
+            try AppConfigFactory.remote(["GPID_BASE": 12345])
+        }
+        XCTAssertEqual(SellwildGpid.resolveBase(remoteValues: number, zoneId: nil), "12345")
     }
 
     // MARK: impExtJSON

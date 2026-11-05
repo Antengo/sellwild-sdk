@@ -1,0 +1,23 @@
+{
+  "platform": "android",
+  "description": "Known cross-platform drift for android (A9.2: recorded, not changed, in this program). `expectations` maps each expectations file (by name) and case file to text that names every field that differs, as \"field: why\". A conformance test passes a case when android matches `expected`, or differs only in a field its entry names; the entry is removed in the change that fixes the drift. `other` records verified drift no expectations case pins. Only the android unit edits this file.",
+  "expectations": {
+    "app-config": {
+      "samples/app-config/weatherbug_weatherbug-weatherbug.json": "auctionBidderParams: SellwildAdView.loadGam calls SellwildPrebidMobile.runBannerAuction with no bidderParams (bidder params live server-side in the stored imp; iOS parity since origin c1d7d63), so they default to {} and BIDDERS never reach the auction.",
+      "samples/app-config/weatherbug_weatherbug-weatherbug.local-build.json": "auctionBidderParams: SellwildAdView.loadGam calls SellwildPrebidMobile.runBannerAuction with no bidderParams (bidder params live server-side in the stored imp; iOS parity since origin c1d7d63), so they default to {} and BIDDERS never reach the auction.",
+      "fixtures/app-config/valid/weatherbug-like.json": "auctionBidderParams: SellwildAdView.loadGam calls SellwildPrebidMobile.runBannerAuction with no bidderParams (bidder params live server-side in the stored imp; iOS parity since origin c1d7d63), so they default to {} and BIDDERS never reach the auction."
+    },
+    "listings-response": {
+      "samples/listings-response/bargainhunter.json": "widgetCacheVersionId: an absent result.widgetCacheVersionId stays null, not '0' (ListingsParser keeps what the cache sends; SellwildListingsResponse.widgetCacheVersionId is nullable).",
+      "samples/listings-response/listings-img-data-sm.json": "widgetCacheVersionId: an absent result.widgetCacheVersionId stays null, not '0' (ListingsParser keeps what the cache sends; SellwildListingsResponse.widgetCacheVersionId is nullable).",
+      "samples/listings-response/listings-sm.json": "widgetCacheVersionId: an absent result.widgetCacheVersionId stays null, not '0' (ListingsParser keeps what the cache sends; SellwildListingsResponse.widgetCacheVersionId is nullable).",
+      "samples/listings-response/s3-sellwild-cache-listings-sm.json": "widgetCacheVersionId: an absent result.widgetCacheVersionId stays null, not '0' (ListingsParser keeps what the cache sends; SellwildListingsResponse.widgetCacheVersionId is nullable).",
+      "fixtures/listings-response/valid/empty-rs.json": "widgetCacheVersionId: an absent result.widgetCacheVersionId stays null, not '0' (ListingsParser keeps what the cache sends; SellwildListingsResponse.widgetCacheVersionId is nullable).",
+      "fixtures/listings-response/valid/mixed-item-types.json": "widgetCacheVersionId: an absent result.widgetCacheVersionId stays null, not '0' (ListingsParser keeps what the cache sends; SellwildListingsResponse.widgetCacheVersionId is nullable)."
+    }
+  },
+  "other": {
+    "flags.fraction": "RemoteValues.isOn and isNotOff (MOBILE_HOUSE_AD_ENABLED, MOBILE_AD_MUTE_AUTOPLAY, VIDEO_*, NATIVE_*, GROWTHCODE_*) read a number with toInt(), so a fraction such as 0.5 reads as 0: off for the default-on flags and never on for the default-off ones. The app-config schema's flag says only 0 is off. EVENTS_ENABLED no longer drifts (it uses coerceFlag since phase 3). No expectations case pins a fraction; RemoteValuesTest does.",
+    "flags.text": "RemoteValues.isOn (the default-off VIDEO_*, NATIVE_*, GROWTHCODE_* flags, GROWTHCODE_SEND_MAID once set) reads text as on only for 1/true/yes/on in any case, as core's growthcode truthy() does, so text such as \"enabled\" is off. The app-config schema's flag says only false/0/no/off text is off. No expectations case pins it; SellwildGrowthCodeTest does."
+  }
+}

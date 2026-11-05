@@ -37,15 +37,10 @@ public enum SellwildHouseAd {
 
     /// Whether house-ad backfill is enabled for this app. Defaults to `true`;
     /// set `MOBILE_HOUSE_AD_ENABLED: false` in the CDN config to disable all backfill
-    /// (image and listing) and restore the plain-blank behavior.
+    /// (image and listing) and restore the plain-blank behavior. Same coercion
+    /// as every kill switch (FAILURES.md 5.3).
     static func isEnabled(remoteValues: [String: Any]?) -> Bool {
-        guard let raw = remoteValues?["MOBILE_HOUSE_AD_ENABLED"] else { return true }
-        switch raw {
-        case let b as Bool: return b
-        case let n as NSNumber: return n.boolValue
-        case let s as String: return !["0", "false", "no", "off"].contains(s.lowercased())
-        default: return true
-        }
+        SellwildFailuresCore.coerceFlag(remoteValues?["MOBILE_HOUSE_AD_ENABLED"])
     }
 
     /// Resolve the house image creative for a placement, most specific first:
@@ -69,41 +64,55 @@ public enum SellwildHouseAd {
         zoneId: String?,
         size: CGSize
     ) -> SellwildHouseAdCreative? {
-        guard isEnabled(remoteValues: remoteValues), let raw = remoteValues else { return nil }
+        var rng = SystemRandomNumberGenerator()
+        return resolve(remoteValues: remoteValues, zoneId: zoneId, size: size, using: &rng)
+    }
 
-        if let zoneId,
-           let byZone = raw["MOBILE_HOUSE_AD_BY_ZONE"] as? [String: Any],
-           let creative = creative(from: byZone[zoneId]) {
-            return creative
+    /// `resolve` with the random source for the pick injected.
+    static func resolve<R: RandomNumberGenerator>(
+        remoteValues: [String: Any]?,
+        zoneId: String?,
+        size: CGSize,
+        using rng: inout R
+    ) -> SellwildHouseAdCreative? {
+        candidates(remoteValues: remoteValues, zoneId: zoneId, size: size).randomElement(using: &rng)
+    }
+
+    /// Every creative the random pick in `resolve` chooses from, in order
+    /// (pure): the first level with a usable image wins (by zone, then by
+    /// size, then the app-wide default). Empty when disabled or when nothing
+    /// is configured.
+    static func candidates(
+        remoteValues: [String: Any]?,
+        zoneId: String?,
+        size: CGSize
+    ) -> [SellwildHouseAdCreative] {
+        guard isEnabled(remoteValues: remoteValues), let raw = remoteValues else { return [] }
+
+        if let zoneId, let byZone = raw["MOBILE_HOUSE_AD_BY_ZONE"] as? [String: Any] {
+            let zone = candidates(from: byZone[zoneId])
+            if !zone.isEmpty { return zone }
         }
         let sizeKey = "\(Int(size.width))x\(Int(size.height))"
-        if let bySize = raw["MOBILE_HOUSE_AD_BY_SIZE"] as? [String: Any],
-           let creative = creative(from: bySize[sizeKey]) {
-            return creative
+        if let bySize = raw["MOBILE_HOUSE_AD_BY_SIZE"] as? [String: Any] {
+            let sized = candidates(from: bySize[sizeKey])
+            if !sized.isEmpty { return sized }
         }
-        if let creative = pickCreative(image: raw["MOBILE_HOUSE_AD_IMAGE"], url: raw["MOBILE_HOUSE_AD_URL"]) {
-            return creative
-        }
-        return nil
+        return candidates(image: raw["MOBILE_HOUSE_AD_IMAGE"], url: raw["MOBILE_HOUSE_AD_URL"])
     }
 
-    /// Parse a `{ "image": ..., "url": ... }` override object into a creative.
-    /// `image` and `url` may each be a single URL string or an array of URL
-    /// strings (see `pickCreative`).
-    private static func creative(from value: Any?) -> SellwildHouseAdCreative? {
-        guard let obj = value as? [String: Any] else { return nil }
-        return pickCreative(image: obj["image"], url: obj["url"])
+    /// The creatives of a `{ "image": ..., "url": ... }` override object.
+    private static func candidates(from value: Any?) -> [SellwildHouseAdCreative] {
+        guard let obj = value as? [String: Any] else { return [] }
+        return candidates(image: obj["image"], url: obj["url"])
     }
 
-    /// Pick a house creative — an image and its paired click URL — from `image`
-    /// and `url` values that are each either a single URL string or an array of
-    /// URL strings. One index is chosen at random per call (per no-fill), so an
-    /// array of images rotates. The click URL pairs by the image's **original**
-    /// index when `url` is an array (one per image); a single `url` string is
-    /// shared across all images; a missing/blank paired entry yields no click.
-    /// Returns nil when there's no usable image.
-    private static func pickCreative(image imageValue: Any?, url urlValue: Any?) -> SellwildHouseAdCreative? {
-        // Non-empty images, keeping their original index for URL pairing.
+    /// One creative per non-blank image. `image` and `url` are each a single
+    /// URL string or an array of URL strings. The click URL pairs by the
+    /// image's **original** index when `url` is an array (one per image); a
+    /// single `url` string is shared across all images; a missing or blank
+    /// paired entry yields no click.
+    private static func candidates(image imageValue: Any?, url urlValue: Any?) -> [SellwildHouseAdCreative] {
         let images: [(index: Int, url: String)]
         if let arr = imageValue as? [Any] {
             images = arr.enumerated().compactMap { pair in
@@ -114,15 +123,16 @@ public enum SellwildHouseAd {
         } else {
             images = []
         }
-        guard let picked = images.randomElement() else { return nil }
-        // Click URL: array → paired by the image's original index; string → shared.
-        let click: String?
-        if let urls = urlValue as? [Any] {
-            click = picked.index < urls.count ? nonEmpty(urls[picked.index]) : nil
-        } else {
-            click = nonEmpty(urlValue)
+        return images.map { picked in
+            // Click URL: array → paired by the image's original index; string → shared.
+            let click: String?
+            if let urls = urlValue as? [Any] {
+                click = picked.index < urls.count ? nonEmpty(urls[picked.index]) : nil
+            } else {
+                click = nonEmpty(urlValue)
+            }
+            return SellwildHouseAdCreative(imageURL: picked.url, clickURL: click)
         }
-        return SellwildHouseAdCreative(imageURL: picked.url, clickURL: click)
     }
 
     private static func nonEmpty(_ value: Any?) -> String? {
@@ -138,74 +148,191 @@ public enum SellwildHouseAd {
         return c
     }()
 
-    private static let diskDir: URL? = {
-        guard let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
-        else { return nil }
+    /// Empties the in-memory image cache (the disk copy stays).
+    static func clearMemoryCache() {
+        memoryCache.removeAllObjects()
+    }
+
+    /// The on-disk cache directory, created once per launch. nil when there is
+    /// none; the images are then cached in memory only.
+    private static let diskDir: URL? = makeCacheDirectory(
+        in: FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+    )
+
+    /// Creates `SellwildHouseAds/` under `base` and returns it. When that
+    /// fails it reports `storage.cache_dir.exception` and returns nil, so the
+    /// disk cache is skipped instead of failing on every read and write.
+    static func makeCacheDirectory(in base: URL?, fileManager: FileManager = .default) -> URL? {
+        guard let base else { return nil }
         let dir = base.appendingPathComponent("SellwildHouseAds", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
-    }()
+        do {
+            try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        } catch {
+            SellwildFailures.log(code: .storageCacheDirException, component: .storage, severity: .warn, error: error,
+                                 message: "house ad image cache directory could not be created")
+            return nil
+        }
+    }
 
     /// A stable (launch-independent) filename for a URL — djb2 hashed to hex, so
     /// the disk copy survives app restarts (unlike `URL.hashValue`).
-    private static func diskURL(for urlString: String) -> URL? {
-        guard let dir = diskDir else { return nil }
+    static func diskURL(for urlString: String, in dir: URL) -> URL {
         var hash: UInt64 = 5381
         for byte in urlString.utf8 { hash = (hash &* 33) &+ UInt64(byte) }
         return dir.appendingPathComponent(String(format: "%016llx", hash))
     }
 
+    /// Where house images come from. Partners always get `live`; tests swap
+    /// `imageLoader` for a local download and a temporary directory.
+    struct ImageLoader {
+        /// Downloads an http(s) image. Completes on any queue.
+        var download: (URL, @escaping (Result<Data, Error>) -> Void) -> Void
+        /// The disk cache directory, or nil for memory only.
+        var directory: () -> URL?
+
+        static func live(session: URLSession = .shared) -> ImageLoader {
+            ImageLoader(
+                download: { url, completion in
+                    session.dataTask(with: url) { data, response, error in
+                        completion(SellwildHouseAd.downloadResult(data: data, response: response, error: error))
+                    }.resume()
+                },
+                directory: { SellwildHouseAd.diskDir }
+            )
+        }
+    }
+
+    static var imageLoader = ImageLoader.live()
+
+    /// A download that answered with an HTTP error status.
+    struct HTTPStatusError: LocalizedError {
+        let status: Int
+        var errorDescription: String? { "HTTP \(status)" }
+    }
+
+    /// A completed image download as a result (pure): the transport error,
+    /// an HTTP status outside 2xx, or the body (empty when there is none).
+    static func downloadResult(data: Data?, response: URLResponse?, error: Error?) -> Result<Data, Error> {
+        if let error { return .failure(error) }
+        if let status = SellwildLoadFailure.httpFailureStatus(response) { return .failure(HTTPStatusError(status: status)) }
+        return .success(data ?? Data())
+    }
+
+    /// Image bytes as an image, or why not (pure). Payloads over
+    /// `SellwildSafeURL.maxImageBytes` are refused so a hostile creative
+    /// cannot exhaust memory.
+    static func decodeImage(_ data: Data?) -> Result<UIImage, ImageProblem> {
+        guard let data else { return .failure(.undecodableDataURI) }
+        guard data.count <= SellwildSafeURL.maxImageBytes else { return .failure(.tooLarge) }
+        guard let image = UIImage(data: data) else { return .failure(.notAnImage) }
+        return .success(image)
+    }
+
+    /// Why a house image was refused. Its raw value is the reported message.
+    enum ImageProblem: String, Error {
+        case undecodableDataURI = "data: URI could not be decoded"
+        case tooLarge = "image is larger than the 8 MB cap"
+        case notAnImage = "image data could not be decoded"
+        case notHTTP = "image URL is not http(s)"
+    }
+
     /// Load a house image, memory cache → disk cache → network (populating both).
     /// The completion is always called on the main thread; `nil` on failure.
+    /// Each failure is reported once, here.
     static func loadImage(_ urlString: String, completion: @escaping (UIImage?) -> Void) {
         let key = urlString as NSString
         if let cached = memoryCache.object(forKey: key) {
             completion(cached)
             return
         }
+        let loader = imageLoader
         DispatchQueue.global(qos: .userInitiated).async {
+            let deliver = { (image: UIImage?) in DispatchQueue.main.async { completion(image) } }
             // data: URI — listing photos from the static cache can be inline
             // base64 (the feed's own cell decodes these too). Decode inline,
             // size-capped; memory-cache only, no disk churn for a self-contained
             // value. Without this, a data: photo fails SellwildSafeURL.imageURL's
             // http/https check below and the slot shows a grey placeholder.
             if urlString.hasPrefix("data:") {
-                if let data = decodeDataURI(urlString),
-                   data.count <= SellwildSafeURL.maxImageBytes,
-                   let image = UIImage(data: data) {
+                switch decodeImage(decodeDataURI(urlString)) {
+                case .success(let image):
                     memoryCache.setObject(image, forKey: key)
-                    DispatchQueue.main.async { completion(image) }
-                } else {
-                    DispatchQueue.main.async { completion(nil) }
+                    deliver(image)
+                case .failure(let problem):
+                    reportInvalid(problem, image: urlString, url: nil)
+                    deliver(nil)
                 }
                 return
             }
-            if let disk = diskURL(for: urlString),
-               let data = try? Data(contentsOf: disk),
-               let image = UIImage(data: data) {
+            let disk = loader.directory().map { diskURL(for: urlString, in: $0) }
+            // `try?`: no file yet is the normal cache miss, not a failure. An
+            // unreadable copy falls through to the download, which rewrites it.
+            if let disk, let data = try? Data(contentsOf: disk), let image = UIImage(data: data) {
                 memoryCache.setObject(image, forKey: key)
-                DispatchQueue.main.async { completion(image) }
+                deliver(image)
                 return
             }
-            // http/https only (reject file:// etc. — the URL is remote config)
-            // and cap the payload so a hostile oversized creative can't OOM.
-            guard let url = SellwildSafeURL.imageURL(urlString),
-                  let data = try? Data(contentsOf: url),
-                  data.count <= SellwildSafeURL.maxImageBytes,
-                  let image = UIImage(data: data) else {
-                DispatchQueue.main.async { completion(nil) }
+            // http/https only (reject file:// etc. — the URL is remote config).
+            guard let url = SellwildSafeURL.imageURL(urlString) else {
+                reportInvalid(.notHTTP, image: urlString, url: urlString)
+                deliver(nil)
                 return
             }
-            memoryCache.setObject(image, forKey: key)
-            if let disk = diskURL(for: urlString) { try? data.write(to: disk) }
-            DispatchQueue.main.async { completion(image) }
+            loader.download(url) { result in
+                switch result.flatMap({ data in decodeImage(data).map { (data, $0) }.mapError { $0 as Error } }) {
+                case .success(let (data, image)):
+                    memoryCache.setObject(image, forKey: key)
+                    if let disk { writeCache(data, to: disk) }
+                    deliver(image)
+                case .failure(let problem as ImageProblem):
+                    reportInvalid(problem, image: urlString, url: urlString)
+                    deliver(nil)
+                case .failure(let error):
+                    reportDownloadFailure(error, url: urlString)
+                    deliver(nil)
+                }
+            }
+        }
+    }
+
+    private static func writeCache(_ data: Data, to file: URL) {
+        do {
+            try data.write(to: file)
+        } catch {
+            SellwildFailures.log(code: .storageWriteException, component: .storage, severity: .warn, error: error,
+                                 message: "house ad image could not be written to the disk cache")
+        }
+    }
+
+    /// A refused image stays refused until the config (or the listing photo)
+    /// changes, and every no-fill loads it again, so each problem is reported
+    /// once per launch per image. A data: URI is keyed by its length and
+    /// hash, not its text, which can be megabytes. A download that fails
+    /// (`reportDownloadFailure`) can pass on the next try, so it is reported
+    /// each time.
+    private static func reportInvalid(_ problem: ImageProblem, image: String, url: String?) {
+        let key = image.hasPrefix("data:") ? "data:\(image.utf8.count):\(image.hashValue)" : image
+        guard SellwildReportOnce.first(.houseImageInvalid, "\(problem.rawValue)|\(key)") else { return }
+        SellwildFailures.log(code: .houseImageInvalid, component: .house, severity: .warn,
+                             message: problem.rawValue, url: url)
+    }
+
+    private static func reportDownloadFailure(_ error: Error, url: String) {
+        if let http = error as? HTTPStatusError {
+            SellwildFailures.log(code: .houseImageNetwork, component: .house, severity: .warn,
+                                 message: "HTTP \(http.status)", httpStatus: http.status, url: url)
+        } else if SellwildLoadFailure.transport(error) == .cancelled {
+            SellwildLog.debug("[SellwildHouseAd] image download cancelled")
+        } else {
+            SellwildFailures.log(code: .houseImageNetwork, component: .house, severity: .warn, error: error, url: url)
         }
     }
 
     /// Decode a `data:[...];base64,<payload>` URI into raw bytes. Mirrors the
     /// feed cell's decoder so a listing served with an inline photo renders the
     /// same in the house backdrop as it does in the feed.
-    private static func decodeDataURI(_ s: String) -> Data? {
+    static func decodeDataURI(_ s: String) -> Data? {
         guard let comma = s.firstIndex(of: ",") else { return nil }
         let payload = String(s[s.index(after: comma)...])
         return Data(base64Encoded: payload, options: .ignoreUnknownCharacters)

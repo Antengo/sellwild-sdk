@@ -1,0 +1,14 @@
+[
+  {
+    "_synthetic": true,
+    "event": "adRenderSucceeded",
+    "label": "43",
+    "uid": "2d0f7a0a-9d1f-4c35-9d8b-0a1f2f9a8c11",
+    "createdTime": 1790000000000,
+    "attributes": {
+      "type": "android",
+      "sdkVersion": "1.7.7",
+      "code": "weatherbug"
+    }
+  }
+]

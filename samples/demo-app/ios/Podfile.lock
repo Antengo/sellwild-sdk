@@ -10,9 +10,6 @@ PODS:
   - hermes-engine (0.74.6):
     - hermes-engine/Pre-built (= 0.74.6)
   - hermes-engine/Pre-built (0.74.6)
-  - PrebidMobile (3.3.1):
-    - PrebidMobile/core (= 3.3.1)
-  - PrebidMobile/core (3.3.1)
   - RCT-Folly (2024.01.01.00):
     - boost
     - DoubleConversion
@@ -941,27 +938,6 @@ PODS:
   - React-Mapbuffer (0.74.6):
     - glog
     - React-debug
-  - react-native-webview (13.16.1):
-    - DoubleConversion
-    - glog
-    - hermes-engine
-    - RCT-Folly (= 2024.01.01.00)
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Codegen
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-rendererdebug
-    - React-utils
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - Yoga
   - React-nativeconfig (0.74.6)
   - React-NativeModulesApple (0.74.6):
     - glog
@@ -1191,14 +1167,19 @@ PODS:
     - React-logger (= 0.74.6)
     - React-perflogger (= 0.74.6)
     - React-utils (= 0.74.6)
-  - RNCClipboard (1.16.3):
-    - React-Core
-  - SellwildSDK (1.3.5):
+  - SellwildPrebid (1.4.4):
+    - SellwildPrebid/core (= 1.4.4)
+  - SellwildPrebid/core (1.4.4)
+  - SellwildPrebidGAMEventHandlers (1.4.4):
+    - Google-Mobile-Ads-SDK (>= 13.0.0)
+    - SellwildPrebid (= 1.4.4)
+  - SellwildSDK (1.7.7):
     - Google-Mobile-Ads-SDK (< 14.0, >= 12.0)
-    - PrebidMobile (< 4.0, >= 3.0.1)
-  - SellwildSDK-RN (1.3.7):
+    - SellwildPrebid (= 1.4.4)
+    - SellwildPrebidGAMEventHandlers (= 1.4.4)
+  - SellwildSDK-RN (1.7.7):
     - React-Core
-    - SellwildSDK (>= 1.3.5)
+    - SellwildSDK (>= 1.7.7)
   - SocketRocket (0.7.0)
   - Yoga (0.0.0)
 
@@ -1235,7 +1216,6 @@ DEPENDENCIES:
   - React-jsitracing (from `../node_modules/react-native/ReactCommon/hermes/executor/`)
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
-  - react-native-webview (from `../node_modules/react-native-webview`)
   - React-nativeconfig (from `../node_modules/react-native/ReactCommon`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-perflogger (from `../node_modules/react-native/ReactCommon/reactperflogger`)
@@ -1259,7 +1239,6 @@ DEPENDENCIES:
   - React-runtimescheduler (from `../node_modules/react-native/ReactCommon/react/renderer/runtimescheduler`)
   - React-utils (from `../node_modules/react-native/ReactCommon/react/utils`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
-  - "RNCClipboard (from `../node_modules/@react-native-clipboard/clipboard`)"
   - SellwildSDK (from `../../../`)
   - SellwildSDK-RN (from `../../../react-native`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
@@ -1268,7 +1247,8 @@ SPEC REPOS:
   trunk:
     - Google-Mobile-Ads-SDK
     - GoogleUserMessagingPlatform
-    - PrebidMobile
+    - SellwildPrebid
+    - SellwildPrebidGAMEventHandlers
     - SocketRocket
 
 EXTERNAL SOURCES:
@@ -1333,8 +1313,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/logger"
   React-Mapbuffer:
     :path: "../node_modules/react-native/ReactCommon"
-  react-native-webview:
-    :path: "../node_modules/react-native-webview"
   React-nativeconfig:
     :path: "../node_modules/react-native/ReactCommon"
   React-NativeModulesApple:
@@ -1381,8 +1359,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/utils"
   ReactCommon:
     :path: "../node_modules/react-native/ReactCommon"
-  RNCClipboard:
-    :path: "../node_modules/@react-native-clipboard/clipboard"
   SellwildSDK:
     :path: "../../../"
   SellwildSDK-RN:
@@ -1399,7 +1375,6 @@ SPEC CHECKSUMS:
   Google-Mobile-Ads-SDK: 5aa7af5189af2c75d1c32868062cf3692f1376f9
   GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
   hermes-engine: 2102c92e54a031a270fd1fe84169ec8a0901b7bd
-  PrebidMobile: ee7a59963c71e08baae66d8934df228ccf3648c7
   RCT-Folly: 5dc73daec3476616d19e8a53f0156176f7b55461
   RCTDeprecation: 5f1d7e1f8ef6c53f0207e3ac0d0ca23575e8a6ab
   RCTRequired: dcfd24ece09940bbf24b7c2974f4eb68a9baee55
@@ -1424,7 +1399,6 @@ SPEC CHECKSUMS:
   React-jsitracing: 257f7a96aed4216f0f611f1f7a34fd288227c924
   React-logger: 76e7467052f51022eca5bcfe0c700004ad88954d
   React-Mapbuffer: 023e56d8228ebc662ba021b0c662e5d17ee6922b
-  react-native-webview: 3689cdf7320cb12c6f891154361a67299f172788
   React-nativeconfig: c36a079fa219a9911070cc0058b746407e1ef47d
   React-NativeModulesApple: 057d7428de4fc072da9cfa390549f4d98d3fb827
   React-perflogger: 9f21c9e3d8d220833e649a141fed8e5ca08977d9
@@ -1448,9 +1422,10 @@ SPEC CHECKSUMS:
   React-runtimescheduler: 58f254c234fcd21826759cc85b0c9b9d3b1679f7
   React-utils: 61a4c1ae313725ae97f72aeca2b7f73c316ee5e7
   ReactCommon: 2d6cc4daa19b1ec85b9ae72bfa7958cdd50a60ea
-  RNCClipboard: f6679d470d0da2bce2a37b0af7b9e0bf369ecda5
-  SellwildSDK: 1936503682c5137ae7ae7316955c6b2c60ca0086
-  SellwildSDK-RN: e4707e74cd24ffeaeeccd81b3bfaf81f3931a7c2
+  SellwildPrebid: 5decfc58adf6e0692f32591ccd56226360bfc735
+  SellwildPrebidGAMEventHandlers: e070e553410077b7146aea1b2331f5449066429f
+  SellwildSDK: ba4c711d38d4f0e3b17b9cc1dd58667eabfb991b
+  SellwildSDK-RN: 9c76151183c8c205462f97af2bd2a2690f203c08
   SocketRocket: abac6f5de4d4d62d24e11868d7a2f427e0ef940d
   Yoga: 4f4f07a17818e76d1b04edc01b68b6d49a682100
 

@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/sdk-timing-event.schema.json",
+  "title": "sdkTiming event",
+  "description": "One sdkTiming event exactly as the timing core builds it (contracts/FAILURES.md section 18): how long one step took, from 10% of sessions by default. It rides the existing events queue like clientFailure.",
+  "type": "object",
+  "required": [
+    "event",
+    "action",
+    "label",
+    "attributes",
+    "uid",
+    "createdTime"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "_synthetic": {
+      "description": "Fixture marker. Present only in hand-made fixtures, never on the wire.",
+      "const": true
+    },
+    "event": {
+      "description": "Always sdkTiming.",
+      "const": "sdkTiming"
+    },
+    "action": {
+      "description": "The step, as in attributes.step.",
+      "$ref": "#/$defs/step"
+    },
+    "label": {
+      "description": "Always timing.",
+      "const": "timing"
+    },
+    "attributes": {
+      "description": "Timing attributes.",
+      "$ref": "#/$defs/attributes"
+    },
+    "uid": {
+      "description": "The events queue uid.",
+      "type": "string"
+    },
+    "createdTime": {
+      "description": "Epoch milliseconds.",
+      "type": "integer",
+      "minimum": 1000000000000
+    }
+  },
+  "$defs": {
+    "step": {
+      "description": "What was timed.",
+      "enum": [
+        "config.fetch",
+        "listings.fetch",
+        "listings.decode",
+        "feed.firstListing",
+        "ad.firstLoad"
+      ]
+    },
+    "field": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Cleaned text, at most 64 code points."
+    },
+    "attributes": {
+      "description": "All strings. type and sdkVersion are what the SDK queues stamp on every event.",
+      "type": "object",
+      "required": [
+        "code",
+        "client",
+        "clientVersion",
+        "tv",
+        "step",
+        "ms",
+        "seq"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "description": "Partner code, or 'unknown'.",
+          "$ref": "#/$defs/field"
+        },
+        "client": {
+          "description": "Which SDK timed it: core, react-native, ios, android.",
+          "$ref": "#/$defs/field"
+        },
+        "clientVersion": {
+          "description": "SDK version.",
+          "$ref": "#/$defs/field"
+        },
+        "tv": {
+          "description": "Timing contract version.",
+          "const": "1"
+        },
+        "step": {
+          "description": "The step timed.",
+          "$ref": "#/$defs/step"
+        },
+        "ms": {
+          "description": "Whole milliseconds, 0 to 600000, from a monotonic clock.",
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,5})$"
+        },
+        "zoneId": {
+          "description": "The ad zone (ad.firstLoad).",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "appId": {
+          "description": "Host app id.",
+          "$ref": "#/$defs/field"
+        },
+        "appVersion": {
+          "description": "Host app version.",
+          "$ref": "#/$defs/field"
+        },
+        "os": {
+          "description": "OS and version.",
+          "$ref": "#/$defs/field"
+        },
+        "device": {
+          "description": "Device model identifier.",
+          "$ref": "#/$defs/field"
+        },
+        "net": {
+          "description": "Network type, when the shell knows it cheaply.",
+          "$ref": "#/$defs/field"
+        },
+        "seq": {
+          "description": "Number of this timing within the session (1..50).",
+          "type": "string",
+          "pattern": "^([1-9]|[1-4][0-9]|50)$"
+        },
+        "type": {
+          "description": "Queue stamp (SDK queues).",
+          "type": "string"
+        },
+        "sdkVersion": {
+          "description": "Queue stamp (SDK queues).",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

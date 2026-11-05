@@ -8,7 +8,8 @@ import {
   ViewStyle,
 } from 'react-native'
 import type { SellwildListing, SellwildConfig } from '@sellwild/sdk-core'
-import { currencyToSymbol } from '@sellwild/sdk-core'
+import { logFailure } from './failures'
+import { listingCardView } from './listingCard'
 
 export interface SellwildListingCardProps {
   listing: SellwildListing
@@ -23,17 +24,18 @@ export function SellwildListingCard({
   onPress,
   style,
 }: SellwildListingCardProps) {
-  const photo = listing.photos?.[0]
-  const price = listing.price && !isNaN(Number(listing.price))
-    ? Number(listing.price).toLocaleString(undefined, { maximumFractionDigits: 0 })
-    : null
-  const strikePrice = listing.strikePrice && !isNaN(Number(listing.strikePrice))
-    ? Number(listing.strikePrice).toLocaleString(undefined, { maximumFractionDigits: 0 })
-    : null
-  const currencySymbol = currencyToSymbol(listing.currency)
-  const title = listing.title?.length > 60
-    ? listing.title.slice(0, 60) + '...'
-    : listing.title
+  const view = listingCardView(listing)
+  const { photoUrl, price, strikePrice, currencySymbol, title } = view
+
+  // A field the card cannot show is hidden, as before, and reported once per
+  // value (listings.item.invalid). Only the field and its kind are sent.
+  const issues = view.issues.join('\n')
+  React.useEffect(() => {
+    if (!issues) return
+    for (const issue of issues.split('\n')) {
+      logFailure({ code: 'listings.item.invalid', component: 'listings', severity: 'warn', message: issue })
+    }
+  }, [issues])
 
   return (
     <TouchableOpacity
@@ -44,9 +46,9 @@ export function SellwildListingCard({
       accessibilityLabel={title}
       accessibilityRole="button"
     >
-      {photo?.url ? (
+      {photoUrl ? (
         <Image
-          source={{ uri: photo.url }}
+          source={{ uri: photoUrl }}
           style={styles.image}
           resizeMode="cover"
           accessibilityLabel={title}
@@ -56,9 +58,9 @@ export function SellwildListingCard({
       )}
 
       <View style={styles.overlay}>
-        {price && price !== '0' && (
+        {view.showPrice && (
           <View style={[styles.priceBadge, { backgroundColor: config.priceColor || config.colors?.[0] || '#333' }]}>
-            {strikePrice && strikePrice !== price && (
+            {view.showStrike && (
               <Text style={[styles.strikePrice, { color: config.priceFontColor || config.fontColor }]}>
                 {currencySymbol}{strikePrice}
               </Text>

@@ -1,0 +1,6 @@
+{
+  "_synthetic": true,
+  "baseUrl": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/",
+  "urlTemplate": "sports-img-data-sm-webp-{state}.json",
+  "enabled": "yes"
+}

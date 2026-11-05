@@ -1,0 +1,28 @@
+{
+  "_synthetic": true,
+  "event": "clientFailure",
+  "action": "listings.fetch.http",
+  "label": "listings",
+  "attributes": {
+    "code": "weatherbug",
+    "client": "ios",
+    "clientVersion": "1.8.1",
+    "severity": "error",
+    "fv": "2",
+    "msg": "HTTP 503",
+    "stack": "3 SellwildSDK 0x0000000104a2c3e4 $s11SellwildSDK0A9APIClientC13fetchListingsyyF + 412",
+    "httpStatus": "503",
+    "host": "cache.sellwild.com",
+    "appId": "com.aws.weatherbug",
+    "appVersion": "6.12.0",
+    "os": "iOS 26.1",
+    "device": "iPhone16,2",
+    "slug": "weatherbug-main",
+    "seq": "1",
+    "repeat": "1",
+    "ctx.attempt": "2",
+    "ctx.file": "listings-weatherbug.json"
+  },
+  "uid": "8F2C1C1E-1B7B-4E0E-9A57-6C3E7C3F4E11",
+  "createdTime": 1790000000000
+}

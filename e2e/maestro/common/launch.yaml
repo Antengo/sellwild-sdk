@@ -1,0 +1,10 @@
+# Launch the sample from a clean state and wait for the tab bar.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "sw.tab.feed"
+    timeout: 30000
+- runFlow: no-crash.yaml

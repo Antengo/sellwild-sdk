@@ -10,6 +10,10 @@ import com.sellwild.sdk.SellwildEid
 import com.sellwild.sdk.SellwildEidUid
 import com.sellwild.sdk.SellwildPrebidMobile
 import com.sellwild.sdk.SellwildSDK
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
+import com.sellwild.sdk.failures.SellwildFailures
 
 /**
  * React Native method module for the native Sellwild SDK's runtime setters.
@@ -29,10 +33,41 @@ class SellwildModule(reactContext: ReactApplicationContext) :
      * JS: `SellwildRNModule.setGeo({ state: "NY", zip: "10001", ... })`.
      * Pass an empty object to clear. Mirrors [SellwildPrebidMobile.setGeo] —
      * updates the Prebid auction geo AND the shared SellwildGeoStore.
+     *
+     * A field of the wrong type (for example lat sent as text) used to throw
+     * from a ReadableMap getter and crash the host app. Now it is dropped and
+     * reported, and the other fields are set, as on iOS.
      */
     @ReactMethod
     fun setGeo(geo: ReadableMap?) {
-        SellwildPrebidMobile.setGeo(RnGeo.readableMapToGeo(geo))
+        val parsed = if (geo == null) {
+            // JS sends {} to clear (commands.ts), so null comes only from a
+            // caller outside the JS API. It clears geo, as before, and is
+            // reported, as on iOS.
+            RnGeo.Parsed(null, listOf(RnBridgeRules.geoNotObject("Null")))
+        } else try {
+            RnGeo.parse(geo)
+        } catch (e: Exception) {
+            // A map the bridge could not read at all. Geo is cleared, as iOS
+            // clears it for a payload that is not an object.
+            SellwildFailures.log(
+                code = SellwildFailureCode.BRIDGE_GEO_INVALID,
+                component = SellwildFailureComponent.BRIDGE,
+                severity = SellwildFailureSeverity.WARN,
+                error = e,
+                message = "geo could not be read, so geo was cleared",
+            )
+            RnGeo.Parsed(null, emptyList())
+        }
+        if (parsed.problems.isNotEmpty()) {
+            SellwildFailures.log(
+                code = SellwildFailureCode.BRIDGE_GEO_INVALID,
+                component = SellwildFailureComponent.BRIDGE,
+                severity = SellwildFailureSeverity.WARN,
+                message = parsed.problems.joinToString("; "),
+            )
+        }
+        SellwildPrebidMobile.setGeo(parsed.geo)
     }
 
     /**
@@ -41,7 +76,29 @@ class SellwildModule(reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun setExternalUserIds(eids: ReadableArray?) {
-        SellwildPrebidMobile.setExternalUserIds(toEids(eids))
+        val parsed = try {
+            toEids(eids)
+        } catch (e: Exception) {
+            // An entry or field of the wrong type (ReadableArray/ReadableMap
+            // getters throw). It used to crash the host app; now no eids are set.
+            SellwildFailures.log(
+                code = SellwildFailureCode.BRIDGE_EIDS_INVALID,
+                component = SellwildFailureComponent.BRIDGE,
+                severity = SellwildFailureSeverity.WARN,
+                error = e,
+                message = "eids could not be read, so no eids were set",
+            )
+            return
+        }
+        parsed.problem?.let {
+            SellwildFailures.log(
+                code = SellwildFailureCode.BRIDGE_EIDS_INVALID,
+                component = SellwildFailureComponent.BRIDGE,
+                severity = SellwildFailureSeverity.WARN,
+                message = it,
+            )
+        }
+        SellwildPrebidMobile.setExternalUserIds(parsed.eids)
     }
 
     /**
@@ -54,24 +111,52 @@ class SellwildModule(reactContext: ReactApplicationContext) :
      */
     @ReactMethod
     fun prewarm(config: ReadableMap?) {
+        // prewarm is optional (mounting a view bootstraps too), and JS always
+        // sends a config: null has nothing to prewarm with.
         if (config == null) return
         val ctx = reactApplicationContext
-        val cfg = SellwildBannerViewManager.configFromMap(config)
+        val cfg = try {
+            SellwildBannerViewManager.configFromMap(config)
+        } catch (e: Exception) {
+            // A config field of the wrong type (ReadableMap getters throw). It
+            // used to crash the host app; the first ad view bootstraps instead.
+            SellwildFailures.log(
+                code = SellwildFailureCode.BRIDGE_CONFIG_INVALID,
+                component = SellwildFailureComponent.BRIDGE,
+                severity = SellwildFailureSeverity.WARN,
+                error = e,
+                message = "the prewarm config could not be read, so nothing was prewarmed",
+            )
+            return
+        }
         UiThreadUtil.runOnUiThread { SellwildSDK.prewarm(ctx, cfg) }
     }
 
-    private fun toEids(arr: ReadableArray?): List<SellwildEid> {
-        if (arr == null) return emptyList()
+    private class ParsedEids(val eids: List<SellwildEid>, val problem: String?)
+
+    // Skips, as before, an entry without source or uids and a uid without id,
+    // and says what it skipped.
+    private fun toEids(arr: ReadableArray?): ParsedEids {
+        if (arr == null) return ParsedEids(emptyList(), null)
         val out = ArrayList<SellwildEid>()
+        var skippedEntries = 0
+        var skippedUids = 0
         for (i in 0 until arr.size()) {
-            val eid = arr.getMap(i) ?: continue
-            val source = if (eid.hasKey("source")) eid.getString("source") else null
-            val uidsArr = if (eid.hasKey("uids") && !eid.isNull("uids")) eid.getArray("uids") else null
-            if (source == null || uidsArr == null) continue
+            val eid = arr.getMap(i)
+            val source = if (eid != null && eid.hasKey("source")) eid.getString("source") else null
+            val uidsArr = if (eid != null && eid.hasKey("uids") && !eid.isNull("uids")) eid.getArray("uids") else null
+            if (source == null || uidsArr == null) {
+                skippedEntries++
+                continue
+            }
             val uids = ArrayList<SellwildEidUid>()
             for (j in 0 until uidsArr.size()) {
-                val u = uidsArr.getMap(j) ?: continue
-                val id = (if (u.hasKey("id")) u.getString("id") else null) ?: continue
+                val u = uidsArr.getMap(j)
+                val id = if (u != null && u.hasKey("id")) u.getString("id") else null
+                if (u == null || id == null) {
+                    skippedUids++
+                    continue
+                }
                 val atype = if (u.hasKey("atype")) u.getInt("atype") else 0
                 @Suppress("UNCHECKED_CAST")
                 val ext = if (u.hasKey("ext") && !u.isNull("ext"))
@@ -80,6 +165,6 @@ class SellwildModule(reactContext: ReactApplicationContext) :
             }
             out.add(SellwildEid(source, uids))
         }
-        return out
+        return ParsedEids(out, RnBridgeRules.eidsProblem(skippedEntries, arr.size(), skippedUids))
     }
 }

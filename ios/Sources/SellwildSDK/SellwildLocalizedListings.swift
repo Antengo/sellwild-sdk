@@ -14,7 +14,7 @@
 //   3. none → skip the localized cache entirely
 //
 // The cache payload is identical to the primary feed (`result.rs` of listings),
-// so `SellwildAPIClient` reuses `parseListingsResponse`; a 404 on the templated
+// so `SellwildAPIClient` reuses `SellwildListingsCore.parse`; a 404 on the templated
 // URL (a state we have no data for) is a normal skip.
 //
 // Mirrors the platform-neutral reference `core/src/localized-listings.ts`.
@@ -42,6 +42,12 @@ public enum SellwildLocalizedListings {
     /// entirely, else the raw remote `LOCALIZED_LISTINGS` object (which may be a
     /// `[String: Any]` or a JSON `String`). Returns nil when disabled (explicit
     /// `enabled == false`) or missing a baseUrl / urlTemplate.
+    ///
+    /// A value that is set but unusable (not an object, JSON text that does
+    /// not parse to one, or no baseUrl / urlTemplate) is reported as
+    /// `localized.config.invalid`, once per launch for each reason (every
+    /// feed load resolves it). Absent, '' (the CMS's "unset") and disabled
+    /// are not failures.
     static func resolve(config: SellwildConfig) -> Integration? {
         if let local = config.localizedListings {
             if local.enabled == false { return nil } // explicit off; absent = on
@@ -54,20 +60,25 @@ public enum SellwildLocalizedListings {
             )
         }
 
-        guard let raw = safeParseObject(config.remoteValues?["LOCALIZED_LISTINGS"]) else { return nil }
+        guard let raw = remoteObject(config.remoteValues?["LOCALIZED_LISTINGS"]) else { return nil }
         if (raw["enabled"] as? Bool) == false { return nil }
         return make(
             source: nonEmpty(raw["source"]),
             baseUrl: nonEmpty(raw["baseUrl"]),
             urlTemplate: nonEmpty(raw["urlTemplate"]),
-            frequency: numeric(raw["frequency"]).map { Int($0) },
+            // clampedInt: `Int(_:)` traps on "inf", "nan" and on a frequency
+            // too large for an Int, which the schema allows.
+            frequency: numeric(raw["frequency"]).flatMap(SellwildNumber.clampedInt),
             forceState: nonEmpty(raw["forceState"])
         )
     }
 
     private static func make(source: String?, baseUrl: String?, urlTemplate: String?,
                              frequency: Int?, forceState: String?) -> Integration? {
-        guard let base = nonEmpty(baseUrl), let tmpl = nonEmpty(urlTemplate) else { return nil }
+        guard let base = nonEmpty(baseUrl), let tmpl = nonEmpty(urlTemplate) else {
+            reportInvalid("localized listings need baseUrl and urlTemplate; the feature is off")
+            return nil
+        }
         return Integration(
             source: nonEmpty(source),
             baseUrl: base,
@@ -96,7 +107,9 @@ public enum SellwildLocalizedListings {
     }
 
     /// Build the cache URL by filling `{state}` (case-insensitive, lowercased)
-    /// into the template and joining to `baseUrl` with exactly one slash.
+    /// into the template and joining to `baseUrl` with exactly one slash. A
+    /// result that is not a URL is reported (`localized.url.invalid`), once
+    /// per launch for each URL it could not build.
     static func buildCacheURL(_ integration: Integration, state: String) -> URL? {
         let path = integration.urlTemplate.replacingOccurrences(
             of: "{state}", with: state.lowercased(), options: [.caseInsensitive]
@@ -110,7 +123,14 @@ public enum SellwildLocalizedListings {
         } else {
             joined = base + path
         }
-        return URL(string: joined)
+        guard let url = URL(string: joined) else {
+            if SellwildReportOnce.first(.localizedUrlInvalid, "\(integration.baseUrl)|\(path)") {
+                SellwildFailures.log(code: .localizedUrlInvalid, component: .localized, severity: .warn,
+                                     message: "localized cache URL could not be built from baseUrl and urlTemplate")
+            }
+            return nil
+        }
+        return url
     }
 
     /// Slots between localized listings for a given percent. 25 → 4 (every 4th
@@ -127,9 +147,17 @@ public enum SellwildLocalizedListings {
     /// then cycled so every Nth slot is filled. Returns `primary` unchanged when
     /// there's nothing to disperse.
     static func merge(primary: [SellwildListing], secondary: [SellwildListing], everyN: Int) -> [SellwildListing] {
+        var rng = SystemRandomNumberGenerator()
+        return merge(primary: primary, secondary: secondary, everyN: everyN, using: &rng)
+    }
+
+    /// `merge` with the random source for the shuffle injected.
+    static func merge<R: RandomNumberGenerator>(
+        primary: [SellwildListing], secondary: [SellwildListing], everyN: Int, using rng: inout R
+    ) -> [SellwildListing] {
         if everyN <= 0 || secondary.isEmpty || primary.isEmpty { return primary }
         let primaryIds = Set(primary.map { $0.id })
-        let pool = secondary.filter { !primaryIds.contains($0.id) }.shuffled()
+        let pool = secondary.filter { !primaryIds.contains($0.id) }.shuffled(using: &rng)
         if pool.isEmpty { return primary }
 
         var out: [SellwildListing] = []
@@ -149,19 +177,44 @@ public enum SellwildLocalizedListings {
     // MARK: Remote parsing
 
     /// The remote `LOCALIZED_LISTINGS` value may arrive as a JSON object or as a
-    /// JSON string; coerce both into `[String: Any]`, else nil.
-    private static func safeParseObject(_ value: Any?) -> [String: Any]? {
-        if let dict = value as? [String: Any] { return dict }
-        if let s = value as? String,
-           let data = s.data(using: .utf8),
-           let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
-            return obj
+    /// JSON string; coerce both into `[String: Any]`, else nil. Absent, JSON
+    /// null and '' are "unset"; anything else that is not an object is
+    /// reported.
+    private static func remoteObject(_ value: Any?) -> [String: Any]? {
+        switch value {
+        case nil, is NSNull:
+            return nil
+        case let dict as [String: Any]:
+            return dict
+        case let text as String:
+            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return nil }
+            do {
+                if let obj = try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] { return obj }
+                reportInvalid("LOCALIZED_LISTINGS text is not a JSON object")
+            } catch {
+                let message = "LOCALIZED_LISTINGS text is not valid JSON"
+                if SellwildReportOnce.first(.localizedConfigInvalid, message) {
+                    SellwildFailures.log(code: .localizedConfigInvalid, component: .localized, severity: .warn, error: error,
+                                         message: message)
+                }
+            }
+            return nil
+        default:
+            reportInvalid("LOCALIZED_LISTINGS is not an object")
+            return nil
         }
-        return nil
+    }
+
+    private static func reportInvalid(_ message: String) {
+        guard SellwildReportOnce.first(.localizedConfigInvalid, message) else { return }
+        SellwildFailures.log(code: .localizedConfigInvalid, component: .localized, severity: .warn, message: message)
     }
 
     // MARK: Coercion helpers
 
+    /// A number, or numeric text. A JSON number is an NSNumber: `as Double`
+    /// reads it unless it is an integer a Double cannot hold exactly, then
+    /// `as Int`, and one too large for an Int is read through NSNumber.
     private static func numeric(_ value: Any?) -> Double? {
         switch value {
         case let d as Double: return d

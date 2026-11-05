@@ -1,0 +1,9 @@
+{
+  "_synthetic": true,
+  "enabled": true,
+  "source": "sportserver",
+  "baseUrl": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/",
+  "urlTemplate": "sports-img-data-sm-webp-{state}.json",
+  "frequency": 25,
+  "forceState": "AL"
+}

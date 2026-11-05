@@ -1,0 +1,38 @@
+{
+  "_synthetic": true,
+  "LAYOUT": "app",
+  "NAME": "fixture-app",
+  "CODE": "fixture",
+  "SLUG": "fixture-app",
+  "basename": "fixture-app",
+  "MOBILE_ZID": [
+    "fixture-mobile-300x250"
+  ],
+  "MOBILE_ZID_IOS": [],
+  "MOBILE_ZID_ANDROID": [],
+  "DISPLAY_ZID": [],
+  "BIDDERS": {},
+  "TITLE": "Marketplace",
+  "LINK_TEXT": "<a href=\"https://sellwild.com?p=fixture\">Visit</a>",
+  "COLORS": [
+    "#295baa"
+  ],
+  "MARGIN_BOTTOM": 14,
+  "CARD_WIDTH": "300px",
+  "OVERLAY_TITLE": true,
+  "WATERMARK": false,
+  "CSS": ".x{}",
+  "AD_GEO_BLOCK": {
+    "countries": "FR, DE"
+  },
+  "AD_GEO_BLOCK_REFRESH": "",
+  "GROWTHCODE": false,
+  "IX": {
+    "siteIdD": "1205478"
+  },
+  "APSTAG": "",
+  "PREBID_DEFER": "",
+  "AD_UNITS": "",
+  "CONSENT_MANAGEMENT": "({gdpr: {cmpApi: 'iab'}})",
+  "MEMBERSHIP_TYPE": "69"
+}

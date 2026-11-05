@@ -1,0 +1,20 @@
+{
+  "description": "For each invalid fixture: an ajv error that must be among the failures (instancePath, and keyword when given). Proves the fixture fails for the intended reason.",
+  "errors": {
+    "missing-source.json": {
+      "instancePath": "/0",
+      "keyword": "required"
+    },
+    "uid-missing-id.json": {
+      "instancePath": "/0/uids/0",
+      "keyword": "required"
+    },
+    "atype-word.json": {
+      "instancePath": "/0/uids/0/atype"
+    },
+    "not-an-array.json": {
+      "instancePath": "",
+      "keyword": "type"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+# Diagnostics: SDK version, partner and slug, config source and failures.
+# The sample slug has no app config on the CDN, so the source is "fallback".
+# env: FAILURE_SINK "true" when the platform can list the failure codes it
+# reported; the missing config then shows as config.fetch.http.
+appId: ${APP_ID}
+---
+- tapOn:
+    id: "sw.tab.diagnostics"
+- extendedWaitUntil:
+    visible:
+      id: "sw.diag.sdk_version"
+    timeout: 15000
+- assertVisible:
+    id: "sw.diag.partner"
+    text: "sellwild / sellwild-sample"
+- assertVisible:
+    id: "sw.diag.config_source"
+    text: "fallback"
+- assertVisible:
+    id: "sw.diag.listings_url"
+- runFlow:
+    when:
+      true: ${FAILURE_SINK == 'true'}
+    commands:
+      - assertVisible:
+          id: "sw.diag.failures"
+          text: ".*config\\.fetch\\.http.*"
+- runFlow:
+    when:
+      true: ${FAILURE_SINK != 'true'}
+    commands:
+      - assertVisible:
+          id: "sw.diag.failures"
+          text: "not available on this platform"
+- runFlow: no-crash.yaml
+- takeScreenshot: diagnostics

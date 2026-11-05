@@ -1,0 +1,6 @@
+# add-code.mjs / gen-codes.mjs lock and atomic-write leftovers
+.lock/
+.lock.new-*
+.lock.free-*
+.lock.stale-*
+*.tmp-*

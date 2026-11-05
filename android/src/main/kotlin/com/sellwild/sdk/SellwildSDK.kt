@@ -3,6 +3,13 @@ package com.sellwild.sdk
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import com.sellwild.sdk.core.ConfigFields
+import com.sellwild.sdk.core.Fetch
+import com.sellwild.sdk.core.Issue
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailures
+import com.sellwild.sdk.timing.SellwildTiming
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -27,7 +34,8 @@ import java.net.URL
  *
  * On any network failure, timeout, or 404 the call returns a
  * `SellwildConfig(partnerCode = ...)` with deterministic defaults (the
- * listings endpoint is derived from `partnerCode`), so ads still render.
+ * listings endpoint is derived from `partnerCode`), so ads still render. The
+ * failure is reported once through logFailure (config.fetch.*).
  */
 object SellwildSDK {
 
@@ -59,11 +67,28 @@ object SellwildSDK {
         timeoutMs: Int = 5000,
         overrides: ((SellwildConfig) -> SellwildConfig)? = null,
     ): SellwildConfig = withContext(Dispatchers.IO) {
+        // Partner first, before any fetch, so a config failure carries it. The remote flags
+        // are unset until this fetch loads them (FAILURES.md 3.2.4), so a second configure()
+        // is not gated by the last config's kill switch or sample rate.
+        SellwildFailures.setContext {
+            it.copy(
+                partnerCode = partnerCode,
+                slug = slug,
+                eventsEnabled = null,
+                failuresEnabled = null,
+                failuresSampleRate = null
+            )
+        }
         var config = SellwildConfig(partnerCode = partnerCode)
+        var remote: JSONObject? = null
+        var fieldIssues: List<Issue> = emptyList()
+        val url = configUrl(partnerCode, slug)
+        // The fetch's own time, recorded below once this config's TIMING_* values apply.
+        var fetchMs: Long? = null
+        val fetchStarted = SellwildTiming.monotonic()
 
         runCatching {
-            val url = URL("https://widget.sellwild.com/app/$partnerCode/$slug.json")
-            val connection = url.openConnection() as HttpURLConnection
+            val connection = URL(url).openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
             connection.connectTimeout = timeoutMs
             connection.readTimeout = timeoutMs
@@ -71,17 +96,44 @@ object SellwildSDK {
             // events kill switch) and lands in CloudFront cs(User-Agent) logs for
             // an installed-base census.
             connection.setRequestProperty("User-Agent", "SellwildSDK/$SDK_VERSION (android)")
-            if (connection.responseCode in 200..299) {
-                val body = connection.inputStream.bufferedReader().readText()
+            val status = connection.responseCode
+            if (status in 200..299) {
+                val body = connection.inputStream.use { String(it.readBytes(), Charsets.UTF_8) }
                 // Stash the raw payload so unmapped CDN keys (new bidders,
                 // forward-compatible settings) stay readable via remoteJson
                 // without an SDK release.
-                config = apply(JSONObject(body), config).copy(remoteJson = body)
+                fetchMs = SellwildTiming.monotonic() - fetchStarted
+                val raw = JSONObject(body)
+                config = apply(raw, config).copy(remoteJson = body)
+                remote = raw
+                // Values apply had to drop or coerce: one config.field.invalid naming them,
+                // reported below, once this config's own kill switches apply.
+                fieldIssues = ConfigFields.issues(raw)
+            } else {
+                // A missing config is a 403 from S3, not a 404.
+                SellwildFailures.log(
+                    code = SellwildFailureCode.CONFIG_FETCH_HTTP,
+                    component = SellwildFailureComponent.REMOTE_CONFIG,
+                    message = "HTTP $status",
+                    httpStatus = status,
+                    url = url,
+                    context = mapOf("slug" to slug, "status" to status),
+                )
             }
+        }.onFailure { e ->
+            SellwildFailures.log(
+                code = configFailureCode(e),
+                component = SellwildFailureComponent.REMOTE_CONFIG,
+                error = e,
+                url = url,
+                context = mapOf("slug" to slug, "timeoutMs" to timeoutMs),
+            )
         }
-        // Silent fallback — config retains defaults on any failure.
+        // Either way config keeps the defaults it could not replace, so ads still
+        // render; that fallback is not a second failure.
 
         overrides?.let { config = it(config) }
+        applyRuntimeContext(config, remote, fieldIssues, fetchMs)
 
         // Pre-warm Prebid Mobile + GMA as soon as we have a config, matching iOS
         // configure(). Idempotent (the first bootstrap initializes; later ones are
@@ -93,6 +145,40 @@ object SellwildSDK {
         }
         config
     }
+
+    /**
+     * After configure()'s fetch: the remote kill switches and debug, then the CMS values it
+     * had to ignore or coerce (under those switches), the partner, and the config fetch's
+     * timing under this config's own TIMING_* values.
+     */
+    private fun applyRuntimeContext(
+        config: SellwildConfig,
+        flags: JSONObject?,
+        fieldIssues: List<Issue>,
+        fetchMs: Long?,
+    ) {
+        SellwildFailures.setContext {
+            it.copy(
+                debug = config.debug,
+                eventsEnabled = flags?.remoteValue("EVENTS_ENABLED"),
+                failuresEnabled = flags?.remoteValue("FAILURES_ENABLED"),
+                failuresSampleRate = flags?.remoteValue("FAILURES_SAMPLE_RATE"),
+            )
+        }
+        // Only now, under the fetched config's own kill switches and sample rate, so a config
+        // that turns events or failures off sends no report about itself (FAILURES.md 10.1;
+        // core's configure() does the same). It still carries the partner configure() got.
+        fieldIssues.report()
+        SellwildFailures.setContext { it.copy(partnerCode = config.partnerCode) }
+        SellwildTiming.remote = flags
+        fetchMs?.let { SellwildTiming.record("config.fetch", it) }
+    }
+
+    internal fun configUrl(partnerCode: String, slug: String) =
+        "https://widget.sellwild.com/app/$partnerCode/$slug.json"
+
+    /** The registry code for a config fetch that threw (FAILURES.md 4.1 reasons). */
+    internal fun configFailureCode(e: Throwable): String = Fetch.codeFor(e, Fetch.CONFIG)
 
     /**
      * Pre-initialize the Prebid Mobile + Google Mobile Ads stack, so the first
@@ -109,8 +195,11 @@ object SellwildSDK {
      * @param config The config returned by [configure].
      * @return true if the ad stack is initialized (now or already), else false.
      */
-    fun prewarm(context: Context, config: SellwildConfig): Boolean =
-        SellwildPrebidMobile.bootstrap(context, config)
+    fun prewarm(context: Context, config: SellwildConfig): Boolean {
+        // The first Context the SDK sees: failures held since configure() go out now.
+        SellwildFailures.attach(context)
+        return SellwildPrebidMobile.bootstrap(context, config)
+    }
 
     /**
      * Maps CONSTANT_CASE CDN keys onto the corresponding [SellwildConfig]
@@ -124,7 +213,8 @@ object SellwildSDK {
             partnerCode = raw.optStringOrNull("CODE") ?: base.partnerCode,
             slug = raw.optStringOrNull("SLUG") ?: base.slug,
             name = raw.optStringOrNull("NAME") ?: base.name,
-            listingsUrl = raw.optStringOrNull("LISTINGS") ?: base.listingsUrl,
+            // '' is how the CMS writes "unset": keep the base URL, as core does.
+            listingsUrl = raw.optStringNonEmptyOrNull("LISTINGS") ?: base.listingsUrl,
 
             // Display
             title = raw.optStringOrNull("TITLE") ?: base.title,
@@ -208,6 +298,13 @@ object SellwildSDK {
         )
     }
 }
+
+/**
+ * A remote value as logFailure's pure core expects it: JSON null reads as absent.
+ * Other values pass through raw (Boolean, Number, String, JSONObject ...); the
+ * core coerces them (FAILURES.md 5.3, 5.4).
+ */
+private fun JSONObject.remoteValue(key: String): Any? = opt(key)?.takeIf { it != JSONObject.NULL }
 
 // Only return a genuine JSON string. org.json's `optString` COERCES a JSONArray /
 // JSONObject value to its literal `toString` ("[]" / "{}"), which then reads as a

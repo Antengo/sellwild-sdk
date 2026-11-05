@@ -1,0 +1,18 @@
+# Sellwild Sample, React Native (samples/demo-app), on iOS and on Android: one
+# app id on both. Run it with:
+#   bash scripts/e2e/run.sh rn-ios
+#   bash scripts/e2e/run.sh rn-android
+appId: com.sellwild.sample.rn
+name: Sellwild Sample (React Native)
+env:
+  APP_ID: com.sellwild.sample.rn
+  FEED_AD_ROWS: "true"   # SellwildFeed is the native SDK feed, which sets sw.feed.ad
+  NATIVE_AD: "false"     # no native ad component in the React Native SDK
+  HOUSE_AD: "false"      # no house ad component in the React Native SDK
+  FAILURE_SINK: "true"   # setFailureContext({ sink }) from @sellwild/sdk-core
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/feed.yaml
+- runFlow: ../common/ads.yaml
+- runFlow: ../common/listings.yaml
+- runFlow: ../common/diagnostics.yaml

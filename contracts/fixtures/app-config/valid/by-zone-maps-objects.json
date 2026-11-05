@@ -1,0 +1,58 @@
+{
+  "_synthetic": true,
+  "LAYOUT": "app",
+  "NAME": "fixture-app",
+  "CODE": "fixture",
+  "SLUG": "fixture-app",
+  "basename": "fixture-app",
+  "MOBILE_ZID": [
+    "fixture-mobile-300x250"
+  ],
+  "MOBILE_ZID_IOS": [],
+  "MOBILE_ZID_ANDROID": [],
+  "DISPLAY_ZID": [],
+  "BIDDERS": {},
+  "AD_STACK": "",
+  "AD_STACK_BY_ZONE": {
+    "43": "gamOnly",
+    "280": "Prebid Only",
+    "999": "bogus"
+  },
+  "GPID_BASE_BY_ZONE": {
+    "43": "/sellwild/fixture/app/banner"
+  },
+  "VIDEO_ENABLED_BY_ZONE": {
+    "43": true
+  },
+  "VIDEO_SOUND_ENABLED_BY_ZONE": {
+    "43": "false"
+  },
+  "NATIVE_ENABLED_BY_ZONE": {
+    "280": "1"
+  },
+  "NATIVE_MAX_HEIGHT_BY_ZONE": {
+    "280": 250
+  },
+  "GROWTHCODE_ENABLED_BY_ZONE": {
+    "43": false
+  },
+  "BANNER_SIZES": [
+    "300x250"
+  ],
+  "BANNER_SIZES_BY_ZONE": {
+    "43": [
+      "300x250",
+      "320x50"
+    ],
+    "280": [
+      [
+        300,
+        600
+      ],
+      [
+        300,
+        250
+      ]
+    ]
+  }
+}

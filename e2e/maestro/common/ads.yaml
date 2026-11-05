@@ -1,0 +1,49 @@
+# Ads: each slot is there at its size. Fill is not asserted (test ads may
+# not fill).
+# env: NATIVE_AD / HOUSE_AD "true" when the platform has that surface publicly.
+appId: ${APP_ID}
+---
+- tapOn:
+    id: "sw.tab.ads"
+- extendedWaitUntil:
+    visible:
+      id: "sw.ad.banner"
+    timeout: 15000
+- assertVisible:
+    id: "sw.ad.banner.size"
+    text: "320x50"
+- assertVisible:
+    id: "sw.ad.mrec"
+- assertVisible:
+    id: "sw.ad.mrec.size"
+    text: "300x250"
+- runFlow: no-crash.yaml
+- takeScreenshot: ads
+- runFlow:
+    when:
+      true: ${NATIVE_AD == 'true'}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "sw.ad.native.size"
+          direction: DOWN
+          timeout: 20000
+      - assertVisible:
+          id: "sw.ad.native"
+      - assertVisible:
+          id: "sw.ad.native.size"
+          text: "300x250"
+      - takeScreenshot: ads-native
+- runFlow:
+    when:
+      true: ${HOUSE_AD == 'true'}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "sw.ad.house"
+          direction: DOWN
+          timeout: 20000
+      - assertVisible:
+          id: "sw.ad.house.size"
+      - takeScreenshot: ads-house
+- runFlow: no-crash.yaml

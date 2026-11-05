@@ -1,0 +1,28 @@
+{
+  "description": "For each invalid fixture: an ajv error that must be among the failures (instancePath, and keyword when given). Proves the fixture fails for the intended reason.",
+  "errors": {
+    "missing-photos.json": {
+      "instancePath": "",
+      "keyword": "required"
+    },
+    "photo-without-url.json": {
+      "instancePath": "/photos/0",
+      "keyword": "required"
+    },
+    "title-number.json": {
+      "instancePath": "/title",
+      "keyword": "type"
+    },
+    "user-id-number.json": {
+      "instancePath": "/user/id",
+      "keyword": "type"
+    },
+    "remote-url-number.json": {
+      "instancePath": "/remote_url",
+      "keyword": "type"
+    },
+    "price-boolean.json": {
+      "instancePath": "/price"
+    }
+  }
+}

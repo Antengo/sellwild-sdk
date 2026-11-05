@@ -29,23 +29,21 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
-import org.json.JSONObject
+import com.sellwild.sdk.core.RemoteValues
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
+import com.sellwild.sdk.failures.SellwildFailures
 import java.lang.ref.WeakReference
+import java.util.Collections
+import java.util.WeakHashMap
 
 internal object SellwildAdAudioGuard {
 
     /** Whether the audio guard runs. Defaults to true; set
      *  `MOBILE_AD_MUTE_AUTOPLAY: false` in remote config to disable. */
-    fun isEnabled(remoteJson: String?): Boolean {
-        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return true
-        if (!obj.has("MOBILE_AD_MUTE_AUTOPLAY") || obj.isNull("MOBILE_AD_MUTE_AUTOPLAY")) return true
-        return when (val v = obj.get("MOBILE_AD_MUTE_AUTOPLAY")) {
-            is Boolean -> v
-            is Number -> v.toInt() != 0
-            is String -> v.lowercase() !in setOf("0", "false", "no", "off")
-            else -> true
-        }
-    }
+    fun isEnabled(remoteJson: String?): Boolean =
+        RemoteValues.isNotOff(RemoteValues.optAny(remoteObject(remoteJson), "MOBILE_AD_MUTE_AUTOPLAY"))
 
     // Autoplay often starts slightly after load (viewability trigger), so
     // re-apply a few times.
@@ -57,20 +55,67 @@ internal object SellwildAdAudioGuard {
         if (!isEnabled(remoteJson)) return
         val main = Handler(Looper.getMainLooper())
         val ref = WeakReference(container)
+        val run = Run()
         for (delay in retryDelaysMs) {
             if (delay == 0L) {
-                muteWebViews(container)
+                muteWebViews(container, run)
             } else {
-                main.postDelayed({ ref.get()?.let { muteWebViews(it) } }, delay)
+                main.postDelayed({ muteIfAlive(ref, run) }, delay)
             }
         }
     }
 
-    private fun muteWebViews(root: View) {
+    /**
+     * What one [apply] already saw, so each WebView is reported once per apply, not on every
+     * retry (FAILURES.md 9, log once): a WebView that threw is dead and is not tried again,
+     * and a shim that threw in a page is reported for that page once. Weak, so a destroyed ad
+     * view's WebViews are not kept. Used on the main thread only.
+     */
+    internal class Run {
+        val threw: MutableSet<WebView> = Collections.newSetFromMap(WeakHashMap())
+        val shimReported: MutableSet<WebView> = Collections.newSetFromMap(WeakHashMap())
+    }
+
+    /** A retry: the container may be gone by then (its ad view was destroyed). */
+    internal fun muteIfAlive(ref: WeakReference<View>, run: Run) {
+        ref.get()?.let { muteWebViews(it, run) }
+    }
+
+    private fun muteWebViews(root: View, run: Run) {
         for (wv in webViews(root)) {
-            runCatching { wv.evaluateJavascript(MUTE_SCRIPT, null) }
+            if (wv in run.threw) continue
+            // A destroyed WebView, or a call off its thread, throws: that one stays unmuted.
+            runCatching { wv.evaluateJavascript(MUTE_SCRIPT) { result -> reportShimErrors(wv, result, run) } }
+                .onFailure { e ->
+                    run.threw += wv
+                    SellwildFailures.log(
+                        code = SellwildFailureCode.AD_AUDIO_GUARD_EXCEPTION,
+                        component = SellwildFailureComponent.BANNER,
+                        severity = SellwildFailureSeverity.WARN,
+                        error = e,
+                    )
+                }
         }
     }
+
+    // The shim counts what threw inside the page (a media element that refused to mute,
+    // an observer that could not attach) and returns the count, since the page itself
+    // cannot report. A page that throws on one run throws on the next: once per apply.
+    private fun reportShimErrors(wv: WebView, result: String?, run: Run) {
+        if (shimErrors(result) == 0 || !run.shimReported.add(wv)) return
+        SellwildFailures.log(
+            code = SellwildFailureCode.AD_AUDIO_GUARD_EXCEPTION,
+            component = SellwildFailureComponent.BANNER,
+            severity = SellwildFailureSeverity.WARN,
+            message = "the mute shim threw in the page",
+        )
+    }
+
+    /**
+     * How many times the shim threw since its last run, from evaluateJavascript's result:
+     * the JSON of the script's return value ("2"), or "null" when it did not finish.
+     */
+    internal fun shimErrors(result: String?): Int = result?.toDoubleOrNull()?.toInt() ?: 0
 
     /** Depth-first collect every [WebView] in the view subtree rooted at [root]
      *  (including [root]). `internal` so it's unit-testable. */
@@ -89,31 +134,37 @@ internal object SellwildAdAudioGuard {
 
     /** JS mute shim, run in the WebView's main frame. Idempotent (guards against
      *  re-install), patches `HTMLMediaElement.play` to force-mute, mutes existing
-     *  media, and installs a MutationObserver to mute media added later. */
+     *  media, and installs a MutationObserver to mute media added later. Every catch
+     *  counts into `window.__swAudioGuardErrors`, and each run returns the count since
+     *  the last one (then clears it) for [reportShimErrors]. */
     const val MUTE_SCRIPT: String = """
     (function(){
+      var fail = function(){ window.__swAudioGuardErrors = (window.__swAudioGuardErrors || 0) + 1; };
       try {
-        var mute = function(m){ try { m.muted = true; m.volume = 0; m.setAttribute('muted',''); } catch(e){} };
+        var mute = function(m){ try { m.muted = true; m.volume = 0; m.setAttribute('muted',''); } catch(e){ fail(); } };
         var muteAll = function(){
           try {
             var els = document.querySelectorAll('video, audio');
             for (var i = 0; i < els.length; i++) { mute(els[i]); }
-          } catch(e){}
+          } catch(e){ fail(); }
         };
         if (!window.__swAudioGuard) {
           window.__swAudioGuard = true;
           var proto = window.HTMLMediaElement && HTMLMediaElement.prototype;
           if (proto && proto.play) {
             var origPlay = proto.play;
-            proto.play = function(){ try { this.muted = true; this.volume = 0; } catch(e){} return origPlay.apply(this, arguments); };
+            proto.play = function(){ try { this.muted = true; this.volume = 0; } catch(e){ fail(); } return origPlay.apply(this, arguments); };
           }
           try {
             var mo = new MutationObserver(muteAll);
             mo.observe(document.documentElement || document, { childList: true, subtree: true, attributes: true, attributeFilter: ['src','autoplay','muted'] });
-          } catch(e){}
+          } catch(e){ fail(); }
         }
         muteAll();
-      } catch(e){}
+      } catch(e){ fail(); }
+      var errors = window.__swAudioGuardErrors || 0;
+      window.__swAudioGuardErrors = 0;
+      return errors;
     })();
     """
 }

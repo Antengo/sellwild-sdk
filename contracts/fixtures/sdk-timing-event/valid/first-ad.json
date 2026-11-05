@@ -1,0 +1,22 @@
+{
+  "_synthetic": true,
+  "event": "sdkTiming",
+  "action": "ad.firstLoad",
+  "label": "timing",
+  "attributes": {
+    "code": "weatherbug",
+    "client": "ios",
+    "clientVersion": "1.8.1",
+    "tv": "1",
+    "step": "ad.firstLoad",
+    "ms": "2500",
+    "zoneId": "43",
+    "appId": "com.aws.weatherbug",
+    "appVersion": "6.12.0",
+    "os": "iOS 26.1",
+    "device": "iPhone16,2",
+    "seq": "1"
+  },
+  "uid": "t14",
+  "createdTime": 1790000000000
+}

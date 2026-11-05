@@ -1,6 +1,7 @@
 package com.sellwild.sdk
 
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -11,39 +12,54 @@ import org.junit.Test
 class SellwildGeoTest {
 
     @Test
-    fun northAmericaCoreCountries() {
-        assertEquals("USA", SellwildGeo.northAmericaAlpha3("US"))
-        assertEquals("CAN", SellwildGeo.northAmericaAlpha3("CA"))
-        assertEquals("MEX", SellwildGeo.northAmericaAlpha3("MX"))
+    fun `every North America country maps to alpha-3, in any case`() {
+        val expected = mapOf(
+            "US" to "USA", "CA" to "CAN", "MX" to "MEX", "GT" to "GTM", "BZ" to "BLZ", "SV" to "SLV", "HN" to "HND",
+            "NI" to "NIC", "CR" to "CRI", "PA" to "PAN", "GL" to "GRL", "BM" to "BMU", "PM" to "SPM",
+        )
+        for ((alpha2, alpha3) in expected) {
+            assertEquals(alpha3, SellwildGeo.northAmericaAlpha3(alpha2))
+            assertEquals(alpha3, SellwildGeo.northAmericaAlpha3(alpha2.lowercase()))
+        }
     }
 
     @Test
-    fun northAmericaExtendedCountries() {
-        assertEquals("GTM", SellwildGeo.northAmericaAlpha3("GT"))
-        assertEquals("CRI", SellwildGeo.northAmericaAlpha3("CR"))
-        assertEquals("PAN", SellwildGeo.northAmericaAlpha3("PA"))
-        assertEquals("GRL", SellwildGeo.northAmericaAlpha3("GL"))
+    fun `outside North America is null`() {
+        listOf("GB", "IN", "DE", "", "USA").forEach { assertNull(it, SellwildGeo.northAmericaAlpha3(it)) }
     }
 
     @Test
-    fun caseInsensitive() {
-        assertEquals("USA", SellwildGeo.northAmericaAlpha3("us"))
-        assertEquals("MEX", SellwildGeo.northAmericaAlpha3("Mx"))
+    fun `toOrtbGeo maps every set field, state onto region`() {
+        val geo = SellwildGeo(country = "USA", state = "NY", city = "Albany", zip = "12207", metro = "532", lat = 42.65, lon = -73.75, type = 2)
+
+        val ortb = geo.toOrtbGeo()!!
+
+        assertEquals(setOf("country", "region", "city", "zip", "metro", "lat", "lon", "type"), ortb.keys().asSequence().toSet())
+        assertEquals("USA", ortb.getString("country"))
+        assertEquals("NY", ortb.getString("region"))
+        assertEquals("Albany", ortb.getString("city"))
+        assertEquals("12207", ortb.getString("zip"))
+        assertEquals("532", ortb.getString("metro"))
+        assertEquals(42.65, ortb.getDouble("lat"), 0.0)
+        assertEquals(-73.75, ortb.getDouble("lon"), 0.0)
+        assertEquals(2, ortb.getInt("type"))
     }
 
     @Test
-    fun outsideNorthAmericaReturnsNull() {
-        assertNull(SellwildGeo.northAmericaAlpha3("GB"))
-        assertNull(SellwildGeo.northAmericaAlpha3("IN"))
-        assertNull(SellwildGeo.northAmericaAlpha3("DE"))
-        assertNull(SellwildGeo.northAmericaAlpha3(""))
+    fun `empty text fields are left out, and nothing set is null`() {
+        assertNull(SellwildGeo().toOrtbGeo())
+        assertNull(SellwildGeo(country = "", state = "", city = "", zip = "", metro = "").toOrtbGeo())
+        assertEquals(setOf("lat"), SellwildGeo(lat = 1.5).toOrtbGeo()!!.keys().asSequence().toSet())
     }
 
     @Test
-    fun toOrtbGeoMapsCountryAndRegion() {
-        val g = SellwildGeo(country = "USA", state = "NY").toOrtbGeo()
-        assertNotNull(g)
-        assertEquals("USA", g!!.optString("country"))
-        assertEquals("NY", g.optString("region"))   // state -> region
+    fun `the store holds the current geo`() {
+        val before = SellwildGeoStore.current
+        try {
+            SellwildGeoStore.current = SellwildGeo(state = "GA")
+            assertEquals("GA", SellwildGeoStore.current?.state)
+        } finally {
+            SellwildGeoStore.current = before
+        }
     }
 }

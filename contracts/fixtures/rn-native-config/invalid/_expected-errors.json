@@ -1,0 +1,25 @@
+{
+  "description": "For each invalid fixture: an ajv error that must be among the failures (instancePath, and keyword when given). Proves the fixture fails for the intended reason.",
+  "errors": {
+    "missing-partner-code.json": {
+      "instancePath": "",
+      "keyword": "required"
+    },
+    "mobile-zids-object.json": {
+      "instancePath": "/mobileZids",
+      "keyword": "type"
+    },
+    "unknown-key.json": {
+      "instancePath": "",
+      "keyword": "additionalProperties"
+    },
+    "prebid-server-without-bidders.json": {
+      "instancePath": "/prebidServer",
+      "keyword": "required"
+    },
+    "remote-without-code.json": {
+      "instancePath": "/remote",
+      "keyword": "required"
+    }
+  }
+}

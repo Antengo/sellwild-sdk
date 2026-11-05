@@ -1,0 +1,13 @@
+{
+  "_synthetic": true,
+  "LAYOUT": "app",
+  "NAME": "minimal",
+  "CODE": "minimal",
+  "SLUG": "minimal",
+  "basename": "minimal",
+  "MOBILE_ZID": [],
+  "MOBILE_ZID_IOS": [],
+  "MOBILE_ZID_ANDROID": [],
+  "DISPLAY_ZID": [],
+  "BIDDERS": {}
+}

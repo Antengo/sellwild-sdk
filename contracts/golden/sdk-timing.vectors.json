@@ -1,0 +1,861 @@
+{
+  "contract": "sdkTiming",
+  "tv": "1",
+  "generatedBy": "contracts/reference/sdk-timing.mjs via contracts/scripts/generate-vectors.mjs",
+  "spec": "contracts/FAILURES.md section 18",
+  "note": "Every platform timing core must reproduce every vector (event deep equal or null, reason, stateAfter) and the unit tables.",
+  "limits": {
+    "defaultRate": 0.1,
+    "sessionTimings": 50,
+    "maxMs": 600000,
+    "field": 64,
+    "zoneId": 32
+  },
+  "budgets": {
+    "config.fetch": 3000,
+    "listings.fetch": 4000,
+    "ad.firstLoad": 6000
+  },
+  "budgetKeys": {
+    "config.fetch": "TIMING_BUDGET_CONFIG_MS",
+    "listings.fetch": "TIMING_BUDGET_LISTINGS_MS",
+    "ad.firstLoad": "TIMING_BUDGET_AD_MS"
+  },
+  "slowCodes": {
+    "config.fetch": "config.fetch.slow",
+    "listings.fetch": "listings.fetch.slow",
+    "ad.firstLoad": "ad.load.slow"
+  },
+  "steps": [
+    "config.fetch",
+    "listings.fetch",
+    "listings.decode",
+    "feed.firstListing",
+    "ad.firstLoad"
+  ],
+  "vectors": [
+    {
+      "name": "timing.config-fetch-sampled-in",
+      "input": {
+        "step": "config.fetch",
+        "ms": 412.6
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": {
+          "event": "sdkTiming",
+          "action": "config.fetch",
+          "label": "timing",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "ios",
+            "clientVersion": "1.8.1",
+            "tv": "1",
+            "step": "config.fetch",
+            "ms": "413",
+            "appId": "com.aws.weatherbug",
+            "appVersion": "6.12.0",
+            "os": "iOS 26.1",
+            "device": "iPhone16,2",
+            "seq": "1"
+          },
+          "uid": "t14",
+          "createdTime": 1790000000000
+        },
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1
+        }
+      }
+    },
+    {
+      "name": "timing.every-step",
+      "input": {
+        "step": "listings.decode",
+        "ms": 3
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": {
+          "event": "sdkTiming",
+          "action": "listings.decode",
+          "label": "timing",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "ios",
+            "clientVersion": "1.8.1",
+            "tv": "1",
+            "step": "listings.decode",
+            "ms": "3",
+            "appId": "com.aws.weatherbug",
+            "appVersion": "6.12.0",
+            "os": "iOS 26.1",
+            "device": "iPhone16,2",
+            "seq": "1"
+          },
+          "uid": "t14",
+          "createdTime": 1790000000000
+        },
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1
+        }
+      }
+    },
+    {
+      "name": "timing.first-listing",
+      "input": {
+        "step": "feed.firstListing",
+        "ms": 1820
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": {
+          "event": "sdkTiming",
+          "action": "feed.firstListing",
+          "label": "timing",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "ios",
+            "clientVersion": "1.8.1",
+            "tv": "1",
+            "step": "feed.firstListing",
+            "ms": "1820",
+            "appId": "com.aws.weatherbug",
+            "appVersion": "6.12.0",
+            "os": "iOS 26.1",
+            "device": "iPhone16,2",
+            "seq": "1"
+          },
+          "uid": "t14",
+          "createdTime": 1790000000000
+        },
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1
+        }
+      }
+    },
+    {
+      "name": "timing.first-ad-with-zone",
+      "input": {
+        "step": "ad.firstLoad",
+        "ms": 2500,
+        "zoneId": " 43 "
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": {
+          "event": "sdkTiming",
+          "action": "ad.firstLoad",
+          "label": "timing",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "ios",
+            "clientVersion": "1.8.1",
+            "tv": "1",
+            "step": "ad.firstLoad",
+            "ms": "2500",
+            "zoneId": "43",
+            "appId": "com.aws.weatherbug",
+            "appVersion": "6.12.0",
+            "os": "iOS 26.1",
+            "device": "iPhone16,2",
+            "seq": "1"
+          },
+          "uid": "t14",
+          "createdTime": 1790000000000
+        },
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1
+        }
+      }
+    },
+    {
+      "name": "timing.sampled-out-at-default",
+      "input": {
+        "step": "listings.fetch",
+        "ms": 900
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "uid-a",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": null,
+        "reason": "sampled_out",
+        "stateAfter": {
+          "sessionCount": 0
+        }
+      }
+    },
+    {
+      "name": "timing.rate-override-in",
+      "input": {
+        "step": "listings.fetch",
+        "ms": 900
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "uid-a",
+        "now": 1790000000000,
+        "timingSampleRate": "0.7"
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": {
+          "event": "sdkTiming",
+          "action": "listings.fetch",
+          "label": "timing",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "ios",
+            "clientVersion": "1.8.1",
+            "tv": "1",
+            "step": "listings.fetch",
+            "ms": "900",
+            "appId": "com.aws.weatherbug",
+            "appVersion": "6.12.0",
+            "os": "iOS 26.1",
+            "device": "iPhone16,2",
+            "seq": "1"
+          },
+          "uid": "uid-a",
+          "createdTime": 1790000000000
+        },
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1
+        }
+      }
+    },
+    {
+      "name": "timing.rate-zero",
+      "input": {
+        "step": "listings.fetch",
+        "ms": 900
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000,
+        "timingSampleRate": 0
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": null,
+        "reason": "sampled_out",
+        "stateAfter": {
+          "sessionCount": 0
+        }
+      }
+    },
+    {
+      "name": "timing.rate-invalid-is-default",
+      "input": {
+        "step": "listings.fetch",
+        "ms": 900
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "uid-a",
+        "now": 1790000000000,
+        "timingSampleRate": "70%"
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": null,
+        "reason": "sampled_out",
+        "stateAfter": {
+          "sessionCount": 0
+        }
+      }
+    },
+    {
+      "name": "timing.kill-switch",
+      "input": {
+        "step": "config.fetch",
+        "ms": 1
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000,
+        "timingEnabled": "off"
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": null,
+        "reason": "timing_disabled",
+        "stateAfter": {
+          "sessionCount": 0
+        }
+      }
+    },
+    {
+      "name": "timing.events-off",
+      "input": {
+        "step": "config.fetch",
+        "ms": 1
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000,
+        "eventsEnabled": false
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": null,
+        "reason": "events_disabled",
+        "stateAfter": {
+          "sessionCount": 0
+        }
+      }
+    },
+    {
+      "name": "timing.unknown-step",
+      "input": {
+        "step": "config.parse",
+        "ms": 1
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": null,
+        "reason": "invalid_step",
+        "stateAfter": {
+          "sessionCount": 0
+        }
+      }
+    },
+    {
+      "name": "timing.negative-ms",
+      "input": {
+        "step": "config.fetch",
+        "ms": -1
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": null,
+        "reason": "invalid_ms",
+        "stateAfter": {
+          "sessionCount": 0
+        }
+      }
+    },
+    {
+      "name": "timing.ms-not-a-number",
+      "input": {
+        "step": "config.fetch",
+        "ms": "12"
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": null,
+        "reason": "invalid_ms",
+        "stateAfter": {
+          "sessionCount": 0
+        }
+      }
+    },
+    {
+      "name": "timing.ms-over-ten-minutes",
+      "input": {
+        "step": "config.fetch",
+        "ms": 600001
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": null,
+        "reason": "invalid_ms",
+        "stateAfter": {
+          "sessionCount": 0
+        }
+      }
+    },
+    {
+      "name": "timing.session-capped",
+      "input": {
+        "step": "config.fetch",
+        "ms": 5
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 50
+      },
+      "expected": {
+        "event": null,
+        "reason": "session_capped",
+        "stateAfter": {
+          "sessionCount": 50
+        }
+      }
+    },
+    {
+      "name": "timing.seq-continues",
+      "input": {
+        "step": "config.fetch",
+        "ms": 5
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone16,2",
+        "uid": "t14",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 7
+      },
+      "expected": {
+        "event": {
+          "event": "sdkTiming",
+          "action": "config.fetch",
+          "label": "timing",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "ios",
+            "clientVersion": "1.8.1",
+            "tv": "1",
+            "step": "config.fetch",
+            "ms": "5",
+            "appId": "com.aws.weatherbug",
+            "appVersion": "6.12.0",
+            "os": "iOS 26.1",
+            "device": "iPhone16,2",
+            "seq": "8"
+          },
+          "uid": "t14",
+          "createdTime": 1790000000000
+        },
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 8
+        }
+      }
+    },
+    {
+      "name": "timing.context-missing",
+      "input": {
+        "step": "config.fetch",
+        "ms": 0
+      },
+      "context": {
+        "client": "",
+        "clientVersion": null,
+        "appId": "  ",
+        "appVersion": 3,
+        "uid": "t14",
+        "now": 1790000000000
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": {
+          "event": "sdkTiming",
+          "action": "config.fetch",
+          "label": "timing",
+          "attributes": {
+            "code": "unknown",
+            "client": "unknown",
+            "clientVersion": "unknown",
+            "tv": "1",
+            "step": "config.fetch",
+            "ms": "0",
+            "seq": "1"
+          },
+          "uid": "t14",
+          "createdTime": 1790000000000
+        },
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1
+        }
+      }
+    },
+    {
+      "name": "timing.net-and-cleaning",
+      "input": {
+        "step": "config.fetch",
+        "ms": 10.5
+      },
+      "context": {
+        "partnerCode": "weatherbug",
+        "client": "ios",
+        "clientVersion": "1.8.1",
+        "appId": "com.aws.weatherbug",
+        "appVersion": "6.12.0",
+        "os": "iOS 26.1",
+        "device": "iPhone\n16,2",
+        "uid": "t14",
+        "now": 1790000000000,
+        "net": "wifi"
+      },
+      "stateBefore": {
+        "sessionCount": 0
+      },
+      "expected": {
+        "event": {
+          "event": "sdkTiming",
+          "action": "config.fetch",
+          "label": "timing",
+          "attributes": {
+            "code": "weatherbug",
+            "client": "ios",
+            "clientVersion": "1.8.1",
+            "tv": "1",
+            "step": "config.fetch",
+            "ms": "11",
+            "appId": "com.aws.weatherbug",
+            "appVersion": "6.12.0",
+            "os": "iOS 26.1",
+            "device": "iPhone 16,2",
+            "net": "wifi",
+            "seq": "1"
+          },
+          "uid": "t14",
+          "createdTime": 1790000000000
+        },
+        "reason": null,
+        "stateAfter": {
+          "sessionCount": 1
+        }
+      }
+    }
+  ],
+  "units": {
+    "budgetFor": [
+      {
+        "input": [
+          "config.fetch",
+          null
+        ],
+        "expected": 3000
+      },
+      {
+        "input": [
+          "listings.fetch",
+          {}
+        ],
+        "expected": 4000
+      },
+      {
+        "input": [
+          "ad.firstLoad",
+          {
+            "TIMING_BUDGET_AD_MS": 8000
+          }
+        ],
+        "expected": 8000
+      },
+      {
+        "input": [
+          "config.fetch",
+          {
+            "TIMING_BUDGET_CONFIG_MS": "1500"
+          }
+        ],
+        "expected": 1500
+      },
+      {
+        "input": [
+          "config.fetch",
+          {
+            "TIMING_BUDGET_CONFIG_MS": 0
+          }
+        ],
+        "expected": 3000
+      },
+      {
+        "input": [
+          "config.fetch",
+          {
+            "TIMING_BUDGET_CONFIG_MS": "1.5s"
+          }
+        ],
+        "expected": 3000
+      },
+      {
+        "input": [
+          "config.fetch",
+          {
+            "TIMING_BUDGET_CONFIG_MS": 2500.9
+          }
+        ],
+        "expected": 2500
+      },
+      {
+        "input": [
+          "listings.decode",
+          {
+            "TIMING_BUDGET_LISTINGS_MS": 10
+          }
+        ],
+        "expected": null
+      },
+      {
+        "input": [
+          "feed.firstListing",
+          null
+        ],
+        "expected": null
+      }
+    ],
+    "isSlow": [
+      {
+        "input": [
+          "config.fetch",
+          3000,
+          null
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          "config.fetch",
+          3000.5,
+          null
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          "listings.fetch",
+          4001,
+          {}
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          "ad.firstLoad",
+          7000,
+          {
+            "TIMING_BUDGET_AD_MS": "8000"
+          }
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          "listings.decode",
+          99999,
+          null
+        ],
+        "expected": false
+      }
+    ],
+    "timingRate": [
+      {
+        "input": null,
+        "expected": 0.1
+      },
+      {
+        "input": 0,
+        "expected": 0
+      },
+      {
+        "input": 1,
+        "expected": 1
+      },
+      {
+        "input": 0.5,
+        "expected": 0.5
+      },
+      {
+        "input": 2,
+        "expected": 1
+      },
+      {
+        "input": -1,
+        "expected": 0
+      },
+      {
+        "input": "0.25",
+        "expected": 0.25
+      },
+      {
+        "input": "",
+        "expected": 0.1
+      },
+      {
+        "input": "abc",
+        "expected": 0.1
+      },
+      {
+        "input": true,
+        "expected": 0.1
+      }
+    ]
+  }
+}

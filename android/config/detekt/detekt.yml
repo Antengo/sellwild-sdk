@@ -1,0 +1,88 @@
+# detekt 1.23.8 config for the Android SDK (android/src) and the React Native
+# bridge (react-native/android/src). Only the differences from detekt's
+# defaults are here (buildUponDefaultConfig = true in build.gradle.kts).
+#
+# House failure rule (contracts/FAILURES.md sections 1, 2 and 11): every
+# failure path is a catch that calls logFailure; no printing outside the
+# PRINT_EXEMPT files of contracts/scripts/print-gate.mjs; no empty catches.
+# contracts/scripts/print-gate.mjs stays the source of truth for those counts;
+# the rules below report the same things at the line where they happen.
+#
+# Existing findings: baseline-debug.xml (main), baseline-debugUnitTest.xml
+# (unit tests), baseline-rnBridge.xml (RN bridge). A new finding fails.
+# detektRnBridgePrints loads this file alone (buildUponDefaultConfig = false),
+# so the rules turned on here are the whole house-rule set for the bridge.
+
+empty-blocks:
+  # House rule 3: no empty catch blocks, not even one whose exception is
+  # named _ or ignored. The default name escape hatch is closed. detekt does
+  # not count a catch that holds only a comment as empty; SwallowedException
+  # below reports those, and the print gate counts them too.
+  EmptyCatchBlock:
+    active: true
+    allowedExceptionNameRegex: '(?!)'
+
+exceptions:
+  # House rules 1 and 4: a catch that never uses the exception it caught
+  # dropped it without logFailure. Same closed escape hatch. The default
+  # ignored types (NumberFormatException and friends) stay: catching those is
+  # parsing, not failure handling.
+  SwallowedException:
+    active: true
+    allowedExceptionNameRegex: '(?!)'
+  # Off: the house pattern is a catch-all (Exception or Throwable) that calls
+  # logFailure, so an SDK error never crashes the host app. This rule reports
+  # exactly that pattern. SwallowedException covers the real risk (a
+  # catch-all that drops the exception).
+  TooGenericExceptionCaught:
+    active: false
+  # House rule 2 (printStackTrace); on by default, kept on.
+  PrintStackTrace:
+    active: true
+
+style:
+  # House rule 2: no printing. Needs type resolution, so it runs in
+  # detektDebug and detektRnBridgePrints; plain tasks (detekt,
+  # detektRnBridge) skip it.
+  # Excludes mirror PRINT_EXEMPT in contracts/scripts/print-gate.mjs (the two
+  # Android files may print their debug echo) plus test sources, which the
+  # print gate does not scan either.
+  ForbiddenMethodCall:
+    active: true
+    excludes:
+      - '**/com/sellwild/sdk/failures/SellwildFailures.kt'
+      - '**/com/sellwild/sdk/failures/SellwildLog.kt'
+      - '**/test/**'
+      - '**/androidTest/**'
+    methods:
+      - value: 'kotlin.io.println'
+        reason: 'No printing (FAILURES.md 1). Report failures with SellwildFailures.log; trace with SellwildLog.'
+      - value: 'kotlin.io.print'
+        reason: 'No printing (FAILURES.md 1). Report failures with SellwildFailures.log; trace with SellwildLog.'
+      - value: 'android.util.Log.e'
+        reason: 'No Log.e (FAILURES.md 1). Report failures with SellwildFailures.log.'
+      - value: 'android.util.Log.w'
+        reason: 'No Log.w (FAILURES.md 1). Report failures with SellwildFailures.log.'
+      - value: 'android.util.Log.i'
+        reason: 'No Log.i (FAILURES.md 1). Trace with SellwildLog.'
+      - value: 'android.util.Log.d'
+        reason: 'No Log.d (FAILURES.md 1). Trace with SellwildLog.'
+      - value: 'android.util.Log.v'
+        reason: 'No Log.v (FAILURES.md 1). Trace with SellwildLog.'
+      - value: 'android.util.Log.wtf'
+        reason: 'No Log.wtf (FAILURES.md 1). Report failures with SellwildFailures.log.'
+      - value: 'android.util.Log.println'
+        reason: 'No Log.println (FAILURES.md 1). Trace with SellwildLog.'
+      # System.out / System.err: detekt has no rule for a field read, so the
+      # calls on the stream are banned instead.
+      - value: 'java.io.PrintStream.println'
+        reason: 'No System.out/err printing (FAILURES.md 1).'
+      - value: 'java.io.PrintStream.print'
+        reason: 'No System.out/err printing (FAILURES.md 1).'
+      - value: 'java.io.PrintStream.printf'
+        reason: 'No System.out/err printing (FAILURES.md 1).'
+      - value: 'java.io.PrintStream.format'
+        reason: 'No System.out/err printing (FAILURES.md 1).'
+      # e.printStackTrace() resolves to the kotlin.Throwable member.
+      - value: 'kotlin.Throwable.printStackTrace'
+        reason: 'No printStackTrace (FAILURES.md 1). Pass the error to SellwildFailures.log.'

@@ -1,0 +1,222 @@
+{
+  "result": {
+    "rs": [
+      {
+        "id": "105140230",
+        "photos": [
+          {
+            "url": "data:image/avif;base64,AAAAHGZ0eXBhdmlm"
+          }
+        ],
+        "title": "2025 Jeep Wrangler Rubicon X",
+        "price": "52867",
+        "status": "1",
+        "user": {
+          "id": "95090098",
+          "trustLevel": "3",
+          "firstName": "Lotlinx",
+          "lastName": "Account"
+        },
+        "shippable": true,
+        "categoryGroupId": "12",
+        "dataSourceId": "31",
+        "remote_url": "https://autos.lotlinx.com?ad=1C4RJXFG8SW592748&pdate=202609230400&request=AdLink&pubId=234000&url=1"
+      },
+      {
+        "id": "105078898",
+        "photos": [
+          {
+            "url": "data:image/avif;base64,AAAAHGZ0eXBhdmlm"
+          }
+        ],
+        "title": "NWOT Canada Weather Gear long winter parka jacket w/faux-fur-lined hood sz 1X",
+        "price": "200",
+        "status": "1",
+        "user": {
+          "id": "95094785",
+          "trustLevel": "2",
+          "firstName": "kate",
+          "lastName": "Lis"
+        },
+        "shippable": true,
+        "categoryGroupId": "23",
+        "dataSourceId": "1",
+        "remote_url": null
+      },
+      {
+        "id": "104988052",
+        "photos": [
+          {
+            "url": "data:image/avif;base64,AAAAHGZ0eXBhdmlm"
+          }
+        ],
+        "title": "Brookstone Wireless Outdoor Weather Resistant Speaker 150' Range Dock NEW IN BOX",
+        "price": "89",
+        "status": "1",
+        "user": {
+          "id": "95093181",
+          "trustLevel": "2",
+          "firstName": "Mary",
+          "lastName": "Spellmeyer"
+        },
+        "shippable": true,
+        "categoryGroupId": "15",
+        "dataSourceId": "1",
+        "remote_url": null
+      },
+      {
+        "id": "105112773",
+        "photos": [
+          {
+            "url": "data:image/avif;base64,AAAAHGZ0eXBhdmlm"
+          }
+        ],
+        "title": "Portable Bluetooth Speaker with Deep Bass, 130W Peak, IP66 Waterproof, 13H Playtime",
+        "price": "175",
+        "status": "1",
+        "user": {
+          "id": "95092012",
+          "trustLevel": "2",
+          "firstName": "BargainHunter",
+          "lastName": ""
+        },
+        "shippable": true,
+        "categoryGroupId": "26",
+        "dataSourceId": "33",
+        "remote_url": null,
+        "strikePrice": 175
+      },
+      {
+        "id": "105121916",
+        "photos": [
+          {
+            "url": "data:image/avif;base64,AAAAHGZ0eXBhdmlm"
+          }
+        ],
+        "title": "2025 Ford Maverick Lobo Standard",
+        "price": "32940",
+        "status": "1",
+        "user": {
+          "id": "95090098",
+          "trustLevel": "3",
+          "firstName": "Lotlinx",
+          "lastName": "Account"
+        },
+        "shippable": true,
+        "categoryGroupId": "12",
+        "dataSourceId": "31",
+        "remote_url": "https://autos.lotlinx.com?ad=3FTCW8TA8SRA83601&pdate=202609180401&request=AdLink&pubId=234000&url=1"
+      },
+      {
+        "id": "105099065",
+        "photos": [
+          {
+            "url": "data:image/avif;base64,AAAAHGZ0eXBhdmlm"
+          }
+        ],
+        "title": "J. JILL Packable Trench Rain Coat Women L Black Smocked Grunge Boho Feminine Y2K",
+        "price": "67.95",
+        "status": "1",
+        "user": {
+          "id": "95095031",
+          "trustLevel": "2",
+          "firstName": "Lovvit",
+          "lastName": "Collection"
+        },
+        "shippable": true,
+        "categoryGroupId": "23",
+        "dataSourceId": "1",
+        "remote_url": null
+      },
+      {
+        "id": "105063060",
+        "photos": [
+          {
+            "url": "data:image/avif;base64,AAAAHGZ0eXBhdmlm"
+          }
+        ],
+        "title": "Joules Right As Rain Hooded Waterproof Gingham Check Raincoat – Mint Condition",
+        "price": "64.99",
+        "status": "1",
+        "user": {
+          "id": "95094504",
+          "trustLevel": "2",
+          "firstName": "Karlus DiVine",
+          "lastName": "Rubin"
+        },
+        "shippable": true,
+        "categoryGroupId": "23",
+        "dataSourceId": "1",
+        "remote_url": null
+      },
+      {
+        "id": "105132794",
+        "photos": [
+          {
+            "url": "data:image/avif;base64,AAAAHGZ0eXBhdmlm"
+          }
+        ],
+        "title": "2026 Ford Maverick XL",
+        "price": "29180",
+        "status": "1",
+        "user": {
+          "id": "95090098",
+          "trustLevel": "3",
+          "firstName": "Lotlinx",
+          "lastName": "Account"
+        },
+        "shippable": true,
+        "categoryGroupId": "12",
+        "dataSourceId": "31",
+        "remote_url": "https://autos.lotlinx.com?ad=3FTTW8A35TRB15328&pdate=202609210400&request=AdLink&pubId=234000&url=1"
+      },
+      {
+        "id": "105132975",
+        "photos": [
+          {
+            "url": "data:image/avif;base64,AAAAHGZ0eXBhdmlm"
+          }
+        ],
+        "title": "Avenue Puffer Jacket Quilted Design Faux Fur Trim Hooded Solid Black W 14/16 NWT",
+        "price": "74.99",
+        "status": "1",
+        "user": {
+          "id": "95094326",
+          "trustLevel": "2",
+          "firstName": "Missy",
+          "lastName": "May"
+        },
+        "shippable": true,
+        "categoryGroupId": "23",
+        "dataSourceId": "1",
+        "remote_url": null
+      },
+      {
+        "id": "105118558",
+        "photos": [
+          {
+            "url": "data:image/avif;base64,AAAAHGZ0eXBhdmlm"
+          }
+        ],
+        "title": "Smart Watch for Men Women for Android iOS",
+        "price": "30",
+        "status": "1",
+        "user": {
+          "id": "95092012",
+          "trustLevel": "2",
+          "firstName": "BargainHunter",
+          "lastName": ""
+        },
+        "shippable": true,
+        "categoryGroupId": "15",
+        "dataSourceId": "33",
+        "remote_url": null,
+        "strikePrice": 30
+      }
+    ],
+    "config": {
+      "browse": 0
+    },
+    "widgetCacheVersionId": "733489"
+  }
+}

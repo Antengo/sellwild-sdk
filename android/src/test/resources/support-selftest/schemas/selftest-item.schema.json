@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/selftest-item.schema.json",
+  "title": "Support self-test: the schema selftest-root references",
+  "type": "object",
+  "required": ["id"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z]+$" }
+  }
+}

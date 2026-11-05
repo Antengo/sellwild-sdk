@@ -1,0 +1,5 @@
+{
+  "_synthetic": true,
+  "baseUrl": "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/",
+  "urlTemplate": "sports.json"
+}

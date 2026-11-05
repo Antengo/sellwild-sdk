@@ -1,0 +1,43 @@
+{
+  "_synthetic": true,
+  "result": {
+    "rs": [
+      {
+        "id": "104874856",
+        "title": "NCAA Tee",
+        "photos": [
+          {
+            "url": "https://listings-static1.sellwild.com/supply_listings/26/437/856_320x320.webp"
+          }
+        ],
+        "url": "https://sportserver.com/products/ncaa-tee?utm_source=sellwild",
+        "price": "15",
+        "currency": "USD",
+        "status": "1",
+        "user": {
+          "id": "95092688",
+          "trustLevel": "2",
+          "firstName": "SportServer",
+          "lastName": "Partner"
+        },
+        "shippable": "1",
+        "categoryGroupId": "17",
+        "dataSourceId": "35",
+        "remote_url": "https://sportserver.com/products/ncaa-tee?utm_source=sellwild"
+      }
+    ],
+    "config": {
+      "browse": 0
+    },
+    "state": "GA",
+    "slice": 1,
+    "sliceCount": 33,
+    "teams": [
+      "Atlanta Braves"
+    ],
+    "leaguesInSeason": [
+      "MLB"
+    ],
+    "generatedAt": "2026-09-01T06:01:25.501Z"
+  }
+}

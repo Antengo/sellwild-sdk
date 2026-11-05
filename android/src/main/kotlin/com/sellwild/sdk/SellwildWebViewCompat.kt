@@ -21,15 +21,19 @@ import android.webkit.WebView
  */
 object SellwildWebViewCompat {
     fun configureForMultiProcess(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val processName = context.packageName.let { pkg ->
-                // getProcessName() is available from API 28
-                android.app.Application.getProcessName() ?: pkg
-            }
-            val packageName = context.packageName
-            if (processName != packageName) {
-                WebView.setDataDirectorySuffix(processName.replace(packageName, "").trimStart(':'))
-            }
-        }
+        // getProcessName() and setDataDirectorySuffix() exist from API 28.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        dataDirectorySuffix(context.packageName, android.app.Application.getProcessName())
+            ?.let { WebView.setDataDirectorySuffix(it) }
+    }
+
+    /**
+     * The WebView data directory suffix for a process other than the app's main one: the
+     * process name with the package prefix and `:` removed. Null for the main process, and
+     * when the process name is unknown.
+     */
+    internal fun dataDirectorySuffix(packageName: String, processName: String?): String? {
+        val process = processName ?: packageName
+        return process.takeIf { it != packageName }?.replace(packageName, "")?.trimStart(':')
     }
 }

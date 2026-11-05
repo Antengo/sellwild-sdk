@@ -1,0 +1,16 @@
+# Sellwild Sample, iOS (samples/feed-demo-ios). Run it with:
+#   bash scripts/e2e/run.sh ios
+appId: com.sellwild.sample
+name: Sellwild Sample (iOS)
+env:
+  APP_ID: com.sellwild.sample
+  FEED_AD_ROWS: "true"   # SellwildFeedView sets sw.feed.ad
+  NATIVE_AD: "true"      # SellwildNativeAdView is public
+  HOUSE_AD: "false"      # no public house ad view on iOS
+  FAILURE_SINK: "false"  # no public failure sink on iOS
+---
+- runFlow: ../common/launch.yaml
+- runFlow: ../common/feed.yaml
+- runFlow: ../common/ads.yaml
+- runFlow: ../common/listings.yaml
+- runFlow: ../common/diagnostics.yaml

@@ -6,10 +6,18 @@
 //
 // This module is the PLATFORM-NEUTRAL reference: request/response shapes, the
 // EID-blob parser, the consumer-wins merge, the sync throttle, and the
-// local→remote→default settings resolution. It performs no I/O — no network,
-// no storage, no device-id access. The native SDKs (iOS/Android) mirror these
+// local→remote→default settings resolution. It does no network, storage or
+// device-id access of its own. The native SDKs (iOS/Android) mirror these
 // functions with their own HTTP/persistence/advertising-id adapters, and a
 // future web build can call these directly.
+//
+// Failures (contracts/FAILURES.md): the `*WithIssues` functions, like
+// shouldSync, mergeEids and the builders, are pure and return what went wrong
+// next to their result. The plain resolveGrowthCode, parseEidBlob and
+// parseGrowthCodeResponse are thin shells over them that report each issue
+// once with logFailure (growthcode.config.missing, growthcode.eid.parse,
+// growthcode.eid.invalid, growthcode.sync.invalid), which queues an events
+// POST, and return the same result as always.
 //
 // API contract (GrowthCode Signal Resolve v1.0, direct API):
 //   POST {endpoint}?pid={partnerId}&u={syncUrl}
@@ -19,6 +27,8 @@
 // directives (cookies/kv/dl/ls, bucket, gctest, persistent) the SDK ignores.
 
 import type { SellwildEid, SellwildEidUid, SellwildConfig, GrowthCodeConfig } from './types'
+import { logFailure, type LogFailureInput } from './failures'
+import { jsonKind, parseErrorName } from './json-kind'
 
 /** Default GrowthCode sync endpoint (overridable via GROWTHCODE_ENDPOINT). */
 export const GROWTHCODE_DEFAULT_ENDPOINT = 'https://ids.api.gcprivacy.id/v4/sync/api'
@@ -83,6 +93,20 @@ export function resolveGrowthCode(
   config: Pick<SellwildConfig, 'growthCode' | 'remote'>,
   zoneId?: string | number | null,
 ): ResolvedGrowthCode {
+  const { settings, issues } = resolveGrowthCodeWithIssues(config, zoneId)
+  report(issues)
+  return settings
+}
+
+/**
+ * resolveGrowthCode, plus growthcode.config.missing when GrowthCode is on
+ * but the partner id or the sync URL is missing, so a sync can never run
+ * (the native shells skip it). Pure.
+ */
+export function resolveGrowthCodeWithIssues(
+  config: Pick<SellwildConfig, 'growthCode' | 'remote'>,
+  zoneId?: string | number | null,
+): { settings: ResolvedGrowthCode; issues: LogFailureInput[] } {
   const local = config.growthCode ?? {}
   const remote = config.remote ?? {}
 
@@ -109,14 +133,22 @@ export function resolveGrowthCode(
         ? true
         : truthy(remote['GROWTHCODE_SEND_MAID'])
 
-  return {
+  const settings: ResolvedGrowthCode = {
     enabled,
     partnerId: local.partnerId ?? nonEmpty(remote['GROWTHCODE_PARTNER_ID']),
     endpoint: local.endpoint ?? nonEmpty(remote['GROWTHCODE_ENDPOINT']) ?? GROWTHCODE_DEFAULT_ENDPOINT,
     syncUrl: local.syncUrl ?? nonEmpty(remote['GROWTHCODE_SYNC_URL']),
     sendMaid,
+    // A GROWTHCODE_TTL_HOURS that is not a number is not reported: it reads
+    // as the default, the same as leaving it unset, and the sync still runs.
     ttlHours: local.ttlHours ?? numeric(remote['GROWTHCODE_TTL_HOURS']) ?? GROWTHCODE_DEFAULT_TTL_HOURS,
   }
+  const missing = [settings.partnerId ? '' : 'partner id', settings.syncUrl ? '' : 'sync URL'].filter(Boolean)
+  const issues: LogFailureInput[] =
+    settings.enabled && missing.length > 0
+      ? [issue('growthcode.config.missing', `GrowthCode is on without a ${missing.join(' or ')}, so it never syncs`, zoneId)]
+      : []
+  return { settings, issues }
 }
 
 /**
@@ -140,30 +172,49 @@ export function shouldSync(
  * `[{ inserter, source, matcher?, uids: [{ id, atype?, stype? }] }]` — into
  * `SellwildEid[]`. The provider-only `inserter`/`matcher` fields are dropped;
  * a uid's `stype` (when present without `atype`) is preserved in `ext`.
- * Returns `[]` for null/empty/malformed input (never throws).
+ * Returns `[]` for null/empty/malformed input (never throws). Malformed input
+ * is reported: growthcode.eid.parse (not JSON) and growthcode.eid.invalid (not
+ * an array, or entries or uids dropped).
  */
 export function parseEidBlob(eb: string | null | undefined): SellwildEid[] {
-  if (!eb) return []
+  const { eids, issues } = parseEidBlobWithIssues(eb)
+  report(issues)
+  return eids
+}
+
+/** parseEidBlob, plus what it had to drop. Pure. */
+export function parseEidBlobWithIssues(eb: string | null | undefined): { eids: SellwildEid[]; issues: LogFailureInput[] } {
+  if (!eb) return { eids: [], issues: [] }
   let parsed: unknown
   try {
     parsed = JSON.parse(eb)
-  } catch {
-    return []
+  } catch (error) {
+    // The parse error's message quotes part of the blob, an identity token
+    // that is never sent (FAILURES.md 7.6): only its name goes.
+    return { eids: [], issues: [issue('growthcode.eid.parse', 'eid blob is not JSON', undefined, parseErrorName(error))] }
   }
-  if (!Array.isArray(parsed)) return []
+  if (!Array.isArray(parsed)) {
+    return { eids: [], issues: [issue('growthcode.eid.invalid', `eid blob is ${jsonKind(parsed)}, not a list`)] }
+  }
 
   const eids: SellwildEid[] = []
+  let droppedEntries = 0
+  let droppedUids = 0
   for (const entry of parsed) {
-    if (!entry || typeof entry !== 'object') continue
-    const source = nonEmpty((entry as Record<string, unknown>).source)
-    const rawUids = (entry as Record<string, unknown>).uids
-    if (!source || !Array.isArray(rawUids)) continue
+    const source = entry && typeof entry === 'object' ? nonEmpty((entry as Record<string, unknown>).source) : undefined
+    const rawUids = source ? (entry as Record<string, unknown>).uids : undefined
+    if (!source || !Array.isArray(rawUids)) {
+      droppedEntries++
+      continue
+    }
 
     const uids: SellwildEidUid[] = []
     for (const u of rawUids) {
-      if (!u || typeof u !== 'object') continue
-      const id = nonEmpty((u as Record<string, unknown>).id)
-      if (!id) continue
+      const id = u && typeof u === 'object' ? nonEmpty((u as Record<string, unknown>).id) : undefined
+      if (!id) {
+        droppedUids++
+        continue
+      }
       const atype = numeric((u as Record<string, unknown>).atype)
       const stype = nonEmpty((u as Record<string, unknown>).stype)
       uids.push({
@@ -173,8 +224,13 @@ export function parseEidBlob(eb: string | null | undefined): SellwildEid[] {
       })
     }
     if (uids.length > 0) eids.push({ source, uids })
+    else droppedEntries++
   }
-  return eids
+  const issues =
+    droppedEntries + droppedUids > 0
+      ? [issue('growthcode.eid.invalid', `eid blob: dropped ${droppedEntries} of ${parsed.length} entries and ${droppedUids} uids without source, uids or id`)]
+      : []
+  return { eids, issues }
 }
 
 /**
@@ -217,13 +273,52 @@ export function buildSyncBody(fields: GrowthCodeSyncBody): string {
   return parts.join('&')
 }
 
-/** Extract the fields the SDK cares about from a parsed sync response object. */
+/**
+ * Extract the fields the SDK cares about from a parsed sync response object.
+ * A response that is not an object is reported (growthcode.sync.invalid).
+ */
 export function parseGrowthCodeResponse(json: Record<string, unknown> | null | undefined): GrowthCodeResponse {
-  if (!json || typeof json !== 'object') return {}
+  const { response, issues } = parseGrowthCodeResponseWithIssues(json)
+  report(issues)
+  return response
+}
+
+/** parseGrowthCodeResponse, plus growthcode.sync.invalid when `json` is not an object. Pure. */
+export function parseGrowthCodeResponseWithIssues(json: unknown): { response: GrowthCodeResponse; issues: LogFailureInput[] } {
+  const issues =
+    json && typeof json === 'object' && !Array.isArray(json)
+      ? []
+      : [issue('growthcode.sync.invalid', `sync response is ${jsonKind(json)}, not an object`)]
+  // An array still reads as an object here, as it always has (every field undefined).
+  if (!json || typeof json !== 'object') return { response: {}, issues }
+  const body = json as Record<string, unknown>
   return {
-    gcId: nonEmpty(json['gc_id']),
-    eidBlob: nonEmpty(json['eb']),
-    idInject: typeof json['idi'] === 'boolean' ? (json['idi'] as boolean) : undefined,
-    version: numeric(json['version']),
+    response: {
+      gcId: nonEmpty(body['gc_id']),
+      eidBlob: nonEmpty(body['eb']),
+      idInject: typeof body['idi'] === 'boolean' ? (body['idi'] as boolean) : undefined,
+      version: numeric(body['version']),
+    },
+    issues,
   }
+}
+
+function issue(
+  code: 'growthcode.config.missing' | 'growthcode.eid.parse' | 'growthcode.eid.invalid' | 'growthcode.sync.invalid',
+  message: string,
+  zoneId?: string | number | null,
+  error?: unknown,
+): LogFailureInput {
+  return {
+    code,
+    component: 'growthcode',
+    severity: 'warn',
+    message,
+    ...(zoneId != null ? { zoneId } : {}),
+    ...(error !== undefined ? { error } : {}),
+  }
+}
+
+function report(issues: readonly LogFailureInput[]): void {
+  for (const i of issues) logFailure(i)
 }

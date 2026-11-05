@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.sellwild.com/localized-listings-response.schema.json",
+  "title": "Localized listings response",
+  "description": "GET {baseUrl}{urlTemplate with {state} lowercased}, for example https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/sports-img-data-sm-webp-al.json. Differs from listings-response by the per-state metadata. An unknown state answers 403 AccessDenied XML (samples/localized-listings-response/*.403.xml).",
+  "type": "object",
+  "required": [
+    "result"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "_synthetic": {
+      "description": "Fixture marker. Present only in hand-made fixtures, never on the wire.",
+      "const": true
+    },
+    "result": {
+      "description": "Localized payload.",
+      "type": "object",
+      "required": [
+        "rs",
+        "state"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "rs": {
+          "description": "Localized listings (shippable is text here).",
+          "type": "array",
+          "items": {
+            "$ref": "listing.schema.json"
+          }
+        },
+        "config": {
+          "description": "Cache config.",
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "browse": {
+              "description": "Browse mode flag.",
+              "type": "number"
+            }
+          }
+        },
+        "state": {
+          "description": "2-letter state this cache is for (upper case).",
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "slice": {
+          "description": "Slice number of this cache.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "sliceCount": {
+          "description": "Number of slices for this state.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "teams": {
+          "description": "Teams covered.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "leaguesInSeason": {
+          "description": "Leagues in season when generated.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "generatedAt": {
+          "description": "Generation time (ISO 8601).",
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

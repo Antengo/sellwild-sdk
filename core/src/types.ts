@@ -313,6 +313,12 @@ export interface SellwildConfig {
   // event POSTs to events.sellwild.com without an app release.
   eventsEnabled: boolean
 
+  // clientFailure kill switch (CMS FAILURES_ENABLED) and session sample rate
+  // (CMS FAILURES_SAMPLE_RATE, 0..1). Default on and 1. A local override wins.
+  // See contracts/FAILURES.md section 10.
+  failuresEnabled: boolean
+  failuresSampleRate: number
+
   // Debug
   debug: boolean
   // Server-side auction debug — adds ext.prebid.debug=1 + returnallbidstatus to

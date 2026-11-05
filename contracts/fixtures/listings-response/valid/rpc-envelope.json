@@ -1,0 +1,35 @@
+{
+  "_synthetic": true,
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "rs": [
+      {
+        "id": "5550001",
+        "status": "1",
+        "title": "Road bike",
+        "photos": [
+          {
+            "url": "https://listings-static1.sellwild.com/x.jpg",
+            "thumbUrl": "https://listings-static1.sellwild.com/x_thumb.jpg"
+          }
+        ],
+        "price": "250",
+        "shippable": "0",
+        "categoryId": "7",
+        "user": {
+          "id": "1234",
+          "trustLevel": "1",
+          "firstName": "Sam",
+          "lastName": "S",
+          "username": "sam",
+          "membershipType": "5"
+        }
+      }
+    ],
+    "config": {
+      "browse": 1
+    },
+    "widgetCacheVersionId": "12"
+  }
+}

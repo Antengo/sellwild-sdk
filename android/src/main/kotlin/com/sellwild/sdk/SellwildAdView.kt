@@ -1,26 +1,32 @@
 package com.sellwild.sdk
 
 import android.content.Context
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.browser.customtabs.CustomTabsIntent
 import com.google.android.gms.ads.AdListener
-import com.google.android.gms.ads.AdSize as GmaAdSize
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.admanager.AdManagerAdRequest
 import com.google.android.gms.ads.admanager.AdManagerAdView
-import org.json.JSONObject
-import com.sellwild.prebid.AdSize as PrebidAdSize
 import com.sellwild.prebid.api.exceptions.AdException
+import com.sellwild.prebid.api.rendering.listeners.BannerViewListener
+import com.sellwild.sdk.core.AdDecisions
+import com.sellwild.sdk.core.AdFlags
+import com.sellwild.sdk.failures.SellwildFailureCode
+import com.sellwild.sdk.failures.SellwildFailureComponent
+import com.sellwild.sdk.failures.SellwildFailureSeverity
+import com.sellwild.sdk.failures.SellwildFailures
+import com.sellwild.sdk.failures.SellwildLog
+import com.sellwild.sdk.guards.SellwildViews
+import com.sellwild.sdk.timing.SellwildTiming
+import java.util.concurrent.atomic.AtomicBoolean
+import com.sellwild.prebid.AdSize as PrebidAdSize
 import com.sellwild.prebid.api.rendering.BannerView as PrebidBannerView
 import com.sellwild.prebid.api.rendering.VideoView as PrebidVideoView
-import com.sellwild.prebid.api.rendering.listeners.BannerViewListener
 
 /**
  * Per-surface once-guard for the web-parity `firstAdViewed` event.
@@ -35,16 +41,11 @@ import com.sellwild.prebid.api.rendering.listeners.BannerViewListener
  * mount (navigation) fires again. In-memory only; never persisted.
  */
 class SellwildFirstAdViewedGuard {
-    @Volatile private var fired = false
+    private val fired = AtomicBoolean(false)
 
     /** Runs [block] the first time only; subsequent calls are no-ops. */
     fun fireOnce(block: () -> Unit) {
-        if (fired) return
-        synchronized(this) {
-            if (fired) return
-            fired = true
-        }
-        block()
+        if (fired.compareAndSet(false, true)) block()
     }
 }
 
@@ -84,6 +85,7 @@ open class SellwildAdView @JvmOverloads constructor(
         fun onAdImpression(adView: SellwildAdView, zoneId: String) {}
         fun onAdClicked(adView: SellwildAdView) {}
         fun onAdFailed(adView: SellwildAdView, message: String) {}
+
         /**
          * The ad rendered at [width]x[height] (dp). Fires on every render so a
          * host can resize its slot to the actual creative — the winning
@@ -154,11 +156,18 @@ open class SellwildAdView @JvmOverloads constructor(
      */
     var houseFallbackListing: SellwildListing? = null
 
-    private lateinit var config: SellwildConfig
-    private lateinit var adSize: AdSize
+    // Set by setup(). Until then [isSetUp] is false and load()/resume() refuse to run; the
+    // placeholders below are never used to load an ad.
+    private var config = SellwildConfig(partnerCode = "")
+    private var adSize = AdSize.BANNER_320x50
     private var zoneId: String? = null
+    private var isSetUp = false
+
+    /** The zone as the listener and events carry it: "" when there is none. */
+    private val zoneLabel: String get() = zoneId.orEmpty()
 
     private var bannerView: AdManagerAdView? = null
+
     // House-ad backdrop. Sits behind the paid creative and shows through only
     // when the slot is empty (no-fill, or the transient PREBID_ONLY refresh gap).
     private var houseView: SellwildHouseAdView? = null
@@ -166,9 +175,11 @@ open class SellwildAdView @JvmOverloads constructor(
     private var nativeAdView: SellwildNativeAdView? = null
     private var refreshHandler: Handler? = null
     private var refreshCount = 0
+
     // prebidOnly renders (initial + auto-refreshes). Caps Prebid's internal
     // auto-refresh at effectiveRefreshMax, which it otherwise ignores.
     private var prebidRefreshCount = 0
+
     // True once the prebidOnly BannerView has rendered a creative at least once.
     // Gates the reattach behavior: if we already have a rendered creative, a
     // reattach should keep it (so its viewability tracker can fire the
@@ -177,6 +188,7 @@ open class SellwildAdView @JvmOverloads constructor(
 
     // Boltive ad-quality monitor (remote-gated, default off). See SellwildBoltive.
     private val boltive = SellwildBoltiveController()
+
     // What the monitored creative was (bidder, or "gam") — the adBlocked action.
     private var boltiveSource = ""
 
@@ -187,7 +199,7 @@ open class SellwildAdView @JvmOverloads constructor(
      * partner who sets only `AD_REFRESH_MAX` still gets refresh on both paths.
      */
     private val effectiveRefreshMax: Int
-        get() = if (config.adRefreshMaxMobile > 0) config.adRefreshMaxMobile else config.adRefreshMax
+        get() = AdDecisions.refreshMax(config.adRefreshMaxMobile, config.adRefreshMax)
 
     /**
      * Whether another prebidOnly auction fits the refresh cap. The budget is the
@@ -196,15 +208,17 @@ open class SellwildAdView @JvmOverloads constructor(
      * point the render listener calls stopRefresh()).
      */
     private val hasPrebidRefreshBudget: Boolean
-        get() = effectiveRefreshMax > 0 && prebidRefreshCount <= effectiveRefreshMax
+        get() = AdDecisions.hasPrebidRefreshBudget(prebidRefreshCount, effectiveRefreshMax)
 
     // Cold-start guard: Prebid Mobile init is async and races the first load().
     // Wait up to ~1.2s (8 × 150ms) for init before falling back to GAM-only, so
-    // the first impression isn't silently downgraded and loses Prebid demand.
+    // the first impression isn't silently downgraded and loses Prebid demand
+    // (AdDecisions.coldStart). Running out of time is reported (ad.prebid_init.timeout).
     private var prebidWaitHandler: Handler? = null
     private var prebidWaitAttempts = 0
-    private val maxPrebidWaitAttempts = 8
-    private val prebidWaitIntervalMs = 150L
+
+    /** The GMA and Prebid calls that need a device or the network ([SellwildPrebidMobile.network]). */
+    private val network: SellwildAdNetwork get() = SellwildPrebidMobile.network
 
     /** The ad stack this view resolves to, given the current config + override. */
     val resolvedAdStack: SellwildAdStack
@@ -243,6 +257,8 @@ open class SellwildAdView @JvmOverloads constructor(
         this.config = config
         this.adSize = adSize
         this.zoneId = zoneId
+        isSetUp = true
+        config.claimFailurePartner()
 
         // Honor the CMS analytics kill switch (EVENTS_ENABLED) and stamp the
         // partner (attributes.code) so events attribute correctly — both before
@@ -264,10 +280,9 @@ open class SellwildAdView @JvmOverloads constructor(
      * multiple times; each call triggers a fresh load.
      */
     fun load() {
-        if (!::config.isInitialized) {
-            Log.w(TAG, "load() called before setup(); ignoring.")
-            return
-        }
+        if (!isSetUp("load")) return
+        // ad.firstLoad: from the first load() to the first render, once per zone per process.
+        if (firstLoadTimer == null && !firstLoadTimed) firstLoadTimer = SellwildTiming.start("ad.firstLoad", zoneLabel)
         // Idempotent — first call wins, the rest are cheap.
         SellwildPrebidMobile.bootstrap(context, config)
 
@@ -307,10 +322,7 @@ open class SellwildAdView @JvmOverloads constructor(
     }
 
     fun resume() {
-        if (!::config.isInitialized) {
-            Log.w(TAG, "resume() called before setup(); ignoring.")
-            return
-        }
+        if (!isSetUp("resume")) return
         if (needsReloadOnResume) {
             needsReloadOnResume = false
             load() // the first auction never completed (paused mid cold-start)
@@ -322,31 +334,50 @@ open class SellwildAdView @JvmOverloads constructor(
         // stopRefresh() latched the banner (the fork clears that only on a new bid
         // request), so re-issue loadAd() to actually resume the auto-refresh
         // cadence (parity with iOS resume()).
-        when (resolvedAdStack) {
-            SellwildAdStack.BOTH, SellwildAdStack.GAM_ONLY -> scheduleRefresh()
-            SellwildAdStack.PREBID_ONLY ->
-                // Only while the refresh cap has budget: once it is spent, a reattach
-                // starts no new auction (with either flag) — the last creative stays.
-                if (hasPrebidRefreshBudget && !nativeEnabled) {
-                    // Default (flag off): re-issue loadAd() to un-latch the fork's
-                    // refresh cadence — but this discards the current creative
-                    // before its viewability tracker fires, so burl (the viewable
-                    // impression) almost never fires on a scrolling feed.
-                    // Flag on: keep the already-rendered creative so its tracker
-                    // fires the impression/burl now that we're back on screen, and
-                    // resume the cadence on a DELAYED refresh instead of an
-                    // immediate re-auction. See MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH.
-                    // Order matters: the cheap flag short-circuits before
-                    // keepsPrebidCreativeOnReattach, which parses remoteJson — so a
-                    // reattach with no rendered creative (common on fast scroll)
-                    // skips the parse entirely.
-                    if (prebidHasRenderedCreative && keepsPrebidCreativeOnReattach) {
-                        schedulePrebidRefresh()
-                    } else {
-                        prebidBanner?.loadAd()
-                    }
-                }
+        //
+        // prebidOnly runs only while the refresh cap has budget: once it is spent, a
+        // reattach starts no new auction (with either flag) and the last creative stays.
+        // Flag off (default): re-issue loadAd() to un-latch the fork's refresh cadence —
+        // but this discards the current creative before its viewability tracker fires,
+        // so burl (the viewable impression) almost never fires on a scrolling feed.
+        // Flag on: keep the already-rendered creative so its tracker fires the
+        // impression/burl now that we're back on screen, and resume the cadence on a
+        // DELAYED refresh instead of an immediate re-auction. See
+        // MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH. The cheap rendered-creative flag is
+        // checked before the remote flag (a parse), so a reattach with no rendered
+        // creative (common on fast scroll) skips the parse.
+        val stack = if (resolvedAdStack == SellwildAdStack.PREBID_ONLY) AdDecisions.Stack.PREBID_ONLY else AdDecisions.Stack.GAM
+        when (
+            AdDecisions.resume(
+                stack = stack,
+                hasRefreshBudget = hasPrebidRefreshBudget,
+                nativeEnabled = { nativeEnabled },
+                hasRenderedCreative = prebidHasRenderedCreative,
+                keepCreative = { keepsPrebidCreativeOnReattach },
+            )
+        ) {
+            AdDecisions.Resume.SCHEDULE_REFRESH -> scheduleRefresh()
+            AdDecisions.Resume.KEEP_CREATIVE -> schedulePrebidRefresh()
+            AdDecisions.Resume.RELOAD_PREBID -> prebidBanner?.let { network.loadRendering(it) }
+            AdDecisions.Resume.NOTHING -> Unit
         }
+    }
+
+    /**
+     * Whether [setup] ran. [load] or [resume] before it used to crash the host (the config is
+     * lateinit); now the call is reported (ad.setup.missing), the listener hears it, and
+     * nothing loads.
+     */
+    private fun isSetUp(call: String): Boolean {
+        if (isSetUp) return true
+        SellwildFailures.log(
+            code = SellwildFailureCode.AD_SETUP_MISSING,
+            component = SellwildFailureComponent.BANNER,
+            severity = SellwildFailureSeverity.ERROR,
+            message = "$call() called before setup()",
+        )
+        listener?.onAdFailed(this, "SellwildAdView.$call() called before setup()")
+        return false
     }
 
     /**
@@ -360,21 +391,7 @@ open class SellwildAdView @JvmOverloads constructor(
      * Set `MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH: true` to enable.
      */
     private val keepsPrebidCreativeOnReattach: Boolean
-        get() {
-            if (!::config.isInitialized) return false
-            val obj = config.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
-            if (!obj.has("MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH") ||
-                obj.isNull("MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH")
-            ) {
-                return false
-            }
-            return when (val v = obj.get("MOBILE_PREBID_KEEP_CREATIVE_ON_REATTACH")) {
-                is Boolean -> v
-                is Number -> v.toInt() != 0
-                is String -> v.lowercase() in setOf("1", "true", "yes", "on")
-                else -> false
-            }
-        }
+        get() = AdFlags.keepCreativeOnReattach(remoteObject(config.remoteJson))
 
     /**
      * Resume the prebidOnly refresh cadence WITHOUT discarding the current
@@ -387,10 +404,9 @@ open class SellwildAdView @JvmOverloads constructor(
         if (!hasPrebidRefreshBudget) return
         val handler = refreshHandler ?: Handler(Looper.getMainLooper()).also { refreshHandler = it }
         handler.removeCallbacksAndMessages(null)
-        val interval = config.adRefreshIntervalMs.coerceAtLeast(MIN_REFRESH_INTERVAL_MS)
         handler.postDelayed({
-            if (isAttachedToWindow) prebidBanner?.loadAd()
-        }, interval)
+            if (isAttachedToWindow) prebidBanner?.let { network.loadRendering(it) }
+        }, AdDecisions.refreshIntervalMs(config.adRefreshIntervalMs))
     }
 
     // ── Detached-refresh pause (default ON) ──────────────────────────────────
@@ -402,25 +418,17 @@ open class SellwildAdView @JvmOverloads constructor(
     // refreshes are unaffected — this only gates FULLY-detached views.
 
     private var isPausedForDetach = false
+
     // Set when pause() interrupts an in-flight first auction (cold-start wait);
     // resume() then re-issues load() so the first impression isn't lost.
     private var needsReloadOnResume = false
 
     private val pausesRefreshWhenDetached: Boolean
-        get() {
-            if (!::config.isInitialized) return false
-            val obj = config.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return true
-            if (!obj.has("MOBILE_PAUSE_REFRESH_DETACHED") || obj.isNull("MOBILE_PAUSE_REFRESH_DETACHED")) return true
-            return when (val v = obj.get("MOBILE_PAUSE_REFRESH_DETACHED")) {
-                is Boolean -> v
-                is Number -> v.toInt() != 0
-                is String -> v.lowercase() in setOf("1", "true", "yes", "on")
-                else -> true
-            }
-        }
+        get() = isSetUp && AdFlags.pauseRefreshWhenDetached(remoteObject(config.remoteJson))
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        SellwildViews.adViews.decrementAndGet()
         stopLayoutSelfHeal()
         if (pausesRefreshWhenDetached && !isPausedForDetach) {
             isPausedForDetach = true
@@ -430,6 +438,7 @@ open class SellwildAdView @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        SellwildViews.adViews.incrementAndGet()
         startLayoutSelfHealIfEnabled()
         if (pausesRefreshWhenDetached && isPausedForDetach) {
             isPausedForDetach = false
@@ -441,21 +450,12 @@ open class SellwildAdView @JvmOverloads constructor(
     private var selfHealListener: android.view.ViewTreeObserver.OnGlobalLayoutListener? = null
 
     /** True when self-heal is enabled by the host property or remote config. */
-    private fun isLayoutSelfHealEnabled(): Boolean {
-        if (layoutSelfHeal) return true
-        if (!::config.isInitialized) return false
-        val obj = config.remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
-        if (!obj.has("MOBILE_LAYOUT_SELF_HEAL") || obj.isNull("MOBILE_LAYOUT_SELF_HEAL")) return false
-        return when (val v = obj.get("MOBILE_LAYOUT_SELF_HEAL")) {
-            is Boolean -> v
-            is Number -> v.toInt() != 0
-            is String -> v.lowercase() in setOf("1", "true", "yes", "on")
-            else -> false
-        }
-    }
+    private fun isLayoutSelfHealEnabled(): Boolean =
+        layoutSelfHeal || (isSetUp && AdFlags.layoutSelfHeal(remoteObject(config.remoteJson)))
 
     private fun startLayoutSelfHealIfEnabled() {
-        if (selfHealListener != null || !isLayoutSelfHealEnabled()) return
+        if (!isLayoutSelfHealEnabled()) return
+        stopLayoutSelfHeal() // never two listeners
         val l = android.view.ViewTreeObserver.OnGlobalLayoutListener { healLayoutIfCollapsed() }
         selfHealListener = l
         viewTreeObserver.addOnGlobalLayoutListener(l)
@@ -473,11 +473,8 @@ open class SellwildAdView @JvmOverloads constructor(
      * false, so it won't re-fire.
      */
     private fun healLayoutIfCollapsed() {
-        if (width != 0 && height != 0) return
         val p = parent as? View ?: return
-        val w = p.width
-        val h = p.height
-        if (w <= 0 || h <= 0) return
+        val (w, h) = AdDecisions.healedSize(width, height, p.width, p.height) ?: return
         measure(
             View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
             View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY),
@@ -506,35 +503,42 @@ open class SellwildAdView @JvmOverloads constructor(
      */
     private fun installHouseBackdrop() {
         val creative = SellwildHouseAd.resolve(config.remoteJson, zoneId, adSize.width, adSize.height)
-        val listing = houseFallbackListing
-        val isMrec = adSize.width >= 300 && adSize.height >= 250
-        if (!SellwildHouseAd.isEnabled(config.remoteJson) ||
-            (creative == null && !(listing != null && isMrec))
+        when (
+            val content = AdDecisions.house(
+                enabled = SellwildHouseAd.isEnabled(config.remoteJson),
+                image = creative,
+                listing = houseFallbackListing,
+                widthDp = adSize.width,
+                heightDp = adSize.height,
+            )
         ) {
-            houseView?.visibility = GONE
-            return
+            is AdDecisions.House.Image -> showHouse().apply {
+                onTap = { openHouseUrl(content.image.clickUrl) }
+                showImage(content.image)
+            }
+            is AdDecisions.House.Listing -> showHouse().apply {
+                onTap = { openHouseUrl(content.listing.tapUrl(config.partnerCode, config.bhTag)) }
+                showListing(content.listing, config)
+            }
+            else -> houseView?.visibility = GONE // AdDecisions.House.None
         }
+    }
 
+    /** The house backdrop, created once behind any paid creative, made visible. */
+    private fun showHouse(): SellwildHouseAdView {
         val view = houseView ?: SellwildHouseAdView(context).also {
             houseView = it
             addView(it, 0) // behind any paid creative
         }
         view.visibility = VISIBLE
-
-        if (creative != null) {
-            view.onTap = { openHouseUrl(creative.clickUrl) }
-            view.showImage(creative)
-        } else if (listing != null) {
-            view.onTap = { openHouseUrl(listing.tapUrl(config.partnerCode, config.bhTag)) }
-            view.showListing(listing, config)
-        }
+        return view
     }
 
     /** Fire the house-impression callback when the backdrop is actually visible. */
     private fun recordHouseImpressionIfShowing() {
         val v = houseView ?: return
         if (v.visibility != VISIBLE) return
-        listener?.onHouseAdImpression(this, zoneId.orEmpty())
+        listener?.onHouseAdImpression(this, zoneLabel)
     }
 
     /** Show/hide the house backdrop. Kept as a class method so the inherited
@@ -571,19 +575,29 @@ open class SellwildAdView @JvmOverloads constructor(
      */
     private fun enforceVideoMuteAndValidatePlacement(bannerView: PrebidBannerView) {
         val expectedVideo = SellwildVideo.isEnabled(config.remoteJson, zoneId)
-        val looksLikeVideo = runCatching { bannerView.bidResponse?.isVideo() }.getOrNull() == true
+        val looksLikeVideo = try {
+            bannerView.bidResponse?.isVideo() == true
+        } catch (e: Throwable) {
+            // Treated as not video, so mute enforcement is skipped for this render. Throwable,
+            // as before this was reported: a fork built without isVideo() throws
+            // NoSuchMethodError, which must not crash the host.
+            logAd(SellwildFailureCode.AD_BID_INSPECT_EXCEPTION, SellwildFailureSeverity.WARN, error = e)
+            false
+        }
         if (!looksLikeVideo) return
 
-        if (!expectedVideo) {
-            if (config.debug) {
-                Log.d("SellwildAdView", "[prebidOnly] placement mismatch — video creative won a banner-only zone ${zoneId.orEmpty()}")
-            }
-            SellwildEventQueue.shared(context).track("placementMismatch", label = zoneId.orEmpty())
+        val check = AdDecisions.videoCheck(expectedVideo) { SellwildVideo.soundEnabled(config.remoteJson, zoneId) }
+        if (check.mismatch) {
+            // The existing event stays (A6); the failure is reported too.
+            SellwildEventQueue.shared(context).track("placementMismatch", label = zoneLabel)
+            logAd(
+                SellwildFailureCode.AD_PLACEMENT_INVALID,
+                SellwildFailureSeverity.WARN,
+                message = "a video creative won a banner-only zone",
+            )
         }
-
-        val wantsSound = expectedVideo && SellwildVideo.soundEnabled(config.remoteJson, zoneId)
         for (videoView in videoViews(bannerView)) {
-            videoView.mute(!wantsSound)
+            videoView.mute(check.mute)
         }
     }
 
@@ -602,8 +616,61 @@ open class SellwildAdView @JvmOverloads constructor(
     private fun openHouseUrl(url: String?) {
         // http/https only — the click URL is remote CMS config; never hand an
         // arbitrary scheme (intent:/market:/deep link) to an ACTION_VIEW intent.
-        val uri = SellwildSafeUrl.external(url) ?: return
-        runCatching { CustomTabsIntent.Builder().build().launchUrl(context, uri) }
+        val uri = SellwildSafeUrl.external(url)
+        if (uri == null) {
+            // No click URL configured is not a failure; one that is not http(s) is.
+            if (!url.isNullOrEmpty()) {
+                logHouse(SellwildFailureCode.HOUSE_OPEN_URL_INVALID, message = "the house ad click URL is not http(s)")
+            }
+            return
+        }
+        try {
+            CustomTabsIntent.Builder().build().launchUrl(context, uri)
+        } catch (e: Throwable) {
+            // No browser, or the context cannot start an activity: the tap does nothing.
+            // Throwable, as before this was reported: an Error here must not crash the host.
+            logHouse(SellwildFailureCode.HOUSE_OPEN_URL_EXCEPTION, error = e, url = url)
+        }
+    }
+
+    private fun logHouse(code: String, message: String? = null, error: Throwable? = null, url: String? = null) {
+        SellwildFailures.log(
+            code = code,
+            component = SellwildFailureComponent.HOUSE,
+            severity = SellwildFailureSeverity.WARN,
+            error = error,
+            message = message,
+            url = url,
+            zoneId = zoneId,
+        )
+    }
+
+    /** Reports an ad failure for this slot. */
+    private fun logAd(
+        code: String,
+        severity: String,
+        message: String? = null,
+        error: Throwable? = null,
+        component: String = SellwildFailureComponent.BANNER,
+    ) {
+        SellwildFailures.log(
+            code = code,
+            component = component,
+            severity = severity,
+            error = error,
+            message = message,
+            zoneId = zoneId,
+        )
+    }
+
+    /** Prebid init did not come up during the cold-start wait (the load goes on without it). */
+    private fun logPrebidTimeout(then: String, component: String = SellwildFailureComponent.BANNER) {
+        logAd(
+            SellwildFailureCode.AD_PREBID_INIT_TIMEOUT,
+            SellwildFailureSeverity.WARN,
+            message = "Prebid not ready after ${AdDecisions.MAX_PREBID_WAIT_ATTEMPTS} waits; $then",
+            component = component,
+        )
     }
 
     // ── GAM path (.both / .gamOnly) ──────────────────────────────────────────
@@ -617,27 +684,37 @@ open class SellwildAdView @JvmOverloads constructor(
             prebidBanner = null
             boltive.stop()
         }
-        nativeAdView?.let { it.destroy(); removeView(it); nativeAdView = null }
+        nativeAdView?.let {
+            it.destroy()
+            removeView(it)
+            nativeAdView = null
+        }
         bannerView?.let { return it }
 
-        // Capture lateinit property to satisfy Kotlin's null-safety in lambdas.
+        // Captured: inside apply, `adSize` is the AdManagerAdView's own.
         val size = adSize
         val banner = AdManagerAdView(context).apply {
             // Multi-size: primary + any BANNER_SIZES fallbacks.
             SellwildAdSizes.applyGam(resolvedAdSizes, this)
-            adUnitId = resolveGAMAdUnitID()
+            // No configured unit falls back to Google's test unit, reported once per
+            // config (ad.gam_unit.missing): it earns nothing.
+            adUnitId = AdDecisions.gamAdUnit(config.gamTag, remoteObject(config.remoteJson), size.width, size.height)
+                .reportedOncePer(config.remoteJson)
             adListener = bannerAdListener()
         }
         bannerView = banner
 
         // Reserve the widest/tallest size the auction may return (primary + any
         // BANNER_SIZES fallbacks) so a wider/taller fallback creative doesn't clip.
+        addView(banner, boundingLayoutParams())
+        return banner
+    }
+
+    /** Layout params for the bounding box of every size the auction may return. */
+    private fun boundingLayoutParams(): LayoutParams {
         val bound = SellwildAdSizes.boundingSize(resolvedAdSizes)
         val dp = context.resources.displayMetrics.density
-        val widthPx = (bound.width * dp).toInt()
-        val heightPx = (bound.height * dp).toInt()
-        addView(banner, LayoutParams(widthPx, heightPx))
-        return banner
+        return LayoutParams(AdDecisions.px(bound.width, dp), AdDecisions.px(bound.height, dp))
     }
 
     private fun loadGam(runAuction: Boolean) {
@@ -652,7 +729,7 @@ open class SellwildAdView @JvmOverloads constructor(
         // Plain GAM: .gamOnly, or no zone to bid against — no auction, no waiting.
         if (!runAuction || configId.isNullOrEmpty()) {
             prebidWaitAttempts = 0
-            banner.loadAd(AdManagerAdRequest.Builder().build())
+            network.loadGam(banner, AdManagerAdRequest.Builder().build())
             return
         }
 
@@ -661,18 +738,19 @@ open class SellwildAdView @JvmOverloads constructor(
         // briefly so the first impression isn't silently downgraded to GAM-only
         // and loses Prebid demand; fall back to plain GAM only if init is too
         // slow or has failed.
-        if (!SellwildPrebidMobile.isReady()) {
-            if (prebidWaitAttempts < maxPrebidWaitAttempts) {
-                prebidWaitAttempts++
-                val h = prebidWaitHandler
-                    ?: Handler(Looper.getMainLooper()).also { prebidWaitHandler = it }
-                h.postDelayed({ loadGam(runAuction) }, prebidWaitIntervalMs)
+        when (AdDecisions.coldStart(SellwildPrebidMobile.isReady(), prebidWaitAttempts)) {
+            AdDecisions.ColdStart.WAIT -> {
+                waitForPrebid { loadGam(runAuction) }
                 return
             }
-            // Init never came up in time — serve GAM so fill is still attempted.
-            prebidWaitAttempts = 0
-            banner.loadAd(AdManagerAdRequest.Builder().build())
-            return
+            AdDecisions.ColdStart.TIMED_OUT -> {
+                // Init never came up in time — serve GAM so fill is still attempted.
+                prebidWaitAttempts = 0
+                logPrebidTimeout("loading GAM without header bidding")
+                network.loadGam(banner, AdManagerAdRequest.Builder().build())
+                return
+            }
+            AdDecisions.ColdStart.READY -> Unit
         }
 
         prebidWaitAttempts = 0
@@ -709,10 +787,13 @@ open class SellwildAdView @JvmOverloads constructor(
             bannerView = null
             boltive.stop()
         }
-        nativeAdView?.let { it.destroy(); removeView(it); nativeAdView = null }
+        nativeAdView?.let {
+            it.destroy()
+            removeView(it)
+            nativeAdView = null
+        }
         prebidBanner?.let { return it }
 
-        // Capture lateinit property to satisfy Kotlin's null-safety in lambdas.
         val size = adSize
 
         // BannerView(context, configId, adSize) uses Prebid's standalone
@@ -723,10 +804,10 @@ open class SellwildAdView @JvmOverloads constructor(
             configId,
             PrebidAdSize(size.width, size.height),
         ).apply {
-            setBannerListener(prebidBannerListener())
+            setBannerListener(prebidEvents)
             // Prebid's rendering banner owns its own auto-refresh.
             if (effectiveRefreshMax > 0) {
-                setAutoRefreshDelay((config.adRefreshIntervalMs.coerceAtLeast(MIN_REFRESH_INTERVAL_MS) / 1000L).toInt())
+                setAutoRefreshDelay(AdDecisions.autoRefreshDelaySeconds(config.adRefreshIntervalMs))
             }
             // Multiformat: request banner AND outstream video on one imp when
             // enabled. The shaded fork (3.3.2-sw1) exposes setAdUnitFormats on the
@@ -750,12 +831,8 @@ open class SellwildAdView @JvmOverloads constructor(
         // Reserve the widest/tallest size the auction may return so a wider/
         // taller multi-size winner doesn't clip before it renders. Once the
         // creative renders, the sw3 fork surfaces the won size and
-        // prebidBannerListener tightens this box down to it.
-        val bound = SellwildAdSizes.boundingSize(resolvedAdSizes)
-        val dp = context.resources.displayMetrics.density
-        val widthPx = (bound.width * dp).toInt()
-        val heightPx = (bound.height * dp).toInt()
-        addView(prebid, LayoutParams(widthPx, heightPx))
+        // prebidEvents tightens this box down to it.
+        addView(prebid, boundingLayoutParams())
         return prebid
     }
 
@@ -767,16 +844,21 @@ open class SellwildAdView @JvmOverloads constructor(
      * whitespace. No-op on a missing view or non-positive size.
      */
     private fun tightenPrebidSlot(widthDp: Int, heightDp: Int) {
-        if (widthDp <= 0 || heightDp <= 0) return
+        // SellwildAdSizes.renderedSize never gives a non-positive size: it falls back to the primary.
         val pb = prebidBanner ?: return
         val dp = context.resources.displayMetrics.density
-        pb.layoutParams = LayoutParams((widthDp * dp).toInt(), (heightDp * dp).toInt())
+        pb.layoutParams = LayoutParams(AdDecisions.px(widthDp, dp), AdDecisions.px(heightDp, dp))
         pb.requestLayout()
     }
 
     private fun loadPrebidOnly() {
         val prebid = ensurePrebidBanner()
         if (prebid == null) {
+            logAd(
+                SellwildFailureCode.AD_ZONE_MISSING,
+                SellwildFailureSeverity.ERROR,
+                message = "PREBID_ONLY needs a zone id (the Prebid configId)",
+            )
             listener?.onAdFailed(
                 this,
                 "SellwildAdView resolved to PREBID_ONLY but has no zoneId; " +
@@ -788,16 +870,25 @@ open class SellwildAdView @JvmOverloads constructor(
         // first load(). Unlike GAM we can't fall back to a GAM request, so a
         // premature loadAd() no-fills and leaves the slot blank. Wait briefly for
         // readiness, then load regardless once the wait budget is spent.
-        if (!SellwildPrebidMobile.isReady() && prebidWaitAttempts < maxPrebidWaitAttempts) {
-            prebidWaitAttempts++
-            val h = prebidWaitHandler ?: Handler(Looper.getMainLooper()).also { prebidWaitHandler = it }
-            h.postDelayed({ loadPrebidOnly() }, prebidWaitIntervalMs)
-            return
+        when (AdDecisions.coldStart(SellwildPrebidMobile.isReady(), prebidWaitAttempts)) {
+            AdDecisions.ColdStart.WAIT -> {
+                waitForPrebid { loadPrebidOnly() }
+                return
+            }
+            AdDecisions.ColdStart.TIMED_OUT -> logPrebidTimeout("loading the Prebid banner anyway")
+            AdDecisions.ColdStart.READY -> Unit
         }
         prebidWaitAttempts = 0
         prebidRefreshCount = 0
         prebidHasRenderedCreative = false
-        prebid.loadAd()
+        network.loadRendering(prebid)
+    }
+
+    /** One more cold-start wait for Prebid init, then [retry]. */
+    private fun waitForPrebid(retry: () -> Unit) {
+        prebidWaitAttempts++
+        val h = prebidWaitHandler ?: Handler(Looper.getMainLooper()).also { prebidWaitHandler = it }
+        h.postDelayed({ retry() }, AdDecisions.PREBID_WAIT_INTERVAL_MS)
     }
 
     // ── Prebid native path (.prebidOnly + NATIVE_ENABLED) ────────────────────
@@ -810,8 +901,16 @@ open class SellwildAdView @JvmOverloads constructor(
         }
 
         // Tear down banner render paths if we previously rendered one.
-        bannerView?.let { it.destroy(); removeView(it); bannerView = null }
-        prebidBanner?.let { it.destroy(); removeView(it); prebidBanner = null }
+        bannerView?.let {
+            it.destroy()
+            removeView(it)
+            bannerView = null
+        }
+        prebidBanner?.let {
+            it.destroy()
+            removeView(it)
+            prebidBanner = null
+        }
         // Native assets render in our own views — nothing for Boltive to watch.
         boltive.stop()
         nativeAdView?.let { return it }
@@ -829,18 +928,18 @@ open class SellwildAdView @JvmOverloads constructor(
                 // Native fills to the (capped) height; report it so the host
                 // slot resizes to the template rather than clipping.
                 self.listener?.onAdResize(self, adSize.width, cap)
-                self.listener?.onAdImpression(self, self.zoneId.orEmpty())
+                self.listener?.onAdImpression(self, self.zoneLabel)
                 self.emitAdRender()
             }
             onClick = {
                 val self = this@SellwildAdView
                 self.listener?.onAdClicked(self)
-                SellwildEventQueue.shared(self.context).track("click", label = self.zoneId.orEmpty())
+                SellwildEventQueue.shared(self.context).track("click", label = self.zoneLabel)
             }
             onFailed = { message ->
                 val self = this@SellwildAdView
                 self.listener?.onAdFailed(self, message)
-                SellwildEventQueue.shared(self.context).track("adError", action = message, label = self.zoneId.orEmpty())
+                SellwildEventQueue.shared(self.context).track("adError", action = message, label = self.zoneLabel)
                 // Native no-fill — the house backdrop (installed in load()) is
                 // still showing, so record it as a house impression, matching the
                 // banner no-fill callbacks. No-op unless the house view is visible.
@@ -855,6 +954,12 @@ open class SellwildAdView @JvmOverloads constructor(
     private fun loadPrebidNative() {
         val native = ensureNativeAdView()
         if (native == null) {
+            logAd(
+                SellwildFailureCode.AD_ZONE_MISSING,
+                SellwildFailureSeverity.ERROR,
+                message = "native needs a zone id (the Prebid configId)",
+                component = SellwildFailureComponent.NATIVE,
+            )
             listener?.onAdFailed(
                 this,
                 "SellwildAdView resolved to native but has no zoneId; " +
@@ -866,11 +971,14 @@ open class SellwildAdView @JvmOverloads constructor(
         // Prebid init, and native is one-shot (no auto-refresh/retry) — a premature
         // no-fill strands the slot on house/blank for its lifetime. Wait briefly
         // for readiness, then load regardless once the wait budget is spent.
-        if (!SellwildPrebidMobile.isReady() && prebidWaitAttempts < maxPrebidWaitAttempts) {
-            prebidWaitAttempts++
-            val h = prebidWaitHandler ?: Handler(Looper.getMainLooper()).also { prebidWaitHandler = it }
-            h.postDelayed({ loadPrebidNative() }, prebidWaitIntervalMs)
-            return
+        when (AdDecisions.coldStart(SellwildPrebidMobile.isReady(), prebidWaitAttempts)) {
+            AdDecisions.ColdStart.WAIT -> {
+                waitForPrebid { loadPrebidNative() }
+                return
+            }
+            AdDecisions.ColdStart.TIMED_OUT ->
+                logPrebidTimeout("loading the native ad anyway", SellwildFailureComponent.NATIVE)
+            AdDecisions.ColdStart.READY -> Unit
         }
         prebidWaitAttempts = 0
         native.load()
@@ -885,21 +993,28 @@ open class SellwildAdView @JvmOverloads constructor(
      * flush) but no label, matching the web widget's payload, and is deduped by
      * [firstAdViewedGuard] so it lands once per surface mount even across refreshes.
      */
+    private var firstLoadTimer: (() -> Long)? = null
+    private var firstLoadTimed = false
+
     private fun emitAdRender() {
+        firstLoadTimer?.let { timer ->
+            firstLoadTimer = null
+            firstLoadTimed = true
+            if (SellwildTiming.claimOnce("ad.firstLoad:$zoneLabel")) timer()
+        }
         val q = SellwildEventQueue.shared(context)
-        q.track("adRenderSucceeded", label = zoneId.orEmpty())
+        q.track("adRenderSucceeded", label = zoneLabel)
         firstAdViewedGuard.fireOnce {
             q.track("firstAdViewed")
-            android.util.Log.d(
-                "SellwildEvents",
-                "[firstAdViewed] fired once for this ad surface (zone ${zoneId.orEmpty()})",
-            )
+            SellwildLog.debug { "[firstAdViewed] fired once for this ad surface (zone $zoneId)" }
         }
     }
 
     // ── Boltive (ad quality) ─────────────────────────────────────────────────
 
     /** Monitor this render with Boltive when the policy allows it. */
+    // what Boltive needs about the render
+    @Suppress("LongParameterList")
     private fun monitorWithBoltive(
         view: View,
         widthDp: Int,
@@ -927,10 +1042,12 @@ open class SellwildAdView @JvmOverloads constructor(
      * has budget (the reload counts against the cap). The next successful
      * render makes the banner visible again.
      */
+    // a late callback, a detached view, no refresh budget
+    @Suppress("ReturnCount")
     private fun handleBoltiveBlock(blocked: View) {
         // Ignore a late callback for a banner we've since torn down.
         if (blocked !== bannerView && blocked !== prebidBanner) return
-        Log.w(TAG, "[Boltive] creative blocked — zone ${zoneId.orEmpty()}, source $boltiveSource")
+        SellwildLog.debug { "[Boltive] creative blocked — zone $zoneLabel, source $boltiveSource" }
         blocked.visibility = View.INVISIBLE
         setHouseVisible(true)
         listener?.onAdBlocked(this, zoneId.orEmpty())
@@ -944,7 +1061,8 @@ open class SellwildAdView @JvmOverloads constructor(
             refreshCount++
             load()
         } else if (hasPrebidRefreshBudget) {
-            prebidBanner?.loadAd()
+            // Through the network seam, as every other Prebid re-auction here.
+            network.loadRendering(blocked as PrebidBannerView)
         }
     }
 
@@ -963,7 +1081,7 @@ open class SellwildAdView @JvmOverloads constructor(
             // Report the actual rendered creative size so multi-size fallbacks
             // (e.g. a 320x50 win in a 300x250 request) resize the host slot.
             self.bannerView?.adSize?.let { self.listener?.onAdResize(self, it.width, it.height) }
-            self.listener?.onAdImpression(self, self.zoneId.orEmpty())
+            self.listener?.onAdImpression(self, self.zoneLabel)
             self.emitAdRender()
             // GAM path: Boltive reads advertiser/creative/line item from the GMA
             // ResponseInfo itself.
@@ -973,7 +1091,7 @@ open class SellwildAdView @JvmOverloads constructor(
                     gam.adSize?.width ?: self.adSize.width,
                     gam.adSize?.height ?: self.adSize.height,
                     SellwildBoltive.Network.GAM,
-                    SellwildBoltiveController.Tag(adUnitId = gam.adUnitId.orEmpty()),
+                    SellwildBoltiveController.Tag(adUnitId = gam.adUnitId),
                     source = "gam",
                 )
             }
@@ -982,11 +1100,20 @@ open class SellwildAdView @JvmOverloads constructor(
 
         override fun onAdFailedToLoad(error: LoadAdError) {
             val self = this@SellwildAdView
-            // No-fill — surface the house backdrop (re-shown in case a prior fill
+            // Empty slot — surface the house backdrop (re-shown in case a prior fill
             // hid it) so the slot isn't blank, then record the house impression.
             self.setHouseVisible(true)
             self.listener?.onAdFailed(self, error.message)
-            SellwildEventQueue.shared(self.context).track("adError", action = error.message, label = self.zoneId.orEmpty())
+            SellwildEventQueue.shared(self.context).track("adError", action = error.message, label = self.zoneLabel)
+            // adError stays for every empty slot (A6); a failure other than no-fill is
+            // also reported.
+            if (!AdDecisions.isGamNoFill(error.code)) {
+                self.logAd(
+                    SellwildFailureCode.AD_GAM_LOAD_EXCEPTION,
+                    SellwildFailureSeverity.WARN,
+                    message = "GAM load error ${error.code}: ${error.message}",
+                )
+            }
             self.recordHouseImpressionIfShowing()
             scheduleRefresh()
         }
@@ -994,11 +1121,12 @@ open class SellwildAdView @JvmOverloads constructor(
         override fun onAdClicked() {
             val self = this@SellwildAdView
             self.listener?.onAdClicked(self)
-            SellwildEventQueue.shared(self.context).track("click", label = self.zoneId.orEmpty())
+            SellwildEventQueue.shared(self.context).track("click", label = self.zoneLabel)
         }
     }
 
-    private fun prebidBannerListener() = object : BannerViewListener {
+    /** The Prebid rendering banner's events: one listener for every banner this view creates. */
+    internal val prebidEvents: BannerViewListener = object : BannerViewListener {
         override fun onAdLoaded(bannerView: PrebidBannerView?) {
             val self = this@SellwildAdView
             // Cap prebidOnly auto-refresh at effectiveRefreshMax. Prebid's internal
@@ -1007,9 +1135,15 @@ open class SellwildAdView @JvmOverloads constructor(
             // spent. Fails safe: if this stops firing on refresh, behavior is today's.
             if (self.effectiveRefreshMax > 0) {
                 self.prebidRefreshCount++
-                if (self.prebidRefreshCount > self.effectiveRefreshMax) bannerView?.stopRefresh()
+                if (AdDecisions.prebidRefreshSpent(
+                        self.prebidRefreshCount,
+                        self.effectiveRefreshMax
+                    )
+                ) {
+                    bannerView?.stopRefresh()
+                }
             }
-            if (self.config.debug) android.util.Log.d("SellwildAdView", "[prebidOnly] rendered — zone ${self.zoneId.orEmpty()}")
+            SellwildLog.debug { "[prebidOnly] rendered — zone ${self.zoneId}" }
             self.prebidHasRenderedCreative = true
             // Visible again after a Boltive block (handleBoltiveBlock hides it).
             bannerView?.visibility = View.VISIBLE
@@ -1029,22 +1163,32 @@ open class SellwildAdView @JvmOverloads constructor(
             val response = bannerView?.bidResponse
             val bidder = response?.targeting?.get("hb_bidder")
             val reported = SellwildAdSizes.Size(bannerView?.creativeWidth ?: 0, bannerView?.creativeHeight ?: 0)
-            val rendered = SellwildAdSizes.renderedSize(reported, SellwildAdSizes.Size(self.adSize.width, self.adSize.height))
+            val rendered = SellwildAdSizes.renderedSize(
+                reported,
+                SellwildAdSizes.Size(self.adSize.width, self.adSize.height)
+            )
             if (rendered != reported) {
                 // A bid with no w/h. Report it so we can see which bidders send them.
-                if (self.config.debug) android.util.Log.w("SellwildAdView", "[prebidOnly] bid has no size (reported ${reported.width}x${reported.height}) — bidder ${bidder ?: "?"}, zone ${self.zoneId.orEmpty()}; using ${rendered.width}x${rendered.height}")
-                SellwildEventQueue.shared(self.context).track("adSizeMissing", action = bidder ?: "unknown", label = self.zoneId.orEmpty())
+                SellwildLog.debug {
+                    "[prebidOnly] bid has no size (reported ${reported.width}x${reported.height}) — " +
+                        "bidder ${bidder ?: "?"}, zone ${self.zoneLabel}; using ${rendered.width}x${rendered.height}"
+                }
+                SellwildEventQueue.shared(
+                    self.context
+                ).track("adSizeMissing", action = bidder ?: "unknown", label = self.zoneLabel)
             }
             val w = rendered.width
             val h = rendered.height
             self.tightenPrebidSlot(w, h)
             self.listener?.onAdResize(self, w, h)
-            self.listener?.onAdImpression(self, self.zoneId.orEmpty())
+            self.listener?.onAdImpression(self, self.zoneLabel)
             self.emitAdRender()
             bannerView?.let { pb ->
                 val bid = response?.winningBid
                 self.monitorWithBoltive(
-                    pb, w, h,
+                    pb,
+                    w,
+                    h,
                     SellwildBoltive.Network.PREBID,
                     SellwildBoltiveController.Tag(
                         adUnitId = self.zoneId.orEmpty(),
@@ -1058,67 +1202,62 @@ open class SellwildAdView @JvmOverloads constructor(
             }
         }
 
-        override fun onAdDisplayed(bannerView: PrebidBannerView?) {}
+        override fun onAdDisplayed(bannerView: PrebidBannerView?) = Unit
 
         override fun onAdFailed(bannerView: PrebidBannerView?, exception: AdException?) {
             val self = this@SellwildAdView
-            // Loud on purpose: this is how we diagnose why .prebidOnly renders blank.
-            if (self.config.debug) android.util.Log.w("SellwildAdView", "[prebidOnly] failed to render — zone ${self.zoneId.orEmpty()}: ${exception?.message}")
-            // No-fill — surface the house backdrop (re-shown in case a prior fill
+            val message = exception?.message
+            // Empty slot — surface the house backdrop (re-shown in case a prior fill
             // hid it) so the slot isn't blank, then record the house impression.
             self.setHouseVisible(true)
-            self.listener?.onAdFailed(self, exception?.message ?: "Prebid ad failed")
-            SellwildEventQueue.shared(self.context).track("adError", action = exception?.message, label = self.zoneId.orEmpty())
+            self.listener?.onAdFailed(self, message ?: "Prebid ad failed")
+            SellwildEventQueue.shared(self.context).track("adError", action = message, label = self.zoneLabel)
+            // adError stays for every empty slot (A6). This is how we diagnose why
+            // .prebidOnly renders blank: a failure other than no-fill is reported, and
+            // a no-fill is trace output.
+            if (AdDecisions.isPrebidNoFill(message)) {
+                SellwildLog.debug { "[prebidOnly] no fill — zone ${self.zoneId}: $message" }
+            } else {
+                self.logAd(
+                    SellwildFailureCode.AD_PREBID_RENDER_EXCEPTION,
+                    SellwildFailureSeverity.WARN,
+                    message = message ?: "no exception",
+                    error = exception,
+                )
+            }
             self.recordHouseImpressionIfShowing()
         }
 
         override fun onAdClicked(bannerView: PrebidBannerView?) {
             val self = this@SellwildAdView
             self.listener?.onAdClicked(self)
-            SellwildEventQueue.shared(self.context).track("click", label = self.zoneId.orEmpty())
+            SellwildEventQueue.shared(self.context).track("click", label = self.zoneLabel)
         }
 
-        override fun onAdClosed(bannerView: PrebidBannerView?) {}
+        override fun onAdClosed(bannerView: PrebidBannerView?) = Unit
     }
 
     private fun scheduleRefresh() {
         // Detached (paused for detach): a GAM load that lands after pause() must
         // not re-arm refresh on an off-window view — resume() restarts it.
         if (isPausedForDetach) return
-        val maxRefresh = effectiveRefreshMax
-        if (maxRefresh <= 0 || refreshCount >= maxRefresh) return
+        if (!AdDecisions.mayRefresh(refreshCount, effectiveRefreshMax)) return
 
         val handler = refreshHandler ?: Handler(Looper.getMainLooper()).also { refreshHandler = it }
         handler.removeCallbacksAndMessages(null) // never stack refresh callbacks (resume()/re-load)
-        // Floor the interval so a mis-scaled AD_REFRESH_INTERVAL (a seconds value
-        // read as ms) can't fire a sub-second refresh storm.
-        val interval = config.adRefreshIntervalMs.coerceAtLeast(MIN_REFRESH_INTERVAL_MS)
+        // Floored so a mis-scaled AD_REFRESH_INTERVAL (a seconds value read as ms)
+        // can't fire a sub-second refresh storm.
         handler.postDelayed({
             refreshCount++
             load()
-        }, interval)
+        }, AdDecisions.refreshIntervalMs(config.adRefreshIntervalMs))
     }
 
-    /**
-     * Resolve the GAM ad unit ID. Order of preference:
-     *   1. `config.gamTag` (the real GAM ad unit path provisioned by the CMS).
-     *   2. `config.remoteJson["GAM"]` raw passthrough, if set.
-     *   3. A size-appropriate Google test ad unit — partners notice their
-     *      CMS is missing a `GAM` field in production.
-     */
-    private fun resolveGAMAdUnitID(): String = resolveGAMAdUnitID(config, adSize)
-
     companion object {
-        private const val TAG = "SellwildAdView"
-
-        /** Floor for the GAM manual-refresh timer — storm guard against a
-         *  mis-scaled AD_REFRESH_INTERVAL (a seconds value read as ms). */
-        private const val MIN_REFRESH_INTERVAL_MS = 10_000L
-
         // Google-provided test ad units. /6499/example/banner only fills 320x50;
         // mrec / leaderboard / etc. need their own test units or they no-fill.
-        internal const val GAM_TEST_AD_UNIT_BANNER = "/6499/example/banner"
-        internal const val GAM_TEST_AD_UNIT_ADAPTIVE = "/21775744923/example/adaptive-banner"
+        internal const val GAM_TEST_AD_UNIT_BANNER = AdDecisions.GAM_TEST_AD_UNIT_BANNER
+        internal const val GAM_TEST_AD_UNIT_ADAPTIVE = AdDecisions.GAM_TEST_AD_UNIT_ADAPTIVE
 
         /**
          * Resolve the GAM ad unit ID. Order of preference:
@@ -1129,31 +1268,13 @@ open class SellwildAdView @JvmOverloads constructor(
          *      MREC / leaderboard / large sizes).
          */
         internal fun resolveGAMAdUnitID(config: SellwildConfig, adSize: AdSize? = null): String {
-            config.gamTag?.takeIf { it.isNotEmpty() }?.let { return it }
-
-            config.remoteJson?.let { raw ->
-                runCatching {
-                    val obj = JSONObject(raw)
-                    val gam = obj.optString("GAM", "")
-                    if (gam.isNotEmpty()) return gam
-                }
-            }
-
-            val testUnit = if (adSize != null && adSize.width == 320 && adSize.height == 50) {
-                GAM_TEST_AD_UNIT_BANNER
+            val remote = remoteObject(config.remoteJson)
+            val resolved = if (adSize == null) {
+                AdDecisions.gamAdUnit(config.gamTag, remote, 0, 0)
             } else {
-                GAM_TEST_AD_UNIT_ADAPTIVE
+                AdDecisions.gamAdUnit(config.gamTag, remote, adSize.width, adSize.height)
             }
-
-            if (config.debug) {
-                android.util.Log.w(
-                    TAG,
-                    "No GAM ad unit configured. Falling back to Google's test ad " +
-                        "unit `$testUnit`. Set `GAM` in your CMS config " +
-                        "to enable production fill.",
-                )
-            }
-            return testUnit
+            return resolved.value
         }
     }
 }

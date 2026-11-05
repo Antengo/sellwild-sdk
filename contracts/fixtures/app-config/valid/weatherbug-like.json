@@ -1,0 +1,122 @@
+{
+  "_synthetic": true,
+  "LAYOUT": "app",
+  "DATE": "2026-05-01T04:30:00.000Z",
+  "NAME": "weatherbug-like",
+  "CODE": "weatherbug",
+  "CLIENT_NAME": "WeatherBug",
+  "APP_BUNDLE_ID": "com.aws.weatherbug.pro",
+  "APP_BUNDLE_ID_IOS": "281940292",
+  "APP_BUNDLE_ID_ANDROID": "com.aws.android",
+  "APP_STORE_URL": "https://apps.apple.com/us/app/weatherbug-weather-forecast/id281940292",
+  "APP_STORE_URL_IOS": "https://apps.apple.com/us/app/weatherbug-weather-forecast/id281940292",
+  "APP_STORE_URL_ANDROID": "https://play.google.com/store/apps/details?id=com.aws.android",
+  "PUBLISHER_ID": "123",
+  "PLATFORM": "all",
+  "CONFIG_MODE": "managed",
+  "LISTINGS": "https://cache.sellwild.com/listings-img-data-sm-avif-weatherbug",
+  "SCHAIN_SID": "123",
+  "S2S_CONFIG": "[{\n  accountId: 'weatherbug',\n  bidders: ['ix', 'medianet'],\n  adapter: 'prebidServer',\n  enabled: true,\n  endpoint: {\n    p1Consent: 'https://prebid.sellwild.com/openrtb2/auction',\n    noP1Consent: 'https://prebid.sellwild.com/openrtb2/auction'\n  },\n  syncEndpoint: {\n    p1Consent: 'https://prebid.sellwild.com/cookie_sync',\n    noP1Consent: 'https://prebid.sellwild.com/cookie_sync'\n  },\n  timeout: 1300\n}]",
+  "AD_TYPE": "PrebidOnly",
+  "AD_REFRESH_MAX": 5,
+  "AD_REFRESH_MAX_MOBILE": 3,
+  "AD_REFRESH_INTERVAL": 30000,
+  "MAX_FAILED_AUCTIONS": 3,
+  "ENABLE_INTERSTITIAL": false,
+  "ENABLE_FULLSCREEN_VIDEO": false,
+  "INTERSTITIALS_PER_SESSION": 1,
+  "VIDEO_TAKEOVERS_PER_SESSION": 0,
+  "HIDE_BANNER_TOP": false,
+  "HIDE_BANNER_BOTTOM": false,
+  "AD_DISABLE_DISPLAY": false,
+  "AD_STACK": "prebidOnly",
+  "AD_STACK_BY_ZONE": {
+    "43": "gamOnly",
+    "280": "prebidOnly"
+  },
+  "VIDEO_ENABLED": false,
+  "SAFE_FRAME": false,
+  "GPP_ENABLED": true,
+  "TCF_VERSION": 2,
+  "IAB_CATS": "IAB15",
+  "BOLTIVE_CLIENT_ID": "",
+  "GROWTHCODE_ENABLED": true,
+  "GROWTHCODE_PARTNER_ID": "W347H328D",
+  "GROWTHCODE_SYNC_URL": "https://weatherbug.com",
+  "BH_TAG": "",
+  "LISTINGS_TAG_CACHE_COUNT": 0,
+  "BANNER_ZID": "",
+  "BOTTOM_BANNER_ZID": "",
+  "MOBILE_BANNER_ZID": "",
+  "MOBILE_ZID": [
+    "weatherbug-mobile-300x250"
+  ],
+  "DISPLAY_ZID": [],
+  "GAM": "/21824729475/weatherbug-weatherbug-mobile-300x250",
+  "GPID_BASE": "/sellwild/weatherbug/app/feed",
+  "COL1": "BLGLGLGLGLG",
+  "LINK_COLOR": "#234966",
+  "LOCALIZED_LISTINGS": "",
+  "MOBILE_BANNER_ZID_IOS": "",
+  "MOBILE_BANNER_ZID_ANDROID": "",
+  "MOBILE_ZID_IOS": [
+    "weatherbug-mobile-ios"
+  ],
+  "MOBILE_ZID_ANDROID": [
+    "weatherbug-mobile-android"
+  ],
+  "MOBILE_ZID_ALL_IOS": "",
+  "MOBILE_ZID_ALL_ANDROID": "",
+  "GPID_BASE_BY_ZONE": "",
+  "BANNER_SIZES": "",
+  "BANNER_SIZES_BY_ZONE": "",
+  "VIDEO_ENABLED_BY_ZONE": "",
+  "VIDEO_SOUND_ENABLED": false,
+  "VIDEO_SOUND_ENABLED_BY_ZONE": "",
+  "NATIVE_ENABLED": false,
+  "NATIVE_ENABLED_BY_ZONE": "",
+  "NATIVE_MAX_HEIGHT_BY_ZONE": "",
+  "NATIVE_ZID": "",
+  "NATIVE_ZID_IOS": "",
+  "NATIVE_ZID_ALL_IOS": "",
+  "NATIVE_ZID_ANDROID": "",
+  "NATIVE_ZID_ALL_ANDROID": "",
+  "MOBILE_HOUSE_AD_ENABLED": true,
+  "MOBILE_HOUSE_AD_IMAGE": "",
+  "MOBILE_HOUSE_AD_URL": "",
+  "MOBILE_HOUSE_AD_BY_SIZE": "",
+  "MOBILE_HOUSE_AD_BY_ZONE": "",
+  "MOBILE_AD_MUTE_AUTOPLAY": true,
+  "MOBILE_PAUSE_REFRESH_DETACHED": false,
+  "DEBUG": false,
+  "PBS_DEBUG": false,
+  "GROWTHCODE_ENABLED_BY_ZONE": "",
+  "GROWTHCODE_ENDPOINT": "",
+  "GROWTHCODE_SEND_MAID": true,
+  "GROWTHCODE_TTL_HOURS": 48,
+  "basename": "weatherbug-like",
+  "SLUG": "weatherbug-like",
+  "BIDDERS": {
+    "pubmatic": {
+      "publisherId": "160587",
+      "adSlot": "7723132"
+    },
+    "amx": {
+      "tagId": "weatherbug_app_300x250"
+    },
+    "appnexus": {
+      "placement_id": 37905686
+    },
+    "rubicon": {
+      "accountId": 23260,
+      "siteId": 641411,
+      "zoneId": 4146367
+    },
+    "sovrn": {
+      "tagid": "1315317"
+    },
+    "onetag": {
+      "pubId": "8921327bd831e35"
+    }
+  }
+}

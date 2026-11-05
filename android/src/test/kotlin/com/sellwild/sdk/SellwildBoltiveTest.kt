@@ -1,7 +1,11 @@
 package com.sellwild.sdk
 
 import org.json.JSONObject
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -27,7 +31,9 @@ class SellwildBoltiveTest {
 
     @Test fun requiresClientId() {
         assertNull(SellwildBoltive.policy(json("MOBILE_BOLTIVE_ENABLED" to true), zone))
-        assertNull(SellwildBoltive.policy(json("MOBILE_BOLTIVE_ENABLED" to true, "MOBILE_BOLTIVE_CLIENT_ID" to "  "), zone))
+        assertNull(
+            SellwildBoltive.policy(json("MOBILE_BOLTIVE_ENABLED" to true, "MOBILE_BOLTIVE_CLIENT_ID" to "  "), zone)
+        )
     }
 
     @Test fun enabledDefaults() {

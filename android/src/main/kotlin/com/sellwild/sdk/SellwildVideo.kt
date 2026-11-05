@@ -11,8 +11,8 @@
 
 package com.sellwild.sdk
 
+import com.sellwild.sdk.core.RemoteValues
 import java.util.EnumSet
-import org.json.JSONObject
 import com.sellwild.prebid.Signals
 import com.sellwild.prebid.VideoParameters
 import com.sellwild.prebid.api.data.AdUnitFormat
@@ -24,19 +24,8 @@ internal object SellwildVideo {
      * gated; defaults to `false` (banner-only). A truthy global `VIDEO_ENABLED`
      * forces on; otherwise the per-zone map decides.
      */
-    fun isEnabled(remoteJson: String?, zoneId: String?): Boolean {
-        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
-        // Global ON forces video everywhere; a falsy/absent global falls through
-        // to the per-zone map (so a CMS-emitted VIDEO_ENABLED:false doesn't
-        // dead-letter VIDEO_ENABLED_BY_ZONE — the AD_STACK_BY_ZONE gotcha).
-        if (truthy(obj.optAny("VIDEO_ENABLED"))) return true
-        if (zoneId != null) {
-            obj.optJSONObject("VIDEO_ENABLED_BY_ZONE")?.let { byZone ->
-                if (byZone.has(zoneId) && !byZone.isNull(zoneId)) return truthy(byZone.get(zoneId))
-            }
-        }
-        return false
-    }
+    fun isEnabled(remoteJson: String?, zoneId: String?): Boolean =
+        flag(remoteJson, zoneId, "VIDEO_ENABLED", "VIDEO_ENABLED_BY_ZONE")
 
     /** Format set for a multiformat banner+video ad unit. */
     fun bannerVideoFormats(): EnumSet<AdUnitFormat> =
@@ -53,15 +42,16 @@ internal object SellwildVideo {
      * equivalent) — this value is consumed by [SellwildAdView]'s direct
      * `VideoView.mute()` enforcement instead of a request-side config write.
      */
-    fun soundEnabled(remoteJson: String?, zoneId: String?): Boolean {
-        val obj = remoteJson?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
-        if (truthy(obj.optAny("VIDEO_SOUND_ENABLED"))) return true
-        if (zoneId != null) {
-            obj.optJSONObject("VIDEO_SOUND_ENABLED_BY_ZONE")?.let { byZone ->
-                if (byZone.has(zoneId) && !byZone.isNull(zoneId)) return truthy(byZone.get(zoneId))
-            }
-        }
-        return false
+    fun soundEnabled(remoteJson: String?, zoneId: String?): Boolean =
+        flag(remoteJson, zoneId, "VIDEO_SOUND_ENABLED", "VIDEO_SOUND_ENABLED_BY_ZONE")
+
+    // Global ON forces the flag everywhere; a falsy/absent global falls through to the
+    // per-zone map (so a CMS-emitted VIDEO_ENABLED:false doesn't dead-letter
+    // VIDEO_ENABLED_BY_ZONE — the AD_STACK_BY_ZONE gotcha).
+    private fun flag(remoteJson: String?, zoneId: String?, key: String, byZoneKey: String): Boolean {
+        val obj = remoteObject(remoteJson) ?: return false
+        if (RemoteValues.isOn(RemoteValues.optAny(obj, key))) return true
+        return RemoteValues.isOn(RemoteValues.byZone(obj, byZoneKey, zoneId))
     }
 
     /**
@@ -98,14 +88,4 @@ internal object SellwildVideo {
             maxDuration = 30
             minDuration = 5
         }
-
-    private fun truthy(v: Any?): Boolean = when (v) {
-        is Boolean -> v
-        is Number -> v.toInt() != 0
-        is String -> v.lowercase() in setOf("1", "true", "yes", "on")
-        else -> false
-    }
-
-    private fun JSONObject.optAny(key: String): Any? =
-        if (has(key) && !isNull(key)) get(key) else null
 }

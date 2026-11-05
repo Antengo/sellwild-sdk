@@ -1,0 +1,10 @@
+# The sample's changes to the SDK's detekt rules (android/config/detekt/detekt.yml),
+# for Compose code. app/build.gradle.kts loads this file after the SDK's.
+naming:
+  FunctionNaming:
+    # Composables are named like types (the Compose API guidelines).
+    ignoreAnnotated: ['Composable']
+style:
+  MagicNumber:
+    # Layout sizes (16.dp, 250) read best where they are used.
+    ignoreAnnotated: ['Composable']
