@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.sellwild.sdk.core.Fetch
 import com.sellwild.sdk.core.ListingsParser
+import com.sellwild.sdk.core.ReaderLink
 import com.sellwild.sdk.failures.FailuresCore
 import com.sellwild.sdk.failures.SellwildFailureCode
 import com.sellwild.sdk.failures.SellwildFailureComponent
@@ -86,30 +87,44 @@ data class SellwildListing(
      * 1. [url] (optionally rewritten with `?tag={bhTag}` for Bargain Hunter)
      * 2. [remoteUrl] when `dataSourceId == "31"` (off-platform partner link)
      * 3. `https://sellwild.com/product/{id}?p={partner}&utm_source={partner}` fallback
+     *
+     * A sellwild.com result also carries [readerId] as `sw_wuid`, so sellwild.com can match
+     * this reader to their visit ([ReaderLink]). It defaults to the SDK's stored reader id
+     * (`_sw_uid`) once any SDK view has made the event queue; before that, and for an empty
+     * id, the link has no `sw_wuid`.
      */
-    fun tapUrl(partnerCode: String?, bhTag: String? = null): String? {
-        // 1. Direct URL on the listing.
-        url?.takeIf { it.isNotEmpty() }?.let { direct ->
-            if (!bhTag.isNullOrEmpty()) {
-                val u = android.net.Uri.parse(direct)
-                val builder = u.buildUpon().clearQuery()
-                u.queryParameterNames.filter { it != "tag" }.forEach { k ->
-                    builder.appendQueryParameter(k, u.getQueryParameter(k))
-                }
-                builder.appendQueryParameter("tag", bhTag)
-                return builder.build().toString()
+    fun tapUrl(
+        partnerCode: String?,
+        bhTag: String? = null,
+        readerId: String? = SellwildEventQueue.sharedUidOrNull(),
+    ): String? = destinationUrl(partnerCode, bhTag)?.let { ReaderLink.withReaderId(it, readerId) }
+
+    private fun destinationUrl(partnerCode: String?, bhTag: String?): String? {
+        val direct = url?.takeIf { it.isNotEmpty() }
+        return when {
+            // 1. Direct URL on the listing.
+            direct != null -> if (bhTag.isNullOrEmpty()) direct else withTag(direct, bhTag)
+            // 2. Off-platform remote_url only when dataSourceId == "31".
+            dataSourceId == "31" && !remoteUrl.isNullOrEmpty() -> remoteUrl
+            // 3. Canonical Sellwild product URL.
+            id.isEmpty() -> null
+            else -> {
+                val partner = (if (!partnerCode.isNullOrEmpty()) partnerCode else "sellwild")
+                val encoded = android.net.Uri.encode(partner)
+                "https://sellwild.com/product/$id?p=$encoded&utm_source=$encoded"
             }
-            return direct
         }
-        // 2. Off-platform remote_url only when dataSourceId == "31".
-        if (dataSourceId == "31" && !remoteUrl.isNullOrEmpty()) {
-            return remoteUrl
+    }
+
+    /** [direct] with its `tag` param set to [tag], last; the other params kept. */
+    private fun withTag(direct: String, tag: String): String {
+        val u = android.net.Uri.parse(direct)
+        val builder = u.buildUpon().clearQuery()
+        u.queryParameterNames.filter { it != "tag" }.forEach { k ->
+            builder.appendQueryParameter(k, u.getQueryParameter(k))
         }
-        // 3. Canonical Sellwild product URL.
-        if (id.isEmpty()) return null
-        val partner = (if (!partnerCode.isNullOrEmpty()) partnerCode else "sellwild")
-        val encoded = android.net.Uri.encode(partner)
-        return "https://sellwild.com/product/$id?p=$encoded&utm_source=$encoded"
+        builder.appendQueryParameter("tag", tag)
+        return builder.build().toString()
     }
 }
 
@@ -587,6 +602,12 @@ class SellwildEventQueue internal constructor(
             if (created) SellwildFailures.attachQueue(queue)
             return queue
         }
+
+        /**
+         * The process-wide queue's reader id (`_sw_uid`), or null before any SDK view made the
+         * queue. [SellwildListing.tapUrl]'s default, since it has no Context.
+         */
+        internal fun sharedUidOrNull(): String? = instance?.uid
 
         /** Forgets the process-wide queue. Tests only. */
         internal fun resetSharedForTests() {

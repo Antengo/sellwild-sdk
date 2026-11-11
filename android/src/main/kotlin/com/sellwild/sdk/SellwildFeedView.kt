@@ -541,7 +541,7 @@ open class SellwildFeedView @JvmOverloads constructor(
      *  through the host hook, falling back to opening the listing URL. */
     private fun handleFeedListingTap(cfg: SellwildConfig, listing: SellwildListing) {
         val handled = listener?.onListingTap(listing) ?: false
-        if (!handled) openUrl(listing.tapUrl(cfg.partnerCode, cfg.bhTag))
+        if (!handled) openUrl(listing.tapUrl(cfg.partnerCode, cfg.bhTag, SellwildEventQueue.shared(context).uid))
     }
 
     /**

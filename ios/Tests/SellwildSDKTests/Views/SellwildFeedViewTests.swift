@@ -234,7 +234,7 @@ final class SellwildFeedViewTests: ViewTestCase {
         host.add(feed)
         feed.tableView(feed.tableView, didSelectRowAt: IndexPath(row: 1, section: 0))
         XCTAssertEqual(delegate.calls.last, "tap 1")
-        XCTAssertEqual(presented.map(\.absoluteString), ["https://sellwild.com/listing/1"])
+        XCTAssertEqual(presented.map(\.absoluteString), ["https://sellwild.com/listing/1" + readerQuery])
         delegate.consumeTaps = true
         feed.tableView(feed.tableView, didSelectRowAt: IndexPath(row: 1, section: 0))
         XCTAssertEqual(presented.count, 1, "a consumed tap is not opened")
@@ -319,7 +319,7 @@ final class SellwildFeedViewTests: ViewTestCase {
 
         fallback.onTap?()
         XCTAssertEqual(delegate.calls.last, "tap 2", "the backfill is a listing not shown elsewhere")
-        XCTAssertEqual(presented.map(\.absoluteString), ["https://sellwild.com/listing/2"])
+        XCTAssertEqual(presented.map(\.absoluteString), ["https://sellwild.com/listing/2" + readerQuery])
 
         feed.tableView.reloadData()
         feed.tableView.layoutIfNeeded()

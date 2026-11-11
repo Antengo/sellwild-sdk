@@ -141,8 +141,6 @@
     <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("attributes")</ID>
     <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("code")</ID>
     <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231.jpg", listing.primaryPhotoUrl)</ID>
-    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&amp;pubId=234000&amp;url=1", remote.tapUrl("weatherbug", ""))</ID>
-    <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("https://sellwild.com/product/105140231?p=sellwild&amp;utm_source=sellwild", product.copy(url = "").tapUrl(""))</ID>
     <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("samples/app-config/weatherbug_weatherbug-main.403.xml")</ID>
     <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("samples/localized-listings-response/sports-img-data-sm-webp-zz.403.xml")</ID>
     <ID>ArgumentListWrapping:SellwildAPIClientTest.kt$SellwildAPIClientTest$("weatherbug", "")</ID>
@@ -732,8 +730,6 @@
     <ID>MaxLineLength:PrebidSetupTest.kt$PrebidSetupTest$assertEquals(mapOf("device" to mapOf("geo" to mapOf("region" to "GA"))), parsed(PrebidSetup.globalOrtb(null, emptyList(), geo)))</ID>
     <ID>MaxLineLength:RemoteValuesTest.kt$RemoteValuesTest$listOf&lt;Any?&gt;(true, 1, "yes", "anything", "", JSONObject(), null).forEach { assertTrue("$it", RemoteValues.isNotOff(it)) }</ID>
     <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertEquals("https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231.jpg", listing.primaryPhotoUrl)</ID>
-    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertEquals("https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&amp;pubId=234000&amp;url=1", remote.tapUrl("weatherbug", ""))</ID>
-    <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertEquals("https://sellwild.com/product/105140231?p=sellwild&amp;utm_source=sellwild", product.copy(url = "").tapUrl(""))</ID>
     <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertEquals(listOf("weatherbug", "configured", "configured"), events.failures.map { it.getJSONObject("attributes").getString("code") })</ID>
     <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertTrue(client.fetchListings(SellwildConfig(partnerCode = "weatherbug", listingsUrl = listingsUrl)).isSuccess)</ID>
     <ID>MaxLineLength:SellwildAPIClientTest.kt$SellwildAPIClientTest$assertTrue(fetchState(StubResponse(200), url = "file:///sdcard/al.json").exceptionOrNull() is MalformedURLException)</ID>

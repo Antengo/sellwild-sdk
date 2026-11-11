@@ -48,6 +48,9 @@ class SellwildAPIClientTest {
     private val stateUrl = "https://sellwild-sports-cache.s3.us-east-1.amazonaws.com/sports-img-data-sm-webp-al.json"
     private lateinit var events: CapturedEvents
 
+    /** A v4 UUID, the shape of the `_sw_uid` the SDK stores. */
+    private val reader = "3f2b8c1e-7d4a-4b6e-9a1c-5e8f0d2c4b7a"
+
     @Before
     fun capture() {
         events = CapturedEvents().install()
@@ -306,18 +309,77 @@ class SellwildAPIClientTest {
 
         val localized = ListingsParserFor.listing(ListingFactory.variant("localized-item"))
 
-        assertEquals("https://o.bttn.io/19BIp9F5cLj?tag=sw-bh", bargain.tapUrl("weatherbug", "sw-bh"))
+        assertEquals("https://o.bttn.io/19BIp9F5cLj?tag=sw-bh", bargain.tapUrl("weatherbug", "sw-bh", reader))
         assertEquals(
             "other query params are kept, the tag goes last",
             "https://sportserver.com/products/ncaa-tee?utm_source=sellwild&tag=sw-bh",
-            localized.tapUrl("weatherbug", "sw-bh"),
+            localized.tapUrl("weatherbug", "sw-bh", reader),
         )
-        assertEquals("https://o.bttn.io/19BIp9F5cLj?tag=marketplace-usw-20", bargain.tapUrl("weatherbug"))
-        assertEquals("https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&pubId=234000&url=1", remote.tapUrl("weatherbug", ""))
-        assertEquals("https://sellwild.com/product/105140231?p=a%20b&utm_source=a%20b", product.tapUrl("a b"))
-        assertEquals("https://sellwild.com/product/105140231?p=sellwild&utm_source=sellwild", product.tapUrl(null))
-        assertNull(product.copy(id = "").tapUrl("weatherbug"))
-        assertEquals("https://sellwild.com/product/105140231?p=sellwild&utm_source=sellwild", product.copy(url = "").tapUrl(""))
+        assertEquals(
+            "https://o.bttn.io/19BIp9F5cLj?tag=marketplace-usw-20",
+            bargain.tapUrl("weatherbug", readerId = reader),
+        )
+        assertEquals(
+            "https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&pubId=234000&url=1",
+            remote.tapUrl("weatherbug", "", reader),
+        )
+        assertEquals(
+            "https://sellwild.com/product/105140231?p=a%20b&utm_source=a%20b&sw_wuid=$reader",
+            product.tapUrl("a b", readerId = reader),
+        )
+        assertEquals(
+            "https://sellwild.com/product/105140231?p=sellwild&utm_source=sellwild&sw_wuid=$reader",
+            product.tapUrl(null, readerId = reader),
+        )
+        assertNull(product.copy(id = "").tapUrl("weatherbug", readerId = reader))
+        assertEquals(
+            "https://sellwild.com/product/105140231?p=sellwild&utm_source=sellwild&sw_wuid=$reader",
+            product.copy(url = "").tapUrl("", readerId = reader),
+        )
+    }
+
+    @Test
+    fun `a sellwild_com tap URL carries the reader id as sw_wuid, other hosts and an empty id do not`() {
+        val product = ListingsParserFor.listing(ListingFactory.variant("no-remote-url"))
+        val remote = ListingsParserFor.listing(ListingFactory.build())
+        val bargain = ListingsParserFor.listing(ListingFactory.variant("bargainhunter"))
+
+        assertEquals(
+            "the weatherbug fallback gets the id",
+            "https://sellwild.com/product/105140231?p=weatherbug&utm_source=weatherbug&sw_wuid=$reader",
+            product.tapUrl("weatherbug", readerId = reader),
+        )
+        assertEquals(
+            "a www.sellwild.com direct url gets it, the tag still set",
+            "https://www.sellwild.com/product/7?x=1&tag=bh&sw_wuid=$reader",
+            product.copy(url = "https://www.sellwild.com/product/7?x=1").tapUrl("p", "bh", reader),
+        )
+        assertEquals(
+            "an old sw_wuid is replaced and the fragment kept",
+            "https://sellwild.com/product/7?a=1&b=2&sw_wuid=$reader#photos",
+            product.copy(url = "https://sellwild.com/product/7?a=1&sw_wuid=old&b=2#photos")
+                .tapUrl("p", readerId = reader),
+        )
+        assertEquals("https://o.bttn.io/19BIp9F5cLj?tag=marketplace-usw-20", bargain.tapUrl("p", readerId = reader))
+        assertEquals(
+            "https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&pubId=234000&url=1",
+            remote.tapUrl("p", readerId = reader),
+        )
+        assertEquals("https://sellwild.com/product/105140231?p=p&utm_source=p", product.tapUrl("p", readerId = ""))
+        assertEquals("https://sellwild.com/product/105140231?p=p&utm_source=p", product.tapUrl("p", readerId = null))
+    }
+
+    @Test
+    fun `the tap URL's reader id defaults to the process-wide queue's id, and to none before there is a queue`() {
+        val product = ListingsParserFor.listing(ListingFactory.variant("no-remote-url"))
+
+        assertEquals(
+            "https://sellwild.com/product/105140231?p=p&utm_source=p&sw_wuid=${SellwildEventQueue.shared(context).uid}",
+            product.tapUrl("p"),
+        )
+
+        SellwildEventQueue.resetSharedForTests()
+        assertEquals("https://sellwild.com/product/105140231?p=p&utm_source=p", product.tapUrl("p"))
     }
 
     @Test
@@ -325,7 +387,10 @@ class SellwildAPIClientTest {
         val listing = ListingsParserFor.listing(ListingFactory.build())
 
         assertEquals("19315", listing.displayPrice)
-        assertEquals("https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231.jpg", listing.primaryPhotoUrl)
+        assertEquals(
+            "https://antengo-listings.s3.us-west-2.amazonaws.com/supply_listings/26/570/231.jpg",
+            listing.primaryPhotoUrl,
+        )
         assertNull(listing.copy(price = "0").displayPrice)
         assertNull(listing.copy(price = "free").displayPrice)
         assertNull(listing.copy(price = null, photos = emptyList()).displayPrice)

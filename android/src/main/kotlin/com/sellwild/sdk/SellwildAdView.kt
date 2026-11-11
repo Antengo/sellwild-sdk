@@ -517,7 +517,10 @@ open class SellwildAdView @JvmOverloads constructor(
                 showImage(content.image)
             }
             is AdDecisions.House.Listing -> showHouse().apply {
-                onTap = { openHouseUrl(content.listing.tapUrl(config.partnerCode, config.bhTag)) }
+                onTap = {
+                    val readerId = SellwildEventQueue.shared(context).uid
+                    openHouseUrl(content.listing.tapUrl(config.partnerCode, config.bhTag, readerId))
+                }
                 showListing(content.listing, config)
             }
             else -> houseView?.visibility = GONE // AdDecisions.House.None

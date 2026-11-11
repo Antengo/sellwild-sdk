@@ -170,6 +170,10 @@ func testPNGDataURI() -> String {
     "data:image/png;base64," + testPNG().base64EncodedString()
 }
 
+/// The query a sellwild.com listing tap gains: the stored reader id as
+/// `sw_wuid` (SellwildReaderLink).
+var readerQuery: String { "?sw_wuid=\(SellwildSession.shared.uid)" }
+
 /// Base for the view shell tests: failure capture, fake ad SDKs, manual
 /// timers and a captured events queue, all installed in the views'
 /// environments, and put back afterwards.
