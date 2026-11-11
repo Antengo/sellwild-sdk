@@ -574,7 +574,7 @@ final class SellwildAdViewTests: ViewTestCase {
         XCTAssertFalse(backdrop.isHidden)
         XCTAssertEqual(backdrop.titleLabel.text, listing.title)
         backdrop.onTap?()
-        XCTAssertEqual(opened.map(\.absoluteString), ["https://sellwild.com/listing/9"])
+        XCTAssertEqual(opened.map(\.absoluteString), ["https://sellwild.com/listing/9" + readerQuery])
 
         let (banner, _) = makeView(try adConfig(), size: .banner320x50)
         banner.houseFallbackListing = listing

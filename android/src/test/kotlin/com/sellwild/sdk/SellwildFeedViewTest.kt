@@ -347,6 +347,21 @@ class SellwildFeedViewTest {
     }
 
     @Test
+    fun `a listing tap that opens sellwild_com carries the reader id as sw_wuid`() {
+        val feed = feed(config("COL1" to "L"))
+        load(feed, StubResponse(200, body(listing("l1", "url" to null, "remote_url" to null, "dataSourceId" to null))))
+        show(feed)
+
+        feed.rows()[1].performClick()
+
+        val uid = SellwildEventQueue.shared(activity).uid
+        assertEquals(
+            "https://sellwild.com/product/l1?p=minimal&utm_source=minimal&sw_wuid=$uid",
+            shadowOf(activity).nextStartedActivity.data.toString(),
+        )
+    }
+
+    @Test
     fun `a listing with nothing to open does nothing on tap and reports nothing`() {
         val feed = feed(config("COL1" to "L"))
         load(feed, StubResponse(200, body(listing("", "url" to null, "remote_url" to null, "dataSourceId" to null))))

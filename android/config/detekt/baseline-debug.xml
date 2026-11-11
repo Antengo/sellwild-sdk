@@ -299,7 +299,6 @@
     <ID>ReturnCount:GrowthCodeSync.kt$GrowthCodeSync$fun shouldSync(gcid: String?, lastSyncMs: Long?, ttlHours: Double, nowMs: Long): Boolean</ID>
     <ID>ReturnCount:GrowthCodeSync.kt$GrowthCodeSync$private fun parseUid(u: JSONObject?): SellwildEidUid?</ID>
     <ID>ReturnCount:HouseImages.kt$HouseImages$fun source(url: String): Source</ID>
-    <ID>ReturnCount:SellwildAPI.kt$SellwildListing$fun tapUrl(partnerCode: String?, bhTag: String? = null): String?</ID>
     <ID>ReturnCount:SellwildAdStack.kt$SellwildAdStack.Companion$internal fun byZone(obj: JSONObject?): Resolved&lt;Map&lt;String, SellwildAdStack&gt;&gt;</ID>
     <ID>ReturnCount:SellwildAdStack.kt$SellwildAdStack.Companion$internal fun global(obj: JSONObject?): Resolved&lt;SellwildAdStack?&gt;</ID>
     <ID>ReturnCount:SellwildAdView.kt$SellwildAdView$private fun ensureNativeAdView(): SellwildNativeAdView?</ID>

@@ -561,7 +561,8 @@ class SellwildAdViewTest {
         checkNotNull(view.house()).performClick()
 
         assertEquals(View.VISIBLE, view.house()?.visibility)
-        assertEquals(listing.tapUrl("fixture", null), shadowOf(activity).nextStartedActivity.data.toString())
+        val readerId = SellwildEventQueue.shared(activity).uid
+        assertEquals(listing.tapUrl("fixture", null, readerId), shadowOf(activity).nextStartedActivity.data.toString())
     }
 
     @Test

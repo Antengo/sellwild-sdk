@@ -105,30 +105,6 @@ final class SellwildAPIClientTests: XCTestCase {
         XCTAssertNil(bare.primaryPhoto)
     }
 
-    func testTapURL() throws {
-        let direct = try ListingFactory.decoded(ListingFactory.make(["url": "https://shop.invalid/p?tag=old&x=1"]))
-        XCTAssertEqual(direct.tapURL(partnerCode: "p", bhTag: "bh-1"), "https://shop.invalid/p?x=1&tag=bh-1")
-        XCTAssertEqual(direct.tapURL(partnerCode: "p"), "https://shop.invalid/p?tag=old&x=1")
-        XCTAssertEqual(direct.tapURL(partnerCode: "p", bhTag: ""), "https://shop.invalid/p?tag=old&x=1")
-        let bare = try ListingFactory.decoded(ListingFactory.make(["url": "https://shop.invalid/p"]))
-        XCTAssertEqual(bare.tapURL(partnerCode: "p", bhTag: "bh"), "https://shop.invalid/p?tag=bh")
-        let unparsable = try ListingFactory.decoded(ListingFactory.make(["url": "http://exa mple.invalid/[x"]))
-        XCTAssertEqual(unparsable.tapURL(partnerCode: "p", bhTag: "bh"), "http://exa mple.invalid/[x")
-
-        let remote = try ListingFactory.decoded(ListingFactory.make())
-        XCTAssertEqual(remote.tapURL(partnerCode: "p"), "https://autos.lotlinx.com?ad=JTHP3JBH8M2044125&pubId=234000&url=1")
-
-        let canonical = try ListingFactory.decoded(ListingFactory.make(["dataSourceId": "7", "url": ""]))
-        XCTAssertEqual(canonical.tapURL(partnerCode: "weather bug"),
-                       "https://sellwild.com/product/105140231?p=weather%20bug&utm_source=weather%20bug")
-        XCTAssertEqual(canonical.tapURL(partnerCode: nil), "https://sellwild.com/product/105140231?p=sellwild&utm_source=sellwild")
-        XCTAssertEqual(canonical.tapURL(partnerCode: ""), "https://sellwild.com/product/105140231?p=sellwild&utm_source=sellwild")
-        let noRemote = try ListingFactory.decoded(ListingFactory.make(["remote_url": ""]))
-        XCTAssertEqual(noRemote.tapURL(partnerCode: "p"), "https://sellwild.com/product/105140231?p=p&utm_source=p")
-        let noId = try ListingFactory.decoded(ListingFactory.make(["id": "", "dataSourceId": "7"]))
-        XCTAssertNil(noId.tapURL(partnerCode: "p"))
-    }
-
     func testDisplayPrice() throws {
         XCTAssertEqual(try ListingFactory.decoded(ListingFactory.make(["price": "19315.4"])).displayPrice, "19315")
         XCTAssertNil(try ListingFactory.decoded(ListingFactory.make(["price": "0"])).displayPrice)

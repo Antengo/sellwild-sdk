@@ -60,7 +60,7 @@ class SellwildListingsParserDeviceJsonTest {
         assertNull(listing.remoteUrl)
         assertEquals(
             "https://sellwild.com/product/105140231?p=weatherbug&utm_source=weatherbug",
-            listing.tapUrl("weatherbug"),
+            listing.tapUrl("weatherbug", readerId = ""),
         )
     }
 
