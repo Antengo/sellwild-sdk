@@ -277,17 +277,22 @@ public enum SellwildPrebidMobile {
 
     /// Push the store-URL-derived app identity into Prebid targeting: numeric
     /// App Store ID → `app.bundle` (itunesID) and the SKAdNetwork source app,
-    /// plus `app.storeurl`. A nil or id-less URL leaves the ids untouched.
+    /// plus `app.storeurl`.
+    ///
+    /// - nil URL: nothing changes (an earlier config's identity stays whole).
+    /// - URL with a numeric id: all three fields are set from it.
+    /// - URL with no numeric id: the store URL is set and both ids are cleared,
+    ///   so a previous app's id can't linger next to a different store URL.
+    ///
+    /// Not thread-safe on its own: the bootstrap path calls it holding `lock`.
     static func applyAppIdentity(storeURL: String?) {
-        if let numericId = appStoreId(from: storeURL) {
-            Targeting.shared.itunesID = numericId
-            Targeting.shared.sourceapp = numericId
-        }
+        guard let store = storeURL else { return }
+        let numericId = appStoreId(from: store)
+        Targeting.shared.itunesID = numericId
+        Targeting.shared.sourceapp = numericId
         // storeURL is independent of the bundle id — set it whenever configured
         // so a valid appStoreUrl is never dropped just because appBundleId is nil.
-        if let store = storeURL {
-            Targeting.shared.storeURL = store
-        }
+        Targeting.shared.storeURL = store
     }
 
     /// Prebid Server fields the config actually specifies: typed
