@@ -15,13 +15,19 @@ import Foundation
 /// ```
 ///
 /// Every successful fetch is persisted to disk (see `SellwildConfigCache`).
-/// On any network failure, timeout, non-2xx or malformed response the call
+/// On a network failure, timeout, server error or malformed response the call
 /// falls back to the last good payload for this `partnerCode` + `slug`, applied
 /// exactly as a fresh one would be — so ad zones and the ad stack survive an
 /// offline or flaky launch. There is no expiry: a stale config beats none.
 ///
-/// Only when there is no cached payload either (first launch with no network)
-/// does the call return a bare `SellwildConfig(partnerCode:)` with defaults.
+/// A 403, 404 or 410 is different: the CDN is saying the config was removed
+/// (it answers 403 for a missing file). That is authoritative — the saved copy
+/// is deleted and defaults are returned, so removing the CDN file works as a
+/// kill switch.
+///
+/// Otherwise, only when there is no cached payload either (first launch with
+/// no network) does the call return a bare `SellwildConfig(partnerCode:)` with
+/// defaults.
 /// That config has NO ad zones, so the feed shows listings but no ads, and
 /// standalone ad views report `missingZoneIdForPrebidOnly` unless the host
 /// supplies a zone id (the unknown ad stack defaults to `.prebidOnly`, which
@@ -49,11 +55,11 @@ public enum SellwildSDK {
         timeout: TimeInterval = 5.0,
         overrides: ((inout SellwildConfig) -> Void)? = nil
     ) async -> SellwildConfig {
-        let fetched = await fetchRemotePayload(
+        let outcome = await fetchRemotePayload(
             partnerCode: partnerCode, slug: slug, timeout: timeout
         )
         var config = resolveConfig(
-            partnerCode: partnerCode, slug: slug, fetched: fetched
+            partnerCode: partnerCode, slug: slug, outcome: outcome
         )
 
         overrides?(&config)
@@ -71,19 +77,45 @@ public enum SellwildSDK {
         return config
     }
 
-    /// Fetch the raw config payload from the CDN. Returns nil on ANY failure
-    /// (unbuildable URL, network error, timeout, non-2xx, body that isn't a
-    /// JSON object) — the caller then falls back to the cached payload.
+    /// What a config fetch produced.
+    enum FetchOutcome: Equatable {
+        /// 2xx with a JSON-object body.
+        case payload(Data)
+        /// The CDN says this config does not exist (see `goneStatusCodes`).
+        /// Authoritative: the saved copy is discarded, not reused.
+        case gone
+        /// Anything else (network error, timeout, 5xx, malformed body). The
+        /// saved copy, if any, is reused.
+        case failed
+    }
+
+    /// Statuses that mean "this config was removed", so removing the CDN file
+    /// works as a kill switch even for devices holding a saved copy. The CDN
+    /// answers 403 (not 404) for a missing object, so 403 is included.
+    static let goneStatusCodes: Set<Int> = [403, 404, 410]
+
+    /// Classify an HTTP response. Network-free so it is unit-testable.
+    static func fetchOutcome(statusCode: Int, body: Data) -> FetchOutcome {
+        if goneStatusCodes.contains(statusCode) { return .gone }
+        guard (200..<300).contains(statusCode),
+              SellwildConfigCache.jsonObject(body) != nil
+        else { return .failed }
+        return .payload(body)
+    }
+
+    /// Fetch the raw config payload from the CDN. `.failed` on an unbuildable
+    /// URL, network error, timeout, other non-2xx, or a body that isn't a JSON
+    /// object — the caller then falls back to the saved payload.
     static func fetchRemotePayload(
         partnerCode: String,
         slug: String,
         timeout: TimeInterval
-    ) async -> Data? {
+    ) async -> FetchOutcome {
         // A partnerCode/slug that can't form a URL is treated like a fetch
         // failure rather than crashing the host app.
         guard let url = URL(string:
             "https://widget.sellwild.com/app/\(partnerCode)/\(slug).json"
-        ) else { return nil }
+        ) else { return .failed }
 
         var request = URLRequest(url: url)
         request.timeoutInterval = timeout
@@ -94,11 +126,34 @@ public enum SellwildSDK {
         request.setValue("SellwildSDK/\(sdkVersion) (ios)", forHTTPHeaderField: "User-Agent")
 
         guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let http = response as? HTTPURLResponse,
-              (200..<300).contains(http.statusCode),
-              SellwildConfigCache.jsonObject(data) != nil
-        else { return nil }
-        return data
+              let http = response as? HTTPURLResponse
+        else { return .failed }
+        return fetchOutcome(statusCode: http.statusCode, body: data)
+    }
+
+    /// Outcome-based entry point used by `configure`. `.gone` discards the
+    /// saved copy and returns defaults; otherwise see `resolveConfig(fetched:)`.
+    static func resolveConfig(
+        partnerCode: String,
+        slug: String,
+        outcome: FetchOutcome,
+        cacheDirectory: URL? = nil
+    ) -> SellwildConfig {
+        switch outcome {
+        case .payload(let data):
+            return resolveConfig(
+                partnerCode: partnerCode, slug: slug, fetched: data, cacheDirectory: cacheDirectory
+            )
+        case .failed:
+            return resolveConfig(
+                partnerCode: partnerCode, slug: slug, fetched: nil, cacheDirectory: cacheDirectory
+            )
+        case .gone:
+            SellwildConfigCache.remove(
+                partnerCode: partnerCode, slug: slug, directory: cacheDirectory
+            )
+            return SellwildConfig(partnerCode: partnerCode)
+        }
     }
 
     /// Decide which payload configures the SDK — the freshly fetched one, else
@@ -259,7 +314,10 @@ public enum SellwildSDK {
 // blip, timeout) still configures ad zones and the ad stack. One file per
 // partnerCode + slug:
 //
-//   <Application Support>/SellwildSDK/config-<partner>-<slug>.json
+//   <Application Support>/SellwildSDK/config-<partner>-<slug>-<hash>.json
+//
+// <hash> is a stable hash of the raw "partner/slug" key, so keys that
+// sanitize to the same text never share a file.
 //
 // The file holds the raw CDN response body, untouched. No TTL — a stale
 // config beats none. Every disk error is swallowed: caching is best-effort
@@ -286,8 +344,25 @@ enum SellwildConfigCache {
         })
     }
 
+    /// Longest sanitized partner/slug kept in the file name.
+    static let maxComponentLength = 64
+
+    /// Stable (process-independent) FNV-1a hash of the raw key, as hex. Keeps
+    /// keys that sanitize alike ("a-b"+"c" vs "a"+"b-c", "a/b" vs "a_b") in
+    /// separate files. `hashValue` is seeded per process, so it can't be used.
+    static func keyHash(partnerCode: String, slug: String) -> String {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in "\(partnerCode)/\(slug)".utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x0000_0100_0000_01b3
+        }
+        return String(hash, radix: 16)
+    }
+
     static func fileName(partnerCode: String, slug: String) -> String {
-        "config-\(sanitize(partnerCode))-\(sanitize(slug)).json"
+        let partner = String(sanitize(partnerCode).prefix(maxComponentLength))
+        let slugPart = String(sanitize(slug).prefix(maxComponentLength))
+        return "config-\(partner)-\(slugPart)-\(keyHash(partnerCode: partnerCode, slug: slug)).json"
     }
 
     static func fileURL(partnerCode: String, slug: String, directory: URL? = nil) -> URL? {
@@ -314,6 +389,13 @@ enum SellwildConfigCache {
     static func load(partnerCode: String, slug: String, directory: URL? = nil) -> Data? {
         guard let url = fileURL(partnerCode: partnerCode, slug: slug, directory: directory) else { return nil }
         return try? Data(contentsOf: url)
+    }
+
+    /// Delete the stored payload for this partner + slug, if any. Failures are
+    /// ignored.
+    static func remove(partnerCode: String, slug: String, directory: URL? = nil) {
+        guard let url = fileURL(partnerCode: partnerCode, slug: slug, directory: directory) else { return }
+        try? FileManager.default.removeItem(at: url)
     }
 
     /// Parse a payload as a JSON object; nil for anything else.

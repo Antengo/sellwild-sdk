@@ -92,7 +92,7 @@ sequenceDiagram
 ```
 
 **Key invariants**
-- `configure(partnerCode, slug)` never throws. Network failure → the last config saved on the device (iOS, Android), else defaults with no ad zones.
+- `configure(partnerCode, slug)` never throws. Network failure → the last config saved on the device (iOS, Android), else defaults with no ad zones. A 403/404/410 means the config was removed: the saved copy is deleted and defaults are used.
 - `config.remote` always populated when fetch succeeds; contains *every* CDN key including ones the SDK doesn't have a typed field for.
 - All four platforms (TS core, RN, iOS, Android) have their own `configure()` with the same shape.
 - On the native platforms, `configure()` also bootstraps Prebid Mobile + the Google Mobile Ads SDK (idempotent) so the first ad load doesn't race an uninitialized auction.

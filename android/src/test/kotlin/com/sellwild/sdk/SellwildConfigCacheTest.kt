@@ -231,4 +231,42 @@ class SellwildConfigCacheTest {
 
         assertEquals(body, config.remoteJson)
     }
+
+    // ── Removed config (403 / 404 / 410) ─────────────────────────────────────
+
+    @Test
+    fun `gone status codes cover a missing CDN object`() {
+        assertTrue(403 in SellwildSDK.GONE_STATUS_CODES)
+        assertTrue(404 in SellwildSDK.GONE_STATUS_CODES)
+        assertTrue(410 in SellwildSDK.GONE_STATUS_CODES)
+        assertFalse(500 in SellwildSDK.GONE_STATUS_CODES)
+        assertFalse(429 in SellwildSDK.GONE_STATUS_CODES)
+    }
+
+    @Test
+    fun `resolveConfig discards the cache and returns defaults when the config is gone`() {
+        val dir = cacheDir()
+        SellwildSDK.resolveConfig("acme", "acme-main", body, dir)
+
+        val gone = SellwildSDK.resolveConfig("acme", "acme-main", null, dir, gone = true)
+
+        assertEquals(SellwildConfig(partnerCode = "acme"), gone)
+        assertNull(SellwildConfigCache.read(dir, "acme", "acme-main"))
+        // Nothing left to reuse on a later plain failure.
+        val later = SellwildSDK.resolveConfig("acme", "acme-main", null, dir)
+        assertEquals(SellwildConfig(partnerCode = "acme"), later)
+    }
+
+    @Test
+    fun `delete removes only the named key and never throws`() {
+        val dir = cacheDir()
+        SellwildConfigCache.write(dir, "acme", "acme-main", body)
+        SellwildConfigCache.write(dir, "acme", "acme-other", body)
+
+        assertTrue(SellwildConfigCache.delete(dir, "acme", "acme-main"))
+
+        assertNull(SellwildConfigCache.read(dir, "acme", "acme-main"))
+        assertEquals(body, SellwildConfigCache.read(dir, "acme", "acme-other"))
+        assertFalse(SellwildConfigCache.delete(File(tmp.root, "missing"), "acme", "acme-main"))
+    }
 }

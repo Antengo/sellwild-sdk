@@ -28,9 +28,14 @@ import java.net.URL
  *
  * Every successful fetch is also saved to the app's private storage (one file
  * per `partnerCode` + `slug`, no expiry). When a later fetch fails — network
- * error, timeout, non-2xx, or a body that isn't a JSON object — the call
+ * error, timeout, server error, or a body that isn't a JSON object — the call
  * applies that last good config instead, so ad zones and the ad stack survive
  * an offline or flaky launch.
+ *
+ * A 403, 404 or 410 is different: the CDN is saying the config was removed (it
+ * answers 403 for a missing file). That is authoritative — the saved copy is
+ * deleted and defaults are returned, so removing the CDN file works as a kill
+ * switch.
  *
  * Only when the fetch fails AND nothing was ever cached (e.g. the very first
  * launch is offline) does the call return a bare
@@ -48,6 +53,12 @@ object SellwildSDK {
      * `build.gradle.kts` version and the other platforms' version constants.
      */
     const val SDK_VERSION = "1.8.1"
+
+    /**
+     * HTTP statuses that mean "this config was removed". The CDN answers 403
+     * (not 404) for a missing object, so 403 is included.
+     */
+    internal val GONE_STATUS_CODES = setOf(403, 404, 410)
 
     /** Application Context, captured at app start by [SellwildInitProvider]. */
     @Volatile
@@ -71,6 +82,8 @@ object SellwildSDK {
         overrides: ((SellwildConfig) -> SellwildConfig)? = null,
     ): SellwildConfig = withContext(Dispatchers.IO) {
         // Null on ANY failure: network error, timeout or non-2xx.
+        // 403/404/410 = the CDN says this config was removed (see GONE_STATUS_CODES).
+        var gone = false
         val fetchedBody = runCatching {
             val url = URL("https://widget.sellwild.com/app/$partnerCode/$slug.json")
             val connection = url.openConnection() as HttpURLConnection
@@ -81,10 +94,14 @@ object SellwildSDK {
             // events kill switch) and lands in CloudFront cs(User-Agent) logs for
             // an installed-base census.
             connection.setRequestProperty("User-Agent", "SellwildSDK/$SDK_VERSION (android)")
-            if (connection.responseCode in 200..299) {
-                connection.inputStream.bufferedReader().readText()
-            } else {
-                null
+            val status = connection.responseCode
+            when {
+                status in 200..299 -> connection.inputStream.bufferedReader().readText()
+                status in GONE_STATUS_CODES -> {
+                    gone = true
+                    null
+                }
+                else -> null
             }
         }.getOrNull()
 
@@ -96,7 +113,7 @@ object SellwildSDK {
 
         // Fresh body when usable, else the cached one, else defaults — silent
         // either way.
-        var config = resolveConfig(partnerCode, slug, fetchedBody, cacheDir)
+        var config = resolveConfig(partnerCode, slug, fetchedBody, cacheDir, gone)
 
         overrides?.let { config = it(config) }
 
@@ -128,8 +145,17 @@ object SellwildSDK {
         slug: String,
         fetchedBody: String?,
         cacheDir: File?,
+        gone: Boolean = false,
     ): SellwildConfig {
         val base = SellwildConfig(partnerCode = partnerCode)
+
+        // The CDN says the config was removed: authoritative. Discard the saved
+        // copy and return defaults, so removing the CDN file works as a kill
+        // switch even for devices holding a saved copy.
+        if (gone) {
+            if (cacheDir != null) SellwildConfigCache.delete(cacheDir, partnerCode, slug)
+            return base
+        }
 
         if (fetchedBody != null) {
             val fresh = applyBody(fetchedBody, base)

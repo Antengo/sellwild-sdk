@@ -32,9 +32,9 @@ final class SellwildConfigCacheTests: XCTestCase {
         SellwildConfigCache.store(data, partnerCode: "acme", slug: "acme-main", directory: dir)
 
         XCTAssertEqual(SellwildConfigCache.load(partnerCode: "acme", slug: "acme-main", directory: dir), data)
-        XCTAssertTrue(FileManager.default.fileExists(
-            atPath: dir.appendingPathComponent("config-acme-acme-main.json").path
-        ))
+        let name = SellwildConfigCache.fileName(partnerCode: "acme", slug: "acme-main")
+        XCTAssertTrue(name.hasPrefix("config-acme-acme-main-"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent(name).path))
     }
 
     func testCacheIsKeyedByPartnerAndSlug() {
@@ -55,10 +55,10 @@ final class SellwildConfigCacheTests: XCTestCase {
         XCTAssertEqual(SellwildConfigCache.sanitize("acme-main_2"), "acme-main_2")
         XCTAssertEqual(SellwildConfigCache.sanitize("../a b/c.json"), "___a_b_c_json")
         XCTAssertEqual(SellwildConfigCache.sanitize("caf\u{e9}"), "caf_")
-        XCTAssertEqual(
-            SellwildConfigCache.fileName(partnerCode: "ac/me", slug: "../main"),
-            "config-ac_me-___main.json"
-        )
+        let name = SellwildConfigCache.fileName(partnerCode: "ac/me", slug: "../main")
+        XCTAssertTrue(name.hasPrefix("config-ac_me-___main-"))
+        XCTAssertTrue(name.hasSuffix(".json"))
+        XCTAssertFalse(name.contains("/"))
         // A hostile slug can't escape the cache directory.
         let url = SellwildConfigCache.fileURL(partnerCode: "acme", slug: "../../etc/x", directory: dir)
         XCTAssertEqual(url?.deletingLastPathComponent().standardizedFileURL.path, dir.standardizedFileURL.path)
@@ -159,5 +159,78 @@ final class SellwildConfigCacheTests: XCTestCase {
             partnerCode: "acme", slug: "acme-main", fetched: nil, cacheDirectory: dir
         )
         XCTAssertEqual(config.mobileZids, ["999"])
+    }
+
+    // MARK: Collisions
+
+    func testKeysThatSanitiseAlikeGetDifferentFiles() {
+        XCTAssertNotEqual(
+            SellwildConfigCache.fileName(partnerCode: "a-b", slug: "c"),
+            SellwildConfigCache.fileName(partnerCode: "a", slug: "b-c")
+        )
+        XCTAssertNotEqual(
+            SellwildConfigCache.fileName(partnerCode: "a/b", slug: "c"),
+            SellwildConfigCache.fileName(partnerCode: "a_b", slug: "c")
+        )
+        let one = payload(["TITLE": "one"])
+        let two = payload(["TITLE": "two"])
+        SellwildConfigCache.store(one, partnerCode: "a-b", slug: "c", directory: dir)
+        SellwildConfigCache.store(two, partnerCode: "a", slug: "b-c", directory: dir)
+        XCTAssertEqual(SellwildConfigCache.load(partnerCode: "a-b", slug: "c", directory: dir), one)
+        XCTAssertEqual(SellwildConfigCache.load(partnerCode: "a", slug: "b-c", directory: dir), two)
+    }
+
+    func testFileNameIsStableAndLengthCapped() {
+        // Same key, same name (the hash must not vary between calls).
+        XCTAssertEqual(
+            SellwildConfigCache.fileName(partnerCode: "acme", slug: "acme-main"),
+            SellwildConfigCache.fileName(partnerCode: "acme", slug: "acme-main")
+        )
+        let long = String(repeating: "x", count: 500)
+        let name = SellwildConfigCache.fileName(partnerCode: long, slug: long)
+        XCTAssertLessThan(name.count, 200)
+        // Long keys that differ only past the cap still get different files.
+        XCTAssertNotEqual(name, SellwildConfigCache.fileName(partnerCode: long, slug: long + "y"))
+    }
+
+    // MARK: Removed config (403 / 404 / 410)
+
+    func testFetchOutcomeClassification() {
+        let good = payload(["CODE": "acme"])
+        XCTAssertEqual(SellwildSDK.fetchOutcome(statusCode: 200, body: good), .payload(good))
+        XCTAssertEqual(SellwildSDK.fetchOutcome(statusCode: 200, body: Data("[1]".utf8)), .failed)
+        XCTAssertEqual(SellwildSDK.fetchOutcome(statusCode: 403, body: Data()), .gone)
+        XCTAssertEqual(SellwildSDK.fetchOutcome(statusCode: 404, body: Data()), .gone)
+        XCTAssertEqual(SellwildSDK.fetchOutcome(statusCode: 410, body: Data()), .gone)
+        XCTAssertEqual(SellwildSDK.fetchOutcome(statusCode: 500, body: good), .failed)
+        XCTAssertEqual(SellwildSDK.fetchOutcome(statusCode: 429, body: Data()), .failed)
+    }
+
+    func testGoneDiscardsSavedConfigAndReturnsDefaults() {
+        _ = SellwildSDK.resolveConfig(
+            partnerCode: "acme", slug: "acme-main",
+            outcome: .payload(payload(["MOBILE_ZID": ["101"]])), cacheDirectory: dir
+        )
+        let gone = SellwildSDK.resolveConfig(
+            partnerCode: "acme", slug: "acme-main", outcome: .gone, cacheDirectory: dir
+        )
+        XCTAssertTrue(gone.mobileZids.isEmpty)
+        XCTAssertNil(gone.remoteJSON)
+        // The saved copy is gone for good: a later plain failure has nothing to reuse.
+        let later = SellwildSDK.resolveConfig(
+            partnerCode: "acme", slug: "acme-main", outcome: .failed, cacheDirectory: dir
+        )
+        XCTAssertTrue(later.mobileZids.isEmpty)
+    }
+
+    func testFailedOutcomeReusesSavedConfig() {
+        _ = SellwildSDK.resolveConfig(
+            partnerCode: "acme", slug: "acme-main",
+            outcome: .payload(payload(["MOBILE_ZID": ["101"]])), cacheDirectory: dir
+        )
+        let config = SellwildSDK.resolveConfig(
+            partnerCode: "acme", slug: "acme-main", outcome: .failed, cacheDirectory: dir
+        )
+        XCTAssertEqual(config.mobileZids, ["101"])
     }
 }

@@ -67,4 +67,8 @@ internal object SellwildConfigCache {
             if (!stored) tmp.delete()
             stored
         }.getOrDefault(false)
+
+    /** Delete the cached body for this partner + slug, if any. Never throws. */
+    fun delete(dir: File, partnerCode: String, slug: String): Boolean =
+        runCatching { File(dir, fileName(partnerCode, slug)).delete() }.getOrDefault(false)
 }

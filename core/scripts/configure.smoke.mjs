@@ -37,19 +37,19 @@ const origFetch = globalThis.fetch
 {
   clearRemoteConfigCache()
   const mock = makeFetch({
-    CODE: 'weatherbug',
+    CODE: 'acme',
     LISTINGS: 'https://cache.sellwild.com/listings-img-data-sm',
     MOBILE_ZID: ['12345', '67890'],
     AD_REFRESH_INTERVAL: 30,
-    APP_BUNDLE_ID: 'com.aws.android',
-    APP_STORE_URL: 'https://play.google.com/store/apps/details?id=com.aws.android',
+    APP_BUNDLE_ID: 'com.acme.app',
+    APP_STORE_URL: 'https://play.google.com/store/apps/details?id=com.acme.app',
   })
   globalThis.fetch = mock
 
-  const config = await configure('weatherbug', 'weatherbug-main')
+  const config = await configure('acme', 'acme-main')
 
-  check('partnerCode preserved', config.partnerCode === 'weatherbug')
-  check('slug preserved', config.slug === 'weatherbug-main')
+  check('partnerCode preserved', config.partnerCode === 'acme')
+  check('slug preserved', config.slug === 'acme-main')
   check(
     'listingsUrl from CDN',
     config.listingsUrl === 'https://cache.sellwild.com/listings-img-data-sm',
@@ -58,10 +58,10 @@ const origFetch = globalThis.fetch
     'mobileZids from CDN',
     Array.isArray(config.mobileZids) && config.mobileZids.length === 2,
   )
-  check('appBundleId from CDN', config.appBundleId === 'com.aws.android')
+  check('appBundleId from CDN', config.appBundleId === 'com.acme.app')
   check(
     'fetched expected URL',
-    mock.calls[0] === 'https://widget.sellwild.com/app/weatherbug/weatherbug-main.json',
+    mock.calls[0] === 'https://widget.sellwild.com/app/acme/acme-main.json',
     mock.calls[0],
   )
 }
@@ -86,7 +86,7 @@ const origFetch = globalThis.fetch
     APP_BUNDLE_ID: 'com.cdn.value',
     DEBUG: false,
   })
-  const config = await configure('weatherbug', 'weatherbug-main', {
+  const config = await configure('acme', 'acme-main', {
     overrides: { appBundleId: 'com.app.override', debug: true },
   })
   check('override wins over CDN appBundleId', config.appBundleId === 'com.app.override')
@@ -96,10 +96,10 @@ const origFetch = globalThis.fetch
 // Test 4 — cache prevents second fetch
 {
   clearRemoteConfigCache()
-  const mock = makeFetch({ CODE: 'weatherbug' })
+  const mock = makeFetch({ CODE: 'acme' })
   globalThis.fetch = mock
-  await fetchRemoteConfig('weatherbug', 'weatherbug-main')
-  await fetchRemoteConfig('weatherbug', 'weatherbug-main')
+  await fetchRemoteConfig('acme', 'acme-main')
+  await fetchRemoteConfig('acme', 'acme-main')
   check('cache prevents second fetch', mock.calls.length === 1)
 }
 
@@ -107,7 +107,7 @@ const origFetch = globalThis.fetch
 {
   clearRemoteConfigCache()
   const raw = {
-    CODE: 'weatherbug',
+    CODE: 'acme',
     LISTINGS: 'https://cache.sellwild.com/listings-img-data-sm',
     // Unmapped CMS keys (no entry in KEY_MAP) — must still flow through:
     MEDIANET: { cid: '8CU123ABC' },
@@ -117,7 +117,7 @@ const origFetch = globalThis.fetch
     YIELDMO: { placementId: 'ym-1' },
   }
   globalThis.fetch = makeFetch(raw)
-  const config = await configure('weatherbug', 'weatherbug-main')
+  const config = await configure('acme', 'acme-main')
   check('remote populated', config.remote && typeof config.remote === 'object')
   check('remote carries unmapped MEDIANET', config.remote?.MEDIANET?.cid === '8CU123ABC')
   check('remote carries unmapped AMX', config.remote?.AMX?.tagId === 'amx-tag-1')
@@ -128,19 +128,19 @@ const origFetch = globalThis.fetch
 {
   clearRemoteConfigCache()
   globalThis.fetch = makeFetch({
-    CODE: 'weatherbug',
+    CODE: 'acme',
     IAB_CATS: 'IAB15', // CMS ships scalar; SDK type is string[]
   })
-  const config = await configure('weatherbug', 'weatherbug-iab-scalar')
+  const config = await configure('acme', 'acme-iab-scalar')
   check('iabCats coerced from string to array', Array.isArray(config.iabCats))
   check('iabCats has expected single value', config.iabCats?.length === 1 && config.iabCats[0] === 'IAB15')
 
   clearRemoteConfigCache()
   globalThis.fetch = makeFetch({
-    CODE: 'weatherbug',
+    CODE: 'acme',
     IAB_CATS: 'IAB15, IAB15-10 ,IAB7',
   })
-  const config2 = await configure('weatherbug', 'weatherbug-iab-csv')
+  const config2 = await configure('acme', 'acme-iab-csv')
   check(
     'iabCats coerced from CSV string',
     Array.isArray(config2.iabCats) &&
@@ -164,11 +164,11 @@ const origFetch = globalThis.fetch
 {
   clearRemoteConfigCache()
   globalThis.fetch = makeFetch({
-    CODE: 'weatherbug',
+    CODE: 'acme',
     AD_STACK: 'PREBID',
     AD_STACK_BY_ZONE: { '43': 'GAM', '44': 'BOTH' },
   })
-  const config = await configure('weatherbug', 'weatherbug-adstack')
+  const config = await configure('acme', 'acme-adstack')
   check('AD_STACK mapped to adStack', config.adStack === 'prebidOnly')
   check('AD_STACK_BY_ZONE mapped', config.adStackByZone?.['43'] === 'gamOnly')
   // Global hard-wins over per-zone.
@@ -180,10 +180,10 @@ const origFetch = globalThis.fetch
 {
   clearRemoteConfigCache()
   globalThis.fetch = makeFetch({
-    CODE: 'weatherbug',
+    CODE: 'acme',
     AD_STACK_BY_ZONE: { '43': 'gamOnly', '99': 'prebidOnly' },
   })
-  const config = await configure('weatherbug', 'weatherbug-perzone')
+  const config = await configure('acme', 'acme-perzone')
   check('per-zone 43 → gamOnly', resolveAdStack(config, '43') === 'gamOnly')
   check('per-zone 99 → prebidOnly', resolveAdStack(config, 99) === 'prebidOnly')
   check('unlisted zone → prebidOnly', resolveAdStack(config, '7') === 'prebidOnly')
@@ -193,8 +193,8 @@ const origFetch = globalThis.fetch
 // Test 10 — absent keys fall back to prebidOnly (never a GAM request)
 {
   clearRemoteConfigCache()
-  globalThis.fetch = makeFetch({ CODE: 'weatherbug' })
-  const config = await configure('weatherbug', 'weatherbug-default')
+  globalThis.fetch = makeFetch({ CODE: 'acme' })
+  const config = await configure('acme', 'acme-default')
   check('no AD_STACK keys → adStack undefined', config.adStack === undefined)
   check('no AD_STACK keys → resolves prebidOnly', resolveAdStack(config, '43') === 'prebidOnly')
 }

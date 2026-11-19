@@ -815,7 +815,7 @@ lifecycleScope.launch {
 
 The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your Sellwild contact provisions the `slug` in the CMS.
 
-**Failure handling.** If the fetch fails (network error, timeout, non-2xx), the SDK reuses the last config it fetched successfully, which it saves on the device after every successful fetch. Ad zones, the ad stack and refresh settings therefore survive an offline or flaky launch. Only when there is no saved config (for example a first launch with no network) does the call return defaults. Those defaults contain no ad zones, so no ads load until a later `configure()` succeeds. The call never throws and never blocks your app.
+**Failure handling.** If the fetch fails (network error, timeout, non-2xx), the SDK reuses the last config it fetched successfully, which it saves on the device after every successful fetch. Ad zones, the ad stack and refresh settings therefore survive an offline or flaky launch. If the CDN answers 403, 404 or 410, the config has been removed: the SDK deletes its saved copy and returns defaults, so removing a config works as a kill switch. Otherwise, only when there is no saved config (for example a first launch with no network) does the call return defaults. Those defaults contain no ad zones, so no ads load until a later `configure()` succeeds. The call never throws and never blocks your app.
 
 > The CDN's `AD_REFRESH_INTERVAL` is in **milliseconds** (matching the web widget and TS core), and Android's `adRefreshIntervalMs` is milliseconds too. `SellwildSDK.configure()` stores it as-is; iOS's `adRefreshInterval` (seconds) is converted from it.
 
