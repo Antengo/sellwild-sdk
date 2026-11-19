@@ -353,7 +353,7 @@ app-ads.txt is a mechanism for app publishers to declare which ad networks are a
 
 ### How It Works
 
-1. Your app's store listing URL (e.g., `https://play.google.com/store/apps/details?id=com.aws.android`) links to your developer website.
+1. Your app's store listing URL (e.g., `https://play.google.com/store/apps/details?id=com.acme.app`) links to your developer website.
 2. On your developer website, you host an `app-ads.txt` file at the root (e.g., `https://yourcompany.com/app-ads.txt`).
 3. SSPs and DSPs crawl this file to verify that the ad request's `app.publisher.id` is authorized to sell inventory for the declared `app.bundle`.
 

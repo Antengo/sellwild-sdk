@@ -366,8 +366,8 @@ When enabled, the SDK requests a multiformat (banner + video) impression; when o
 
 | `AD_STACK` | Renders via | Extra setup |
 |---|---|---|
-| `prebidOnly` | Prebid's own renderer | **None** — Prebid plays the outstream video itself, no GAM |
-| `both` (default) | GAM | **A GAM outstream line item / renderer is required** |
+| `prebidOnly` (default) | Prebid's own renderer | **None** — Prebid plays the outstream video itself, no GAM |
+| `both` | GAM | **A GAM outstream line item / renderer is required** |
 
 On `both` zones, provision the GAM outstream creative **before** flipping `VIDEO_ENABLED` — otherwise a winning video bid can win the auction but fail to render (a lost impression). On `prebidOnly` zones, no GAM setup is needed.
 
@@ -644,8 +644,8 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
       }
     ],
     "app": {
-      "bundle": "com.aws.android",
-      "storeurl": "https://play.google.com/store/apps/details?id=com.aws.android",
+      "bundle": "com.acme.app",
+      "storeurl": "https://play.google.com/store/apps/details?id=com.acme.app",
       "publisher": {
         "id": "acme"
       }
@@ -723,8 +723,8 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
       }
     ],
     "app": {
-      "bundle": "com.aws.android",
-      "storeurl": "https://play.google.com/store/apps/details?id=com.aws.android",
+      "bundle": "com.acme.app",
+      "storeurl": "https://play.google.com/store/apps/details?id=com.acme.app",
       "publisher": {
         "id": "acme"
       }
@@ -764,7 +764,7 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
       }
     ],
     "app": {
-      "bundle": "com.aws.android",
+      "bundle": "com.acme.app",
       "publisher": { "id": "acme" }
     },
     "regs": {
@@ -812,8 +812,8 @@ curl -s -X POST https://prebid.sellwild.com/openrtb2/auction \
       }
     ],
     "app": {
-      "bundle": "com.aws.android",
-      "storeurl": "https://play.google.com/store/apps/details?id=com.aws.android",
+      "bundle": "com.acme.app",
+      "storeurl": "https://play.google.com/store/apps/details?id=com.acme.app",
       "publisher": { "id": "acme" }
     },
     "device": {

@@ -79,8 +79,8 @@ The SDK constructs an OpenRTB 2.6 bid request with the following structure:
     }
   ],
   "app": {
-    "bundle": "com.aws.android",
-    "storeurl": "https://play.google.com/store/apps/details?id=com.aws.android",
+    "bundle": "com.acme.app",
+    "storeurl": "https://play.google.com/store/apps/details?id=com.acme.app",
     "publisher": { "id": "acme" }
   },
   "device": {

@@ -399,8 +399,8 @@ class AdActivity : AppCompatActivity() {
     //   }
     private val config = SellwildConfig(
         partnerCode = "acme",
-        appBundleId = "com.aws.android",
-        appStoreUrl = "https://play.google.com/store/apps/details?id=com.aws.android",
+        appBundleId = "com.acme.app",
+        appStoreUrl = "https://play.google.com/store/apps/details?id=com.acme.app",
         prebidServer = PrebidServerConfig(
             accountId = "sellwild",
             endpoint = "https://prebid.sellwild.com/openrtb2/auction",
@@ -565,7 +565,7 @@ fun HomeScreen() {
     val config = remember {
         SellwildConfig(
             partnerCode = "acme",
-            appBundleId = "com.aws.android",
+            appBundleId = "com.acme.app",
             prebidServer = PrebidServerConfig(
                 accountId = "sellwild",
                 endpoint = "https://prebid.sellwild.com/openrtb2/auction",
@@ -745,7 +745,7 @@ class ListingsViewModel(
 
     private val config = SellwildConfig(
         partnerCode = "acme",
-        appBundleId = "com.aws.android",
+        appBundleId = "com.acme.app",
         prebidServer = PrebidServerConfig(
             accountId = "sellwild",
             endpoint = "https://prebid.sellwild.com/openrtb2/auction",
@@ -815,7 +815,7 @@ lifecycleScope.launch {
 
 The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your Sellwild contact provisions the `slug` in the CMS.
 
-**Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode = ...)` with deterministic defaults, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
+**Failure handling.** If the fetch fails (network error, timeout, non-2xx), the SDK reuses the last config it fetched successfully, which it saves on the device after every successful fetch. Ad zones, the ad stack and refresh settings therefore survive an offline or flaky launch. Only when there is no saved config (for example a first launch with no network) does the call return defaults. Those defaults contain no ad zones, so no ads load until a later `configure()` succeeds. The call never throws and never blocks your app.
 
 > The CDN's `AD_REFRESH_INTERVAL` is in **milliseconds** (matching the web widget and TS core), and Android's `adRefreshIntervalMs` is milliseconds too. `SellwildSDK.configure()` stores it as-is; iOS's `adRefreshInterval` (seconds) is converted from it.
 
@@ -960,7 +960,7 @@ The SDK supports IAB TCF v2 consent management. For users in GDPR regions, you m
 ```kotlin
 val config = SellwildConfig(
     partnerCode = "acme",
-    appBundleId = "com.aws.android",
+    appBundleId = "com.acme.app",
 
     // Privacy
     gppEnabled = true,
@@ -1044,7 +1044,7 @@ The SDK supports automatic ad refresh to maximize revenue from long-lived screen
 ```kotlin
 val config = SellwildConfig(
     partnerCode = "acme",
-    appBundleId = "com.aws.android",
+    appBundleId = "com.acme.app",
 
     // Refresh settings
     adRefreshMaxMobile = 10,        // Maximum number of refreshes per session (0 = unlimited)

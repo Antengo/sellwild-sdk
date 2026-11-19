@@ -357,6 +357,28 @@ If you intend to collect the IDFA for ad targeting (see [App Tracking Transparen
 <string>This identifier is used to deliver personalized ads and measure ad performance.</string>
 ```
 
+### SKAdNetwork Identifiers
+
+SKAdNetwork lets advertisers attribute app installs without the IDFA. Advertisers running install campaigns generally need it on the bid request to buy your inventory. The SDK sends the SKAdNetwork signal with every bid request, but only when both of these are true:
+
+1. **Your `Info.plist` lists `SKAdNetworkItems`.** The SDK reads the identifiers from your app's `Info.plist`; it cannot add them for you. With no entries, no SKAdNetwork signal is sent.
+2. **Your Sellwild config has your App Store URL.** The SDK takes your numeric App Store ID from it (the `id1234567890` part of `https://apps.apple.com/app/id1234567890`). Sellwild sets this in your remote config; if you build the config in code, set `appStoreUrl`.
+
+Add one entry per ad network:
+
+```xml
+<key>SKAdNetworkItems</key>
+<array>
+    <dict>
+        <key>SKAdNetworkIdentifier</key>
+        <string>example123.skadnetwork</string>
+    </dict>
+    <!-- one <dict> per identifier -->
+</array>
+```
+
+`example123.skadnetwork` is a placeholder. Ask your Sellwild account manager for the current list of identifiers for the demand partners on your account, and add it alongside any identifiers you already list for other ad SDKs. Identifiers are lowercase and each one should appear once.
+
 ---
 
 ## UIKit Integration
@@ -807,7 +829,7 @@ Task {
 
 The CDN URL is `https://widget.sellwild.com/app/{partnerCode}/{slug}.json`. Your Sellwild contact provisions the `slug` in the CMS.
 
-**Failure handling.** On any network error, timeout, or 404 the call falls back to a `SellwildConfig(partnerCode:)` with deterministic defaults, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
+**Failure handling.** If the fetch fails (network error, timeout, non-2xx), the SDK reuses the last config it fetched successfully, which it saves on the device after every successful fetch. Ad zones, the ad stack and refresh settings therefore survive an offline or flaky launch. Only when there is no saved config (for example a first launch with no network) does the call return defaults. Those defaults contain no ad zones, so no ads load until a later `configure()` succeeds. The call never throws and never blocks your app.
 
 See [Configuration → Remote Config](./configuration#remote-config) for the full CDN field reference.
 
@@ -848,7 +870,7 @@ When `prebidServer` is set on `SellwildConfig`, the first `SellwildAdView.load()
 3. Attaches the winning bid's keywords to a `GAMRequest` as targeting.
 4. Calls `AdManagerBannerView.load(_:)`. Google Ad Manager picks between the Prebid line item and any direct-sold demand and renders the creative through the native GMA view.
 
-Because the auction runs natively, the SDK can supply real device signals (IDFV, App Tracking Transparency status, SKAdNetwork attribution) to Prebid Server.
+Because the auction runs natively, the SDK can supply real device signals (IDFV, App Tracking Transparency status, SKAdNetwork attribution) to Prebid Server. SKAdNetwork is only sent when your `Info.plist` lists `SKAdNetworkItems` — see [SKAdNetwork Identifiers](#skadnetwork-identifiers).
 
 ---
 
