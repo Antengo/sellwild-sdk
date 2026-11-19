@@ -193,7 +193,7 @@ export interface SellwildConfig {
   /**
    * Global ad-stack override (CDN `AD_STACK`). When set, forces EVERY placement
    * to this stack regardless of per-zone settings — an operational kill-switch.
-   * When unset, per-zone (`adStackByZone`) applies, falling back to `both`.
+   * When unset, per-zone (`adStackByZone`) applies, falling back to `prebidOnly`.
    */
   adStack?: AdStack
   /**
@@ -452,11 +452,12 @@ export interface SdkEvent {
  * can segment GAM (Google Ad Manager / Google Ads) and Prebid independently
  * without an SDK release.
  *
- *  - `both`       — Prebid auction fetches demand, then GAM renders (default;
- *                   the winning Prebid creative or GAM's own line items serve).
+ *  - `both`       — Prebid auction fetches demand, then GAM renders (the
+ *                   winning Prebid creative or GAM's own line items serve).
  *  - `gamOnly`    — plain GAM request, no Prebid auction.
  *  - `prebidOnly` — Prebid's own rendering path; NO GAM ad request is made, so
- *                   no GAM request/serving fees are incurred.
+ *                   no GAM request/serving fees are incurred. The default
+ *                   when no stack is configured or the config is unavailable.
  */
 export type AdStack = 'both' | 'gamOnly' | 'prebidOnly'
 

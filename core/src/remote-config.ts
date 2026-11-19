@@ -219,7 +219,8 @@ export function parseAdStack(value: unknown): AdStack | undefined {
  * Precedence (matches all native platforms):
  *   1. Global `adStack` (CDN `AD_STACK`) — hard-wins for every placement.
  *   2. Per-zone `adStackByZone[zoneId]` (CDN `AD_STACK_BY_ZONE`).
- *   3. `both` (today's default behavior).
+ *   3. `prebidOnly` — the fallback when the stack is unknown (config not
+ *      fetched, or no stack key). It never makes a GAM request.
  */
 export function resolveAdStack(
   config: Pick<SellwildConfig, 'adStack' | 'adStackByZone'>,
@@ -230,7 +231,7 @@ export function resolveAdStack(
     const perZone = config.adStackByZone?.[String(zoneId)]
     if (perZone) return perZone
   }
-  return 'both'
+  return 'prebidOnly'
 }
 
 // ── Fetch ────────────��──────────────────────────────────────────────────────
@@ -252,8 +253,8 @@ const remoteConfigCache = new Map<string, Partial<SellwildConfig>>()
  *
  * URL pattern: {baseUrl}/app/{partnerCode}/{slug}.json
  *
- * Example: fetchRemoteConfig('realgm', 'realgm-realgm')
- *   → https://widget.sellwild.com/app/realgm/realgm-realgm.json
+ * Example: fetchRemoteConfig('acme', 'acme-acme')
+ *   → https://widget.sellwild.com/app/acme/acme-acme.json
  *
  * On failure (network error, 404, timeout) returns an empty object so the SDK
  * falls back to its static defaults — remote config is additive, never blocking.

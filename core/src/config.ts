@@ -159,11 +159,11 @@ export interface ConfigureOptions extends RemoteConfigOptions {
  * the general listings cache (`DEFAULT_LISTINGS_URL`).
  *
  * @example
- *   const config = await configure('weatherbug', 'weatherbug-main')
+ *   const config = await configure('acme', 'acme-main')
  *
  * @example with overrides
- *   const config = await configure('weatherbug', 'weatherbug-main', {
- *     overrides: { appBundleId: 'com.aws.android', debug: __DEV__ },
+ *   const config = await configure('acme', 'acme-main', {
+ *     overrides: { appBundleId: 'com.acme.app', debug: __DEV__ },
  *   })
  */
 export async function configure(

@@ -36,18 +36,19 @@ public final class SellwildFirstAdViewedGuard {
 //
 // As of 1.4.0 the view can be segmented by ad stack (see `SellwildAdStack`),
 // toggled remotely via `AD_STACK` / `AD_STACK_BY_ZONE`:
-//   - .both       — Prebid auction → GAM renders (default; unchanged).
+//   - .both       — Prebid auction → GAM renders.
 //   - .gamOnly    — plain GAM request, no Prebid auction.
 //   - .prebidOnly — Prebid's own rendering BannerView, NO GAM request (and so
-//                   no GAM request/serving fees).
+//                   no GAM request/serving fees). Default when the config
+//                   names no stack.
 //
 // Marketplace listings render natively too, via `SellwildFeedView` — the SDK
 // ships no WebView-based surfaces.
 //
 // USAGE
 // ─────
-// let config = await SellwildSDK.configure(partnerCode: "weatherbug",
-//                                          slug: "weatherbug-weatherbug")
+// let config = await SellwildSDK.configure(partnerCode: "acme",
+//                                          slug: "acme-acme")
 // let ad = SellwildAdView(config: config, adSize: .banner320x50, zoneId: "43")
 // view.addSubview(ad)
 // ad.load()

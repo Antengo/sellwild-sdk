@@ -55,17 +55,21 @@ class SellwildFirstAdViewedGuard {
  *
  * As of 1.4.0 the view can be segmented by ad stack (see [SellwildAdStack]),
  * toggled remotely via `AD_STACK` / `AD_STACK_BY_ZONE`:
- *   - [SellwildAdStack.BOTH]        Prebid auction → GAM renders (default).
+ *   - [SellwildAdStack.BOTH]        Prebid auction → GAM renders (only when the
+ *                                   CMS sets it explicitly).
  *   - [SellwildAdStack.GAM_ONLY]    Plain GAM request, no Prebid auction.
  *   - [SellwildAdStack.PREBID_ONLY] Prebid's own rendering [PrebidBannerView],
  *                                   NO GAM request (and so no GAM request fees).
+ *                                   The default when the stack is unknown; it
+ *                                   needs a `zoneId` — without one [load]
+ *                                   reports `onAdFailed` and requests nothing.
  *
  * Marketplace listings render natively too, via [SellwildFeedView] — the SDK
  * ships no WebView-based surfaces.
  *
  * Usage:
  * ```kotlin
- * val config = SellwildSDK.configure(context, "weatherbug", "weatherbug-weatherbug")
+ * val config = SellwildSDK.configure(context, "acme", "acme-acme")
  * val ad = SellwildAdView(context).apply {
  *     setup(config, AdSize.BANNER_320x50, zoneId = "43")
  * }

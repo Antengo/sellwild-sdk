@@ -9,14 +9,23 @@ import Foundation
 ///
 /// ```swift
 /// let config = await SellwildSDK.configure(
-///     partnerCode: "weatherbug",
-///     slug: "weatherbug-main"
+///     partnerCode: "acme",
+///     slug: "acme-main"
 /// )
 /// ```
 ///
-/// On any network failure, timeout, or 404 the call returns a
-/// `SellwildConfig(partnerCode:)` with deterministic defaults (the listings
-/// endpoint is derived from `partnerCode`), so ads still render.
+/// Every successful fetch is persisted to disk (see `SellwildConfigCache`).
+/// On any network failure, timeout, non-2xx or malformed response the call
+/// falls back to the last good payload for this `partnerCode` + `slug`, applied
+/// exactly as a fresh one would be — so ad zones and the ad stack survive an
+/// offline or flaky launch. There is no expiry: a stale config beats none.
+///
+/// Only when there is no cached payload either (first launch with no network)
+/// does the call return a bare `SellwildConfig(partnerCode:)` with defaults.
+/// That config has NO ad zones, so the feed shows listings but no ads, and
+/// standalone ad views report `missingZoneIdForPrebidOnly` unless the host
+/// supplies a zone id (the unknown ad stack defaults to `.prebidOnly`, which
+/// never issues a Google Ad Manager request).
 public enum SellwildSDK {
 
     /// SDK version, stamped into analytics events (`attributes.sdkVersion`) and
@@ -29,7 +38,7 @@ public enum SellwildSDK {
     ///
     /// - Parameters:
     ///   - partnerCode: The partner identifier provisioned by Sellwild.
-    ///   - slug: The CMS slug for this app's config (e.g. `"weatherbug-main"`).
+    ///   - slug: The CMS slug for this app's config (e.g. `"acme-main"`).
     ///   - timeout: Network timeout in seconds. Default `5.0`.
     ///   - overrides: Optional closure to override fields after the remote
     ///     config is applied. Use this for app-controlled values (e.g.
@@ -40,34 +49,12 @@ public enum SellwildSDK {
         timeout: TimeInterval = 5.0,
         overrides: ((inout SellwildConfig) -> Void)? = nil
     ) async -> SellwildConfig {
-        var config = SellwildConfig(partnerCode: partnerCode)
-
-        let url = URL(string:
-            "https://widget.sellwild.com/app/\(partnerCode)/\(slug).json"
-        )!
-
-        var request = URLRequest(url: url)
-        request.timeoutInterval = timeout
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        // Version beacon: fires on every config fetch (independent of the events
-        // kill switch) and lands in CloudFront cs(User-Agent) logs for an
-        // installed-base census.
-        request.setValue("SellwildSDK/\(sdkVersion) (ios)", forHTTPHeaderField: "User-Agent")
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse,
-               (200..<300).contains(http.statusCode),
-               let raw = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                config = apply(raw, to: config)
-                // Stash the raw payload so unmapped CDN keys (new bidders,
-                // forward-compatible settings) stay readable via remoteValues
-                // without an SDK release.
-                config.remoteJSON = data
-            }
-        } catch {
-            // Silent fallback — config retains defaults.
-        }
+        let fetched = await fetchRemotePayload(
+            partnerCode: partnerCode, slug: slug, timeout: timeout
+        )
+        var config = resolveConfig(
+            partnerCode: partnerCode, slug: slug, fetched: fetched
+        )
 
         overrides?(&config)
 
@@ -80,6 +67,74 @@ public enum SellwildSDK {
         // `Targeting` mutations are main-thread-sensitive, but this continuation
         // can resume off-main after the URLSession await above.
         await MainActor.run { SellwildPrebidMobile.bootstrap(with: config) }
+
+        return config
+    }
+
+    /// Fetch the raw config payload from the CDN. Returns nil on ANY failure
+    /// (unbuildable URL, network error, timeout, non-2xx, body that isn't a
+    /// JSON object) — the caller then falls back to the cached payload.
+    static func fetchRemotePayload(
+        partnerCode: String,
+        slug: String,
+        timeout: TimeInterval
+    ) async -> Data? {
+        // A partnerCode/slug that can't form a URL is treated like a fetch
+        // failure rather than crashing the host app.
+        guard let url = URL(string:
+            "https://widget.sellwild.com/app/\(partnerCode)/\(slug).json"
+        ) else { return nil }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        // Version beacon: fires on every config fetch (independent of the events
+        // kill switch) and lands in CloudFront cs(User-Agent) logs for an
+        // installed-base census.
+        request.setValue("SellwildSDK/\(sdkVersion) (ios)", forHTTPHeaderField: "User-Agent")
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode),
+              SellwildConfigCache.jsonObject(data) != nil
+        else { return nil }
+        return data
+    }
+
+    /// Decide which payload configures the SDK — the freshly fetched one, else
+    /// the last good one from disk, else none (defaults) — and apply it.
+    /// Network-free so the fetched-vs-cached decision is unit-testable.
+    ///
+    /// - Parameters:
+    ///   - fetched: The raw response body of a successful fetch, or nil when
+    ///     the fetch failed for any reason.
+    ///   - cacheDirectory: Cache location override for tests; nil = default.
+    static func resolveConfig(
+        partnerCode: String,
+        slug: String,
+        fetched: Data?,
+        cacheDirectory: URL? = nil
+    ) -> SellwildConfig {
+        var config = SellwildConfig(partnerCode: partnerCode)
+
+        if let data = fetched, let raw = SellwildConfigCache.jsonObject(data) {
+            config = apply(raw, to: config)
+            // Stash the raw payload so unmapped CDN keys (new bidders,
+            // forward-compatible settings) stay readable via remoteValues
+            // without an SDK release.
+            config.remoteJSON = data
+            SellwildConfigCache.store(
+                data, partnerCode: partnerCode, slug: slug, directory: cacheDirectory
+            )
+        } else if let data = SellwildConfigCache.load(
+            partnerCode: partnerCode, slug: slug, directory: cacheDirectory
+        ), let raw = SellwildConfigCache.jsonObject(data) {
+            // Fetch failed — reuse the last good payload exactly as if it had
+            // just been fetched.
+            config = apply(raw, to: config)
+            config.remoteJSON = data
+        }
+        // else: no fetch and no cache — config retains defaults.
 
         return config
     }
@@ -195,5 +250,74 @@ public enum SellwildSDK {
         if let v = raw["PBS_DEBUG"] as? Bool { c.pbsDebug = v }
 
         return c
+    }
+}
+
+// MARK: - SellwildConfigCache
+//
+// Last-good remote config, persisted so a failed fetch (offline launch, CDN
+// blip, timeout) still configures ad zones and the ad stack. One file per
+// partnerCode + slug:
+//
+//   <Application Support>/SellwildSDK/config-<partner>-<slug>.json
+//
+// The file holds the raw CDN response body, untouched. No TTL — a stale
+// config beats none. Every disk error is swallowed: caching is best-effort
+// and must never throw or crash the host app.
+
+enum SellwildConfigCache {
+
+    /// Default cache directory, or nil if Application Support is unavailable.
+    static var defaultDirectory: URL? {
+        FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first?
+            .appendingPathComponent("SellwildSDK", isDirectory: true)
+    }
+
+    /// Replace anything outside `[A-Za-z0-9_-]` with `_` so partner/slug are
+    /// safe as a single path component (no separators, no `..`).
+    static func sanitize(_ component: String) -> String {
+        String(component.unicodeScalars.map { u -> Character in
+            switch u {
+            case "A"..."Z", "a"..."z", "0"..."9", "_", "-": return Character(u)
+            default: return "_"
+            }
+        })
+    }
+
+    static func fileName(partnerCode: String, slug: String) -> String {
+        "config-\(sanitize(partnerCode))-\(sanitize(slug)).json"
+    }
+
+    static func fileURL(partnerCode: String, slug: String, directory: URL? = nil) -> URL? {
+        (directory ?? defaultDirectory)?
+            .appendingPathComponent(fileName(partnerCode: partnerCode, slug: slug), isDirectory: false)
+    }
+
+    /// Persist a raw config payload. Creates the directory on demand and
+    /// writes atomically. Failures are ignored.
+    static func store(_ data: Data, partnerCode: String, slug: String, directory: URL? = nil) {
+        guard let url = fileURL(partnerCode: partnerCode, slug: slug, directory: directory) else { return }
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(), withIntermediateDirectories: true
+            )
+            try data.write(to: url, options: .atomic)
+        } catch {
+            // Best-effort — a failed write just means no fallback next launch.
+        }
+    }
+
+    /// The last stored payload for this partner + slug, or nil if there is
+    /// none or it can't be read.
+    static func load(partnerCode: String, slug: String, directory: URL? = nil) -> Data? {
+        guard let url = fileURL(partnerCode: partnerCode, slug: slug, directory: directory) else { return nil }
+        return try? Data(contentsOf: url)
+    }
+
+    /// Parse a payload as a JSON object; nil for anything else.
+    static func jsonObject(_ data: Data) -> [String: Any]? {
+        (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
     }
 }

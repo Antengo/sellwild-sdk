@@ -176,7 +176,7 @@ const origFetch = globalThis.fetch
   check('global hard-wins (no zone)', resolveAdStack(config) === 'prebidOnly')
 }
 
-// Test 9 — per-zone applies when no global; default both
+// Test 9 — per-zone applies when no global; default prebidOnly
 {
   clearRemoteConfigCache()
   globalThis.fetch = makeFetch({
@@ -186,17 +186,17 @@ const origFetch = globalThis.fetch
   const config = await configure('weatherbug', 'weatherbug-perzone')
   check('per-zone 43 → gamOnly', resolveAdStack(config, '43') === 'gamOnly')
   check('per-zone 99 → prebidOnly', resolveAdStack(config, 99) === 'prebidOnly')
-  check('unlisted zone → both', resolveAdStack(config, '7') === 'both')
-  check('no zone, no global → both', resolveAdStack(config) === 'both')
+  check('unlisted zone → prebidOnly', resolveAdStack(config, '7') === 'prebidOnly')
+  check('no zone, no global → prebidOnly', resolveAdStack(config) === 'prebidOnly')
 }
 
-// Test 10 — absent keys preserve today's default behavior
+// Test 10 — absent keys fall back to prebidOnly (never a GAM request)
 {
   clearRemoteConfigCache()
   globalThis.fetch = makeFetch({ CODE: 'weatherbug' })
   const config = await configure('weatherbug', 'weatherbug-default')
   check('no AD_STACK keys → adStack undefined', config.adStack === undefined)
-  check('no AD_STACK keys → resolves both', resolveAdStack(config, '43') === 'both')
+  check('no AD_STACK keys → resolves prebidOnly', resolveAdStack(config, '43') === 'prebidOnly')
 }
 
 globalThis.fetch = origFetch

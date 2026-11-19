@@ -7,10 +7,14 @@ import org.json.JSONObject
  * `AD_STACK` (global) and `AD_STACK_BY_ZONE` (per-zone) so GAM (Google Ad
  * Manager / Google Ads) and Prebid can be segmented without an SDK release.
  *
- *  - [BOTH]        Prebid auction fetches demand, then GAM renders (default).
+ *  - [BOTH]        Prebid auction fetches demand, then GAM renders. Only when
+ *                  the CMS asks for it explicitly (`"both"` / `"default"`).
  *  - [GAM_ONLY]    Plain GAM request, no Prebid auction.
  *  - [PREBID_ONLY] Prebid's own rendering path; NO GAM ad request is made, so
- *                  no GAM request/serving fees are incurred.
+ *                  no GAM request/serving fees are incurred. This is the
+ *                  default when the stack is unknown (no remote config, or no
+ *                  `AD_STACK` / matching `AD_STACK_BY_ZONE` entry), so a failed
+ *                  config fetch can never fall through to a GAM request.
  */
 enum class SellwildAdStack {
     BOTH,
@@ -37,7 +41,11 @@ enum class SellwildAdStack {
          *   1. [override] (code-level, e.g. set on [SellwildAdView] for QA).
          *   2. Global `AD_STACK` — hard-wins for every placement.
          *   3. Per-zone `AD_STACK_BY_ZONE[zoneId]`.
-         *   4. [BOTH] (today's default behavior).
+         *   4. [PREBID_ONLY] — the default when nothing above names a stack
+         *      (including a null / malformed [remoteJson]). It was [BOTH]
+         *      before; an unknown stack must not make a GAM request. The
+         *      explicit CMS value `"default"` / `"both"` still means [BOTH]
+         *      (see [parse]).
          */
         fun resolve(
             remoteJson: String?,
@@ -55,7 +63,7 @@ enum class SellwildAdStack {
                 parse(byZone?.optStringOrNull(zoneId))?.let { return it }
             }
 
-            return BOTH
+            return PREBID_ONLY
         }
 
         private fun JSONObject.optStringOrNull(key: String): String? =
