@@ -21,8 +21,8 @@ private let feedLog = OSLog(subsystem: "com.sellwild.sdk", category: "SellwildFe
 ///
 /// Usage:
 /// ```swift
-/// let config = await SellwildSDK.configure(partnerCode: "weatherbug",
-///                                          slug: "weatherbug-weatherbug")
+/// let config = await SellwildSDK.configure(partnerCode: "acme",
+///                                          slug: "acme-acme")
 /// let feed = SellwildFeedView(config: config)
 /// view.addSubview(feed)
 /// feed.load()
@@ -156,6 +156,7 @@ public final class SellwildFeedView: UIView {
                 case .failure(let error):
                     NSLog("[Sellwild] fetchListings FAILED: %@", error.localizedDescription)
                     self.delegate?.sellwildFeed(self, didFailWithError: error.localizedDescription)
+                    self.renderAdsAfterListingsFailure()
                 }
             }
         }
@@ -233,6 +234,20 @@ public final class SellwildFeedView: UIView {
         self.delegate?.sellwildFeed(self, didBecomeReadyWithListingCount: self.listings.count)
     }
 
+    /// A listings failure must not take the ads down with it. If nothing but
+    /// the header is on screen (first load failed), build the rows from the
+    /// schedule with whatever listings we hold — none — so the ad rows still
+    /// render. This is NOT a successful load: neither `sellwildFeedDidLoad` nor
+    /// `didBecomeReadyWithListingCount` fires; the delegate has already been
+    /// told `didFailWithError`. If a previous load already rendered rows, they
+    /// stay untouched (no reload, so on-screen ads aren't torn down). The next
+    /// successful `load()` / pull-to-refresh replaces the rows as usual.
+    private func renderAdsAfterListingsFailure() {
+        guard rows.count <= 1 else { return }
+        rebuildRows()
+        NSLog("[Sellwild] listings failed; ads-only rows -> rowCount=%d", rows.count)
+    }
+
     // MARK: Setup
 
     private func setupTableView() {
@@ -280,7 +295,8 @@ public final class SellwildFeedView: UIView {
 
     // MARK: Scheduler
 
-    fileprivate enum Row {
+    /// Internal (not private) so the pure row builder is unit-testable.
+    enum Row {
         case header
         case listing(SellwildListing)
         case gamAd(zoneId: String)
@@ -321,6 +337,17 @@ public final class SellwildFeedView: UIView {
     }
 
     private func buildRows() -> [Row] {
+        Self.buildRows(schedule: schedule, listings: listings, config: config)
+    }
+
+    /// Pure row builder: one row per schedule token. `L` tokens are skipped
+    /// once listings run out, so with zero listings (empty or failed fetch)
+    /// the result is the header plus the schedule's ad rows.
+    static func buildRows(
+        schedule: String,
+        listings: [SellwildListing],
+        config: SellwildConfig
+    ) -> [Row] {
         var out: [Row] = [.header]
         var listingsIter = listings.makeIterator()
         let gamZones = config.mobileZids.filter { !$0.isEmpty }

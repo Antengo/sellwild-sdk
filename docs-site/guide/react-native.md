@@ -294,6 +294,23 @@ Required if you intend to pass IDFA to demand partners for improved fill rates.
 <string>This app uses your advertising identifier to deliver personalized ads and measure campaign performance.</string>
 ```
 
+#### SKAdNetwork identifiers
+
+SKAdNetwork lets advertisers attribute app installs without the IDFA. Advertisers running install campaigns generally need it on the bid request to buy your inventory. The SDK sends the SKAdNetwork signal only when your app's `Info.plist` lists `SKAdNetworkItems` and your Sellwild config has your App Store URL (Sellwild sets this in your remote config).
+
+```xml
+<key>SKAdNetworkItems</key>
+<array>
+    <dict>
+        <key>SKAdNetworkIdentifier</key>
+        <string>example123.skadnetwork</string>
+    </dict>
+    <!-- one <dict> per identifier -->
+</array>
+```
+
+`example123.skadnetwork` is a placeholder. Ask your Sellwild account manager for the current list of identifiers for the demand partners on your account. See the [iOS guide](./ios.md#skadnetwork-identifiers) for details.
+
 ---
 
 ## Android Configuration
@@ -379,8 +396,8 @@ const partialConfig: PartialSellwildConfig = {
   partnerCode: 'acme',
 
   // Mobile app identity -- required for proper in-app bid classification.
-  appBundleId: 'com.aws.android',
-  appStoreUrl: 'https://play.google.com/store/apps/details?id=com.aws.android',
+  appBundleId: 'com.acme.app',
+  appStoreUrl: 'https://play.google.com/store/apps/details?id=com.acme.app',
 
   // Prebid Server S2S -- routes header bidding through Sellwild's managed
   // Prebid Server instance instead of running client-side adapters.
@@ -504,7 +521,7 @@ import {
 
 const sdkConfig: SellwildConfig = buildConfig({
   partnerCode: 'acme',
-  appBundleId: 'com.aws.android',
+  appBundleId: 'com.acme.app',
   prebidServer: {
     accountId: 'acme',
     endpoint: 'https://prebid.sellwild.com/openrtb2/auction',
@@ -738,9 +755,9 @@ async function runPrebidAuction(): Promise<void> {
       },
     ],
     app: {
-      bundle: 'com.aws.android',
+      bundle: 'com.acme.app',
       publisher: { id: 'acme' },
-      storeurl: 'https://play.google.com/store/apps/details?id=com.aws.android',
+      storeurl: 'https://play.google.com/store/apps/details?id=com.acme.app',
     },
     device: {
       ua: 'Mozilla/5.0 (Linux; Android 14; Pixel 8)',
@@ -1340,7 +1357,7 @@ curl -X POST https://prebid.sellwild.com/openrtb2/auction \
       }
     }],
     "app": {
-      "bundle": "com.aws.android",
+      "bundle": "com.acme.app",
       "publisher": { "id": "acme" }
     },
     "tmax": 1500

@@ -31,8 +31,8 @@ val config = SellwildSDK.configure(
 applies it onto SDK defaults, and returns a fully-built `SellwildConfig`. Every
 field below — ad zones, refresh intervals, waterfall partners,
 compliance flags, app identity — is populated from the CMS without an app
-update. On any network failure, timeout, or 404 the SDK falls back to
-deterministic defaults so ads still render.
+update. If the fetch fails, the native SDKs reuse the last config saved on the
+device; with none saved, the SDK falls back to defaults (see below).
 
 The rest of this page documents every field that the CMS can populate.
 
@@ -352,7 +352,7 @@ Your Sellwild contact provisions the `slug` in the CMS. The JSON uses CONSTANT_C
 
 ### Failure handling
 
-If the fetch fails (network error, timeout, 404), the SDK falls back silently to a `SellwildConfig(partnerCode:)` with deterministic defaults, so ads still render even with the CDN offline. Remote config is **additive, never blocking**.
+If the fetch fails (network error, timeout, non-2xx), the native iOS and Android SDKs reuse the last config they fetched successfully, which is saved on the device after every successful fetch. A 403, 404 or 410 from the CDN means the config was removed: the native SDKs delete the saved copy and use defaults, so removing a config works as a kill switch. With no saved config (for example a first launch with no network), and always in React Native, the SDK falls back silently to defaults. Those defaults contain no ad zones, so no ads load until a later `configure()` succeeds. The call never throws and never blocks your app.
 
 ### Usage
 

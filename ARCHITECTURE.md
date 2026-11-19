@@ -75,8 +75,8 @@ sequenceDiagram
     participant CDN as widget.sellwild.com
     participant Config as SellwildConfig
 
-    App->>SDK: configure("weatherbug", "weatherbug-weatherbug")
-    SDK->>CDN: GET /app/weatherbug/weatherbug-weatherbug.json
+    App->>SDK: configure("acme", "acme-acme")
+    SDK->>CDN: GET /app/acme/acme-acme.json
     alt 200 OK
         CDN-->>SDK: { CODE, LISTINGS, BANNER_ZID, MEDIANET, ... }
         SDK->>SDK: mapRemoteConfig()<br/>typed fields → camelCase
@@ -85,14 +85,14 @@ sequenceDiagram
         SDK->>SDK: applyDefaults(merged)
         SDK->>SDK: bootstrap Prebid Mobile + GMA (native platforms)
     else 404 / network / timeout
-        SDK->>SDK: silent fallback to defaults
+        SDK->>SDK: last saved config (iOS, Android), else defaults
     end
     SDK-->>App: SellwildConfig
     App->>Config: read .partnerCode, .bannerZid, .remote["MEDIANET"]
 ```
 
 **Key invariants**
-- `configure(partnerCode, slug)` never throws. Network failure → defaults.
+- `configure(partnerCode, slug)` never throws. Network failure → the last config saved on the device (iOS, Android), else defaults with no ad zones. A 403/404/410 means the config was removed: the saved copy is deleted and defaults are used.
 - `config.remote` always populated when fetch succeeds; contains *every* CDN key including ones the SDK doesn't have a typed field for.
 - All four platforms (TS core, RN, iOS, Android) have their own `configure()` with the same shape.
 - On the native platforms, `configure()` also bootstraps Prebid Mobile + the Google Mobile Ads SDK (idempotent) so the first ad load doesn't race an uninitialized auction.
@@ -127,9 +127,9 @@ sequenceDiagram
 
 | Stack | Behavior |
 |---|---|
-| `.both` (default) | Prebid Mobile auction → GAM renders the winner. Manual refresh (capped + floored). |
+| `.both` | Prebid Mobile auction → GAM renders the winner. Manual refresh (capped + floored). |
 | `.gamOnly` | Plain GAM request, no Prebid auction. |
-| `.prebidOnly` | Prebid Mobile's own rendering `BannerView`, **no GAM request** (no GAM serving fees). Auto-refresh is internal to Prebid, floored + capped by the SDK. |
+| `.prebidOnly` (default) | Prebid Mobile's own rendering `BannerView`, **no GAM request** (no GAM serving fees). Auto-refresh is internal to Prebid, floored + capped by the SDK. |
 
 **What lives where**
 | Layer | iOS | Android | RN |
@@ -210,7 +210,7 @@ flowchart LR
 
 **Why both?**
 - Typed fields exist for native code that *behaves* on values (e.g. `config.adRefreshInterval` drives the refresh timer / floor).
-- `config.remote` exists so new keys the CMS adds reach native code without an SDK release. Bidder params (Weatherbug has 15 unmapped today: MEDIANET, AMX, SOVRN, etc.) are configured server-side in the Prebid Server stored request; the native SDKs send empty inline bidder params on iOS and Android.
+- `config.remote` exists so new keys the CMS adds reach native code without an SDK release. Bidder params (one partner has 15 unmapped today: MEDIANET, AMX, SOVRN, etc.) are configured server-side in the Prebid Server stored request; the native SDKs send empty inline bidder params on iOS and Android.
 - Typed bidder fields (`ix`, `openx`, `pubmatic`, `appnexus`) are `@deprecated`. Read from `config.remote["IX"]` etc. going forward.
 
 ---

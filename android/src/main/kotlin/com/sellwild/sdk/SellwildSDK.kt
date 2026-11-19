@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -20,14 +21,29 @@ import java.net.URL
  *
  * ```kotlin
  * val config = SellwildSDK.configure(
- *     partnerCode = "weatherbug",
- *     slug = "weatherbug-main"
+ *     partnerCode = "acme",
+ *     slug = "acme-main"
  * )
  * ```
  *
- * On any network failure, timeout, or 404 the call returns a
+ * Every successful fetch is also saved to the app's private storage (one file
+ * per `partnerCode` + `slug`, no expiry). When a later fetch fails — network
+ * error, timeout, server error, or a body that isn't a JSON object — the call
+ * applies that last good config instead, so ad zones and the ad stack survive
+ * an offline or flaky launch.
+ *
+ * A 403, 404 or 410 is different: the CDN is saying the config was removed (it
+ * answers 403 for a missing file). That is authoritative — the saved copy is
+ * deleted and defaults are returned, so removing the CDN file works as a kill
+ * switch.
+ *
+ * Only when the fetch fails AND nothing was ever cached (e.g. the very first
+ * launch is offline) does the call return a bare
  * `SellwildConfig(partnerCode = ...)` with deterministic defaults (the
- * listings endpoint is derived from `partnerCode`), so ads still render.
+ * listings endpoint is derived from `partnerCode`). Those defaults carry no ad
+ * zones: listings can still load, but [SellwildFeedView] has no ad rows to
+ * render and a [SellwildAdView] without a `zoneId` loads nothing until a later
+ * [configure] succeeds.
  */
 object SellwildSDK {
 
@@ -38,6 +54,12 @@ object SellwildSDK {
      */
     const val SDK_VERSION = "1.8.1"
 
+    /**
+     * HTTP statuses that mean "this config was removed". The CDN answers 403
+     * (not 404) for a missing object, so 403 is included.
+     */
+    internal val GONE_STATUS_CODES = setOf(403, 404, 410)
+
     /** Application Context, captured at app start by [SellwildInitProvider]. */
     @Volatile
     internal var appContext: Context? = null
@@ -47,7 +69,7 @@ object SellwildSDK {
      * Sellwild CDN and applying it onto SDK defaults.
      *
      * @param partnerCode The partner identifier provisioned by Sellwild.
-     * @param slug The CMS slug for this app's config (e.g. `"weatherbug-main"`).
+     * @param slug The CMS slug for this app's config (e.g. `"acme-main"`).
      * @param timeoutMs Network timeout in milliseconds. Default `5000`.
      * @param overrides Optional lambda to override fields after the remote
      *   config is applied. Use this for app-controlled values (e.g.
@@ -59,9 +81,10 @@ object SellwildSDK {
         timeoutMs: Int = 5000,
         overrides: ((SellwildConfig) -> SellwildConfig)? = null,
     ): SellwildConfig = withContext(Dispatchers.IO) {
-        var config = SellwildConfig(partnerCode = partnerCode)
-
-        runCatching {
+        // Null on ANY failure: network error, timeout or non-2xx.
+        // 403/404/410 = the CDN says this config was removed (see GONE_STATUS_CODES).
+        var gone = false
+        val fetchedBody = runCatching {
             val url = URL("https://widget.sellwild.com/app/$partnerCode/$slug.json")
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
@@ -71,15 +94,26 @@ object SellwildSDK {
             // events kill switch) and lands in CloudFront cs(User-Agent) logs for
             // an installed-base census.
             connection.setRequestProperty("User-Agent", "SellwildSDK/$SDK_VERSION (android)")
-            if (connection.responseCode in 200..299) {
-                val body = connection.inputStream.bufferedReader().readText()
-                // Stash the raw payload so unmapped CDN keys (new bidders,
-                // forward-compatible settings) stay readable via remoteJson
-                // without an SDK release.
-                config = apply(JSONObject(body), config).copy(remoteJson = body)
+            val status = connection.responseCode
+            when {
+                status in 200..299 -> connection.inputStream.bufferedReader().readText()
+                status in GONE_STATUS_CODES -> {
+                    gone = true
+                    null
+                }
+                else -> null
             }
-        }
-        // Silent fallback — config retains defaults on any failure.
+        }.getOrNull()
+
+        // Last-good-config cache lives in the app's private files dir. No
+        // Context (init provider didn't run) → no caching, silently.
+        val cacheDir = runCatching {
+            appContext?.filesDir?.let { SellwildConfigCache.directory(it) }
+        }.getOrNull()
+
+        // Fresh body when usable, else the cached one, else defaults — silent
+        // either way.
+        var config = resolveConfig(partnerCode, slug, fetchedBody, cacheDir, gone)
 
         overrides?.let { config = it(config) }
 
@@ -93,6 +127,59 @@ object SellwildSDK {
         }
         config
     }
+
+    /**
+     * The "fetched body or cached body" decision behind [configure], free of
+     * network and Context so it is unit-testable.
+     *
+     *  - [fetchedBody] parses as a JSON object → apply it, and save it to
+     *    [cacheDir] as the last good config for this [partnerCode] + [slug].
+     *  - otherwise ([fetchedBody] is null — the fetch failed — or isn't a JSON
+     *    object) → apply the cached body exactly as a fresh one would be.
+     *  - no usable cache either → `SellwildConfig(partnerCode)` defaults.
+     *
+     * [cacheDir] null disables caching (no application Context). Never throws.
+     */
+    internal fun resolveConfig(
+        partnerCode: String,
+        slug: String,
+        fetchedBody: String?,
+        cacheDir: File?,
+        gone: Boolean = false,
+    ): SellwildConfig {
+        val base = SellwildConfig(partnerCode = partnerCode)
+
+        // The CDN says the config was removed: authoritative. Discard the saved
+        // copy and return defaults, so removing the CDN file works as a kill
+        // switch even for devices holding a saved copy.
+        if (gone) {
+            if (cacheDir != null) SellwildConfigCache.delete(cacheDir, partnerCode, slug)
+            return base
+        }
+
+        if (fetchedBody != null) {
+            val fresh = applyBody(fetchedBody, base)
+            if (fresh != null) {
+                if (cacheDir != null) {
+                    SellwildConfigCache.write(cacheDir, partnerCode, slug, fetchedBody)
+                }
+                return fresh
+            }
+        }
+
+        val cachedBody = cacheDir?.let { SellwildConfigCache.read(it, partnerCode, slug) }
+            ?: return base
+        return applyBody(cachedBody, base) ?: base
+    }
+
+    /**
+     * Apply a raw CDN payload onto [base], or null when [body] isn't a JSON
+     * object. Stashes the raw payload so unmapped CDN keys (new bidders,
+     * forward-compatible settings) stay readable via remoteJson without an SDK
+     * release.
+     */
+    private fun applyBody(body: String, base: SellwildConfig): SellwildConfig? =
+        runCatching { apply(JSONObject(body), base).copy(remoteJson = body) }.getOrNull()
 
     /**
      * Pre-initialize the Prebid Mobile + Google Mobile Ads stack, so the first
@@ -192,7 +279,7 @@ object SellwildSDK {
                 ?: base.videoTakeoversPerSession,
 
             // App identity — per-platform override wins (APP_*_ANDROID), else shared, else base.
-            // app.bundle must be the real Play package (com.aws.android), not the reverse-DNS
+            // app.bundle must be the real Play package (com.acme.app), not the reverse-DNS
             // bundle, or demand can't match it; app.storeurl must be the Play link.
             appBundleId = raw.optStringOrNull("APP_BUNDLE_ID_ANDROID") ?: raw.optStringOrNull("APP_BUNDLE_ID") ?: base.appBundleId,
             appStoreUrl = raw.optStringOrNull("APP_STORE_URL_ANDROID") ?: raw.optStringOrNull("APP_STORE_URL") ?: base.appStoreUrl,

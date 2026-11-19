@@ -6,10 +6,15 @@ import Foundation
 // `AD_STACK` (global) and `AD_STACK_BY_ZONE` (per-zone) so GAM (Google Ad
 // Manager / Google Ads) and Prebid can be segmented without an SDK release.
 //
-//  - .both       — Prebid auction fetches demand, then GAM renders (default).
+//  - .both       — Prebid auction fetches demand, then GAM renders.
 //  - .gamOnly    — plain GAM request, no Prebid auction.
 //  - .prebidOnly — Prebid's own rendering path; NO GAM ad request is made, so
-//                  no GAM request/serving fees are incurred.
+//                  no GAM request/serving fees are incurred (default).
+//
+// When the stack is unknown (no `AD_STACK` / per-zone value — e.g. the remote
+// config could not be fetched and nothing is cached) it resolves to
+// `.prebidOnly`, so an unconfigured placement never issues a GAM request.
+// `.both` / `.gamOnly` must be asked for explicitly.
 
 public enum SellwildAdStack: String {
     case both
@@ -39,7 +44,8 @@ public enum SellwildAdStack: String {
     ///   1. `override` (code-level, e.g. set on `SellwildAdView` for QA).
     ///   2. Global `AD_STACK` — hard-wins for every placement.
     ///   3. Per-zone `AD_STACK_BY_ZONE[zoneId]`.
-    ///   4. `.both` (today's default behavior).
+    ///   4. `.prebidOnly` — the default when nothing above names a stack
+    ///      (never a GAM request). `.both` must be configured explicitly.
     public static func resolve(
         remoteValues: [String: Any]?,
         zoneId: String?,
@@ -52,6 +58,6 @@ public enum SellwildAdStack: String {
            let perZone = parse(byZone[zoneId]) {
             return perZone
         }
-        return .both
+        return .prebidOnly
     }
 }

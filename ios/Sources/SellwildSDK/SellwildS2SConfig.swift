@@ -3,7 +3,7 @@ import Foundation
 /// Tolerant reader for the CDN `S2S_CONFIG` key (the Prebid.js `s2sConfig`).
 ///
 /// The CMS ships it as a JS object-literal STRING, e.g.
-/// `"[{ accountId: 'weatherbug', endpoint: { p1Consent: 'https://…' }, timeout: 1300, }]"`
+/// `"[{ accountId: 'acme', endpoint: { p1Consent: 'https://…' }, timeout: 1300, }]"`
 /// — unquoted keys, single quotes, maybe trailing commas — so a plain
 /// `[String: Any]` cast / `JSONSerialization` parse always failed. This accepts
 /// an already-decoded object or array, a real JSON string, or that JS-literal

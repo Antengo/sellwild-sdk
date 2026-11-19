@@ -21,10 +21,27 @@ final class SellwildAdStackTests: XCTestCase {
         XCTAssertNil(SellwildAdStack.parse(42))
     }
 
-    func testResolveDefaultsToBoth() {
-        XCTAssertEqual(SellwildAdStack.resolve(remoteValues: nil, zoneId: "43"), .both)
+    func testResolveDefaultsToPrebidOnly() {
+        // Unknown stack (no config, or config naming no stack) must never
+        // resolve to a stack that issues a GAM request.
+        XCTAssertEqual(SellwildAdStack.resolve(remoteValues: nil, zoneId: "43"), .prebidOnly)
+        XCTAssertEqual(SellwildAdStack.resolve(remoteValues: nil, zoneId: nil), .prebidOnly)
         XCTAssertEqual(
-            SellwildAdStack.resolve(remoteValues: ["CODE": "weatherbug"], zoneId: "43"),
+            SellwildAdStack.resolve(remoteValues: ["CODE": "acme"], zoneId: "43"),
+            .prebidOnly
+        )
+        // An unparseable value is treated as unknown too.
+        XCTAssertEqual(
+            SellwildAdStack.resolve(remoteValues: ["AD_STACK": "xyz"], zoneId: "43"),
+            .prebidOnly
+        )
+    }
+
+    func testResolveExplicitBothStillHonoured() {
+        XCTAssertEqual(SellwildAdStack.resolve(remoteValues: ["AD_STACK": "default"], zoneId: "43"), .both)
+        XCTAssertEqual(SellwildAdStack.resolve(remoteValues: ["AD_STACK": "both"], zoneId: nil), .both)
+        XCTAssertEqual(
+            SellwildAdStack.resolve(remoteValues: ["AD_STACK_BY_ZONE": ["43": "both"]], zoneId: "43"),
             .both
         )
     }
@@ -44,7 +61,7 @@ final class SellwildAdStackTests: XCTestCase {
         ]
         XCTAssertEqual(SellwildAdStack.resolve(remoteValues: remote, zoneId: "43"), .gamOnly)
         XCTAssertEqual(SellwildAdStack.resolve(remoteValues: remote, zoneId: "99"), .prebidOnly)
-        XCTAssertEqual(SellwildAdStack.resolve(remoteValues: remote, zoneId: "7"), .both)
+        XCTAssertEqual(SellwildAdStack.resolve(remoteValues: remote, zoneId: "7"), .prebidOnly)
     }
 
     func testResolveOverrideBeatsRemote() {

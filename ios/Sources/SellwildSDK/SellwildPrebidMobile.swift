@@ -304,9 +304,9 @@ public enum SellwildPrebidMobile {
     }
 
     /// Extract the numeric Apple App Store ID from a store URL, e.g.
-    /// `https://apps.apple.com/us/app/weatherbug/id281940292` -> `"281940292"`.
+    /// `https://apps.apple.com/us/app/example/id1234567890` -> `"1234567890"`.
     /// Anchored on `/id` at the start and on a URL boundary at the end
-    /// (`/`, `?`, `#`, or end-of-string) so slugs like `/id281940292abc` or
+    /// (`/`, `?`, `#`, or end-of-string) so slugs like `/id1234567890abc` or
     /// `/idea-app/…` can't false-match. Returns nil when the URL has no
     /// `/idNNNNN` segment.
     static func appStoreId(from storeURL: String?) -> String? {

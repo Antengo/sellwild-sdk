@@ -474,7 +474,7 @@ The remote config is fetched from `https://widget.sellwild.com/app/{partnerCode}
 2. Remote CDN config (overrides defaults)
 3. Optional `overrides` callback (overrides everything)
 
-**Failure handling.** If the fetch fails (network error, timeout, 404), `configure()` returns a `SellwildConfig` with `partnerCode` set and deterministic defaults. Your app always renders.
+**Failure handling.** If the fetch fails (network error, timeout, non-2xx), `configure()` returns a `SellwildConfig` with `partnerCode` set and defaults. It never throws. The defaults contain no ad zones, so no ads load until a later `configure()` succeeds. The native iOS and Android SDKs first fall back to the last config saved on the device, unless the CDN answers 403, 404 or 410, which means the config was removed and the saved copy is deleted; the JavaScript `configure()` does not keep one.
 
 **Options:**
 

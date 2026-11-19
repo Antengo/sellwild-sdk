@@ -231,22 +231,22 @@ Typical setup is **CMS-only**: flip `GROWTHCODE_ENABLED`, set `GROWTHCODE_PARTNE
 
 **iOS**
 ```swift
-let config = await SellwildSDK.configure(partnerCode: "weatherbug", slug: "weatherbug-main") {
-    $0.growthCode = SellwildGrowthCodeConfig(partnerId: "YOUR_PID", syncUrl: "https://weatherbug.com")
+let config = await SellwildSDK.configure(partnerCode: "acme", slug: "acme-main") {
+    $0.growthCode = SellwildGrowthCodeConfig(partnerId: "YOUR_PID", syncUrl: "https://acme.example")
 }
 ```
 
 **Android**
 ```kotlin
-val config = SellwildSDK.configure(context, "weatherbug", "weatherbug-main").copy(
-    growthCode = SellwildGrowthCodeConfig(partnerId = "YOUR_PID", syncUrl = "https://weatherbug.com"),
+val config = SellwildSDK.configure(context, "acme", "acme-main").copy(
+    growthCode = SellwildGrowthCodeConfig(partnerId = "YOUR_PID", syncUrl = "https://acme.example"),
 )
 ```
 
 **React Native** — remote keys ride the `remote` passthrough automatically; the local
 override rides the config prop:
 ```tsx
-<SellwildBanner config={{ ...config, growthCode: { partnerId: 'YOUR_PID', syncUrl: 'https://weatherbug.com' } }} size="300x250" zoneId="43" />
+<SellwildBanner config={{ ...config, growthCode: { partnerId: 'YOUR_PID', syncUrl: 'https://acme.example' } }} size="300x250" zoneId="43" />
 ```
 
 ### Prerequisites & notes
@@ -375,8 +375,8 @@ When on, the SDK requests a multiformat (banner + video) impression; when off, i
 
 | Stack | Renders via | Extra setup |
 |-------|-------------|-------------|
-| `prebidOnly` | Prebid's own renderer | none — Prebid plays the outstream video itself |
-| `both` (default) | GAM | **GAM outstream line item / renderer required** |
+| `prebidOnly` (default) | Prebid's own renderer | none — Prebid plays the outstream video itself |
+| `both` | GAM | **GAM outstream line item / renderer required** |
 
 On `both` zones, provision the GAM outstream creative **before** enabling video, or a winning video bid can win-but-not-render (lost impression). On `prebidOnly` zones, just flip the flag.
 
