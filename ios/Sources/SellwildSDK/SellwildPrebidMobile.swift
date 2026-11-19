@@ -244,24 +244,20 @@ public enum SellwildPrebidMobile {
 
         // Populate ortb2.app so DSPs see in-app traffic, not web traffic.
         // OpenRTB app identity. In Prebid Mobile, Targeting.itunesID maps to
-        // app.bundle; Targeting.sourceapp maps to app.NAME (not the bundle).
-        // On iOS app.bundle must be the NUMERIC App Store ID — buyers key on it
-        // (app-ads.txt / DSP allow-lists); reverse-DNS breaks matching. Derive
-        // the numeric id from the store URL's `/idNNNNN` segment and set it via
-        // itunesID. If we can't parse one, leave app.bundle to Prebid's default
-        // (reverse-DNS Bundle id) and let the edge Lambda backstop it.
+        // app.bundle. On iOS app.bundle must be the NUMERIC App Store ID —
+        // buyers key on it (app-ads.txt / DSP allow-lists); reverse-DNS breaks
+        // matching. Derive the numeric id from the store URL's `/idNNNNN`
+        // segment and set it via itunesID. If we can't parse one, leave
+        // app.bundle to Prebid's default (reverse-DNS Bundle id) and let the
+        // edge Lambda backstop it.
         //
-        // NOTE: we deliberately no longer assign the bundle id to `sourceapp` —
-        // that was polluting app.name with the reverse-DNS bundle. app.name is
-        // left to Prebid's auto-detected display name.
-        if let numericId = appStoreId(from: f.storeURL) {
-            Targeting.shared.itunesID = numericId
-        }
-        // storeURL is independent of the bundle id — set it whenever configured
-        // so a valid appStoreUrl is never dropped just because appBundleId is nil.
-        if let store = f.storeURL {
-            Targeting.shared.storeURL = store
-        }
+        // Targeting.sourceapp is the SKAdNetwork source app id
+        // (imp.ext.skadn.sourceapp) and nothing else — the fork reads it only
+        // in its SKAdNetwork builder, and omits the whole imp.ext.skadn object
+        // when it is nil, even if the host lists SKAdNetworkItems. It must be
+        // the numeric App Store ID, so it is set only when one parses; with no
+        // store URL the fork sends no skadn (as before).
+        applyAppIdentity(storeURL: f.storeURL)
 
         // app.publisher.id must equal the sellers.json seller id (== schain sid)
         // for supply-chain coherence. No Targeting property maps to
@@ -277,6 +273,26 @@ public enum SellwildPrebidMobile {
         resolvedCats = f.cats
         appliedFields = f
         applyGlobalORTB()
+    }
+
+    /// Push the store-URL-derived app identity into Prebid targeting: numeric
+    /// App Store ID → `app.bundle` (itunesID) and the SKAdNetwork source app,
+    /// plus `app.storeurl`.
+    ///
+    /// - nil URL: nothing changes (an earlier config's identity stays whole).
+    /// - URL with a numeric id: all three fields are set from it.
+    /// - URL with no numeric id: the store URL is set and both ids are cleared,
+    ///   so a previous app's id can't linger next to a different store URL.
+    ///
+    /// Not thread-safe on its own: the bootstrap path calls it holding `lock`.
+    static func applyAppIdentity(storeURL: String?) {
+        guard let store = storeURL else { return }
+        let numericId = appStoreId(from: store)
+        Targeting.shared.itunesID = numericId
+        Targeting.shared.sourceapp = numericId
+        // storeURL is independent of the bundle id — set it whenever configured
+        // so a valid appStoreUrl is never dropped just because appBundleId is nil.
+        Targeting.shared.storeURL = store
     }
 
     /// Prebid Server fields the config actually specifies: typed
