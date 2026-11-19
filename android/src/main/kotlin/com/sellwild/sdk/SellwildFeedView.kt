@@ -25,6 +25,7 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.sellwild.sdk.SellwildFeedView.Row
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -52,7 +53,7 @@ import org.json.JSONObject
  *
  * Usage:
  * ```kotlin
- * val config = SellwildSDK.configure(context, "weatherbug", "weatherbug-weatherbug")
+ * val config = SellwildSDK.configure(context, "acme", "acme-acme")
  * val feed = SellwildFeedView(context).apply { setup(config) }
  * parent.addView(feed)
  * feed.load()
@@ -226,7 +227,12 @@ open class SellwildFeedView @JvmOverloads constructor(
         adapter.notifyDataSetChanged()
     }
 
-    /** Fetch listings and render the feed. */
+    /**
+     * Fetch listings and render the feed. If the fetch fails before any load
+     * has succeeded, [Listener.onError] fires and the feed still renders the
+     * schedule's ad rows (no listings); a later [load] / [refresh] that succeeds
+     * replaces them with the full feed.
+     */
     fun load() {
         val cfg = config ?: run {
             listener?.onError("SellwildFeedView.load() called before setup()")
@@ -251,6 +257,18 @@ open class SellwildFeedView @JvmOverloads constructor(
                 listener?.onFeedReady(listings.size)
             }.onFailure { t ->
                 refreshLayout.isRefreshing = false
+                // A listings failure must not take the ads down with it. Until a
+                // fetch has succeeded there are no listings, and the scheduler
+                // still emits the schedule's ad rows (G/D/B) with none — so
+                // build those, giving an ads-only feed instead of a bare header.
+                // `loadSucceeded` deliberately stays false (re-attach and
+                // pull-to-refresh keep retrying the fetch) and onLoad /
+                // onFeedReady don't fire; the next successful load rebuilds the
+                // rows with listings as usual. After a success we leave the
+                // rendered feed alone: a failed refresh keeps the last good rows.
+                // skipIfUnchanged: repeated failures (every re-attach retries)
+                // must not rebind — and so churn — the live ad rows.
+                if (!loadSucceeded) adapter.rebuild(skipIfUnchanged = true)
                 listener?.onError(t.message ?: "Failed to load listings")
             }
         }
@@ -380,7 +398,9 @@ open class SellwildFeedView @JvmOverloads constructor(
     // Row scheduler
     // -----------------------------------------------------------------
 
-    private sealed class Row {
+    // Internal (not private) only so the pure [SellwildFeedScheduler] and its
+    // JVM unit tests can name the rows.
+    internal sealed class Row {
         object Header : Row()
         data class Listing(val listing: SellwildListing) : Row()
         // Ad rows carry the resolved GPID value for their slot (base, or base#n
@@ -390,80 +410,8 @@ open class SellwildFeedView @JvmOverloads constructor(
         data class Banner(val zoneId: String, val gpid: String? = null) : Row()
     }
 
-    private fun buildRows(): List<Row> {
-        val cfg = config ?: return listOf(Row.Header)
-        val rows = mutableListOf<Row>(Row.Header)
-        val listingsIterator = listings.iterator()
-        val gamZones = cfg.mobileZids.toMutableList()
-        // First non-blank zone: the CDN can ship MOBILE_BANNER_ZID as "", which
-        // must not shadow the BANNER_ZID fallback.
-        val bannerZone = listOf(cfg.mobileBannerZid, cfg.bannerZid, cfg.bottomBannerZid)
-            .firstOrNull { !it.isNullOrBlank() }
-        var gamIdx = 0
-
-        // First pass: emit rows and, for each ad slot, resolve its GPID base (no
-        // suffix yet). Track the base per ad row and count how many ad slots
-        // share each base so the second pass knows whether to disambiguate.
-        val adRowIndices = mutableListOf<Int>()   // index into `rows` of each ad row
-        val adBases = mutableListOf<String?>()     // base per ad row, row order
-        val baseCounts = mutableMapOf<String, Int>()
-
-        fun addAdRow(zone: String, make: () -> Row) {
-            val base = SellwildGpid.resolveBase(cfg.remoteJson, zone)
-            if (base != null) baseCounts[base] = (baseCounts[base] ?: 0) + 1
-            adRowIndices.add(rows.size)
-            adBases.add(base)
-            rows.add(make())
-        }
-
-        for (token in schedule) {
-            when (token) {
-                'L' -> if (listingsIterator.hasNext()) {
-                    rows.add(Row.Listing(listingsIterator.next()))
-                }
-                'G' -> {
-                    val zone = pickZone(gamZones, gamIdx++)
-                    if (zone != null) addAdRow(zone) { Row.GamAd(zone) }
-                }
-                'D' -> {
-                    val zone = pickZone(gamZones, gamIdx++)
-                    if (zone != null) addAdRow(zone) { Row.DirectAd(zone) }
-                }
-                'B' -> {
-                    if (!bannerZone.isNullOrEmpty()) addAdRow(bannerZone) { Row.Banner(bannerZone) }
-                }
-                else -> { /* ignore unknown tokens for forward compat */ }
-            }
-        }
-
-        // Second pass: assign each ad slot's GPID. A base used by exactly one
-        // slot → base; a base used by k>1 slots → base#1, base#2, … in row order.
-        val seen = mutableMapOf<String, Int>()
-        for (i in adRowIndices.indices) {
-            val base = adBases[i] ?: continue
-            val gpid = if ((baseCounts[base] ?: 0) > 1) {
-                val n = (seen[base] ?: 0) + 1
-                seen[base] = n
-                "$base#$n"
-            } else {
-                base
-            }
-            val idx = adRowIndices[i]
-            rows[idx] = when (val r = rows[idx]) {
-                is Row.GamAd -> r.copy(gpid = gpid)
-                is Row.DirectAd -> r.copy(gpid = gpid)
-                is Row.Banner -> r.copy(gpid = gpid)
-                else -> r
-            }
-        }
-        return rows
-    }
-
-    private fun pickZone(zones: List<String>, idx: Int): String? {
-        if (zones.isEmpty()) return null
-        val z = zones[idx % zones.size]
-        return z.takeIf { it.isNotEmpty() }
-    }
+    private fun buildRows(): List<Row> =
+        SellwildFeedScheduler.buildRows(config, schedule, listings)
 
     /**
      * Pick a listing to house-backfill an ad slot with when no CMS house image
@@ -491,8 +439,15 @@ open class SellwildFeedView @JvmOverloads constructor(
         // cache / pool hold detached ones), so destroy() can reach them all.
         private val adRows = mutableSetOf<AdRowView>()
 
-        fun rebuild() {
-            rows = buildRows()
+        /**
+         * Recompute the rows from the schedule + current listings and rebind.
+         * [skipIfUnchanged] leaves the adapter untouched when the rows come out
+         * identical, so the live ad rows keep their ad views.
+         */
+        fun rebuild(skipIfUnchanged: Boolean = false) {
+            val next = buildRows()
+            if (skipIfUnchanged && next == rows) return
+            rows = next
             notifyDataSetChanged()
         }
 
@@ -982,5 +937,97 @@ open class SellwildFeedView @JvmOverloads constructor(
             if (value.isNullOrEmpty()) return fallback
             return runCatching { Color.parseColor(value) }.getOrDefault(fallback)
         }
+    }
+}
+
+/**
+ * The feed's row scheduler: turns the COL1 token string + listings + configured
+ * zones into the ordered rows the adapter renders. Pure (no Android classes),
+ * so it is unit-testable on the JVM.
+ *
+ * Listing tokens (`L`) are skipped once the listings run out, but ad tokens
+ * (`G` / `D` / `B`) always emit a row when a zone is configured — so with ZERO
+ * listings (the listings fetch failed, or returned none) the result is the
+ * header plus the schedule's ad rows.
+ */
+internal object SellwildFeedScheduler {
+
+    fun buildRows(
+        config: SellwildConfig?,
+        schedule: String,
+        listings: List<SellwildListing>,
+    ): List<Row> {
+        val cfg = config ?: return listOf(Row.Header)
+        val rows = mutableListOf<Row>(Row.Header)
+        val listingsIterator = listings.iterator()
+        val gamZones = cfg.mobileZids.toMutableList()
+        // First non-blank zone: the CDN can ship MOBILE_BANNER_ZID as "", which
+        // must not shadow the BANNER_ZID fallback.
+        val bannerZone = listOf(cfg.mobileBannerZid, cfg.bannerZid, cfg.bottomBannerZid)
+            .firstOrNull { !it.isNullOrBlank() }
+        var gamIdx = 0
+
+        // First pass: emit rows and, for each ad slot, resolve its GPID base (no
+        // suffix yet). Track the base per ad row and count how many ad slots
+        // share each base so the second pass knows whether to disambiguate.
+        val adRowIndices = mutableListOf<Int>()   // index into `rows` of each ad row
+        val adBases = mutableListOf<String?>()     // base per ad row, row order
+        val baseCounts = mutableMapOf<String, Int>()
+
+        fun addAdRow(zone: String, make: () -> Row) {
+            val base = SellwildGpid.resolveBase(cfg.remoteJson, zone)
+            if (base != null) baseCounts[base] = (baseCounts[base] ?: 0) + 1
+            adRowIndices.add(rows.size)
+            adBases.add(base)
+            rows.add(make())
+        }
+
+        for (token in schedule) {
+            when (token) {
+                'L' -> if (listingsIterator.hasNext()) {
+                    rows.add(Row.Listing(listingsIterator.next()))
+                }
+                'G' -> {
+                    val zone = pickZone(gamZones, gamIdx++)
+                    if (zone != null) addAdRow(zone) { Row.GamAd(zone) }
+                }
+                'D' -> {
+                    val zone = pickZone(gamZones, gamIdx++)
+                    if (zone != null) addAdRow(zone) { Row.DirectAd(zone) }
+                }
+                'B' -> {
+                    if (!bannerZone.isNullOrEmpty()) addAdRow(bannerZone) { Row.Banner(bannerZone) }
+                }
+                else -> { /* ignore unknown tokens for forward compat */ }
+            }
+        }
+
+        // Second pass: assign each ad slot's GPID. A base used by exactly one
+        // slot → base; a base used by k>1 slots → base#1, base#2, … in row order.
+        val seen = mutableMapOf<String, Int>()
+        for (i in adRowIndices.indices) {
+            val base = adBases[i] ?: continue
+            val gpid = if ((baseCounts[base] ?: 0) > 1) {
+                val n = (seen[base] ?: 0) + 1
+                seen[base] = n
+                "$base#$n"
+            } else {
+                base
+            }
+            val idx = adRowIndices[i]
+            rows[idx] = when (val r = rows[idx]) {
+                is Row.GamAd -> r.copy(gpid = gpid)
+                is Row.DirectAd -> r.copy(gpid = gpid)
+                is Row.Banner -> r.copy(gpid = gpid)
+                else -> r
+            }
+        }
+        return rows
+    }
+
+    private fun pickZone(zones: List<String>, idx: Int): String? {
+        if (zones.isEmpty()) return null
+        val z = zones[idx % zones.size]
+        return z.takeIf { it.isNotEmpty() }
     }
 }
