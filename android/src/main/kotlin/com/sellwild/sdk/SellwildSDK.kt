@@ -52,7 +52,7 @@ object SellwildSDK {
      * the config-fetch User-Agent beacon. Keep in lockstep with the
      * `build.gradle.kts` version and the other platforms' version constants.
      */
-    const val SDK_VERSION = "1.8.1"
+    const val SDK_VERSION = "1.9.0"
 
     /**
      * HTTP statuses that mean "this config was removed". The CDN answers 403

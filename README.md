@@ -157,7 +157,7 @@ struct ContentView: View {
 Add to `build.gradle.kts`:
 ```kotlin
 dependencies {
-    implementation("com.sellwild:sdk:1.8.1")
+    implementation("com.sellwild:sdk:1.9.0")
 }
 ```
 
