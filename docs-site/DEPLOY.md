@@ -120,7 +120,7 @@ aws cloudfront create-invalidation --distribution-id E16P8KJDWTNW2W --paths "/*"
 | ACM Certificate | `arn:aws:acm:us-east-1:457870823482:certificate/689f47f8-081d-423b-a427-f6c454e4d4c6` |
 | Route53 Zone | `Z3G3982AWLHGHP` (sellwild.com) |
 | DNS | `maven.sellwild.com` CNAME → CloudFront |
-| Maven Coordinates | `com.sellwild:sdk:<version>` (latest: 1.8.1) |
+| Maven Coordinates | `com.sellwild:sdk:<version>` (latest: 1.9.0) |
 | Also hosted | `com.sellwild:PrebidMobile-*` / `omsdk-android` (Prebid fork), `com.boltive:boltive-sdk` (Boltive mirror) |
 
 ---
